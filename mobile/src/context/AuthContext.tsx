@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService } from '../services/api.service';
+import cometChatService from '../services/cometchat.service';
 
 type User = {
   id: string;
@@ -32,13 +33,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStoredAuth = async () => {
     try {
+      await cometChatService.init();
+      
       const storedToken = await AsyncStorage.getItem('authToken');
       const storedUser = await AsyncStorage.getItem('user');
       
       if (storedToken && storedUser) {
+        const parsedUser = JSON.parse(storedUser);
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        setUser(parsedUser);
         apiService.setToken(storedToken);
+        
+        try {
+          await cometChatService.loginUser(parsedUser.id, parsedUser.name);
+        } catch (e) {
+          console.log('CometChat login error:', e);
+        }
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -54,6 +64,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
+    
+    try {
+      await cometChatService.loginUser(response.user.id, response.user.name);
+    } catch (e) {
+      console.log('CometChat login error:', e);
+    }
   };
 
   const signup = async (name: string, email: string, password: string, interests: string[]) => {
@@ -63,9 +79,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
+    
+    try {
+      await cometChatService.loginUser(response.user.id, response.user.name);
+    } catch (e) {
+      console.log('CometChat login error:', e);
+    }
   };
 
   const logout = async () => {
+    try {
+      await cometChatService.logoutUser();
+    } catch (e) {
+      console.log('CometChat logout error:', e);
+    }
     await AsyncStorage.removeItem('authToken');
     await AsyncStorage.removeItem('user');
     setToken(null);
