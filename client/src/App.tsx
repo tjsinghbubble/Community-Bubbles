@@ -10,6 +10,7 @@ import Explore from "./pages/explore";
 import CreateBubble from "./pages/create-bubble";
 import BubbleDetails from "./pages/bubble-details";
 import Messages from "./pages/messages";
+import MyBubbles from "./pages/my-bubbles";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/explore" component={Explore} />
       <Route path="/create" component={CreateBubble} />
       <Route path="/bubble/:id" component={BubbleDetails} />
+      <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
       <Route component={NotFound} />

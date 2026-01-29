@@ -262,8 +262,9 @@ export default function Explore() {
           }
         })()}
         onSelect={(id) => {
-          if (id === "explore") return;
+          if (id === "explore") return navigate("/explore");
           if (id === "messages") return navigate("/messages");
+          if (id === "bubbles") return navigate("/my-bubbles");
           return;
         }}
       />

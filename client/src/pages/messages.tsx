@@ -1117,8 +1117,9 @@ export default function Messages() {
         active="messages"
         unreadTotal={unreadTotal}
         onSelect={(id) => {
-          if (id === "explore") navigate("/explore");
+          if (id === "explore") return navigate("/explore");
           if (id === "messages") return;
+          if (id === "bubbles") return navigate("/my-bubbles");
           setToastText(`${id} coming soon`);
           window.setTimeout(() => setToastText(null), 1200);
         }}
