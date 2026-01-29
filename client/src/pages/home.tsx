@@ -183,7 +183,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="leading-tight">
               <div className="font-display text-base font-semibold tracking-tight">
-                Bubbles
+                Bubble
               </div>
               <div className="text-xs text-muted-foreground" data-testid="text-tagline">
                 Communities, photos, events, chat

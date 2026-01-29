@@ -68,34 +68,34 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
 
-  /* Bubble: Soft Pop / airy glass */
-  --background: 228 35% 98%;
-  --foreground: 228 28% 12%;
+  /* Bubble: iOS/Android clean blue */
+  --background: 210 40% 98%;
+  --foreground: 220 25% 12%;
 
   --surface: 0 0% 100%;
-  --surface-foreground: 228 28% 12%;
-  --surface-border: 228 20% 90%;
+  --surface-foreground: 220 25% 12%;
+  --surface-border: 220 16% 90%;
 
   --card: 0 0% 100%;
-  --card-foreground: 228 28% 12%;
+  --card-foreground: 220 25% 12%;
   --popover: 0 0% 100%;
-  --popover-foreground: 228 28% 12%;
+  --popover-foreground: 220 25% 12%;
 
-  --border: 228 18% 88%;
-  --input: 228 16% 84%;
-  --ring: 262 83% 62%;
+  --border: 220 14% 88%;
+  --input: 220 14% 84%;
+  --ring: 210 95% 55%;
 
-  --primary: 262 83% 62%;
+  --primary: 210 95% 55%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 228 22% 94%;
-  --secondary-foreground: 228 28% 18%;
+  --secondary: 220 22% 95%;
+  --secondary-foreground: 220 25% 18%;
 
-  --muted: 228 22% 94%;
-  --muted-foreground: 228 12% 45%;
+  --muted: 220 22% 95%;
+  --muted-foreground: 220 10% 45%;
 
-  --accent: 190 95% 50%;
-  --accent-foreground: 228 28% 12%;
+  --accent: 198 95% 55%;
+  --accent-foreground: 220 25% 12%;
 
   --destructive: 0 84% 58%;
   --destructive-foreground: 0 0% 100%;
@@ -107,16 +107,16 @@
   --chart-5: 316 75% 60%;
 
   --sidebar: 0 0% 100%;
-  --sidebar-foreground: 228 28% 12%;
-  --sidebar-border: 228 18% 88%;
-  --sidebar-primary: 262 83% 62%;
+  --sidebar-foreground: 220 25% 12%;
+  --sidebar-border: 220 14% 88%;
+  --sidebar-primary: 210 95% 55%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 228 22% 94%;
-  --sidebar-accent-foreground: 228 28% 18%;
-  --sidebar-ring: 262 83% 62%;
+  --sidebar-accent: 220 22% 95%;
+  --sidebar-accent-foreground: 220 25% 18%;
+  --sidebar-ring: 210 95% 55%;
 
-  --brand-2: 190 95% 50%;
-  --brand-3: 30 95% 55%;
+  --brand-2: 198 95% 55%;
+  --brand-3: 223 85% 60%;
 
   --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
@@ -134,24 +134,24 @@
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.08);
 
-  --background: 228 25% 7%;
-  --foreground: 228 20% 96%;
+  --background: 220 26% 8%;
+  --foreground: 210 20% 96%;
 
-  --surface: 228 22% 10%;
-  --surface-foreground: 228 20% 96%;
-  --surface-border: 228 16% 18%;
+  --surface: 220 22% 10%;
+  --surface-foreground: 210 20% 96%;
+  --surface-border: 220 16% 18%;
 
-  --card: 228 22% 10%;
-  --card-foreground: 228 20% 96%;
-  --popover: 228 22% 10%;
-  --popover-foreground: 228 20% 96%;
+  --card: 220 22% 10%;
+  --card-foreground: 210 20% 96%;
+  --popover: 220 22% 10%;
+  --popover-foreground: 210 20% 96%;
 
   --border: 228 16% 18%;
   --input: 228 16% 22%;
-  --ring: 262 83% 68%;
+  --ring: 210 95% 62%;
 
-  --primary: 262 83% 68%;
-  --primary-foreground: 228 25% 8%;
+  --primary: 210 95% 62%;
+  --primary-foreground: 220 26% 8%;
 
   --secondary: 228 16% 14%;
   --secondary-foreground: 228 20% 96%;
@@ -159,8 +159,8 @@
   --muted: 228 16% 14%;
   --muted-foreground: 228 10% 68%;
 
-  --accent: 190 95% 55%;
-  --accent-foreground: 228 25% 8%;
+  --accent: 198 95% 60%;
+  --accent-foreground: 220 26% 8%;
 
   --destructive: 0 84% 62%;
   --destructive-foreground: 228 25% 8%;
@@ -171,17 +171,17 @@
   --chart-4: 146 75% 55%;
   --chart-5: 316 75% 70%;
 
-  --sidebar: 228 22% 10%;
-  --sidebar-foreground: 228 20% 96%;
-  --sidebar-border: 228 16% 18%;
-  --sidebar-primary: 262 83% 68%;
-  --sidebar-primary-foreground: 228 25% 8%;
-  --sidebar-accent: 228 16% 14%;
-  --sidebar-accent-foreground: 228 20% 96%;
-  --sidebar-ring: 262 83% 68%;
+  --sidebar: 220 22% 10%;
+  --sidebar-foreground: 210 20% 96%;
+  --sidebar-border: 220 16% 18%;
+  --sidebar-primary: 210 95% 62%;
+  --sidebar-primary-foreground: 220 26% 8%;
+  --sidebar-accent: 220 16% 14%;
+  --sidebar-accent-foreground: 210 20% 96%;
+  --sidebar-ring: 210 95% 62%;
 
-  --brand-2: 190 95% 55%;
-  --brand-3: 30 95% 62%;
+  --brand-2: 198 95% 60%;
+  --brand-3: 223 85% 66%;
 }
 
 @layer base {
