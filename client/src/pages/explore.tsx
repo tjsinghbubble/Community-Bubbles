@@ -85,9 +85,10 @@ function Chip({ label }: { label: string }) {
   );
 }
 
-function BubbleCard({ item }: { item: BubbleCardItem }) {
+function BubbleCard({ item, onOpen }: { item: BubbleCardItem; onOpen: (id: string) => void }) {
   return (
     <button
+      onClick={() => onOpen(item.id)}
       className="w-full text-left"
       data-testid={`card-bubble-${item.id}`}
     >
@@ -218,7 +219,7 @@ export default function Explore() {
           data-testid="grid-explore"
         >
           {list.map((b) => (
-            <BubbleCard key={b.id} item={b} />
+            <BubbleCard key={b.id} item={b} onOpen={(id) => navigate(`/bubble/${id}`)} />
           ))}
         </motion.div>
 
