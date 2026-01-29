@@ -9,6 +9,8 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import apiService from '../../services/api.service';
@@ -141,6 +143,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loading: {
     flex: 1,
