@@ -294,6 +294,139 @@ function PrimaryAction({
   );
 }
 
+function JoinBubbleSheet({
+  bubble,
+  onClose,
+  onJoin,
+}: {
+  bubble: Bubble;
+  onClose: () => void;
+  onJoin: () => void;
+}) {
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>({});
+
+  const allConfirmed = useMemo(() => {
+    return bubble.rules.every((_, idx) => Boolean(confirmed[String(idx)]));
+  }, [bubble.rules, confirmed]);
+
+  return (
+    <div className="min-h-dvh bg-black/40 text-foreground">
+      <div className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-end">
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 30, opacity: 0 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="relative rounded-t-[28px] bg-background px-5 pb-6 pt-4 shadow-[0_-20px_60px_rgba(0,0,0,0.18)]"
+          data-testid="sheet-join"
+        >
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-black/10" />
+
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 ring-1 ring-black/5"
+            data-testid="button-join-close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="text-center">
+            <div className="font-display text-[22px] font-semibold leading-tight" data-testid="text-join-title">
+              Welcome to {bubble.title}
+            </div>
+            <div className="mt-1 text-[12px] font-semibold text-muted-foreground" data-testid="text-join-category">
+              {bubble.category}
+            </div>
+          </div>
+
+          <div className="mt-5 border-t border-black/10 pt-4">
+            <div className="text-[13px] font-semibold" data-testid="text-rules-title">
+              Bubble Rules
+            </div>
+            <div className="mt-1 text-[12px] text-muted-foreground" data-testid="text-rules-subtitle">
+              Tap each rule to confirm
+            </div>
+
+            <div className="mt-4 space-y-3" data-testid="list-rules">
+              {bubble.rules.map((rule, idx) => {
+                const key = String(idx);
+                const isOn = Boolean(confirmed[key]);
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setConfirmed((p) => ({ ...p, [key]: !p[key] }))}
+                    className="flex w-full items-start gap-3 rounded-2xl bg-white/55 px-3 py-3 ring-1 ring-black/5"
+                    data-testid={`rule-${idx}`}
+                  >
+                    <div
+                      className={cn(
+                        "mt-0.5 grid h-7 w-7 flex-none place-items-center rounded-lg",
+                        isOn ? "bg-emerald-500" : "bg-black/10",
+                      )}
+                      data-testid={`rule-check-${idx}`}
+                    >
+                      {isOn ? <Check className="h-4 w-4 text-white" /> : null}
+                    </div>
+                    <div className="min-w-0 text-left text-[13px] leading-snug text-foreground/90" data-testid={`rule-text-${idx}`}>
+                      {rule}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 border-t border-black/10 pt-4">
+            <div className="text-[13px] font-semibold" data-testid="text-next-steps-title">
+              Next Steps
+            </div>
+
+            <div className="mt-3 space-y-3" data-testid="list-next-steps">
+              <div className="flex items-start gap-3" data-testid="step-introduce">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary))]">
+                  <MessageSquare className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold">Introduce Yourself</div>
+                  <div className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                    Say hi in the group chat — everyone’s friendly.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3" data-testid="step-rsvp">
+                <div className="grid h-9 w-9 place-items-center rounded-full bg-[hsl(var(--brand-2))]/12 text-[hsl(var(--brand-2))]">
+                  <span className="text-[16px] font-bold" aria-hidden>
+                    ◎
+                  </span>
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold">RSVP to an Upcoming Event</div>
+                  <div className="mt-1 text-[12px] leading-snug text-muted-foreground" data-testid="text-next-event">
+                    Next event: Smash Social — Today at 6:00 PM
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <Button
+              disabled={!allConfirmed}
+              onClick={onJoin}
+              className="h-12 w-full rounded-full text-[14px] font-semibold shadow-[0_18px_55px_hsl(var(--primary)/0.30)] disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+              data-testid="button-join-letsgo"
+            >
+              Let’s go
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
 function MembersScreen({ onBack }: { onBack: () => void }) {
   const admins = membersSeed.filter((m) => m.role === "admin");
   const participants = membersSeed.filter((m) => m.role === "participant");
@@ -392,6 +525,14 @@ export default function BubbleDetails() {
 
   const bubble = bubbleSeed[id] ?? bubbleSeed["sf-pickleball"];
 
+  const joinKey = `bubble:joined:${bubble.id}`;
+  const joined = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(joinKey) === "1";
+  }, [joinKey]);
+
+  bubble.isActiveMember = bubble.isActiveMember || joined;
+
   if (view === "members") {
     return <MembersScreen onBack={() => setView("bubble")} />;
   }
@@ -402,6 +543,7 @@ export default function BubbleDetails() {
         bubble={bubble}
         onClose={() => setView("bubble")}
         onJoin={() => {
+          window.localStorage.setItem(joinKey, "1");
           bubble.isActiveMember = true;
           setView("bubble");
         }}
@@ -495,9 +637,23 @@ export default function BubbleDetails() {
             </div>
 
             <div className="mt-5 space-y-3">
-              <PrimaryAction label="Contact" tone="neutral" />
-              <PrimaryAction label="More" tone="neutral" />
-              <PrimaryAction label="Leave Bubble" tone="danger" />
+              {bubble.isActiveMember ? (
+                <>
+                  <PrimaryAction label="Contact" tone="neutral" testId="button-contact" />
+                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
+                  <PrimaryAction label="Leave Bubble" tone="danger" testId="button-leave-bubble" />
+                </>
+              ) : (
+                <>
+                  <PrimaryAction
+                    label="Join Bubble"
+                    tone="primary"
+                    onClick={() => setView("join")}
+                    testId="button-join-bubble"
+                  />
+                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
+                </>
+              )}
             </div>
           </>
         ) : (
