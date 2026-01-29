@@ -1,11 +1,13 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import SignupScreen from '../screens/auth/SignupScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
 import InterestsScreen from '../screens/auth/InterestsScreen';
 import GuidelinesScreen from '../screens/auth/GuidelinesScreen';
 
 export type AuthStackParamList = {
   Signup: undefined;
+  Login: undefined;
   Interests: { name: string; email: string; password: string };
   Guidelines: { name: string; email: string; password: string; interests: string[] };
 };
@@ -22,6 +24,7 @@ export default function AuthNavigator() {
       initialRouteName="Signup"
     >
       <Stack.Screen name="Signup" component={SignupScreen} />
+      <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Interests" component={InterestsScreen} />
       <Stack.Screen name="Guidelines" component={GuidelinesScreen} />
     </Stack.Navigator>

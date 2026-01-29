@@ -8,26 +8,33 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { useAuth } from '../../context/AuthContext';
 
 type Props = {
-  navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
+  navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 };
 
-export default function SignupScreen({ navigation }: Props) {
-  const [name, setName] = useState('');
+export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
 
-  const handleContinue = () => {
-    if (name && email && password) {
-      navigation.navigate('Interests', { 
-        name,
-        email,
-        password,
-      });
+  const handleLogin = async () => {
+    if (!email || !password) return;
+    
+    setIsLoading(true);
+    try {
+      await login(email, password);
+    } catch (error: any) {
+      Alert.alert('Login Failed', error.message || 'Invalid email or password');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -38,33 +45,24 @@ export default function SignupScreen({ navigation }: Props) {
         style={styles.content}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to Bubble</Text>
+          <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>
-            Build your local community
+            Sign in to your account
           </Text>
         </View>
 
         <View style={styles.form}>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
+              placeholderTextColor="#999"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
@@ -72,7 +70,8 @@ export default function SignupScreen({ navigation }: Props) {
             <Text style={styles.label}>Password</Text>
             <TextInput
               style={styles.input}
-              placeholder="Create a password"
+              placeholder="Enter your password"
+              placeholderTextColor="#999"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -82,19 +81,23 @@ export default function SignupScreen({ navigation }: Props) {
           <TouchableOpacity
             style={[
               styles.button,
-              (!name || !email || !password) && styles.buttonDisabled,
+              (!email || !password || isLoading) && styles.buttonDisabled,
             ]}
-            onPress={handleContinue}
-            disabled={!name || !email || !password}
+            onPress={handleLogin}
+            disabled={!email || !password || isLoading}
           >
-            <Text style={styles.buttonText}>Continue</Text>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In</Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-            <Text style={styles.footerLink}>Sign In</Text>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <Text style={styles.footerLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -143,6 +146,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     backgroundColor: '#f9f9f9',
+    color: '#000',
   },
   button: {
     backgroundColor: 'hsl(210, 95%, 55%)',
