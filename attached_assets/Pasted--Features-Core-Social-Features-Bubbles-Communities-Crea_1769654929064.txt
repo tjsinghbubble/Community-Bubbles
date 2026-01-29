@@ -1,0 +1,44 @@
+## Features
+
+### Core Social Features
+
+- **🫧 Bubbles (Communities)**: Create and join interest-based groups
+- **📸 Photo sharing**: Share moments with captions
+- **👥 User profiles**: Customizable profiles with authentication
+- **💬 Real-time messaging**: Direct and group chats with file attachments
+- **🔔 Real-time updates**: Live notifications and activity feeds
+
+### Community & Events
+
+- **🎯 Interest-based communities**: Sports, music, arts, food, tech, fitness, outdoor, gaming
+- **📅 Event organization**: Create and manage bubble events
+- **🔍 Discovery feed**: Find nearby bubbles and events
+- **👪 Member management**: Invite-only or open membership with role-based permissions
+- **🔒 Privacy controls**: Public, private, invite-only, and hidden visibility options
+
+### Messaging Features
+
+- **💬 Direct messaging**: One-on-one conversations with real-time delivery
+- **👥 Group chat**: Create and manage group conversations
+- **📎 File attachments**: Share images and files in messages
+- **💬 Message reactions**: React to messages with emoji
+- **✏️ Message editing**: Edit your sent messages
+- **🗑️ Message deletion**: Delete your messages (soft delete)
+- **↩️ Message replies**: Reply to specific messages with threading
+- **➡️ Message forwarding**: Forward messages to other conversations
+- **🚩 Message reporting**: Report inappropriate messages
+- **👀 Read receipts**: Track message read status
+- **⌨️ Typing indicators**: See when others are typing
+- **🔍 Message search**: Full-text search within conversations
+- **📌 Conversation settings**: Pin, mute, and archive conversations
+
+### Technical Features
+
+- **📱 Camera integration**: In-app photo capture
+- **🖼️ Image optimization**: Automatic compression and resizing
+- **🔔 Push notifications**: Real-time alerts for events and messages
+- **🌙 Dark mode support**: System-aware theme switching
+- **🔒 Secure Google Maps integration**: API key protected via Edge Function
+- **📍 Location-based discovery**: Find communities and events near you
+- **🚗 Dual-location support**: Separate meetup and parking locations for events
+- **⚡ Real-time subscriptions**: Live updates via Supabase Realtime
