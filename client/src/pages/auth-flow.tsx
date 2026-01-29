@@ -14,6 +14,16 @@ import {
 import mosaicImg from "@/assets/images/bubble-mosaic.png";
 import gradientImg from "@/assets/images/bubble-blue-gradient.png";
 
+import interestRunning from "@/assets/images/interest-running.jpg";
+import interestCooking from "@/assets/images/interest-cooking.jpg";
+import interestCoffee from "@/assets/images/interest-coffee.jpg";
+import interestGardening from "@/assets/images/interest-gardening.jpg";
+import interestHiking from "@/assets/images/interest-hiking.jpg";
+import interestTennis from "@/assets/images/interest-tennis.jpg";
+import interestBiking from "@/assets/images/interest-biking.jpg";
+import interestPets from "@/assets/images/interest-pets.jpg";
+import interestCrafts from "@/assets/images/interest-crafts.jpg";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,7 +35,14 @@ import {
 } from "@/components/ui/input-otp";
 import { cn } from "@/lib/utils";
 
-const screens = ["welcome", "details", "verify", "verifyFilled"] as const;
+const screens = [
+  "welcome",
+  "details",
+  "verify",
+  "verifyFilled",
+  "interests",
+  "guidelines",
+] as const;
 type Screen = (typeof screens)[number];
 
 type AccountDetails = {
@@ -73,7 +90,7 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
         <div className="hidden lg:block">
           <div className="max-w-xl">
             <h1 className="font-display text-3xl font-semibold tracking-tight">
-              Bubble 9 Signup Flow
+              Bubble Signup Flow
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Web-based prototype styled like a native iOS/Android app.
@@ -335,7 +352,7 @@ function AccountDetailsScreen({
                   Account details
                 </div>
                 <div className="text-sm text-muted-foreground" data-testid="text-details-subtitle">
-                  Keep the community safe 18+ only.
+                  Keep the community safe — 18+ only.
                 </div>
               </div>
             </div>
@@ -382,7 +399,7 @@ function AccountDetailsScreen({
 
               <Field
                 label="Email"
-                hint="Well email you occasional updates about your communities."
+                hint="We’ll email you occasional updates about your communities."
                 testId="email"
               >
                 <Input
@@ -408,6 +425,259 @@ function AccountDetailsScreen({
             </div>
           </div>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function InterestTile({
+  id,
+  title,
+  image,
+  selected,
+  onToggle,
+}: {
+  id: string;
+  title: string;
+  image: string;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className={cn(
+        "group relative overflow-hidden rounded-[18px] border bg-white/40 text-left",
+        "shadow-[0_12px_40px_hsl(var(--foreground)/0.10)]",
+        selected
+          ? "border-[hsl(var(--primary))]/70 ring-2 ring-[hsl(var(--primary))]/45"
+          : "border-white/40",
+      )}
+      data-testid={`tile-interest-${id}`}
+    >
+      <div className="relative aspect-square">
+        <img
+          src={image}
+          alt=""
+          className="h-full w-full object-cover"
+          data-testid={`img-interest-${id}`}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+        <div className="absolute right-2 top-2">
+          <div
+            className={cn(
+              "grid h-6 w-6 place-items-center rounded-full backdrop-blur",
+              selected
+                ? "bg-[hsl(var(--primary))] text-white"
+                : "bg-white/60 text-transparent",
+            )}
+            data-testid={`badge-interest-check-${id}`}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </div>
+        </div>
+        <div className="absolute bottom-2 left-2 right-2">
+          <div
+            className="text-[12px] font-semibold text-white drop-shadow"
+            data-testid={`text-interest-${id}`}
+          >
+            {title}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function InterestsScreen({
+  selected,
+  onToggle,
+  onNext,
+}: {
+  selected: string[];
+  onToggle: (id: string) => void;
+  onNext: () => void;
+}) {
+  const min = 3;
+  const remaining = Math.max(0, min - selected.length);
+  const canNext = remaining === 0;
+
+  const interests = [
+    { id: "running", title: "Running", image: interestRunning },
+    { id: "cooking", title: "Cooking", image: interestCooking },
+    { id: "coffee", title: "Coffee Meets", image: interestCoffee },
+    { id: "gardening", title: "Gardening", image: interestGardening },
+    { id: "hiking", title: "Hiking", image: interestHiking },
+    { id: "tennis", title: "Tennis", image: interestTennis },
+    { id: "biking", title: "Biking", image: interestBiking },
+    { id: "pets", title: "Pets", image: interestPets },
+    { id: "crafts", title: "Arts & Crafts", image: interestCrafts },
+  ];
+
+  return (
+    <div
+      className="min-h-[760px]"
+      style={{
+        backgroundImage: `url(${gradientImg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <TopBar title="Tell us your interests" onBack={() => {}} />
+
+      <div className="px-5 pb-28">
+        <div className="mt-1 text-center text-sm text-muted-foreground" data-testid="text-interests-subtitle">
+          Select at least {min} to continue
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-3" data-testid="grid-interests">
+          {interests.map((it) => (
+            <InterestTile
+              key={it.id}
+              id={it.id}
+              title={it.title}
+              image={it.image}
+              selected={selected.includes(it.id)}
+              onToggle={() => onToggle(it.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-center">
+        <div className="pointer-events-auto w-full max-w-[420px] px-6 pb-7">
+          <GradientButton
+            onClick={onNext}
+            disabled={!canNext}
+            className={cn(
+              "disabled:opacity-60",
+              !canNext && "bg-none",
+            )}
+            style={
+              !canNext
+                ? {
+                    background:
+                      "linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,.28))",
+                  }
+                : undefined
+            }
+            data-testid="button-interests-next"
+          >
+            {canNext ? "Next" : `Select ${remaining} more`}
+          </GradientButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuidelinesCard({
+  title,
+  body,
+  testId,
+}: {
+  title: string;
+  body: React.ReactNode;
+  testId: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white/60 p-4 ring-1 ring-black/5" data-testid={`card-guideline-${testId}`}>
+      <div className="text-sm font-semibold text-foreground" data-testid={`text-guideline-title-${testId}`}>
+        {title}
+      </div>
+      <div className="mt-1 text-sm leading-relaxed text-muted-foreground" data-testid={`text-guideline-body-${testId}`}>
+        {body}
+      </div>
+    </div>
+  );
+}
+
+function GuidelinesScreen({ onAgree }: { onAgree: () => void }) {
+  return (
+    <div
+      className="min-h-[760px]"
+      style={{
+        backgroundImage: `url(${gradientImg})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <TopBar title="Our Community Guidelines" onBack={() => {}} />
+
+      <div className="px-5 pb-28">
+        <h2 className="mt-2 font-display text-xl font-semibold tracking-tight" data-testid="text-guidelines-heading">
+          Let’s Keep This Space Safe
+        </h2>
+
+        <div className="mt-5 grid gap-3" data-testid="list-guidelines">
+          <GuidelinesCard
+            title="Be Kind"
+            body="No bullying, harassment, or hateful behavior."
+            testId="kind"
+          />
+          <GuidelinesCard
+            title="Respect Privacy"
+            body="Don’t share anyone’s personal info, screenshots, or messages without permission."
+            testId="privacy"
+          />
+          <GuidelinesCard
+            title="Keep It Safe"
+            body="No threats, dangerous behavior, or anything that could harm others."
+            testId="safe"
+          />
+          <GuidelinesCard
+            title="No Scams or Spam"
+            body="No fraud, promotions, or unwanted selling unless the Bubble allows it."
+            testId="spam"
+          />
+          <GuidelinesCard
+            title="Keep Content Appropriate"
+            body={
+              <ul className="ml-4 list-disc space-y-1">
+                <li>No graphic violence or gore</li>
+                <li>No illegal content or promotion of illegal activities</li>
+                <li>No misinformation intended to deceive or harm others</li>
+              </ul>
+            }
+            testId="content"
+          />
+          <GuidelinesCard
+            title="Show Up"
+            body="Honor your commitments, whether you’re hosting or attending."
+            testId="showup"
+          />
+
+          <div
+            className="rounded-2xl border border-[hsl(var(--primary))]/25 bg-white/70 p-4 text-sm text-muted-foreground"
+            data-testid="card-guidelines-warning"
+          >
+            <div className="font-semibold text-foreground" data-testid="text-warning-title">
+              Please Keep In Mind
+            </div>
+            <div className="mt-1" data-testid="text-warning-body">
+              Violations of these guidelines will result in warnings. Continued violations may lead to removal from Bubbles or account termination.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-center">
+        <div className="pointer-events-auto w-full max-w-[420px] px-6 pb-7">
+          <GradientButton onClick={onAgree} data-testid="button-guidelines-agree">
+            I Agree
+          </GradientButton>
+        </div>
       </div>
     </div>
   );
@@ -493,7 +763,7 @@ function EmailVerificationScreen({
           className="mt-6 text-center text-xs text-muted-foreground"
           data-testid="text-verify-footer"
         >
-          Didnt get an email? Check spam or try again.
+          Didn’t get an email? Check spam or try again.
         </div>
       </div>
     </div>
@@ -509,6 +779,8 @@ export default function AuthFlow() {
     email: "",
   });
   const [otp, setOtp] = useState("");
+
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
 
   const stepIndex = useMemo(() => screens.indexOf(screen), [screen]);
 
@@ -613,8 +885,60 @@ export default function AuthFlow() {
                 filled={true}
                 otp={"462416"}
                 onOTPChange={() => {}}
-                onVerify={() => {}}
+                onVerify={() => setScreen("interests")}
               />
+            </motion.div>
+          ) : null}
+
+          {screen === "interests" ? (
+            <motion.div
+              key="interests"
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -18 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+            >
+              <div className="absolute left-3 top-3 z-20">
+                <button
+                  onClick={() => setScreen("verifyFilled")}
+                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
+                  data-testid="button-interests-back"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              </div>
+
+              <InterestsScreen
+                selected={selectedInterests}
+                onToggle={(id) =>
+                  setSelectedInterests((prev) =>
+                    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                  )
+                }
+                onNext={() => setScreen("guidelines")}
+              />
+            </motion.div>
+          ) : null}
+
+          {screen === "guidelines" ? (
+            <motion.div
+              key="guidelines"
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -18 }}
+              transition={{ duration: 0.28, ease: "easeOut" }}
+            >
+              <div className="absolute left-3 top-3 z-20">
+                <button
+                  onClick={() => setScreen("interests")}
+                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
+                  data-testid="button-guidelines-back"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              </div>
+
+              <GuidelinesScreen onAgree={() => setScreen("welcome")} />
             </motion.div>
           ) : null}
         </AnimatePresence>
