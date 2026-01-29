@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { Bell, ListFilter, MapPin, Plus, Clock } from "lucide-react";
 
@@ -170,6 +171,7 @@ function BottomNav({ active }: { active: "explore" | "upcoming" | "bubbles" | "m
 }
 
 export default function Explore() {
+  const [, navigate] = useLocation();
   const [city] = useState("San Francisco");
 
   const list = useMemo(() => bubbles, []);
@@ -221,6 +223,7 @@ export default function Explore() {
         </motion.div>
 
         <button
+          onClick={() => navigate("/create")}
           className="fixed bottom-24 right-6 grid h-14 w-14 place-items-center rounded-full text-white shadow-[0_18px_50px_hsl(var(--primary)/0.38)]"
           style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
           data-testid="button-fab-create"

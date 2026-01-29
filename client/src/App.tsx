@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "./pages/home";
 import AuthFlow from "./pages/auth-flow";
 import Explore from "./pages/explore";
+import CreateBubble from "./pages/create-bubble";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthFlow} />
       <Route path="/explore" component={Explore} />
+      <Route path="/create" component={CreateBubble} />
       <Route component={NotFound} />
     </Switch>
   );
