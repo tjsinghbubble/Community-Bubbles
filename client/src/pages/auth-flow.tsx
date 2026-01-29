@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Bell,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  ListFilter,
   Lock,
   Mail,
+  MapPin,
+  Plus,
   Shield,
   Sparkles,
 } from "lucide-react";
@@ -42,6 +47,7 @@ const screens = [
   "verifyFilled",
   "interests",
   "guidelines",
+  "explore",
 ] as const;
 type Screen = (typeof screens)[number];
 
@@ -683,6 +689,196 @@ function GuidelinesScreen({ onAgree }: { onAgree: () => void }) {
   );
 }
 
+type ExploreItem = {
+  id: string;
+  category: string;
+  title: string;
+  time: string;
+  miles: string;
+  tint: string;
+};
+
+const exploreSeed: ExploreItem[] = [
+  {
+    id: "sf-pickleball",
+    category: "Sports",
+    title: "SF Pickleball Crew",
+    time: "6:00 PM",
+    miles: "9.7 miles",
+    tint: "linear-gradient(135deg, hsl(var(--primary) / .18), hsl(var(--brand-2) / .10))",
+  },
+  {
+    id: "mindful-mamas",
+    category: "Wellness",
+    title: "Mindful Mamas",
+    time: "1:00 PM",
+    miles: "8.2 miles",
+    tint: "linear-gradient(135deg, hsl(var(--brand-2) / .18), hsl(var(--brand-3) / .10))",
+  },
+  {
+    id: "bark-dogpatch",
+    category: "Animals",
+    title: "Bark at Dogpatch",
+    time: "3:30 PM",
+    miles: "9.1 miles",
+    tint: "linear-gradient(135deg, hsl(var(--brand-3) / .16), hsl(var(--primary) / .08))",
+  },
+  {
+    id: "marina-meetup",
+    category: "Neighborhood",
+    title: "Marina Meetup",
+    time: "5:15 PM",
+    miles: "6.5 miles",
+    tint: "linear-gradient(135deg, hsl(var(--primary) / .14), hsl(var(--brand-2) / .10))",
+  },
+  {
+    id: "park-picnic",
+    category: "Games",
+    title: "Park Picnic & Cards",
+    time: "2:10 PM",
+    miles: "4.8 miles",
+    tint: "linear-gradient(135deg, hsl(var(--brand-2) / .14), hsl(var(--brand-3) / .10))",
+  },
+  {
+    id: "food-finds",
+    category: "Food",
+    title: "Food Finds",
+    time: "7:40 PM",
+    miles: "3.2 miles",
+    tint: "linear-gradient(135deg, hsl(var(--brand-3) / .14), hsl(var(--primary) / .10))",
+  },
+];
+
+function ExploreCard({ item }: { item: ExploreItem }) {
+  return (
+    <button className="w-full text-left" data-testid={`card-explore-${item.id}`}>
+      <div className="overflow-hidden rounded-[26px] bg-white/55 ring-1 ring-black/5">
+        <div className="relative aspect-[4/3]">
+          <div
+            className="absolute inset-0"
+            style={{ background: item.tint }}
+            data-testid={`img-explore-${item.id}`}
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
+          <div className="absolute left-3 top-3">
+            <div
+              className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-foreground shadow-sm ring-1 ring-black/5 backdrop-blur"
+              data-testid={`badge-explore-category-${item.id}`}
+            >
+              {item.category}
+            </div>
+          </div>
+        </div>
+        <div className="px-3 pb-3 pt-3">
+          <div
+            className="font-display text-[15px] font-semibold tracking-tight"
+            data-testid={`text-explore-title-${item.id}`}
+          >
+            {item.title}
+          </div>
+          <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="inline-flex items-center gap-1" data-testid={`row-explore-time-${item.id}`}>
+              <Clock className="h-3.5 w-3.5" />
+              <span>{item.time}</span>
+            </div>
+            <div className="inline-flex items-center gap-1" data-testid={`row-explore-miles-${item.id}`}>
+              <MapPin className="h-3.5 w-3.5" />
+              <span>{item.miles}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ExploreScreen() {
+  return (
+    <div className="min-h-[760px] bg-background">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(900px circle at 20% 10%, hsl(var(--primary) / .10), transparent 52%), radial-gradient(900px circle at 90% 25%, hsl(var(--brand-2) / .10), transparent 55%), radial-gradient(900px circle at 50% 90%, hsl(var(--brand-3) / .08), transparent 55%)",
+          }}
+        />
+      </div>
+
+      <div className="sticky top-0 z-10 bg-background/85 backdrop-blur-xl">
+        <div className="flex items-center justify-between px-5 py-4">
+          <button
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
+            data-testid="button-explore-filters"
+          >
+            <ListFilter className="h-5 w-5" />
+          </button>
+          <div className="text-base font-semibold tracking-tight" data-testid="text-explore-header">
+            Bubbles in San Francisco
+          </div>
+          <button
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
+            data-testid="button-explore-notifications"
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="px-5 pb-28 pt-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="mt-3 grid grid-cols-2 gap-4"
+          data-testid="grid-explore"
+        >
+          {exploreSeed.map((it) => (
+            <ExploreCard key={it.id} item={it} />
+          ))}
+        </motion.div>
+      </div>
+
+      <button
+        className="absolute bottom-24 right-6 grid h-14 w-14 place-items-center rounded-full text-white shadow-[0_18px_50px_hsl(var(--primary)/0.38)]"
+        style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+        data-testid="button-explore-fab"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      <div className="absolute bottom-0 inset-x-0 px-4 pb-4">
+        <div className="rounded-[26px] bg-white/70 px-3 py-2 shadow-[0_18px_60px_hsl(var(--foreground)/0.18)] ring-1 ring-black/5 backdrop-blur">
+          <div className="grid grid-cols-5 gap-1">
+            {["Explore", "Upcoming", "Bubbles", "Messages", "Profile"].map((label, idx) => {
+              const active = idx === 0;
+              return (
+                <button
+                  key={label}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-medium",
+                    active ? "text-[hsl(var(--primary))]" : "text-muted-foreground",
+                  )}
+                  data-testid={`tab-${label.toLowerCase()}`}
+                >
+                  <div
+                    className={cn(
+                      "h-5 w-5 rounded-md",
+                      active ? "bg-[hsl(var(--primary))]/15" : "bg-black/5",
+                    )}
+                    aria-hidden
+                  />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EmailVerificationScreen({
   filled,
   otp,
@@ -771,6 +967,7 @@ function EmailVerificationScreen({
 }
 
 export default function AuthFlow() {
+  const [, navigate] = useLocation();
   const [screen, setScreen] = useState<Screen>("welcome");
   const [details, setDetails] = useState<AccountDetails>({
     legalName: "",
@@ -938,9 +1135,10 @@ export default function AuthFlow() {
                 </button>
               </div>
 
-              <GuidelinesScreen onAgree={() => setScreen("welcome")} />
+              <GuidelinesScreen onAgree={() => navigate("/explore")} />
             </motion.div>
           ) : null}
+
         </AnimatePresence>
       </div>
     </PhoneFrame>

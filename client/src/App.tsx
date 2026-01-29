@@ -6,12 +6,14 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "./pages/home";
 import AuthFlow from "./pages/auth-flow";
+import Explore from "./pages/explore";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthFlow} />
+      <Route path="/explore" component={Explore} />
       <Route component={NotFound} />
     </Switch>
   );
