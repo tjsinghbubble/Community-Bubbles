@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import ExploreNavigator from './ExploreNavigator';
 import MyBubblesScreen from '../screens/main/MyBubblesScreen';
-import MessagesScreen from '../screens/main/MessagesScreen';
+import MessagesNavigator from './MessagesNavigator';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -51,7 +51,7 @@ export default function MainNavigator() {
         component={MyBubblesScreen}
         options={{ title: 'Bubbles' }}
       />
-      <Tab.Screen name="Messages" component={MessagesScreen} />
+      <Tab.Screen name="Messages" component={MessagesNavigator} />
       <Tab.Screen 
         name="Profile" 
         children={() => <PlaceholderScreen title="Profile" />} 

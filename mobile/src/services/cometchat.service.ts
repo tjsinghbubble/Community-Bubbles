@@ -137,6 +137,37 @@ class CometChatService {
   removeMessageListener(listenerID: string) {
     CometChat.removeMessageListener(listenerID);
   }
+
+  async getConversations() {
+    try {
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(30)
+        .setConversationType('group')
+        .build();
+      
+      const conversations = await conversationsRequest.fetchNext();
+      console.log('Fetched conversations:', conversations.length);
+      return conversations;
+    } catch (error) {
+      console.error('Failed to fetch conversations:', error);
+      throw error;
+    }
+  }
+
+  async getMessages(guid: string, limit: number = 50) {
+    try {
+      const messagesRequest = new CometChat.MessagesRequestBuilder()
+        .setGUID(guid)
+        .setLimit(limit)
+        .build();
+      
+      const messages = await messagesRequest.fetchPrevious();
+      return messages;
+    } catch (error) {
+      console.error('Failed to fetch messages:', error);
+      throw error;
+    }
+  }
 }
 
 export default new CometChatService();
