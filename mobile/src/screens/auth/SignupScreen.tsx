@@ -24,8 +24,9 @@ export default function SignupScreen({ navigation }: Props) {
   const handleContinue = () => {
     if (name && email && password) {
       navigation.navigate('Interests', { 
-        userId: Date.now().toString(), 
-        name 
+        name,
+        email,
+        password,
       });
     }
   };

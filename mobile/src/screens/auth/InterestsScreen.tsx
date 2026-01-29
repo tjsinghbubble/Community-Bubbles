@@ -33,7 +33,7 @@ const INTERESTS = [
 
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
-  const { userId } = route.params;
+  const { name, email, password } = route.params;
 
   const toggleInterest = (id: string) => {
     setSelected((prev) =>
@@ -43,7 +43,12 @@ export default function InterestsScreen({ navigation, route }: Props) {
 
   const handleContinue = () => {
     if (selected.length >= 3) {
-      navigation.navigate('Guidelines', { userId, interests: selected });
+      navigation.navigate('Guidelines', { 
+        name, 
+        email, 
+        password, 
+        interests: selected 
+      });
     }
   };
 

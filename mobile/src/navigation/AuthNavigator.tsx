@@ -6,8 +6,8 @@ import GuidelinesScreen from '../screens/auth/GuidelinesScreen';
 
 export type AuthStackParamList = {
   Signup: undefined;
-  Interests: { userId: string; name: string };
-  Guidelines: { userId: string; interests: string[] };
+  Interests: { name: string; email: string; password: string };
+  Guidelines: { name: string; email: string; password: string; interests: string[] };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
