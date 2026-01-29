@@ -6,10 +6,13 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { useAuth } from '../../context/AuthContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -41,10 +44,20 @@ const GUIDELINES = [
 
 export default function GuidelinesScreen({ navigation, route }: Props) {
   const [accepted, setAccepted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { signup } = useAuth();
 
-  const handleGetStarted = () => {
-    if (accepted) {
-      console.log('Complete signup with:', route.params);
+  const handleGetStarted = async () => {
+    if (!accepted) return;
+    
+    setIsLoading(true);
+    try {
+      const { name, email, password, interests } = route.params;
+      await signup(name, email, password, interests);
+    } catch (error: any) {
+      Alert.alert('Signup Failed', error.message || 'Something went wrong');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -84,11 +97,15 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.button, !accepted && styles.buttonDisabled]}
+          style={[styles.button, (!accepted || isLoading) && styles.buttonDisabled]}
           onPress={handleGetStarted}
-          disabled={!accepted}
+          disabled={!accepted || isLoading}
         >
-          <Text style={styles.buttonText}>Get Started</Text>
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Get Started</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

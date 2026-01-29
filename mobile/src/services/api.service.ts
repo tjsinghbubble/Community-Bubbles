@@ -1,36 +1,61 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
+type AuthResponse = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    interests: string[];
+  };
+  token: string;
+};
+
 class ApiService {
+  private token: string | null = null;
+
+  setToken(token: string | null) {
+    this.token = token;
+  }
+
   private async request<T>(
     endpoint: string,
     options?: RequestInit
   ): Promise<T> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
         ...options?.headers,
       },
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.statusText}`);
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || response.statusText);
     }
 
     return response.json();
   }
 
-  async signup(data: { name: string; email: string; password: string; interests: string[] }) {
-    return this.request('/api/auth/signup', {
+  async signup(data: { name: string; email: string; password: string; interests: string[] }): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
-  async login(data: { email: string; password: string }) {
-    return this.request('/api/auth/login', {
+  async login(email: string, password: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ email, password }),
     });
   }
 
@@ -72,4 +97,5 @@ class ApiService {
   }
 }
 
-export default new ApiService();
+export const apiService = new ApiService();
+export default apiService;
