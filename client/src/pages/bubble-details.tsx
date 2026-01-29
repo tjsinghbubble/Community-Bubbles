@@ -5,8 +5,10 @@ import {
   ArrowLeft,
   Camera,
   ChevronDown,
+  Check,
   MessageSquare,
   MoreHorizontal,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -27,73 +29,123 @@ import foodImg from "@/assets/images/explore-food.jpg";
 type Bubble = {
   id: string;
   title: string;
+  category: string;
   tagline: string;
   image: string;
   members: number;
   isActiveMember: boolean;
   about: string;
+  rules: string[];
 };
 
 const bubbleSeed: Record<string, Bubble> = {
   "sf-pickleball": {
     id: "sf-pickleball",
     title: "SF Pickleball Crew",
+    category: "Team Sports",
     tagline: "Play pickleball with only\nSan Francisco locals",
     image: pickleballImg,
     members: 20,
     isActiveMember: true,
     about:
       "Looking for a fun, low-pressure way to stay active and meet people in San Francisco? This bubble is for local pickleball players of all skill levels — from first-time dinks to seasoned slammers. We host casual games, friendly tournaments, and drop-in nights. Just bring a paddle and good vibes.",
+    rules: [
+      "Be respectful. Treat everyone with kindness — on and off the court.",
+      "RSVP honestly. Can’t make it? Update your status so others can plan.",
+      "All levels welcome. Beginners, pros, and in-between — we’re here to play, not to judge.",
+      "Keep it local. This bubble is for SF neighbors who want to connect IRL.",
+      "Respect the space. Clean up after games and be chill with park staff.",
+    ],
   },
   "mindful-mamas": {
     id: "mindful-mamas",
     title: "Mindful Mamas",
+    category: "Wellness",
     tagline: "Gentle movement +\nreal talk",
     image: wellnessImg,
     members: 48,
     isActiveMember: false,
     about:
       "A calm space for moms to reset together. Breathwork, light movement, and supportive chats — no judgment, just community.",
+    rules: [
+      "Assume good intent. Keep conversations supportive.",
+      "No medical advice — share experiences, not diagnoses.",
+      "Keep it private. Don’t share other members’ stories outside the bubble.",
+      "Be on time when you RSVP to meetups.",
+      "Keep it local and welcoming.",
+    ],
   },
   "bark-dogpatch": {
     id: "bark-dogpatch",
     title: "Bark at Dogpatch",
+    category: "Animals",
     tagline: "Corgis, mutts, and\npark hangs",
     image: dogImg,
     members: 112,
     isActiveMember: true,
     about:
       "Meet up for dog park hangs, walks, and the occasional costume parade. Leash etiquette required. Treats encouraged.",
+    rules: [
+      "Leash etiquette first. Keep pups safe.",
+      "No aggressive behavior — remove your dog if needed.",
+      "Pick up after your pup. Always.",
+      "Ask before feeding treats.",
+      "Be friendly to humans too.",
+    ],
   },
   "marina-meetup": {
     id: "marina-meetup",
     title: "Marina Meetup",
+    category: "Neighborhood",
     tagline: "Neighbors who\nactually hang",
     image: meetupImg,
     members: 67,
     isActiveMember: false,
     about:
       "Low-key local meetups: coffee strolls, sunset chats, and spontaneous plans. Say hi, bring a friend.",
+    rules: [
+      "Be kind and inclusive.",
+      "No spam or self-promo without asking.",
+      "Respect personal boundaries.",
+      "Keep plans local.",
+      "If you RSVP, show up — or update early.",
+    ],
   },
   "park-picnic": {
     id: "park-picnic",
     title: "Park Picnic & Cards",
+    category: "Games",
     tagline: "Picnic blanket\ntraditions",
     image: gamesImg,
     members: 31,
     isActiveMember: true,
     about:
       "Cards, snacks, and easy laughs. We rotate parks weekly and keep games beginner-friendly.",
+    rules: [
+      "Be chill. This is low-stakes fun.",
+      "Bring something to share if you can.",
+      "No loud speakers.",
+      "Respect the park — leave it cleaner than you found it.",
+      "Teach games kindly to newcomers.",
+    ],
   },
   "food-finds": {
     id: "food-finds",
     title: "Food Finds",
+    category: "Food",
     tagline: "New spots,\nbetter bites",
     image: foodImg,
     members: 84,
     isActiveMember: false,
     about:
       "Try new restaurants and keep a running list of local favorites. Meetups are optional, recommendations are not.",
+    rules: [
+      "Be respectful with reviews.",
+      "No doxxing or call-outs.",
+      "Support local businesses.",
+      "Keep recommendations honest.",
+      "Be kind to service staff.",
+    ],
   },
 };
 
@@ -208,16 +260,34 @@ function MembersRow({ members, onView }: { members: number; onView: () => void }
   );
 }
 
-function PrimaryAction({ label, tone }: { label: string; tone: "neutral" | "danger" }) {
+function PrimaryAction({
+  label,
+  tone,
+  onClick,
+  testId,
+}: {
+  label: string;
+  tone: "neutral" | "danger" | "primary";
+  onClick?: () => void;
+  testId: string;
+}) {
   return (
     <button
+      onClick={onClick}
       className={cn(
         "h-12 w-full rounded-2xl text-[14px] font-semibold",
         tone === "danger"
           ? "border border-red-400/60 bg-white text-red-500"
-          : "bg-black/40 text-white",
+          : tone === "primary"
+            ? "text-white shadow-[0_18px_55px_hsl(var(--primary)/0.30)]"
+            : "bg-black/40 text-white",
       )}
-      data-testid={`button-${label.toLowerCase().replace(/\s+/g, "-")}`}
+      style={
+        tone === "primary"
+          ? { background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }
+          : undefined
+      }
+      data-testid={testId}
     >
       {label}
     </button>
@@ -312,7 +382,7 @@ export default function BubbleDetails() {
   const [tab, setTab] = useState<"details" | "events">("details");
   const [sectionAbout, setSectionAbout] = useState(true);
   const [sectionAttachments, setSectionAttachments] = useState(false);
-  const [view, setView] = useState<"bubble" | "members">("bubble");
+  const [view, setView] = useState<"bubble" | "members" | "join">("bubble");
 
   const id = useMemo(() => {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -324,6 +394,19 @@ export default function BubbleDetails() {
 
   if (view === "members") {
     return <MembersScreen onBack={() => setView("bubble")} />;
+  }
+
+  if (view === "join") {
+    return (
+      <JoinBubbleSheet
+        bubble={bubble}
+        onClose={() => setView("bubble")}
+        onJoin={() => {
+          bubble.isActiveMember = true;
+          setView("bubble");
+        }}
+      />
+    );
   }
 
   return (
