@@ -566,10 +566,31 @@ export default function BubbleDetails() {
             {bubble.title}
           </div>
           <button
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
+            onClick={() => {
+              if (!bubble.isActiveMember) return;
+              window.location.href = `/chat/chat-${bubble.id}`;
+            }}
+            className="relative grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
             data-testid="button-bubble-chat"
           >
             <MessageSquare className="h-5 w-5" />
+            {(() => {
+              try {
+                const obj = JSON.parse(window.localStorage.getItem("bubble:unread:v1") || "{}");
+                const n = Number(obj[`chat-${bubble.id}`] ?? obj[`chat-${bubble.id}`] ?? 0);
+                const count = Number(obj[`chat-${bubble.id}`] ?? 0);
+                return count > 0 ? (
+                  <span
+                    className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[hsl(var(--primary))] px-1 py-0.5 text-[10px] font-bold text-white"
+                    data-testid="badge-bubble-chat-unread"
+                  >
+                    {count > 99 ? "99+" : count}
+                  </span>
+                ) : null;
+              } catch {
+                return null;
+              }
+            })()}
           </button>
         </div>
         <Segmented value={tab} onChange={setTab} />

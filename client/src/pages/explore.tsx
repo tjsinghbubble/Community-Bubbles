@@ -128,7 +128,15 @@ function BubbleCard({ item, onOpen }: { item: BubbleCardItem; onOpen: (id: strin
   );
 }
 
-function BottomNav({ active }: { active: "explore" | "upcoming" | "bubbles" | "messages" | "profile" }) {
+function BottomNav({
+  active,
+  onSelect,
+  unreadTotal,
+}: {
+  active: "explore" | "upcoming" | "bubbles" | "messages" | "profile";
+  onSelect: (id: "explore" | "upcoming" | "bubbles" | "messages" | "profile") => void;
+  unreadTotal: number;
+}) {
   const items = [
     { id: "explore", label: "Explore" },
     { id: "upcoming", label: "Upcoming" },
@@ -147,8 +155,9 @@ function BottomNav({ active }: { active: "explore" | "upcoming" | "bubbles" | "m
               return (
                 <button
                   key={it.id}
+                  onClick={() => onSelect(it.id)}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-medium",
+                    "relative flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-medium",
                     isActive ? "text-[hsl(var(--primary))]" : "text-muted-foreground",
                   )}
                   data-testid={`tab-${it.id}`}
@@ -160,6 +169,15 @@ function BottomNav({ active }: { active: "explore" | "upcoming" | "bubbles" | "m
                     )}
                     aria-hidden
                   />
+                  {it.id === "messages" ? (
+                    <div className="absolute right-3 top-1.5" data-testid="badge-messages-unread">
+                      {unreadTotal > 0 ? (
+                        <div className="grid min-w-[22px] place-items-center rounded-full bg-[hsl(var(--primary))] px-1.5 py-0.5 text-[11px] font-bold text-white" data-testid="badge-unread">
+                          {unreadTotal > 99 ? "99+" : unreadTotal}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {it.label}
                 </button>
               );
@@ -233,7 +251,22 @@ export default function Explore() {
         </button>
       </div>
 
-      <BottomNav active="explore" />
+      <BottomNav
+        active="explore"
+        unreadTotal={(() => {
+          try {
+            const obj = JSON.parse(window.localStorage.getItem("bubble:unread:v1") || "{}");
+            return Object.values(obj).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+          } catch {
+            return 0;
+          }
+        })()}
+        onSelect={(id) => {
+          if (id === "explore") return;
+          if (id === "messages") return navigate("/messages");
+          return;
+        }}
+      />
     </div>
   );
 }
