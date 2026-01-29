@@ -187,5 +187,14 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/bubbles/:id/membership', authMiddleware, async (req, res) => {
+    try {
+      const isMember = await storage.isMember(req.userId!, req.params.id);
+      res.json({ isMember });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   return httpServer;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { RouteProp } from '@react-navigation/native';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import cometChatService from '../../services/cometchat.service';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -26,6 +27,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    checkMembership();
+  }, [bubble.id]);
+
+  const checkMembership = async () => {
+    try {
+      const result = await apiService.checkMembership(bubble.id);
+      setIsMember(result.isMember);
+    } catch (error) {
+      console.error('Failed to check membership:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleJoinLeave = async () => {
     if (!user) return;
@@ -34,10 +51,25 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       if (isMember) {
         await apiService.leaveBubble(bubble.id);
+        try {
+          await cometChatService.leaveGroup(bubble.id);
+        } catch (e) {
+          console.log('CometChat leave error (may not be in group):', e);
+        }
         setIsMember(false);
         Alert.alert('Left', `You left ${bubble.title}`);
       } else {
         await apiService.joinBubble(bubble.id);
+        try {
+          await cometChatService.createGroup(bubble.id, bubble.title);
+        } catch (e) {
+          console.log('Group may already exist:', e);
+        }
+        try {
+          await cometChatService.joinGroup(bubble.id);
+        } catch (e) {
+          console.log('CometChat join error (may already be member):', e);
+        }
         setIsMember(true);
         Alert.alert('Joined!', `Welcome to ${bubble.title}`);
       }

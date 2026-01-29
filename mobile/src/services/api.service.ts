@@ -95,6 +95,12 @@ class ApiService {
       method: 'GET',
     });
   }
+
+  async checkMembership(bubbleId: string): Promise<{ isMember: boolean }> {
+    return this.request(`/api/bubbles/${bubbleId}/membership`, {
+      method: 'GET',
+    });
+  }
 }
 
 export const apiService = new ApiService();
