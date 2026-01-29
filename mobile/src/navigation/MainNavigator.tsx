@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
-import ExploreScreen from '../screens/main/ExploreScreen';
+import ExploreNavigator from './ExploreNavigator';
 import MyBubblesScreen from '../screens/main/MyBubblesScreen';
 import MessagesScreen from '../screens/main/MessagesScreen';
 
@@ -41,7 +41,7 @@ export default function MainNavigator() {
         tabBarInactiveTintColor: '#999',
       }}
     >
-      <Tab.Screen name="Explore" component={ExploreScreen} />
+      <Tab.Screen name="Explore" component={ExploreNavigator} />
       <Tab.Screen 
         name="Upcoming" 
         children={() => <PlaceholderScreen title="Upcoming" />} 

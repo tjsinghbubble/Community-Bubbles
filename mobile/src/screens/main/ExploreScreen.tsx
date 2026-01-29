@@ -8,32 +8,52 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 
-const MOCK_BUBBLES = [
+type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
+
+const MOCK_BUBBLES: BubbleData[] = [
   {
     id: 'sf-pickleball',
     title: 'SF Pickleball Crew',
+    tagline: 'Smash, dink, and have fun!',
     category: 'Sports',
     distance: '9.7 mi',
+    members: 127,
     image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=400',
+    description: 'Join the fastest growing pickleball community in San Francisco! We host weekly games, tournaments, and social events for players of all skill levels.',
   },
   {
     id: 'mindful-mamas',
     title: 'Mindful Mamas',
+    tagline: 'Self-care for busy moms',
     category: 'Wellness',
     distance: '8.2 mi',
+    members: 89,
     image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=400',
+    description: 'A supportive community for mothers who want to prioritize their mental health and well-being. Weekly meditation sessions and monthly retreats.',
   },
   {
     id: 'bark-dogpatch',
     title: 'Bark at Dogpatch',
-    category: 'Animals',
+    tagline: 'Where pups make friends',
+    category: 'Pets',
     distance: '9.1 mi',
+    members: 256,
     image: 'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400',
+    description: 'The ultimate dog-lover community in Dogpatch! Join us for daily walks, weekend meetups, and pet-friendly events throughout the city.',
   },
 ];
 
 export default function ExploreScreen() {
+  const navigation = useNavigation<NavigationProp>();
+
+  const handleBubblePress = (bubble: BubbleData) => {
+    navigation.navigate('BubbleDetails', { bubble });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -42,7 +62,11 @@ export default function ExploreScreen() {
 
       <ScrollView contentContainerStyle={styles.grid}>
         {MOCK_BUBBLES.map((bubble) => (
-          <TouchableOpacity key={bubble.id} style={styles.card}>
+          <TouchableOpacity 
+            key={bubble.id} 
+            style={styles.card}
+            onPress={() => handleBubblePress(bubble)}
+          >
             <Image source={{ uri: bubble.image }} style={styles.image} />
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{bubble.category}</Text>
