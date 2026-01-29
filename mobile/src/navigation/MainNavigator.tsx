@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import ExploreNavigator from './ExploreNavigator';
 import MyBubblesScreen from '../screens/main/MyBubblesScreen';
 import MessagesNavigator from './MessagesNavigator';
@@ -36,25 +37,63 @@ export default function MainNavigator() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 8,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
         },
         tabBarActiveTintColor: 'hsl(210, 95%, 55%)',
         tabBarInactiveTintColor: '#999',
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+        },
       }}
     >
-      <Tab.Screen name="Explore" component={ExploreNavigator} />
+      <Tab.Screen 
+        name="Explore" 
+        component={ExploreNavigator}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="compass-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tab.Screen 
         name="Upcoming" 
-        children={() => <PlaceholderScreen title="Upcoming" />} 
+        children={() => <PlaceholderScreen title="Upcoming" />}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen 
         name="MyBubbles" 
         component={MyBubblesScreen}
-        options={{ title: 'Bubbles' }}
+        options={{ 
+          title: 'Bubbles',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="apps-outline" size={size} color={color} />
+          ),
+        }}
       />
-      <Tab.Screen name="Messages" component={MessagesNavigator} />
+      <Tab.Screen 
+        name="Messages" 
+        component={MessagesNavigator}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tab.Screen 
         name="Profile" 
-        children={() => <PlaceholderScreen title="Profile" />} 
+        children={() => <PlaceholderScreen title="Profile" />}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

@@ -100,15 +100,30 @@ export default function ChatScreen({ navigation, route }: Props) {
   const handleSend = async () => {
     if (!newMessage.trim() || isSending) return;
 
+    const messageText = newMessage.trim();
     setIsSending(true);
+    setNewMessage('');
+    
     try {
-      await cometChatService.sendMessage(groupId, newMessage.trim());
-      setNewMessage('');
+      const sentMessage = await cometChatService.sendMessage(groupId, messageText) as any;
+      
+      const newMsg: Message = {
+        id: sentMessage.id || Date.now().toString(),
+        text: sentMessage.text || messageText,
+        sentAt: sentMessage.sentAt || Math.floor(Date.now() / 1000),
+        sender: {
+          uid: user?.id || '',
+          name: user?.name || 'You',
+        },
+      };
+      setMessages((prev) => [...prev, newMsg]);
+      
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
       console.error('Failed to send message:', error);
+      setNewMessage(messageText);
     } finally {
       setIsSending(false);
     }
