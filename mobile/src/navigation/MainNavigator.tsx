@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ExploreNavigator from './ExploreNavigator';
-import MyBubblesScreen from '../screens/main/MyBubblesScreen';
+import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
 import ProfileScreen from '../screens/main/ProfileScreen';
 
@@ -70,7 +70,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen 
         name="MyBubbles" 
-        component={MyBubblesScreen}
+        component={BubblesNavigator}
         options={{ 
           title: 'Bubbles',
           tabBarIcon: ({ color, size }) => (

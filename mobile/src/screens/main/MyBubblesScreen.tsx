@@ -13,6 +13,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 
 type Bubble = {
@@ -81,6 +82,10 @@ export default function MyBubblesScreen() {
     );
   }
 
+  const handleCreateBubble = () => {
+    navigation.navigate('CreateBubble' as never);
+  };
+
   if (bubbles.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -90,9 +95,22 @@ export default function MyBubblesScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No bubbles yet</Text>
           <Text style={styles.emptySubtitle}>
-            Join some bubbles from the Explore tab to see them here!
+            Join some bubbles from the Explore tab or create your own!
           </Text>
+          <TouchableOpacity 
+            style={styles.createFirstButton}
+            onPress={handleCreateBubble}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
+          </TouchableOpacity>
         </View>
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={handleCreateBubble}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -135,6 +153,12 @@ export default function MyBubblesScreen() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={handleCreateBubble}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -237,5 +261,36 @@ const styles = StyleSheet.create({
   memberCount: {
     fontSize: 12,
     color: '#888',
+  },
+  createFirstButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+    gap: 8,
+  },
+  createFirstButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
