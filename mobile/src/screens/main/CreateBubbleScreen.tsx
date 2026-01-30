@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
+import cometChatService from '../../services/cometchat.service';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -88,6 +89,33 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       if (!response.ok) {
         Alert.alert('Error', data.error || 'Failed to create bubble');
         return;
+      }
+
+      // Create CometChat group for this bubble and join it
+      try {
+        const groupType = privacy.toLowerCase();
+        await cometChatService.createGroup(data.id, title, groupType);
+        console.log('CometChat group created for bubble:', data.id);
+        
+        // Join the group to ensure it shows in conversations
+        // Note: Creator may already be added by createGroup, but joinGroup handles this gracefully
+        try {
+          await cometChatService.joinGroup(data.id, groupType);
+          console.log('Joined CometChat group:', data.id);
+        } catch (joinError: any) {
+          // Already a member is fine - creator is often auto-added
+          console.log('Join group note:', joinError?.code || joinError);
+        }
+        
+        // Send a welcome message to make the conversation appear in the list
+        try {
+          await cometChatService.sendMessage(data.id, `Welcome to ${title}! 🎉`);
+        } catch (msgError) {
+          console.log('Welcome message not sent:', msgError);
+        }
+      } catch (chatError) {
+        console.log('CometChat group creation error (may already exist):', chatError);
+        // Don't fail bubble creation if chat group fails - it might already exist
       }
 
       Alert.alert('Success', 'Your bubble has been created!', [

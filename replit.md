@@ -66,6 +66,9 @@ Three core tables managed by Drizzle ORM:
 - Separate package in `/mobile` directory with its own dependencies
 - Designed to connect to the same backend API
 - Authentication flow mirrors web with signup → interests → guidelines progression
+- When creating a bubble, a CometChat group is automatically created for real-time messaging
+- ExploreScreen fetches real bubbles from API (refreshes on focus for newly created bubbles)
+- BubblesNavigator stack wraps MyBubbles list and CreateBubble screens
 
 ## External Dependencies
 

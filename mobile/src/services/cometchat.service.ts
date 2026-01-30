@@ -78,15 +78,21 @@ class CometChatService {
     }
   }
 
-  async joinGroup(guid: string) {
+  async joinGroup(guid: string, groupType: string = 'public') {
     try {
-      const group = await CometChat.joinGroup(
-        guid,
-        CometChat.GROUP_TYPE.PUBLIC
-      );
+      const type = groupType === 'private' 
+        ? CometChat.GROUP_TYPE.PRIVATE 
+        : CometChat.GROUP_TYPE.PUBLIC;
+      
+      const group = await CometChat.joinGroup(guid, type);
       console.log('Joined group:', group);
       return group;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle already a member case gracefully
+      if (error?.code === 'ERR_ALREADY_JOINED') {
+        console.log('Already a member of group:', guid);
+        return await CometChat.getGroup(guid);
+      }
       console.error('Failed to join group:', error);
       throw error;
     }
