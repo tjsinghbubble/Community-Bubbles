@@ -60,7 +60,9 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      console.log(`[DEV] Verification code for ${email}: ${code}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[DEV] Verification code for ${email}: ${code}`);
+      }
 
       res.json({ success: true, message: 'Verification code sent' });
     } catch (error: any) {
