@@ -59,6 +59,14 @@ export default function SignupScreen({ navigation }: Props) {
         return;
       }
 
+      if (data.devCode) {
+        Alert.alert(
+          'Development Mode',
+          `Your verification code is: ${data.devCode}\n\nCopy this code to verify your email.`,
+          [{ text: 'OK' }]
+        );
+      }
+
       navigation.navigate('EmailVerification', { 
         name,
         email,

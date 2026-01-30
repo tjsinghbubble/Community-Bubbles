@@ -62,9 +62,10 @@ export async function registerRoutes(
 
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[DEV] Verification code for ${email}: ${code}`);
+        res.json({ success: true, message: 'Verification code sent', devCode: code });
+      } else {
+        res.json({ success: true, message: 'Verification code sent' });
       }
-
-      res.json({ success: true, message: 'Verification code sent' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
