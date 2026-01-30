@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ExploreNavigator from './ExploreNavigator';
 import MyBubblesScreen from '../screens/main/MyBubblesScreen';
 import MessagesNavigator from './MessagesNavigator';
+import ProfileScreen from '../screens/main/ProfileScreen';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -88,7 +89,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        children={() => <PlaceholderScreen title="Profile" />}
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />

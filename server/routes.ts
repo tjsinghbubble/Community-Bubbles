@@ -116,6 +116,15 @@ export async function registerRoutes(
     }
   });
 
+  app.delete('/api/auth/delete-account', authMiddleware, async (req, res) => {
+    try {
+      await storage.deleteUser(req.userId!);
+      res.json({ success: true, message: 'Account deleted successfully' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
