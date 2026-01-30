@@ -1,15 +1,18 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, lt } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
   bubbles,
   memberships,
+  verificationCodes,
   type User,
   type InsertUser,
   type Bubble,
   type InsertBubble,
   type Membership,
   type InsertMembership,
+  type VerificationCode,
+  type InsertVerificationCode,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -27,6 +30,10 @@ export interface IStorage {
   createMembership(membership: InsertMembership): Promise<Membership>;
   deleteMembership(userId: string, bubbleId: string): Promise<void>;
   isMember(userId: string, bubbleId: string): Promise<boolean>;
+
+  createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
+  getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
+  markCodeAsUsed(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,6 +113,36 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
       .limit(1);
     return result.length > 0;
+  }
+
+  async createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode> {
+    const result = await db.insert(verificationCodes).values(data).returning();
+    return result[0];
+  }
+
+  async getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined> {
+    const now = new Date();
+    const result = await db
+      .select()
+      .from(verificationCodes)
+      .where(
+        and(
+          eq(verificationCodes.email, email),
+          eq(verificationCodes.code, code),
+          eq(verificationCodes.used, false)
+        )
+      )
+      .limit(1);
+    
+    const verificationCode = result[0];
+    if (verificationCode && new Date(verificationCode.expiresAt) > now) {
+      return verificationCode;
+    }
+    return undefined;
+  }
+
+  async markCodeAsUsed(id: string): Promise<void> {
+    await db.update(verificationCodes).set({ used: true }).where(eq(verificationCodes.id, id));
   }
 }
 

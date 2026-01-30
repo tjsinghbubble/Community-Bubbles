@@ -7,6 +7,10 @@ import { insertUserSchema, insertBubbleSchema } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
 
+function generateVerificationCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -35,6 +39,55 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  app.post('/api/auth/send-verification', async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      const existing = await storage.getUserByEmail(email);
+      if (existing) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await storage.createVerificationCode({
+        email,
+        code,
+        expiresAt,
+      });
+
+      console.log(`[DEV] Verification code for ${email}: ${code}`);
+
+      res.json({ success: true, message: 'Verification code sent' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/auth/verify-code', async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: 'Email and code are required' });
+      }
+
+      const verificationCode = await storage.getValidVerificationCode(email, code);
+      if (!verificationCode) {
+        return res.status(400).json({ error: 'Invalid or expired code' });
+      }
+
+      await storage.markCodeAsUsed(verificationCode.id);
+
+      res.json({ success: true, verified: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post('/api/auth/signup', async (req, res) => {
     try {
       const data = insertUserSchema.parse(req.body);

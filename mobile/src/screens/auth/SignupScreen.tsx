@@ -11,10 +11,13 @@ import {
   ScrollView,
   StatusBar,
   Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '../../config/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -30,6 +33,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
@@ -37,15 +41,35 @@ export default function SignupScreen({ navigation }: Props) {
 
   const isFormValid = name && email && password && gender && dateOfBirth;
 
-  const handleContinue = () => {
-    if (isFormValid) {
-      navigation.navigate('Interests', { 
+  const handleContinue = async () => {
+    if (!isFormValid) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/send-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Error', data.error || 'Failed to send verification code');
+        return;
+      }
+
+      navigation.navigate('EmailVerification', { 
         name,
         email,
         password,
         gender,
         dateOfBirth,
       });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send verification code. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -154,12 +178,16 @@ export default function SignupScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.button,
-                !isFormValid && styles.buttonDisabled,
+                (!isFormValid || loading) && styles.buttonDisabled,
               ]}
               onPress={handleContinue}
-              disabled={!isFormValid}
+              disabled={!isFormValid || loading}
             >
-              <Text style={styles.buttonText}>Continue</Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Continue</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
