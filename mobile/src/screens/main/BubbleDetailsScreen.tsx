@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
@@ -22,16 +23,47 @@ type Props = {
   route: RouteProp<ExploreStackParamList, 'BubbleDetails'>;
 };
 
+type Event = {
+  id: string;
+  title: string;
+  coverImage: string | null;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  locationName: string | null;
+  attendeeLimit: number | null;
+  creatorId: string;
+};
+
 export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
   const { user } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [bubbleDetails, setBubbleDetails] = useState<any>(null);
 
   useEffect(() => {
     checkMembership();
+    fetchBubbleDetails();
   }, [bubble.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchEvents();
+    }, [bubble.id])
+  );
+
+  const fetchBubbleDetails = async () => {
+    try {
+      const details = await apiService.getBubble(bubble.id);
+      setBubbleDetails(details);
+    } catch (error) {
+      console.error('Failed to fetch bubble details:', error);
+    }
+  };
 
   const checkMembership = async () => {
     try {
@@ -41,6 +73,17 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       console.error('Failed to check membership:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const data = await apiService.getBubbleEvents(bubble.id) as Event[];
+      setEvents(data);
+    } catch (error) {
+      console.error('Failed to fetch events:', error);
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -80,6 +123,29 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleCreateEvent = () => {
+    navigation.navigate('CreateEvent' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title });
+  };
+
+  const handleEventPress = (event: Event) => {
+    navigation.navigate('EventDetails' as any, { eventId: event.id, event });
+  };
+
+  const formatEventDate = (date: string) => {
+    const d = new Date(date + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  const isCreator = bubbleDetails?.creatorId === user?.id;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -92,7 +158,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
 
         <View style={styles.content}>
@@ -109,8 +175,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               <Text style={styles.statLabel}>Members</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{bubble.distance || 'Nearby'}</Text>
-              <Text style={styles.statLabel}>Away</Text>
+              <Text style={styles.statNumber}>{events.length}</Text>
+              <Text style={styles.statLabel}>Events</Text>
             </View>
           </View>
 
@@ -119,6 +185,87 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.description}>
               {bubble.description || 'Join us to connect with amazing people in your area who share your interests!'}
             </Text>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Upcoming Events</Text>
+              {isCreator && (
+                <TouchableOpacity style={styles.createEventButton} onPress={handleCreateEvent}>
+                  <Ionicons name="add" size={18} color="#fff" />
+                  <Text style={styles.createEventButtonText}>Create</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {eventsLoading ? (
+              <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
+            ) : events.length === 0 ? (
+              <View style={styles.noEvents}>
+                <Ionicons name="calendar-outline" size={32} color="#ccc" />
+                <Text style={styles.noEventsText}>No upcoming events</Text>
+                {isCreator && (
+                  <Text style={styles.noEventsSubtext}>Create the first event for this bubble!</Text>
+                )}
+              </View>
+            ) : (
+              <View style={styles.eventsList}>
+                {events.slice(0, 3).map((event) => (
+                  <TouchableOpacity
+                    key={event.id}
+                    style={styles.eventCard}
+                    onPress={() => handleEventPress(event)}
+                  >
+                    <View style={styles.eventDateBox}>
+                      <Text style={styles.eventDateDay}>
+                        {new Date(event.date + 'T00:00:00').getDate()}
+                      </Text>
+                      <Text style={styles.eventDateMonth}>
+                        {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                      </Text>
+                    </View>
+                    <Image
+                      source={{
+                        uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+                      }}
+                      style={styles.eventImage}
+                    />
+                    <View style={styles.eventInfo}>
+                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                      <View style={styles.eventMeta}>
+                        <Ionicons name="time-outline" size={12} color="#666" />
+                        <Text style={styles.eventMetaText}>
+                          {formatTime(event.startTime)}
+                        </Text>
+                      </View>
+                      {event.locationName && (
+                        <View style={styles.eventMeta}>
+                          <Ionicons name="location-outline" size={12} color="#666" />
+                          <Text style={styles.eventMetaText} numberOfLines={1}>
+                            {event.locationName}
+                          </Text>
+                        </View>
+                      )}
+                      {event.attendeeLimit && (
+                        <View style={styles.eventMeta}>
+                          <Ionicons name="people-outline" size={12} color="#666" />
+                          <Text style={styles.eventMetaText}>
+                            Max {event.attendeeLimit}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#ccc" style={styles.eventChevron} />
+                  </TouchableOpacity>
+                ))}
+                {events.length > 3 && (
+                  <TouchableOpacity style={styles.viewAllButton}>
+                    <Text style={styles.viewAllText}>View all {events.length} events</Text>
+                    <Ionicons name="arrow-forward" size={16} color="hsl(210, 95%, 55%)" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -172,12 +319,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backButtonText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
   content: {
     padding: 20,
+    paddingBottom: 100,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -227,6 +371,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -238,6 +388,102 @@ const styles = StyleSheet.create({
     color: '#444',
     lineHeight: 24,
   },
+  createEventButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  createEventButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  noEvents: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+  },
+  noEventsText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+  },
+  noEventsSubtext: {
+    fontSize: 12,
+    color: '#bbb',
+    marginTop: 4,
+  },
+  eventsList: {
+    gap: 12,
+  },
+  eventCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  eventDateBox: {
+    width: 50,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  eventDateDay: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  eventDateMonth: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  eventImage: {
+    width: 60,
+    height: 70,
+  },
+  eventInfo: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  eventMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  eventMetaText: {
+    fontSize: 11,
+    color: '#666',
+  },
+  eventChevron: {
+    marginRight: 12,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: 'hsl(210, 95%, 55%)',
+    fontWeight: '600',
+  },
   rules: {
     gap: 8,
   },
@@ -247,8 +493,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 20,
     paddingBottom: 32,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
   },

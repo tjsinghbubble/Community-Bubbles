@@ -81,12 +81,12 @@ export type VerificationCode = typeof verificationCodes.$inferSelect;
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
-  description: text("description").notNull(),
+  description: text("description"), // Optional
   coverImage: text("cover_image"),
   date: text("date").notNull(), // YYYY-MM-DD format
   startTime: text("start_time").notNull(), // HH:MM format
-  endTime: text("end_time").notNull(), // HH:MM format
-  locationName: text("location_name").notNull(),
+  endTime: text("end_time"), // HH:MM format, optional
+  locationName: text("location_name"), // Optional
   locationAddress: text("location_address"),
   locationLat: text("location_lat"),
   locationLng: text("location_lng"),

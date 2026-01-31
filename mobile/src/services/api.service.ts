@@ -101,6 +101,75 @@ class ApiService {
       method: 'GET',
     });
   }
+
+  async getMyCreatedBubbles() {
+    return this.request('/api/bubbles/created/my', {
+      method: 'GET',
+    });
+  }
+
+  async getMyEvents() {
+    return this.request('/api/events/my', {
+      method: 'GET',
+    });
+  }
+
+  async getMyCreatedEvents() {
+    return this.request('/api/events/created', {
+      method: 'GET',
+    });
+  }
+
+  async getBubbleEvents(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/events`, {
+      method: 'GET',
+    });
+  }
+
+  async getEvent(id: string) {
+    return this.request(`/api/events/${id}`, {
+      method: 'GET',
+    });
+  }
+
+  async createEvent(data: any) {
+    return this.request('/api/events', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateEvent(id: string, data: any) {
+    return this.request(`/api/events/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEvent(id: string) {
+    return this.request(`/api/events/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async rsvpEvent(eventId: string, status: string = 'going') {
+    return this.request(`/api/events/${eventId}/rsvp`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async cancelRsvp(eventId: string) {
+    return this.request(`/api/events/${eventId}/rsvp`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getEventAttendees(eventId: string) {
+    return this.request(`/api/events/${eventId}/attendees`, {
+      method: 'GET',
+    });
+  }
 }
 
 export const apiService = new ApiService();
