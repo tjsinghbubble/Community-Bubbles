@@ -170,7 +170,7 @@ export default function MyBubblesScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filterRow}>
+      {/* <View style={styles.filterRow}>
         <Text style={styles.filterLabel}>Show only ones I created (Admin)</Text>
         <Switch
           value={showAdminOnly}
@@ -178,7 +178,7 @@ export default function MyBubblesScreen() {
           trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 75%)' }}
           thumbColor={showAdminOnly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
         />
-      </View>
+      </View> */}
 
       {activeTab === 'bubbles' ? (
         <>
