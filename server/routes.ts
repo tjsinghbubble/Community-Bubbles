@@ -284,6 +284,15 @@ export async function registerRoutes(
   });
 
   // Events API
+  app.get("/api/events", async (req, res) => {
+    try {
+      const events = await storage.getAllPublicEvents();
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/events/my", authMiddleware, async (req, res) => {
     try {
       const events = await storage.getUserEvents(req.userId!);

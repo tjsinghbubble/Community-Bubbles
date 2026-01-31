@@ -45,6 +45,7 @@ export interface IStorage {
   // Events
   getEvent(id: string): Promise<Event | undefined>;
   getBubbleEvents(bubbleId: string): Promise<Event[]>;
+  getAllPublicEvents(): Promise<(Event & { bubble: Bubble })[]>;
   getUserEvents(userId: string): Promise<(Event & { bubble: Bubble })[]>;
   getUserCreatedEvents(userId: string): Promise<(Event & { bubble: Bubble })[]>;
   getUserCreatedBubbles(userId: string): Promise<Bubble[]>;
@@ -186,6 +187,18 @@ export class DatabaseStorage implements IStorage {
       .from(events)
       .where(and(eq(events.bubbleId, bubbleId), gte(events.date, today)))
       .orderBy(events.date, events.startTime);
+  }
+
+  async getAllPublicEvents(): Promise<(Event & { bubble: Bubble })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await db
+      .select()
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .where(and(eq(events.visibility, 'public'), gte(events.date, today)))
+      .orderBy(events.date, events.startTime);
+    
+    return result.map((row) => ({ ...row.events, bubble: row.bubbles }));
   }
 
   async getUserEvents(userId: string): Promise<(Event & { bubble: Bubble })[]> {
