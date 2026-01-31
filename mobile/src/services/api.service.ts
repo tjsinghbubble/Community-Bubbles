@@ -29,7 +29,10 @@ class ApiService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const url = `${API_URL}${endpoint}`;
+    console.log(`[API] Request: ${options?.method || 'GET'} ${url}`);
+    
+    const response = await fetch(url, {
       ...options,
       headers: {
         ...headers,
@@ -37,12 +40,27 @@ class ApiService {
       },
     });
 
+    // Get raw text first for debugging
+    const rawText = await response.text();
+    console.log(`[API] Response ${endpoint} (status ${response.status}):`, rawText.substring(0, 500));
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
+      let error;
+      try {
+        error = JSON.parse(rawText);
+      } catch {
+        error = { error: response.statusText };
+      }
       throw new Error(error.error || response.statusText);
     }
 
-    return response.json();
+    try {
+      return JSON.parse(rawText);
+    } catch (parseError) {
+      console.error(`[API] JSON parse error for ${endpoint}:`, parseError);
+      console.error(`[API] Raw response was:`, rawText.substring(0, 1000));
+      throw parseError;
+    }
   }
 
   async signup(data: { name: string; email: string; password: string; interests: string[] }): Promise<AuthResponse> {
