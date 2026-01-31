@@ -58,18 +58,53 @@ export default function MyBubblesScreen() {
 
   const fetchData = async () => {
     try {
-      const [bubblesData, createdBubblesData, eventsData, createdEventsData] = await Promise.all([
-        apiService.getMyBubbles(),
-        apiService.getMyCreatedBubbles(),
-        apiService.getMyEvents(),
-        apiService.getMyCreatedEvents(),
-      ]);
-      setBubbles(bubblesData as Bubble[]);
-      setCreatedBubbles(createdBubblesData as Bubble[]);
-      setEvents(eventsData as Event[]);
-      setCreatedEvents(createdEventsData as Event[]);
+      console.log('[MyBubbles] Starting fetchData...');
+      
+      // Fetch each API separately to identify which one fails
+      let bubblesData = [];
+      let createdBubblesData = [];
+      let eventsData = [];
+      let createdEventsData = [];
+      
+      try {
+        console.log('[MyBubbles] Fetching getMyBubbles...');
+        bubblesData = await apiService.getMyBubbles() as Bubble[];
+        console.log('[MyBubbles] getMyBubbles success:', bubblesData);
+      } catch (err) {
+        console.error('[MyBubbles] getMyBubbles FAILED:', err);
+      }
+      
+      try {
+        console.log('[MyBubbles] Fetching getMyCreatedBubbles...');
+        createdBubblesData = await apiService.getMyCreatedBubbles() as Bubble[];
+        console.log('[MyBubbles] getMyCreatedBubbles success:', createdBubblesData);
+      } catch (err) {
+        console.error('[MyBubbles] getMyCreatedBubbles FAILED:', err);
+      }
+      
+      try {
+        console.log('[MyBubbles] Fetching getMyEvents...');
+        eventsData = await apiService.getMyEvents() as Event[];
+        console.log('[MyBubbles] getMyEvents success:', eventsData);
+      } catch (err) {
+        console.error('[MyBubbles] getMyEvents FAILED:', err);
+      }
+      
+      try {
+        console.log('[MyBubbles] Fetching getMyCreatedEvents...');
+        createdEventsData = await apiService.getMyCreatedEvents() as Event[];
+        console.log('[MyBubbles] getMyCreatedEvents success:', createdEventsData);
+      } catch (err) {
+        console.error('[MyBubbles] getMyCreatedEvents FAILED:', err);
+      }
+      
+      setBubbles(bubblesData);
+      setCreatedBubbles(createdBubblesData);
+      setEvents(eventsData);
+      setCreatedEvents(createdEventsData);
+      console.log('[MyBubbles] fetchData complete');
     } catch (error) {
-      console.error('Failed to fetch data:', error);
+      console.error('[MyBubbles] Failed to fetch data:', error);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
