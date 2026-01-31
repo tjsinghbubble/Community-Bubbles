@@ -12,7 +12,7 @@ declare module "http" {
   }
 }
 
-const cors = require('cors');
+import cors from 'cors';
 
 // Allow requests from Expo tunnel and other origins
 app.use(cors({
