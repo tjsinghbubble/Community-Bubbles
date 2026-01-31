@@ -17,6 +17,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 
 type Props = {
@@ -80,6 +81,16 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const [attendeeLimit, setAttendeeLimit] = useState('');
   const [rsvpDeadlineEnabled, setRsvpDeadlineEnabled] = useState(false);
   const [rsvpDeadline, setRsvpDeadline] = useState('');
+
+  // Date/Time picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showRsvpDeadlinePicker, setShowRsvpDeadlinePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedStartTime, setSelectedStartTime] = useState<Date>(new Date());
+  const [selectedEndTime, setSelectedEndTime] = useState<Date>(new Date());
+  const [selectedRsvpDeadline, setSelectedRsvpDeadline] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchMyBubbles();
@@ -185,6 +196,49 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     const ampm = h >= 12 ? 'PM' : 'AM';
     const hour12 = h % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
+  };
+
+  // Date picker handlers
+  const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDateValue) {
+      setSelectedDate(selectedDateValue);
+      const year = selectedDateValue.getFullYear();
+      const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDateValue.getDate()).padStart(2, '0');
+      setDate(`${year}-${month}-${day}`);
+    }
+  };
+
+  const onStartTimeChange = (event: DateTimePickerEvent, selectedTimeValue?: Date) => {
+    setShowStartTimePicker(Platform.OS === 'ios');
+    if (selectedTimeValue) {
+      setSelectedStartTime(selectedTimeValue);
+      const hours = String(selectedTimeValue.getHours()).padStart(2, '0');
+      const minutes = String(selectedTimeValue.getMinutes()).padStart(2, '0');
+      setStartTime(`${hours}:${minutes}`);
+    }
+  };
+
+  const onEndTimeChange = (event: DateTimePickerEvent, selectedTimeValue?: Date) => {
+    setShowEndTimePicker(Platform.OS === 'ios');
+    if (selectedTimeValue) {
+      setSelectedEndTime(selectedTimeValue);
+      const hours = String(selectedTimeValue.getHours()).padStart(2, '0');
+      const minutes = String(selectedTimeValue.getMinutes()).padStart(2, '0');
+      setEndTime(`${hours}:${minutes}`);
+    }
+  };
+
+  const onRsvpDeadlineChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
+    setShowRsvpDeadlinePicker(Platform.OS === 'ios');
+    if (selectedDateValue) {
+      setSelectedRsvpDeadline(selectedDateValue);
+      const year = selectedDateValue.getFullYear();
+      const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDateValue.getDate()).padStart(2, '0');
+      setRsvpDeadline(`${year}-${month}-${day}`);
+    }
   };
 
   const renderStepIndicator = () => (
@@ -295,52 +349,73 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Date *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="YYYY-MM-DD (e.g., 2026-02-15)"
-          placeholderTextColor="#999"
-          value={date}
-          onChangeText={setDate}
-          maxLength={10}
-        />
-        {date && (
-          <Text style={styles.datePreview}>{formatDateForDisplay(date)}</Text>
+        <TouchableOpacity
+          style={styles.pickerButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Ionicons name="calendar-outline" size={20} color="#666" />
+          <Text style={[styles.pickerButtonText, !date && styles.pickerPlaceholder]}>
+            {date ? formatDateForDisplay(date) : 'Select a date'}
+          </Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            minimumDate={new Date()}
+          />
         )}
       </View>
 
       <View style={styles.timeRow}>
         <View style={[styles.inputGroup, { flex: 1 }]}>
           <Text style={styles.label}>Start Time *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="HH:MM (e.g., 14:00)"
-            placeholderTextColor="#999"
-            value={startTime}
-            onChangeText={setStartTime}
-            maxLength={5}
-          />
-          {startTime && (
-            <Text style={styles.timePreview}>{formatTimeForDisplay(startTime)}</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowStartTimePicker(true)}
+          >
+            <Ionicons name="time-outline" size={20} color="#666" />
+            <Text style={[styles.pickerButtonText, !startTime && styles.pickerPlaceholder]}>
+              {startTime ? formatTimeForDisplay(startTime) : 'Start'}
+            </Text>
+          </TouchableOpacity>
+          {showStartTimePicker && (
+            <DateTimePicker
+              value={selectedStartTime}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onStartTimeChange}
+              is24Hour={false}
+            />
           )}
         </View>
 
         <View style={[styles.inputGroup, { flex: 1 }]}>
           <Text style={styles.label}>End Time</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="HH:MM (e.g., 17:00)"
-            placeholderTextColor="#999"
-            value={endTime}
-            onChangeText={setEndTime}
-            maxLength={5}
-          />
-          {endTime && (
-            <Text style={styles.timePreview}>{formatTimeForDisplay(endTime)}</Text>
+          <TouchableOpacity
+            style={styles.pickerButton}
+            onPress={() => setShowEndTimePicker(true)}
+          >
+            <Ionicons name="time-outline" size={20} color="#666" />
+            <Text style={[styles.pickerButtonText, !endTime && styles.pickerPlaceholder]}>
+              {endTime ? formatTimeForDisplay(endTime) : 'End'}
+            </Text>
+          </TouchableOpacity>
+          {showEndTimePicker && (
+            <DateTimePicker
+              value={selectedEndTime}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onEndTimeChange}
+              is24Hour={false}
+            />
           )}
         </View>
       </View>
 
-      <Text style={styles.helperText}>Use 24-hour format for times</Text>
+      <Text style={styles.helperText}>Tap to select date and time</Text>
     </View>
   );
 
@@ -478,14 +553,26 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         </View>
       </TouchableOpacity>
       {rsvpDeadlineEnabled && (
-        <TextInput
-          style={[styles.input, styles.limitInput]}
-          placeholder="YYYY-MM-DD (e.g., 2026-02-14)"
-          placeholderTextColor="#999"
-          value={rsvpDeadline}
-          onChangeText={setRsvpDeadline}
-          maxLength={10}
-        />
+        <>
+          <TouchableOpacity
+            style={[styles.pickerButton, styles.limitInput]}
+            onPress={() => setShowRsvpDeadlinePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={20} color="#666" />
+            <Text style={[styles.pickerButtonText, !rsvpDeadline && styles.pickerPlaceholder]}>
+              {rsvpDeadline ? formatDateForDisplay(rsvpDeadline) : 'Select deadline date'}
+            </Text>
+          </TouchableOpacity>
+          {showRsvpDeadlinePicker && (
+            <DateTimePicker
+              value={selectedRsvpDeadline}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onRsvpDeadlineChange}
+              minimumDate={new Date()}
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -817,6 +904,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#f9f9f9',
     color: '#000',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#f9f9f9',
+    gap: 12,
+  },
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#000',
+    flex: 1,
+  },
+  pickerPlaceholder: {
+    color: '#999',
   },
   textArea: {
     minHeight: 100,
