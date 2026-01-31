@@ -200,8 +200,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   // Date picker handlers
   const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDateValue) {
+    // Always hide picker on Android, or on iOS when dismissed/set
+    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+      setShowDatePicker(false);
+    }
+    if (event.type === 'set' && selectedDateValue) {
       setSelectedDate(selectedDateValue);
       const year = selectedDateValue.getFullYear();
       const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
@@ -211,8 +214,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   };
 
   const onStartTimeChange = (event: DateTimePickerEvent, selectedTimeValue?: Date) => {
-    setShowStartTimePicker(Platform.OS === 'ios');
-    if (selectedTimeValue) {
+    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+      setShowStartTimePicker(false);
+    }
+    if (event.type === 'set' && selectedTimeValue) {
       setSelectedStartTime(selectedTimeValue);
       const hours = String(selectedTimeValue.getHours()).padStart(2, '0');
       const minutes = String(selectedTimeValue.getMinutes()).padStart(2, '0');
@@ -221,8 +226,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   };
 
   const onEndTimeChange = (event: DateTimePickerEvent, selectedTimeValue?: Date) => {
-    setShowEndTimePicker(Platform.OS === 'ios');
-    if (selectedTimeValue) {
+    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+      setShowEndTimePicker(false);
+    }
+    if (event.type === 'set' && selectedTimeValue) {
       setSelectedEndTime(selectedTimeValue);
       const hours = String(selectedTimeValue.getHours()).padStart(2, '0');
       const minutes = String(selectedTimeValue.getMinutes()).padStart(2, '0');
@@ -231,8 +238,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   };
 
   const onRsvpDeadlineChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
-    setShowRsvpDeadlinePicker(Platform.OS === 'ios');
-    if (selectedDateValue) {
+    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+      setShowRsvpDeadlinePicker(false);
+    }
+    if (event.type === 'set' && selectedDateValue) {
       setSelectedRsvpDeadline(selectedDateValue);
       const year = selectedDateValue.getFullYear();
       const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
