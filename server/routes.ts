@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema } from "@shared/schema";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -278,6 +278,165 @@ export async function registerRoutes(
     try {
       const isMember = await storage.isMember(req.userId!, req.params.id);
       res.json({ isMember });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Events API
+  app.get("/api/events/my", authMiddleware, async (req, res) => {
+    try {
+      const events = await storage.getUserEvents(req.userId!);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/created", authMiddleware, async (req, res) => {
+    try {
+      const events = await storage.getUserCreatedEvents(req.userId!);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/created/my", authMiddleware, async (req, res) => {
+    try {
+      const bubbles = await storage.getUserCreatedBubbles(req.userId!);
+      res.json(bubbles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/:bubbleId/events", async (req, res) => {
+    try {
+      const events = await storage.getBubbleEvents(req.params.bubbleId);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/:id", async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      res.json(event);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/events", authMiddleware, async (req, res) => {
+    try {
+      const data = insertEventSchema.parse({
+        ...req.body,
+        creatorId: req.userId,
+      });
+
+      const event = await storage.createEvent(data);
+
+      // Auto-RSVP the creator
+      await storage.createEventAttendee({
+        eventId: event.id,
+        userId: req.userId!,
+        status: "going",
+      });
+
+      res.json(event);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/events/:id", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      // Only creator can edit
+      if (event.creatorId !== req.userId) {
+        return res.status(403).json({ error: "Only the event creator can edit" });
+      }
+
+      const updated = await storage.updateEvent(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/events/:id", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      // Only creator can delete
+      if (event.creatorId !== req.userId) {
+        return res.status(403).json({ error: "Only the event creator can delete" });
+      }
+
+      await storage.deleteEvent(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/events/:id/rsvp", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const isAttendee = await storage.isEventAttendee(req.userId!, req.params.id);
+      if (isAttendee) {
+        return res.status(400).json({ error: "Already RSVP'd" });
+      }
+
+      // Check attendee limit
+      if (event.attendeeLimit) {
+        const attendees = await storage.getEventAttendees(req.params.id);
+        if (attendees.length >= event.attendeeLimit) {
+          return res.status(400).json({ error: "Event is full" });
+        }
+      }
+
+      await storage.createEventAttendee({
+        eventId: req.params.id,
+        userId: req.userId!,
+        status: req.body.status || "going",
+      });
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/events/:id/rsvp", authMiddleware, async (req, res) => {
+    try {
+      await storage.deleteEventAttendee(req.userId!, req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/:id/attendees", async (req, res) => {
+    try {
+      const attendees = await storage.getEventAttendees(req.params.id);
+      res.json(attendees);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
