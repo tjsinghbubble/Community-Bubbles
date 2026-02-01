@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { insertUserSchema, insertBubbleSchema, insertEventSchema } from "@shared/schema";
+import { seedCampuses } from "./seed-campuses";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -523,6 +524,181 @@ export async function registerRoutes(
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ============ CAMPUS ROUTES ============
+
+  // Get all campuses
+  app.get("/api/campuses", async (req, res) => {
+    try {
+      const campuses = await storage.getCampuses();
+      res.json(campuses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send campus verification code
+  app.post("/api/campus/send-verification", authMiddleware, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Validate .edu email domain
+      const emailLower = email.toLowerCase();
+      const domain = emailLower.split("@")[1];
+      if (!domain || !domain.endsWith(".edu")) {
+        return res.status(400).json({ error: "Please use a valid .edu email address" });
+      }
+
+      // Check if campus exists
+      const campus = await storage.getCampusByDomain(domain);
+      if (!campus) {
+        return res.status(400).json({ error: "This university is not yet supported. Check back later!" });
+      }
+
+      // Generate and store verification code
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await storage.createVerificationCode({
+        email: emailLower,
+        code,
+        expiresAt,
+      });
+
+      // In dev mode, return the code in an alert (as requested)
+      console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
+      res.json({
+        success: true,
+        message: "Verification code sent",
+        campusId: campus.id,
+        campusName: campus.title,
+        devCode: code,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Verify campus code and associate user with campus
+  app.post("/api/campus/verify-code", authMiddleware, async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: "Email and code are required" });
+      }
+
+      const emailLower = email.toLowerCase();
+      const domain = emailLower.split("@")[1];
+
+      // Verify code
+      const validCode = await storage.getValidVerificationCode(emailLower, code);
+      if (!validCode) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+
+      // Get campus
+      const campus = await storage.getCampusByDomain(domain);
+      if (!campus) {
+        return res.status(400).json({ error: "Campus not found" });
+      }
+
+      // Mark code as used
+      await storage.markCodeAsUsed(validCode.id);
+
+      // Update user with campus info
+      await storage.updateUserCampus(req.userId!, campus.id, emailLower, true);
+
+      // Get updated user
+      const user = await storage.getUser(req.userId!);
+
+      res.json({
+        success: true,
+        campus: {
+          id: campus.id,
+          name: campus.title,
+          domain: campus.domain,
+        },
+        user: {
+          id: user!.id,
+          name: user!.name,
+          email: user!.email,
+          campusId: user!.campusId,
+          campusEmail: user!.campusEmail,
+          campusVerified: user!.campusVerified,
+        },
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Dismiss campus prompt
+  app.post("/api/campus/dismiss-prompt", authMiddleware, async (req, res) => {
+    try {
+      await storage.dismissCampusPrompt(req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get campus bubbles (only for verified campus users)
+  app.get("/api/campus/bubbles", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusVerified || !user.campusId) {
+        return res.status(403).json({ error: "Campus verification required" });
+      }
+
+      const bubbles = await storage.getCampusBubbles(user.campusId);
+      res.json(bubbles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get campus events (only for verified campus users)
+  app.get("/api/campus/events", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusVerified || !user.campusId) {
+        return res.status(403).json({ error: "Campus verification required" });
+      }
+
+      const events = await storage.getCampusEvents(user.campusId);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's campus info
+  app.get("/api/campus/my-campus", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusId) {
+        return res.json({ campus: null });
+      }
+
+      const campus = await storage.getCampus(user.campusId);
+      res.json({
+        campus: campus ? {
+          id: campus.id,
+          name: campus.title,
+          domain: campus.domain,
+        } : null,
+        verified: user.campusVerified,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Seed campuses on startup
+  seedCampuses().catch(console.error);
 
   return httpServer;
 }

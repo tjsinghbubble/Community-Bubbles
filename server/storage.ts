@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, gte, or } from "drizzle-orm";
+import { eq, and, desc, lt, gte, or, isNull } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -7,6 +7,7 @@ import {
   verificationCodes,
   events,
   eventAttendees,
+  campuses,
   type User,
   type InsertUser,
   type Bubble,
@@ -19,6 +20,8 @@ import {
   type InsertEvent,
   type EventAttendee,
   type InsertEventAttendee,
+  type Campus,
+  type InsertCampus,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -62,6 +65,18 @@ export interface IStorage {
   isEventAttendee(userId: string, eventId: string): Promise<boolean>;
   createEventAttendee(attendee: InsertEventAttendee): Promise<EventAttendee>;
   deleteEventAttendee(userId: string, eventId: string): Promise<void>;
+
+  // Campus
+  getCampuses(): Promise<Campus[]>;
+  getCampus(id: string): Promise<Campus | undefined>;
+  getCampusByDomain(domain: string): Promise<Campus | undefined>;
+  createCampus(campus: InsertCampus): Promise<Campus>;
+  updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void>;
+  dismissCampusPrompt(userId: string): Promise<void>;
+  getPublicBubbles(): Promise<Bubble[]>;
+  getCampusBubbles(campusId: string): Promise<Bubble[]>;
+  getPublicEvents(): Promise<(Event & { bubble: Bubble })[]>;
+  getCampusEvents(campusId: string): Promise<(Event & { bubble: Bubble })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -329,6 +344,83 @@ export class DatabaseStorage implements IStorage {
     await db.delete(eventAttendees).where(
       and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId))
     );
+  }
+
+  // Campus methods
+  async getCampuses(): Promise<Campus[]> {
+    return db.select().from(campuses).orderBy(campuses.title);
+  }
+
+  async getCampus(id: string): Promise<Campus | undefined> {
+    const result = await db.select().from(campuses).where(eq(campuses.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getCampusByDomain(domain: string): Promise<Campus | undefined> {
+    const result = await db.select().from(campuses).where(eq(campuses.domain, domain.toLowerCase())).limit(1);
+    return result[0];
+  }
+
+  async createCampus(insertCampus: InsertCampus): Promise<Campus> {
+    const result = await db.insert(campuses).values({
+      ...insertCampus,
+      domain: insertCampus.domain.toLowerCase(),
+    }).returning();
+    return result[0];
+  }
+
+  async updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void> {
+    await db.update(users).set({
+      campusId,
+      campusEmail,
+      campusVerified: verified,
+    }).where(eq(users.id, userId));
+  }
+
+  async dismissCampusPrompt(userId: string): Promise<void> {
+    await db.update(users).set({
+      dismissedCampusPrompt: true,
+    }).where(eq(users.id, userId));
+  }
+
+  async getPublicBubbles(): Promise<Bubble[]> {
+    return db.select().from(bubbles)
+      .where(isNull(bubbles.campusId))
+      .orderBy(desc(bubbles.createdAt));
+  }
+
+  async getCampusBubbles(campusId: string): Promise<Bubble[]> {
+    return db.select().from(bubbles)
+      .where(eq(bubbles.campusId, campusId))
+      .orderBy(desc(bubbles.createdAt));
+  }
+
+  async getPublicEvents(): Promise<(Event & { bubble: Bubble })[]> {
+    const result = await db
+      .select()
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .where(isNull(events.campusId))
+      .orderBy(desc(events.createdAt));
+
+    return result.map(row => ({
+      ...row.events,
+      bubble: row.bubbles,
+    }));
+  }
+
+  async getCampusEvents(campusId: string): Promise<(Event & { bubble: Bubble })[]> {
+    const result = await db
+      .select()
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .where(eq(events.campusId, campusId))
+      .orderBy(desc(events.createdAt));
+
+    return result.map(row => ({
+      ...row.events,
+      bubble: row.bubbles,
+    }));
   }
 }
 

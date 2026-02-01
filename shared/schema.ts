@@ -3,12 +3,23 @@ import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const campuses = pgTable("campuses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  domain: text("domain").notNull().unique(),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
+  campusId: varchar("campus_id").references(() => campuses.id),
+  campusEmail: text("campus_email"),
+  campusVerified: boolean("campus_verified").notNull().default(false),
+  dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -24,6 +35,7 @@ export const bubbles = pgTable("bubbles", {
   members: integer("members").notNull().default(0),
   distance: text("distance"),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
+  campusId: varchar("campus_id").references(() => campuses.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -100,6 +112,7 @@ export const events = pgTable("events", {
   rsvpDeadline: text("rsvp_deadline"), // YYYY-MM-DD format, null means no deadline
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
+  campusId: varchar("campus_id").references(() => campuses.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -127,3 +140,12 @@ export type Event = typeof events.$inferSelect;
 
 export type InsertEventAttendee = z.infer<typeof insertEventAttendeeSchema>;
 export type EventAttendee = typeof eventAttendees.$inferSelect;
+
+// Campus types
+export const insertCampusSchema = createInsertSchema(campuses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCampus = z.infer<typeof insertCampusSchema>;
+export type Campus = typeof campuses.$inferSelect;
