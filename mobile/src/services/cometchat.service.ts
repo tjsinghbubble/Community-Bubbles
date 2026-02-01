@@ -174,6 +174,75 @@ class CometChatService {
       throw error;
     }
   }
+
+  async addReaction(messageId: string | number, emoji: string) {
+    try {
+      const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
+      await CometChat.addReaction(numericId, emoji);
+      console.log('Reaction added:', emoji);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      throw error;
+    }
+  }
+
+  async removeReaction(messageId: string | number, emoji: string) {
+    try {
+      const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
+      await CometChat.removeReaction(numericId, emoji);
+      console.log('Reaction removed:', emoji);
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+      throw error;
+    }
+  }
+
+  async getMessageReactions(messageId: string) {
+    try {
+      const request = new CometChat.ReactionsRequestBuilder()
+        .setMessageId(parseInt(messageId))
+        .setLimit(100)
+        .build();
+      const reactions = await request.fetchNext();
+      return reactions;
+    } catch (error) {
+      console.error('Failed to fetch reactions:', error);
+      return [];
+    }
+  }
+
+  async sendReplyMessage(guid: string, text: string, parentMessageId: number) {
+    try {
+      const receiverID = guid;
+      const messageText = text;
+      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
+      const textMessage = new CometChat.TextMessage(
+        receiverID,
+        messageText,
+        receiverType
+      );
+      textMessage.setParentMessageId(parentMessageId);
+      
+      const message = await CometChat.sendMessage(textMessage);
+      console.log('Reply message sent successfully:', message);
+      return message;
+    } catch (error) {
+      console.error('Reply message sending failed:', error);
+      throw error;
+    }
+  }
+
+  getReactionListener(listenerID: string, onReactionAdded: (reaction: any) => void, onReactionRemoved: (reaction: any) => void) {
+    return new CometChat.MessageListener({
+      onTextMessageReceived: () => {},
+      onMessageReactionAdded: (reaction: any) => {
+        onReactionAdded(reaction);
+      },
+      onMessageReactionRemoved: (reaction: any) => {
+        onReactionRemoved(reaction);
+      },
+    });
+  }
 }
 
 export default new CometChatService();
