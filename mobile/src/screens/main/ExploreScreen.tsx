@@ -44,7 +44,7 @@ type EventData = {
 export default function ExploreScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, token, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'bubbles' | 'events' | 'campus'>('bubbles');
+  const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [events, setEvents] = useState<EventData[]>([]);
   const [campusBubbles, setCampusBubbles] = useState<BubbleData[]>([]);
@@ -54,6 +54,7 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showStudentPrompt, setShowStudentPrompt] = useState(true);
   const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
+  const [showCampusContent, setShowCampusContent] = useState(false);
 
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
@@ -179,8 +180,12 @@ export default function ExploreScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Filter bubbles and events based on search query
-  const filteredBubbles = bubbles.filter((bubble) => {
+  // Get the correct data based on campus toggle
+  const displayBubbles = showCampusContent ? campusBubbles : bubbles;
+  const displayEvents = showCampusContent ? campusEvents : events;
+
+  // Filter bubbles and events based on search query (using display data which respects campus toggle)
+  const filteredBubbles = displayBubbles.filter((bubble) => {
     const query = searchQuery.toLowerCase();
     return (
       bubble.title.toLowerCase().includes(query) ||
@@ -189,7 +194,7 @@ export default function ExploreScreen() {
     );
   });
 
-  const filteredEvents = events.filter((event) => {
+  const filteredEvents = displayEvents.filter((event) => {
     const query = searchQuery.toLowerCase();
     return (
       event.title.toLowerCase().includes(query) ||
@@ -278,22 +283,13 @@ export default function ExploreScreen() {
           Events
         </Text>
       </TouchableOpacity>
-      
-      {isCampusVerified && (
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'campus' && styles.activeTab]}
-          onPress={() => setActiveTab('campus')}
-        >
-          <View style={styles.tabIconContainer}>
-            <Text style={{ fontSize: 24 }}>🎓</Text>
-          </View>
-          <Text style={[styles.tabText, activeTab === 'campus' && styles.activeTabText]}>
-            Campus
-          </Text>
-        </TouchableOpacity>
-      )}
     </View>
   );
+
+  // Toggle between campus and public content
+  const handleCampusToggle = () => {
+    setShowCampusContent(!showCampusContent);
+  };
 
   const renderBubbleCard = (bubble: BubbleData) => (
     <TouchableOpacity 
@@ -356,94 +352,56 @@ export default function ExploreScreen() {
     );
   }
 
-  // Determine current data based on active tab
-  const getCurrentData = () => {
-    if (activeTab === 'campus') {
-      return campusBubbles;
-    }
-    return activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
-  };
-  
-  const currentData = getCurrentData();
+  // Determine if content is empty
+  const currentData = activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
   const isEmpty = currentData.length === 0;
 
-  const renderCampusContent = () => (
-    <ScrollView
-      contentContainerStyle={styles.campusContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      {campusInfo && (
-        <View style={styles.campusHeader}>
-          <Text style={{ fontSize: 32 }}>🎓</Text>
-          <Text style={styles.campusName}>{campusInfo.name}</Text>
-          <Text style={styles.campusSubtitle}>Your campus community</Text>
-        </View>
-      )}
-      
-      {campusBubbles.length > 0 && (
-        <View style={styles.campusSection}>
-          <Text style={styles.campusSectionTitle}>Campus Bubbles</Text>
-          <View style={styles.campusGrid}>
-            {campusBubbles.map(renderBubbleCard)}
-          </View>
-        </View>
-      )}
-      
-      {campusEvents.length > 0 && (
-        <View style={styles.campusSection}>
-          <Text style={styles.campusSectionTitle}>Campus Events</Text>
-          <View style={styles.campusGrid}>
-            {campusEvents.map(renderEventCard)}
-          </View>
-        </View>
-      )}
-      
-      {campusBubbles.length === 0 && campusEvents.length === 0 && (
-        <View style={styles.campusEmpty}>
-          <Text style={{ fontSize: 48 }}>🎓</Text>
-          <Text style={styles.emptyTitle}>No campus content yet</Text>
-          <Text style={styles.emptySubtitle}>Be the first to create a bubble for your campus!</Text>
-        </View>
-      )}
-    </ScrollView>
-  );
+  // Get empty state message based on context
+  const getEmptyMessage = () => {
+    if (searchQuery) {
+      return { title: `No ${activeTab} found`, subtitle: 'Try a different search term' };
+    }
+    if (showCampusContent) {
+      return { 
+        title: `No campus ${activeTab} yet`, 
+        subtitle: `Be the first to create ${activeTab === 'bubbles' ? 'a bubble' : 'an event'} for your campus!` 
+      };
+    }
+    return {
+      title: `No ${activeTab} yet`,
+      subtitle: activeTab === 'bubbles' 
+        ? 'Be the first to create a bubble in your area!'
+        : 'Check back later for upcoming events!'
+    };
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {renderSearchHeader()}
       {renderTabs()}
       
-      {activeTab === 'campus' ? (
-        renderCampusContent()
-      ) : isEmpty ? (
+      {showCampusContent && campusInfo && (
+        <View style={styles.campusBanner}>
+          <Text style={{ fontSize: 16 }}>🎓</Text>
+          <Text style={styles.campusBannerText}>{campusInfo.name}</Text>
+        </View>
+      )}
+      
+      {isEmpty ? (
         <ScrollView
           contentContainerStyle={styles.empty}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {renderStudentPromptCard()}
+          {!showCampusContent && renderStudentPromptCard()}
           <Ionicons 
             name={activeTab === 'bubbles' ? 'chatbubbles-outline' : 'calendar-outline'} 
             size={48} 
             color="#ccc" 
           />
-          <Text style={styles.emptyTitle}>
-            {searchQuery 
-              ? `No ${activeTab} found` 
-              : `No ${activeTab} yet`
-            }
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery 
-              ? `Try a different search term`
-              : activeTab === 'bubbles' 
-                ? 'Be the first to create a bubble in your area!'
-                : 'Check back later for upcoming events!'
-            }
-          </Text>
+          <Text style={styles.emptyTitle}>{getEmptyMessage().title}</Text>
+          <Text style={styles.emptySubtitle}>{getEmptyMessage().subtitle}</Text>
         </ScrollView>
       ) : (
         <ScrollView 
@@ -452,12 +410,21 @@ export default function ExploreScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {renderStudentPromptCard()}
+          {!showCampusContent && renderStudentPromptCard()}
           {activeTab === 'bubbles' 
             ? filteredBubbles.map(renderBubbleCard)
             : filteredEvents.map(renderEventCard)
           }
         </ScrollView>
+      )}
+      
+      {isCampusVerified && (
+        <TouchableOpacity 
+          style={[styles.fab, showCampusContent && styles.fabActive]} 
+          onPress={handleCampusToggle}
+        >
+          <Text style={{ fontSize: 24 }}>🎓</Text>
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
@@ -701,5 +668,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 40,
     gap: 12,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+  },
+  fabActive: {
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    borderColor: 'hsl(210, 95%, 55%)',
+  },
+  campusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'hsl(210, 95%, 95%)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'hsl(210, 95%, 85%)',
+  },
+  campusBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'hsl(210, 95%, 40%)',
   },
 });

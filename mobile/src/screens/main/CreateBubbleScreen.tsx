@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Switch,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +44,7 @@ const CATEGORIES = [
 const PRIVACY_OPTIONS = ['Public', 'Private'];
 
 export default function CreateBubbleScreen({ navigation }: Props) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [title, setTitle] = useState('');
   const [tagline, setTagline] = useState('');
   const [category, setCategory] = useState('');
@@ -51,11 +52,14 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [rulesText, setRulesText] = useState('');
   const [privacy, setPrivacy] = useState('Public');
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [campusOnly, setCampusOnly] = useState(false);
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPrivacyPicker, setShowPrivacyPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const isCampusVerified = user?.campusVerified && user?.campusId;
 
   const isFormValid = title && tagline && category && description;
 
@@ -83,6 +87,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           rules,
           privacy,
           coverImage: coverImageUrl || null,
+          campusId: campusOnly && isCampusVerified ? user?.campusId : null,
         }),
       });
 
@@ -230,6 +235,28 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 : 'Only invited members can join'}
             </Text>
           </View>
+
+          {isCampusVerified && (
+            <View style={styles.inputGroup}>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <View style={styles.toggleLabelRow}>
+                    <Text style={{ fontSize: 16 }}>🎓</Text>
+                    <Text style={styles.toggleLabel}>Campus Only</Text>
+                  </View>
+                  <Text style={styles.helperText}>
+                    Only students from your campus can see and join this bubble
+                  </Text>
+                </View>
+                <Switch
+                  value={campusOnly}
+                  onValueChange={setCampusOnly}
+                  trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
+                  thumbColor={campusOnly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+                />
+              </View>
+            </View>
+          )}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Cover Image URL</Text>
@@ -496,5 +523,30 @@ const styles = StyleSheet.create({
   modalOptionSelected: {
     color: 'hsl(210, 95%, 55%)',
     fontWeight: '600',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 12,
+    gap: 4,
+  },
+  toggleLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });

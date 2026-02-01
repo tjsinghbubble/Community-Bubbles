@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Switch,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -31,6 +33,7 @@ type Bubble = {
   id: string;
   title: string;
   category: string;
+  campusId?: number | null;
 };
 
 const VISIBILITY_OPTIONS = [
@@ -46,11 +49,15 @@ const ENVIRONMENT_OPTIONS = [
 ];
 
 export default function CreateEventScreen({ navigation, route }: Props) {
+  const { user } = useAuth();
   const routeParams = route?.params as { bubbleId?: string; bubbleTitle?: string } | undefined;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdEvent, setCreatedEvent] = useState<any>(null);
+  const [campusOnly, setCampusOnly] = useState(false);
+  
+  const isCampusVerified = user?.campusVerified && user?.campusId;
 
   // User's bubbles for selection
   const [myBubbles, setMyBubbles] = useState<Bubble[]>([]);
@@ -170,6 +177,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         wheelchairAccessible,
         attendeeLimit: attendeeLimitEnabled && attendeeLimit ? parseInt(attendeeLimit) : null,
         rsvpDeadline: rsvpDeadlineEnabled && rsvpDeadline ? rsvpDeadline : null,
+        campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? user?.campusId : null),
       };
 
       const event = await apiService.createEvent(eventData);
@@ -515,6 +523,42 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.description}
         </Text>
       </View>
+
+      {selectedBubble?.campusId ? (
+        <>
+          <View style={styles.sectionDivider} />
+          <View style={styles.campusInfoRow}>
+            <Text style={{ fontSize: 16 }}>🎓</Text>
+            <View style={styles.campusInfoText}>
+              <Text style={styles.campusToggleLabel}>Campus Only Event</Text>
+              <Text style={styles.helperText}>
+                This event will only be visible to students from the bubble's campus
+              </Text>
+            </View>
+          </View>
+        </>
+      ) : isCampusVerified && (
+        <>
+          <View style={styles.sectionDivider} />
+          <View style={styles.campusToggleRow}>
+            <View style={styles.campusToggleInfo}>
+              <View style={styles.campusToggleLabelRow}>
+                <Text style={{ fontSize: 16 }}>🎓</Text>
+                <Text style={styles.campusToggleLabel}>Campus Only</Text>
+              </View>
+              <Text style={styles.helperText}>
+                Only students from your campus can see and attend this event
+              </Text>
+            </View>
+            <Switch
+              value={campusOnly}
+              onValueChange={setCampusOnly}
+              trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
+              thumbColor={campusOnly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+            />
+          </View>
+        </>
+      )}
 
       <View style={styles.sectionDivider} />
 
@@ -1338,5 +1382,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  campusToggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  campusToggleInfo: {
+    flex: 1,
+    marginRight: 12,
+    gap: 4,
+  },
+  campusToggleLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  campusToggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  campusInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'hsl(210, 95%, 95%)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'hsl(210, 95%, 85%)',
+    gap: 12,
+  },
+  campusInfoText: {
+    flex: 1,
+    gap: 4,
   },
 });
