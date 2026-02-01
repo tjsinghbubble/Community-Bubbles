@@ -75,6 +75,7 @@ Three core tables managed by Drizzle ORM:
 ### Third-Party Services
 
 - **CometChat**: Real-time messaging SDK for direct and group chat functionality. Requires `COMETCHAT_APP_ID`, `COMETCHAT_REGION`, and `COMETCHAT_AUTH_KEY` environment variables
+- **Google Places API**: Location autocomplete for event creation. Requires `GOOGLE_PLACES_API_KEY` (server) and `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY` (mobile) environment variables
 - **Google Fonts**: DM Sans and Outfit font families loaded via CDN
 
 ### Database
