@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   campusEmail: text("campus_email"),
   campusVerified: boolean("campus_verified").notNull().default(false),
   dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
