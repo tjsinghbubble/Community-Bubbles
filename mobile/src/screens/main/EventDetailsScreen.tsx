@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import SuccessModal from '../../components/SuccessModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -59,6 +60,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isRsvpd, setIsRsvpd] = useState(false);
   const [isRsvping, setIsRsvping] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
+  const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
 
   useEffect(() => {
     if (!event) {
@@ -96,12 +100,14 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         await apiService.cancelRsvp(eventId);
         setIsRsvpd(false);
         setAttendees(attendees.filter(a => a.userId !== user?.id));
-        Alert.alert('RSVP Cancelled', 'You are no longer attending this event');
+        setSuccessModalConfig({ title: 'RSVP Cancelled', subtitle: 'You are no longer attending this event' });
+        setShowSuccessModal(true);
       } else {
         await apiService.rsvpEvent(eventId, 'going');
         setIsRsvpd(true);
         fetchAttendees();
-        Alert.alert('RSVP Confirmed!', 'You are attending this event');
+        setSuccessModalConfig({ title: 'RSVP Confirmed!', subtitle: 'You are attending this event' });
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to update RSVP');
@@ -126,8 +132,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           onPress: async () => {
             try {
               await apiService.deleteEvent(eventId);
-              Alert.alert('Deleted', 'Event has been deleted');
-              navigation.goBack();
+              setSuccessModalConfig({ title: 'Deleted', subtitle: 'Event has been deleted' });
+              setShouldNavigateBack(true);
+              setShowSuccessModal(true);
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete event');
             }
@@ -353,6 +360,18 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       )}
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title={successModalConfig.title}
+        subtitle={successModalConfig.subtitle}
+        onClose={() => {
+          setShowSuccessModal(false);
+          if (shouldNavigateBack) {
+            navigation.goBack();
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

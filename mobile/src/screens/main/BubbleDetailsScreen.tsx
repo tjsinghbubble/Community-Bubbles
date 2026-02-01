@@ -17,6 +17,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
+import SuccessModal from '../../components/SuccessModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -44,6 +45,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [bubbleDetails, setBubbleDetails] = useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
 
   useEffect(() => {
     checkMembership();
@@ -100,7 +103,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           console.log('CometChat leave error (may not be in group):', e);
         }
         setIsMember(false);
-        Alert.alert('Left', `You left ${bubble.title}`);
+        setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
+        setShowSuccessModal(true);
       } else {
         await apiService.joinBubble(bubble.id);
         try {
@@ -114,7 +118,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           console.log('CometChat join error (may already be member):', e);
         }
         setIsMember(true);
-        Alert.alert('Joined!', `Welcome to ${bubble.title}`);
+        setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -303,6 +308,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           )}
         </TouchableOpacity>
       </View>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title={successModalConfig.title}
+        subtitle={successModalConfig.subtitle}
+        onClose={() => setShowSuccessModal(false)}
+      />
     </SafeAreaView>
   );
 }

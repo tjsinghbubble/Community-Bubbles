@@ -16,6 +16,7 @@ import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
+import SuccessModal from '../../components/SuccessModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'EmailVerification'>;
@@ -28,6 +29,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const isCodeComplete = code.every(digit => digit !== '');
 
@@ -95,7 +97,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
       const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'A new verification code has been sent to your email.');
+        setShowSuccessModal(true);
       } else {
         Alert.alert('Error', data.error || 'Failed to send new code');
       }
@@ -170,6 +172,13 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           )}
         </TouchableOpacity>
       </View>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Code Sent!"
+        subtitle="A new verification code has been sent to your email"
+        onClose={() => setShowSuccessModal(false)}
+      />
     </SafeAreaView>
   );
 }

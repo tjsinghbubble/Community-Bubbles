@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
+import SuccessModal from '../../components/SuccessModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -54,6 +55,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPrivacyPicker, setShowPrivacyPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const isFormValid = title && tagline && category && description;
 
@@ -118,9 +120,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         // Don't fail bubble creation if chat group fails - it might already exist
       }
 
-      Alert.alert('Success', 'Your bubble has been created!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      setShowSuccessModal(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to create bubble. Please try again.');
     } finally {
@@ -349,6 +349,16 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Bubble Created!"
+        subtitle="Your bubble has been created successfully"
+        onClose={() => {
+          setShowSuccessModal(false);
+          navigation.goBack();
+        }}
+      />
     </SafeAreaView>
   );
 }

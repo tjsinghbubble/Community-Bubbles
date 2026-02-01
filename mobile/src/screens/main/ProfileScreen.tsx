@@ -14,10 +14,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
+import SuccessModal from '../../components/SuccessModal';
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
   const [deleting, setDeleting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -68,8 +70,7 @@ export default function ProfileScreen() {
         return;
       }
 
-      await logout();
-      Alert.alert('Account Deleted', 'Your account has been successfully deleted.');
+      setShowSuccessModal(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to delete account. Please try again.');
     } finally {
@@ -147,6 +148,16 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Account Deleted"
+        subtitle="Your account has been successfully deleted"
+        onClose={async () => {
+          setShowSuccessModal(false);
+          await logout();
+        }}
+      />
     </SafeAreaView>
   );
 }
