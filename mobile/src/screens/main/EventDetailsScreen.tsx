@@ -9,6 +9,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
+  Linking,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -153,6 +155,32 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
+  const openInMaps = (locationName: string, locationAddress: string | null) => {
+    const address = locationAddress || locationName;
+    const encodedAddress = encodeURIComponent(address);
+    
+    const url = Platform.select({
+      ios: `maps:0,0?q=${encodedAddress}`,
+      android: `geo:0,0?q=${encodedAddress}`,
+    });
+
+    if (url) {
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            return Linking.openURL(url);
+          } else {
+            const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+            return Linking.openURL(webUrl);
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening maps:', err);
+          Alert.alert('Error', 'Could not open maps application');
+        });
+    }
+  };
+
   if (isLoading || !event) {
     return (
       <SafeAreaView style={styles.container}>
@@ -220,7 +248,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
 
           {event.locationName && (
-            <View style={styles.locationSection}>
+            <TouchableOpacity 
+              style={styles.locationSection}
+              onPress={() => openInMaps(event.locationName!, event.locationAddress)}
+              activeOpacity={0.7}
+            >
               <Ionicons name="location" size={20} color="hsl(210, 95%, 55%)" />
               <View style={styles.locationInfo}>
                 <Text style={styles.locationName}>{event.locationName}</Text>
@@ -228,7 +260,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   <Text style={styles.locationAddress}>{event.locationAddress}</Text>
                 )}
               </View>
-            </View>
+              <Ionicons name="open-outline" size={18} color="#999" />
+            </TouchableOpacity>
           )}
 
           <View style={styles.statsRow}>

@@ -12,6 +12,19 @@ declare module "http" {
   }
 }
 
+import cors from 'cors';
+
+// Allow requests from Expo tunnel and other origins
+app.use(cors({
+  origin: [
+    'https://y29b50u-anonymous-5000.exp.direct',
+    /\.exp\.direct$/,  // Allow all Expo tunnel origins
+    'http://localhost:5000',
+    'http://localhost:8081'
+  ],
+  credentials: true
+}));
+
 app.use(
   express.json({
     verify: (req, _res, buf) => {
