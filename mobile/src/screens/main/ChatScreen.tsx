@@ -7,12 +7,18 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 
@@ -26,6 +32,12 @@ type Props = {
   route: RouteProp<MessagesStackParamList, 'Chat'>;
 };
 
+type Reaction = {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+};
+
 type Message = {
   id: string;
   text: string;
@@ -33,8 +45,17 @@ type Message = {
   sender: {
     uid: string;
     name: string;
+    avatar?: string;
+  };
+  reactions: Reaction[];
+  parentMessage?: {
+    id: string;
+    text: string;
+    senderName: string;
   };
 };
+
+const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export default function ChatScreen({ navigation, route }: Props) {
   const { groupId, groupName } = route.params;
@@ -43,6 +64,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -51,23 +74,38 @@ export default function ChatScreen({ navigation, route }: Props) {
 
     return () => {
       cometChatService.removeMessageListener(`chat_${groupId}`);
+      cometChatService.removeMessageListener(`reactions_${groupId}`);
     };
   }, [groupId]);
 
   const fetchMessages = async () => {
     try {
       const data = await cometChatService.getMessages(groupId);
-      const formattedMessages = (data as any[])
-        .filter((msg: any) => msg.type === 'text')
-        .map((msg: any) => ({
-          id: msg.id,
-          text: msg.text,
-          sentAt: msg.sentAt,
-          sender: {
-            uid: msg.sender?.uid || '',
-            name: msg.sender?.name || 'Unknown',
-          },
-        }));
+      const formattedMessages = await Promise.all(
+        (data as any[])
+          .filter((msg: any) => msg.type === 'text')
+          .map(async (msg: any) => {
+            const reactions = parseReactions(msg.reactions || {}, user?.id || '');
+            const parentMessage = msg.parentMessage ? {
+              id: msg.parentMessage.id?.toString(),
+              text: msg.parentMessage.text || '',
+              senderName: msg.parentMessage.sender?.name || 'Unknown',
+            } : undefined;
+
+            return {
+              id: msg.id?.toString(),
+              text: msg.text,
+              sentAt: msg.sentAt,
+              sender: {
+                uid: msg.sender?.uid || '',
+                name: msg.sender?.name || 'Unknown',
+                avatar: msg.sender?.avatar || undefined,
+              },
+              reactions,
+              parentMessage,
+            };
+          })
+      );
       setMessages(formattedMessages);
     } catch (error) {
       console.error('Failed to fetch messages:', error);
@@ -76,45 +114,133 @@ export default function ChatScreen({ navigation, route }: Props) {
     }
   };
 
+  const parseReactions = (reactionsData: any, currentUserId: string): Reaction[] => {
+    if (!reactionsData || typeof reactionsData !== 'object') return [];
+    
+    const reactions: Reaction[] = [];
+    Object.keys(reactionsData).forEach((emoji) => {
+      const reactors = reactionsData[emoji] || {};
+      const count = Object.keys(reactors).length;
+      const reactedByMe = currentUserId in reactors;
+      if (count > 0) {
+        reactions.push({ emoji, count, reactedByMe });
+      }
+    });
+    return reactions;
+  };
+
   const setupMessageListener = () => {
     const listener = cometChatService.getMessageListener(
       `chat_${groupId}`,
       (message: any) => {
         if (message.receiverId === groupId) {
+          const parentMessage = message.parentMessage ? {
+            id: message.parentMessage.id?.toString(),
+            text: message.parentMessage.text || '',
+            senderName: message.parentMessage.sender?.name || 'Unknown',
+          } : undefined;
+
           const newMsg: Message = {
-            id: message.id,
+            id: message.id?.toString(),
             text: message.text,
             sentAt: message.sentAt,
             sender: {
               uid: message.sender?.uid || '',
               name: message.sender?.name || 'Unknown',
+              avatar: message.sender?.avatar || undefined,
             },
+            reactions: [],
+            parentMessage,
           };
           setMessages((prev) => [...prev, newMsg]);
         }
       }
     );
     cometChatService.addMessageListener(`chat_${groupId}`, listener);
+
+    const reactionListener = cometChatService.getReactionListener(
+      `reactions_${groupId}`,
+      (reaction: any) => {
+        const messageId = reaction.messageId?.toString();
+        const emoji = reaction.reaction;
+        const reactedByUid = reaction.reactedBy?.uid;
+        
+        setMessages((prev) => prev.map(m => {
+          if (m.id === messageId) {
+            const existingReaction = m.reactions.find(r => r.emoji === emoji);
+            if (existingReaction) {
+              return {
+                ...m,
+                reactions: m.reactions.map(r => 
+                  r.emoji === emoji 
+                    ? { ...r, count: r.count + 1, reactedByMe: r.reactedByMe || reactedByUid === user?.id } 
+                    : r
+                ),
+              };
+            }
+            return {
+              ...m,
+              reactions: [...m.reactions, { emoji, count: 1, reactedByMe: reactedByUid === user?.id }],
+            };
+          }
+          return m;
+        }));
+      },
+      (reaction: any) => {
+        const messageId = reaction.messageId?.toString();
+        const emoji = reaction.reaction;
+        
+        setMessages((prev) => prev.map(m => {
+          if (m.id === messageId) {
+            return {
+              ...m,
+              reactions: m.reactions.map(r => {
+                if (r.emoji === emoji) {
+                  const newCount = r.count - 1;
+                  return newCount > 0 ? { ...r, count: newCount } : null;
+                }
+                return r;
+              }).filter(Boolean) as Reaction[],
+            };
+          }
+          return m;
+        }));
+      }
+    );
+    cometChatService.addMessageListener(`reactions_${groupId}`, reactionListener);
   };
 
   const handleSend = async () => {
     if (!newMessage.trim() || isSending) return;
 
     const messageText = newMessage.trim();
+    const replyTo = replyingTo;
     setIsSending(true);
     setNewMessage('');
+    setReplyingTo(null);
     
     try {
-      const sentMessage = await cometChatService.sendMessage(groupId, messageText) as any;
+      let sentMessage: any;
+      if (replyTo) {
+        sentMessage = await cometChatService.sendReplyMessage(groupId, messageText, parseInt(replyTo.id));
+      } else {
+        sentMessage = await cometChatService.sendMessage(groupId, messageText);
+      }
       
       const newMsg: Message = {
-        id: sentMessage.id || Date.now().toString(),
+        id: sentMessage.id?.toString() || Date.now().toString(),
         text: sentMessage.text || messageText,
         sentAt: sentMessage.sentAt || Math.floor(Date.now() / 1000),
         sender: {
           uid: user?.id || '',
           name: user?.name || 'You',
         },
+        reactions: [],
+        parentMessage: replyTo ? {
+          id: replyTo.id,
+          text: replyTo.text,
+          senderName: replyTo.sender.name,
+        } : undefined,
       };
       setMessages((prev) => [...prev, newMsg]);
       
@@ -124,9 +250,69 @@ export default function ChatScreen({ navigation, route }: Props) {
     } catch (error) {
       console.error('Failed to send message:', error);
       setNewMessage(messageText);
+      setReplyingTo(replyTo);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    setShowReactionPicker(null);
+    
+    const message = messages.find(m => m.id === messageId);
+    const existingReaction = message?.reactions.find(r => r.emoji === emoji);
+    
+    try {
+      if (existingReaction?.reactedByMe) {
+        await cometChatService.removeReaction(messageId, emoji);
+        setMessages(prev => prev.map(m => {
+          if (m.id === messageId) {
+            return {
+              ...m,
+              reactions: m.reactions.map(r => {
+                if (r.emoji === emoji) {
+                  const newCount = r.count - 1;
+                  return newCount > 0 ? { ...r, count: newCount, reactedByMe: false } : null;
+                }
+                return r;
+              }).filter(Boolean) as Reaction[],
+            };
+          }
+          return m;
+        }));
+      } else {
+        await cometChatService.addReaction(messageId, emoji);
+        setMessages(prev => prev.map(m => {
+          if (m.id === messageId) {
+            const existing = m.reactions.find(r => r.emoji === emoji);
+            if (existing) {
+              return {
+                ...m,
+                reactions: m.reactions.map(r => 
+                  r.emoji === emoji ? { ...r, count: r.count + 1, reactedByMe: true } : r
+                ),
+              };
+            }
+            return {
+              ...m,
+              reactions: [...m.reactions, { emoji, count: 1, reactedByMe: true }],
+            };
+          }
+          return m;
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to toggle reaction:', error);
+    }
+  };
+
+  const handleLongPress = (messageId: string) => {
+    setShowReactionPicker(messageId);
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+    setShowReactionPicker(null);
   };
 
   const formatTime = (timestamp: number) => {
@@ -138,11 +324,130 @@ export default function ChatScreen({ navigation, route }: Props) {
     return senderId === user?.id;
   };
 
+  const getInitials = (name: string) => {
+    if (!name || name.trim() === '') return '?';
+    return name
+      .split(' ')
+      .filter(n => n.length > 0)
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '?';
+  };
+
+  const renderAvatar = (sender: Message['sender']) => {
+    if (sender.avatar) {
+      return (
+        <Image source={{ uri: sender.avatar }} style={styles.avatar} />
+      );
+    }
+    return (
+      <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <Text style={styles.avatarInitials}>{getInitials(sender.name)}</Text>
+      </View>
+    );
+  };
+
+  const renderReactions = (message: Message) => {
+    if (message.reactions.length === 0) return null;
+    
+    return (
+      <View style={styles.reactionsContainer}>
+        {message.reactions.map((reaction) => (
+          <TouchableOpacity
+            key={reaction.emoji}
+            style={[
+              styles.reactionBadge,
+              reaction.reactedByMe && styles.reactionBadgeActive,
+            ]}
+            onPress={() => handleReaction(message.id, reaction.emoji)}
+          >
+            <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+            <Text style={styles.reactionCount}>{reaction.count}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  const renderReplyPreview = (parentMessage: Message['parentMessage']) => {
+    if (!parentMessage) return null;
+    
+    return (
+      <View style={styles.replyPreview}>
+        <View style={styles.replyBar} />
+        <View style={styles.replyContent}>
+          <Text style={styles.replySenderName}>{parentMessage.senderName}</Text>
+          <Text style={styles.replyText} numberOfLines={1}>{parentMessage.text}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderMessage = (message: Message) => {
+    const isOwn = isOwnMessage(message.sender.uid);
+    
+    return (
+      <TouchableOpacity
+        key={message.id}
+        onLongPress={() => handleLongPress(message.id)}
+        delayLongPress={300}
+        activeOpacity={0.9}
+      >
+        <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
+          {!isOwn && renderAvatar(message.sender)}
+          
+          <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
+            {!isOwn && (
+              <Text style={styles.senderName}>{message.sender.name}</Text>
+            )}
+            
+            {message.parentMessage && renderReplyPreview(message.parentMessage)}
+            
+            <View style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+              <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
+                {message.text}
+              </Text>
+            </View>
+            
+            {renderReactions(message)}
+            
+            <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
+              {formatTime(message.sentAt)}
+            </Text>
+          </View>
+        </View>
+        
+        {showReactionPicker === message.id && (
+          <View style={[styles.reactionPickerContainer, isOwn && styles.reactionPickerOwn]}>
+            <View style={styles.reactionPicker}>
+              {REACTION_EMOJIS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionOption}
+                  onPress={() => handleReaction(message.id, emoji)}
+                >
+                  <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.replyOption}
+                onPress={() => handleReply(message)}
+              >
+                <Ionicons name="arrow-undo" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={24} color="hsl(210, 95%, 55%)" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
@@ -154,60 +459,46 @@ export default function ChatScreen({ navigation, route }: Props) {
         style={styles.keyboardView}
         keyboardVerticalOffset={0}
       >
-        {isLoading ? (
-          <View style={styles.loading}>
-            <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
-          </View>
-        ) : (
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.messagesList}
-            contentContainerStyle={styles.messagesContent}
-            onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
-          >
-            {messages.length === 0 ? (
-              <View style={styles.emptyMessages}>
-                <Text style={styles.emptyText}>No messages yet</Text>
-                <Text style={styles.emptySubtext}>Be the first to say hello!</Text>
-              </View>
-            ) : (
-              messages.map((message) => (
-                <View
-                  key={message.id}
-                  style={[
-                    styles.messageContainer,
-                    isOwnMessage(message.sender.uid) ? styles.ownMessage : styles.otherMessage,
-                  ]}
-                >
-                  {!isOwnMessage(message.sender.uid) && (
-                    <Text style={styles.senderName}>{message.sender.name}</Text>
-                  )}
-                  <View
-                    style={[
-                      styles.messageBubble,
-                      isOwnMessage(message.sender.uid) ? styles.ownBubble : styles.otherBubble,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.messageText,
-                        isOwnMessage(message.sender.uid) ? styles.ownText : styles.otherText,
-                      ]}
-                    >
-                      {message.text}
-                    </Text>
-                  </View>
-                  <Text style={styles.messageTime}>{formatTime(message.sentAt)}</Text>
+        <TouchableWithoutFeedback onPress={() => setShowReactionPicker(null)}>
+          {isLoading ? (
+            <View style={styles.loading}>
+              <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+            </View>
+          ) : (
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesList}
+              contentContainerStyle={styles.messagesContent}
+              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
+            >
+              {messages.length === 0 ? (
+                <View style={styles.emptyMessages}>
+                  <Text style={styles.emptyText}>No messages yet</Text>
+                  <Text style={styles.emptySubtext}>Be the first to say hello!</Text>
                 </View>
-              ))
-            )}
-          </ScrollView>
+              ) : (
+                messages.map(renderMessage)
+              )}
+            </ScrollView>
+          )}
+        </TouchableWithoutFeedback>
+
+        {replyingTo && (
+          <View style={styles.replyingToBar}>
+            <View style={styles.replyingToContent}>
+              <Text style={styles.replyingToLabel}>Replying to {replyingTo.sender.name}</Text>
+              <Text style={styles.replyingToText} numberOfLines={1}>{replyingTo.text}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyingTo(null)} style={styles.cancelReply}>
+              <Ionicons name="close" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
         )}
 
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Type a message..."
+            placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
             placeholderTextColor="#999"
             value={newMessage}
             onChangeText={setNewMessage}
@@ -222,7 +513,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             {isSending ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.sendButtonText}>→</Text>
+              <Ionicons name="send" size={20} color="#fff" />
             )}
           </TouchableOpacity>
         </View>
@@ -247,10 +538,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     marginRight: 8,
-  },
-  backText: {
-    fontSize: 24,
-    color: 'hsl(210, 95%, 55%)',
   },
   headerContent: {
     flex: 1,
@@ -291,33 +578,62 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
-  messageContainer: {
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     marginBottom: 12,
-    maxWidth: '80%',
+  },
+  messageRowOwn: {
+    justifyContent: 'flex-end',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  avatarPlaceholder: {
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitials: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  messageContainer: {
+    maxWidth: '75%',
   },
   ownMessage: {
-    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
   },
   otherMessage: {
-    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
   },
   senderName: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: 'hsl(210, 95%, 45%)',
     marginBottom: 4,
-    marginLeft: 12,
+    marginLeft: 4,
   },
   messageBubble: {
-    borderRadius: 18,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
+    borderRadius: 18,
+    maxWidth: '100%',
   },
   ownBubble: {
     backgroundColor: 'hsl(210, 95%, 55%)',
+    borderBottomRightRadius: 4,
   },
   otherBubble: {
     backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   messageText: {
     fontSize: 15,
@@ -327,13 +643,133 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   otherText: {
-    color: '#000',
+    color: '#333',
   },
   messageTime: {
     fontSize: 11,
     color: '#888',
     marginTop: 4,
-    alignSelf: 'flex-end',
+    marginLeft: 4,
+  },
+  messageTimeOwn: {
+    marginRight: 4,
+    marginLeft: 0,
+  },
+  replyPreview: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 8,
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  replyBar: {
+    width: 3,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+  },
+  replyContent: {
+    flex: 1,
+    padding: 8,
+  },
+  replySenderName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'hsl(210, 95%, 45%)',
+  },
+  replyText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 4,
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  reactionBadgeActive: {
+    borderColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: 'hsl(210, 95%, 97%)',
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  reactionCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  reactionPickerContainer: {
+    marginBottom: 8,
+    marginLeft: 40,
+  },
+  reactionPickerOwn: {
+    marginLeft: 0,
+    marginRight: 0,
+    alignItems: 'flex-end',
+  },
+  reactionPicker: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  reactionOption: {
+    padding: 8,
+  },
+  reactionOptionEmoji: {
+    fontSize: 24,
+  },
+  replyOption: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderLeftWidth: 1,
+    borderLeftColor: '#eee',
+    marginLeft: 4,
+    paddingLeft: 12,
+  },
+  replyingToBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  replyingToContent: {
+    flex: 1,
+    borderLeftWidth: 3,
+    borderLeftColor: 'hsl(210, 95%, 55%)',
+    paddingLeft: 10,
+  },
+  replyingToLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'hsl(210, 95%, 45%)',
+  },
+  replyingToText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  cancelReply: {
+    padding: 8,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -350,14 +786,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     paddingRight: 16,
-    fontSize: 15,
+    fontSize: 16,
     maxHeight: 100,
-    color: '#000',
+    color: '#333',
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'hsl(210, 95%, 55%)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -365,10 +801,5 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '600',
   },
 });
