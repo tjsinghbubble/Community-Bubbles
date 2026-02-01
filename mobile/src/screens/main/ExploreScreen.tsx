@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -14,11 +13,14 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
+import apiService from '../../services/api.service';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -41,12 +43,20 @@ type EventData = {
 
 export default function ExploreScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
+  const { user, token, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'bubbles' | 'events' | 'campus'>('bubbles');
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [events, setEvents] = useState<EventData[]>([]);
+  const [campusBubbles, setCampusBubbles] = useState<BubbleData[]>([]);
+  const [campusEvents, setCampusEvents] = useState<EventData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showStudentPrompt, setShowStudentPrompt] = useState(true);
+  const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
+
+  const isCampusVerified = user?.campusVerified === true;
+  const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
 
   const fetchData = async () => {
     try {
@@ -58,8 +68,9 @@ export default function ExploreScreen() {
       const bubblesData = await bubblesResponse.json();
       const eventsData = await eventsResponse.json();
       
-      // Transform bubbles
-      const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
+      // Transform bubbles - filter out campus-only bubbles (they have campusId)
+      const publicBubbles = bubblesData.filter((b: any) => !b.campusId);
+      const transformedBubbles: BubbleData[] = publicBubbles.map((bubble: any) => ({
         id: bubble.id,
         title: bubble.title,
         tagline: bubble.tagline,
@@ -70,8 +81,42 @@ export default function ExploreScreen() {
         distance: '~',
       }));
       
+      // Filter out campus-only events
+      const publicEvents = eventsData.filter((e: any) => !e.campusId);
+      
       setBubbles(transformedBubbles);
-      setEvents(eventsData || []);
+      setEvents(publicEvents || []);
+      
+      // Fetch campus data if user is verified
+      if (isCampusVerified && token) {
+        apiService.setToken(token);
+        try {
+          const [campusBubblesData, campusEventsData, myCampus] = await Promise.all([
+            apiService.getCampusBubbles(),
+            apiService.getCampusEvents(),
+            apiService.getMyCampus(),
+          ]);
+          
+          const transformedCampusBubbles: BubbleData[] = campusBubblesData.map((bubble: any) => ({
+            id: bubble.id,
+            title: bubble.title,
+            tagline: bubble.tagline,
+            category: bubble.category,
+            description: bubble.description,
+            members: bubble.members || 0,
+            image: bubble.coverImage || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
+            distance: '~',
+          }));
+          
+          setCampusBubbles(transformedCampusBubbles);
+          setCampusEvents(campusEventsData || []);
+          if (myCampus.campus) {
+            setCampusInfo({ name: myCampus.campus.name });
+          }
+        } catch (error) {
+          console.error('Failed to fetch campus data:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -83,12 +128,30 @@ export default function ExploreScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchData();
-    }, [])
+      if (refreshUser) refreshUser();
+    }, [isCampusVerified])
   );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+  };
+
+  const handleJoinCampus = () => {
+    navigation.navigate('CampusJoin');
+  };
+
+  const handleDismissPrompt = async () => {
+    setShowStudentPrompt(false);
+    if (token) {
+      apiService.setToken(token);
+      try {
+        await apiService.dismissCampusPrompt();
+        if (refreshUser) await refreshUser();
+      } catch (error) {
+        console.error('Failed to dismiss prompt:', error);
+      }
+    }
   };
 
   const handleBubblePress = (bubble: BubbleData) => {
@@ -163,6 +226,25 @@ export default function ExploreScreen() {
     </View>
   );
 
+  const renderStudentPromptCard = () => {
+    if (isCampusVerified || hasDismissedPrompt || !showStudentPrompt) return null;
+    
+    return (
+      <View style={styles.studentPromptCard}>
+        <Text style={styles.studentPromptTitle}>Are you a student?</Text>
+        <Text style={styles.studentPromptSubtitle}>
+          Unlock exclusive campus events, verified student communities, and connect with classmates
+        </Text>
+        <TouchableOpacity style={styles.joinCampusButton} onPress={handleJoinCampus}>
+          <Text style={styles.joinCampusButtonText}>Join a campus</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
+          <Text style={styles.notStudentButtonText}>I'm not a student</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const renderTabs = () => (
     <View style={styles.tabsContainer}>
       <TouchableOpacity
@@ -196,6 +278,20 @@ export default function ExploreScreen() {
           Events
         </Text>
       </TouchableOpacity>
+      
+      {isCampusVerified && (
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'campus' && styles.activeTab]}
+          onPress={() => setActiveTab('campus')}
+        >
+          <View style={styles.tabIconContainer}>
+            <Text style={{ fontSize: 24 }}>🎓</Text>
+          </View>
+          <Text style={[styles.tabText, activeTab === 'campus' && styles.activeTabText]}>
+            Campus
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -250,7 +346,7 @@ export default function ExploreScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         {renderSearchHeader()}
         {renderTabs()}
         <View style={styles.loading}>
@@ -260,21 +356,75 @@ export default function ExploreScreen() {
     );
   }
 
-  const currentData = activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
+  // Determine current data based on active tab
+  const getCurrentData = () => {
+    if (activeTab === 'campus') {
+      return campusBubbles;
+    }
+    return activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
+  };
+  
+  const currentData = getCurrentData();
   const isEmpty = currentData.length === 0;
 
+  const renderCampusContent = () => (
+    <ScrollView
+      contentContainerStyle={styles.campusContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
+      {campusInfo && (
+        <View style={styles.campusHeader}>
+          <Text style={{ fontSize: 32 }}>🎓</Text>
+          <Text style={styles.campusName}>{campusInfo.name}</Text>
+          <Text style={styles.campusSubtitle}>Your campus community</Text>
+        </View>
+      )}
+      
+      {campusBubbles.length > 0 && (
+        <View style={styles.campusSection}>
+          <Text style={styles.campusSectionTitle}>Campus Bubbles</Text>
+          <View style={styles.campusGrid}>
+            {campusBubbles.map(renderBubbleCard)}
+          </View>
+        </View>
+      )}
+      
+      {campusEvents.length > 0 && (
+        <View style={styles.campusSection}>
+          <Text style={styles.campusSectionTitle}>Campus Events</Text>
+          <View style={styles.campusGrid}>
+            {campusEvents.map(renderEventCard)}
+          </View>
+        </View>
+      )}
+      
+      {campusBubbles.length === 0 && campusEvents.length === 0 && (
+        <View style={styles.campusEmpty}>
+          <Text style={{ fontSize: 48 }}>🎓</Text>
+          <Text style={styles.emptyTitle}>No campus content yet</Text>
+          <Text style={styles.emptySubtitle}>Be the first to create a bubble for your campus!</Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {renderSearchHeader()}
       {renderTabs()}
       
-      {isEmpty ? (
+      {activeTab === 'campus' ? (
+        renderCampusContent()
+      ) : isEmpty ? (
         <ScrollView
           contentContainerStyle={styles.empty}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {renderStudentPromptCard()}
           <Ionicons 
             name={activeTab === 'bubbles' ? 'chatbubbles-outline' : 'calendar-outline'} 
             size={48} 
@@ -302,6 +452,7 @@ export default function ExploreScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
+          {renderStudentPromptCard()}
           {activeTab === 'bubbles' 
             ? filteredBubbles.map(renderBubbleCard)
             : filteredEvents.map(renderEventCard)
@@ -457,5 +608,98 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     flex: 1,
+  },
+  studentPromptCard: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  studentPromptTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+  },
+  studentPromptSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  joinCampusButton: {
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginBottom: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  joinCampusButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  notStudentButton: {
+    paddingVertical: 8,
+  },
+  notStudentButtonText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  campusContent: {
+    padding: 16,
+  },
+  campusHeader: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  campusName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  campusSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  campusSection: {
+    marginBottom: 24,
+  },
+  campusSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  campusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  campusEmpty: {
+    alignItems: 'center',
+    padding: 40,
+    gap: 12,
   },
 });

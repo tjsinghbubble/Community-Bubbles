@@ -77,6 +77,10 @@ class ApiService {
     });
   }
 
+  async getProfile() {
+    return this.request('/api/auth/me');
+  }
+
   async getBubbles() {
     return this.request('/api/bubbles', {
       method: 'GET',
@@ -206,6 +210,56 @@ class ApiService {
     return this.request(`/api/events/${eventId}/attendees`, {
       method: 'GET',
     });
+  }
+
+  // Campus methods
+  async getCampuses() {
+    return this.request<{ id: string; domain: string; title: string }[]>('/api/campuses');
+  }
+
+  async sendCampusVerification(email: string) {
+    return this.request<{
+      success: boolean;
+      message: string;
+      campusId: string;
+      campusName: string;
+      devCode?: string;
+    }>('/api/campus/send-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyCampusCode(email: string, code: string) {
+    return this.request<{
+      success: boolean;
+      campus: { id: string; name: string; domain: string };
+      user: any;
+    }>('/api/campus/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    });
+  }
+
+  async dismissCampusPrompt() {
+    return this.request('/api/campus/dismiss-prompt', {
+      method: 'POST',
+    });
+  }
+
+  async getCampusBubbles() {
+    return this.request<any[]>('/api/campus/bubbles');
+  }
+
+  async getCampusEvents() {
+    return this.request<any[]>('/api/campus/events');
+  }
+
+  async getMyCampus() {
+    return this.request<{
+      campus: { id: string; name: string; domain: string } | null;
+      verified: boolean;
+    }>('/api/campus/my-campus');
   }
 }
 

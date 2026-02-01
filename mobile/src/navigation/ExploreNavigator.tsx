@@ -5,6 +5,8 @@ import BubbleDetailsScreen from '../screens/main/BubbleDetailsScreen';
 import BubbleMembersScreen from '../screens/main/BubbleMembersScreen';
 import CreateEventScreen from '../screens/main/CreateEventScreen';
 import EventDetailsScreen from '../screens/main/EventDetailsScreen';
+import CampusJoinScreen from '../screens/main/CampusJoinScreen';
+import CampusVerifyScreen from '../screens/main/CampusVerifyScreen';
 
 export type BubbleData = {
   id: string;
@@ -39,6 +41,8 @@ export type ExploreStackParamList = {
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
   CreateEvent: { bubbleId?: string; bubbleTitle?: string };
   EventDetails: { eventId: string; event?: EventData };
+  CampusJoin: undefined;
+  CampusVerify: { email: string; campusName: string };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -51,6 +55,8 @@ export default function ExploreNavigator() {
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
       <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
+      <Stack.Screen name="CampusJoin" component={CampusJoinScreen} />
+      <Stack.Screen name="CampusVerify" component={CampusVerifyScreen} />
     </Stack.Navigator>
   );
 }

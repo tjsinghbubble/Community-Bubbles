@@ -62,7 +62,7 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      if (process.env.NODE_ENV !== "productionfoo") {
+      if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Verification code for ${email}: ${code}`);
         res.json({
           success: true,
@@ -166,6 +166,10 @@ export async function registerRoutes(
           name: user.name,
           email: user.email,
           interests: user.interests,
+          campusId: user.campusId,
+          campusEmail: user.campusEmail,
+          campusVerified: user.campusVerified,
+          dismissedCampusPrompt: user.dismissedCampusPrompt,
         },
         token,
       });
@@ -174,9 +178,33 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user profile
+  app.get("/api/auth/me", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        interests: user.interests,
+        campusId: user.campusId,
+        campusEmail: user.campusEmail,
+        campusVerified: user.campusVerified,
+        dismissedCampusPrompt: user.dismissedCampusPrompt,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/bubbles", async (req, res) => {
     try {
-      const bubbles = await storage.getBubbles();
+      // Return only public bubbles (excludes campus-specific ones)
+      const bubbles = await storage.getPublicBubbles();
       res.json(bubbles);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -199,6 +227,25 @@ export async function registerRoutes(
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
+      
+      // If campus bubble, check authorization
+      if (bubble.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== bubble.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
       res.json(bubble);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -232,6 +279,14 @@ export async function registerRoutes(
 
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
+      }
+      
+      // Check if campus bubble requires campus verification
+      if (bubble.campusId) {
+        const user = await storage.getUser(req.userId!);
+        if (!user?.campusVerified || user.campusId !== bubble.campusId) {
+          return res.status(403).json({ error: "Campus verification required to join this bubble" });
+        }
       }
 
       const isMember = await storage.isMember(req.userId!, bubbleId);
@@ -268,6 +323,29 @@ export async function registerRoutes(
 
   app.get("/api/bubbles/:id/members", async (req, res) => {
     try {
+      // Check if bubble is campus-scoped
+      const bubble = await storage.getBubble(req.params.id);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      
+      if (bubble.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== bubble.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
       const members = await storage.getBubbleMembersWithUsers(req.params.id);
       res.json(members.map(m => ({
         id: m.id,
@@ -360,7 +438,8 @@ export async function registerRoutes(
   // Events API
   app.get("/api/events", async (req, res) => {
     try {
-      const events = await storage.getAllPublicEvents();
+      // Return only public events (excludes campus-specific ones)
+      const events = await storage.getPublicEvents();
       res.json(events);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -396,6 +475,29 @@ export async function registerRoutes(
 
   app.get("/api/bubbles/:bubbleId/events", async (req, res) => {
     try {
+      // Check if bubble is campus-scoped
+      const bubble = await storage.getBubble(req.params.bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      
+      if (bubble.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== bubble.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
       const events = await storage.getBubbleEvents(req.params.bubbleId);
       res.json(events);
     } catch (error: any) {
@@ -409,6 +511,25 @@ export async function registerRoutes(
       if (!event) {
         return res.status(404).json({ error: "Event not found" });
       }
+      
+      // If campus event, check authorization
+      if (event.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== event.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
       res.json(event);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -481,6 +602,14 @@ export async function registerRoutes(
       if (!event) {
         return res.status(404).json({ error: "Event not found" });
       }
+      
+      // Check if campus event requires campus verification
+      if (event.campusId) {
+        const user = await storage.getUser(req.userId!);
+        if (!user?.campusVerified || user.campusId !== event.campusId) {
+          return res.status(403).json({ error: "Campus verification required to RSVP" });
+        }
+      }
 
       const isAttendee = await storage.isEventAttendee(req.userId!, req.params.id);
       if (isAttendee) {
@@ -518,6 +647,29 @@ export async function registerRoutes(
 
   app.get("/api/events/:id/attendees", async (req, res) => {
     try {
+      // Check if event is campus-scoped
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      if (event.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== event.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
       const attendees = await storage.getEventAttendees(req.params.id);
       res.json(attendees);
     } catch (error: any) {
@@ -568,15 +720,25 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      // In dev mode, return the code in an alert (as requested)
-      console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
-      res.json({
-        success: true,
-        message: "Verification code sent",
-        campusId: campus.id,
-        campusName: campus.title,
-        devCode: code,
-      });
+      // In dev mode, return the code for testing (hidden in production)
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
+        res.json({
+          success: true,
+          message: "Verification code sent",
+          campusId: campus.id,
+          campusName: campus.title,
+          devCode: code,
+        });
+      } else {
+        // In production, would send email - for now just return success
+        res.json({
+          success: true,
+          message: "Verification code sent to your email",
+          campusId: campus.id,
+          campusName: campus.title,
+        });
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

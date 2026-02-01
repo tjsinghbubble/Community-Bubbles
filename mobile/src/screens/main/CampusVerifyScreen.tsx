@@ -1,0 +1,263 @@
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import apiService from '../../services/api.service';
+import SuccessModal from '../../components/SuccessModal';
+
+type Props = {
+  navigation: NativeStackNavigationProp<any>;
+  route: RouteProp<{ CampusVerify: { email: string; campusName: string } }, 'CampusVerify'>;
+};
+
+export default function CampusVerifyScreen({ navigation, route }: Props) {
+  const { email, campusName } = route.params;
+  const { token, refreshUser } = useAuth();
+  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  const isCodeComplete = code.every((digit) => digit !== '');
+
+  const handleCodeChange = (value: string, index: number) => {
+    if (value.length > 1) {
+      value = value[value.length - 1];
+    }
+
+    const newCode = [...code];
+    newCode[index] = value;
+    setCode(newCode);
+
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerify = async () => {
+    if (!isCodeComplete) return;
+
+    setIsLoading(true);
+    apiService.setToken(token);
+
+    try {
+      const fullCode = code.join('');
+      await apiService.verifyCampusCode(email, fullCode);
+      
+      if (refreshUser) {
+        await refreshUser();
+      }
+      
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Invalid verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    apiService.setToken(token);
+
+    try {
+      const response = await apiService.sendCampusVerification(email);
+      
+      if (response.devCode) {
+        Alert.alert('New Code Sent', `Your new code is: ${response.devCode}`);
+      } else {
+        Alert.alert('Success', 'A new verification code has been sent to your email');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend code');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.content}
+      >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+
+        <View style={styles.iconContainer}>
+          <View style={styles.emailIcon}>
+            <Ionicons name="mail" size={48} color="hsl(210, 95%, 55%)" />
+          </View>
+        </View>
+
+        <Text style={styles.title}>We've sent you an email with a 6 digit code.</Text>
+        <Text style={styles.subtitle}>Enter it below to continue</Text>
+
+        <View style={styles.codeContainer}>
+          {code.map((digit, index) => (
+            <TextInput
+              key={index}
+              ref={(ref) => (inputRefs.current[index] = ref)}
+              style={[styles.codeInput, digit && styles.codeInputFilled]}
+              value={digit}
+              onChangeText={(value) => handleCodeChange(value, index)}
+              onKeyPress={(e) => handleKeyPress(e, index)}
+              keyboardType="number-pad"
+              maxLength={1}
+              selectTextOnFocus
+            />
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={[
+            styles.verifyButton,
+            (!isCodeComplete || isLoading) && styles.buttonDisabled,
+          ]}
+          onPress={handleVerify}
+          disabled={!isCodeComplete || isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.verifyButtonText}>Verify</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.resendButton}
+          onPress={handleResend}
+          disabled={resending}
+        >
+          {resending ? (
+            <ActivityIndicator color="hsl(210, 95%, 55%)" />
+          ) : (
+            <Text style={styles.resendButtonText}>Send new code</Text>
+          )}
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
+
+      <SuccessModal
+        visible={showSuccessModal}
+        title="Campus Verified!"
+        subtitle={`You're now part of ${campusName}! Explore your campus community.`}
+        buttonText="Let's Go!"
+        onClose={() => {
+          setShowSuccessModal(false);
+          navigation.popToTop();
+        }}
+      />
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  content: {
+    flex: 1,
+    padding: 24,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  iconContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  emailIcon: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  codeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 32,
+  },
+  codeInput: {
+    width: 48,
+    height: 56,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 12,
+    fontSize: 24,
+    fontWeight: '600',
+    textAlign: 'center',
+    backgroundColor: '#f9f9f9',
+  },
+  codeInputFilled: {
+    borderColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: '#fff',
+  },
+  verifyButton: {
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    borderRadius: 25,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  verifyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  resendButton: {
+    padding: 12,
+    alignItems: 'center',
+  },
+  resendButtonText: {
+    color: 'hsl(210, 95%, 55%)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+});

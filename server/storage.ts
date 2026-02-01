@@ -396,12 +396,17 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPublicEvents(): Promise<(Event & { bubble: Bubble })[]> {
+    const today = new Date().toISOString().split('T')[0];
     const result = await db
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(isNull(events.campusId))
-      .orderBy(desc(events.createdAt));
+      .where(and(
+        isNull(events.campusId),
+        eq(events.visibility, 'public'),
+        gte(events.date, today)
+      ))
+      .orderBy(events.date, events.startTime);
 
     return result.map(row => ({
       ...row.events,

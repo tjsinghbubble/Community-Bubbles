@@ -50,11 +50,13 @@ Preferred communication style: Simple, everyday language.
 ### Database Schema
 
 Core tables managed by Drizzle ORM:
-- **users**: id, name, email, password (hashed), interests array, timestamps
-- **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, member count, creator reference
+- **users**: id, name, email, password (hashed), interests array, campusId, campusEmail, campusVerified, dismissedCampusPrompt, timestamps
+- **campuses**: id, domain (.edu), title (university name) - seeded with 50 US universities
+- **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, member count, creator reference, campusId (optional - for campus-only bubbles)
 - **memberships**: Join table linking users to bubbles with role ('member' or 'admin') and timestamps
-- **events**: id, title, description, date, time, location, bubble reference, creator reference
+- **events**: id, title, description, date, time, location, bubble reference, creator reference, campusId (optional - for campus-only events)
 - **event_attendees**: Join table for event RSVPs with status
+- **verification_codes**: Stores 6-digit codes for email verification (campus and signup)
 
 ### Mobile Architecture
 
@@ -71,6 +73,31 @@ Core tables managed by Drizzle ORM:
 - When creating a bubble, a CometChat group is automatically created for real-time messaging
 - ExploreScreen fetches real bubbles from API (refreshes on focus for newly created bubbles)
 - BubblesNavigator stack wraps MyBubbles list and CreateBubble screens
+- Uses react-native-safe-area-context for consistent safe area handling across all screens
+
+### Campus Mode Feature
+
+Campus Mode allows college students to verify their .edu email addresses and access exclusive campus-specific bubbles and events:
+
+**Verification Flow**:
+1. User sees "Are you a student?" prompt card on ExploreScreen (dismissible)
+2. User navigates to CampusJoinScreen → enters .edu email
+3. System sends 6-digit verification code (shown in Alert during dev mode)
+4. User enters code on CampusVerifyScreen → campus association saved
+5. Verified users see Campus tab in ExploreScreen with campus-specific content
+
+**Privacy Model**:
+- Campus bubbles/events are private - only visible to verified users of that campus
+- Public content filtered to exclude campus-only items (campusId is null for public)
+- Users can dismiss the student prompt ("I'm not a student") which persists to their record
+
+**API Endpoints**:
+- `POST /api/campus/send-verification` - Send verification code to .edu email
+- `POST /api/campus/verify-code` - Verify code and associate user with campus
+- `POST /api/campus/dismiss-prompt` - Dismiss the student prompt
+- `GET /api/campus/bubbles` - Get campus-specific bubbles (requires verification)
+- `GET /api/campus/events` - Get campus-specific events (requires verification)
+- `GET /api/campus/my-campus` - Get user's campus info
 
 ## External Dependencies
 
