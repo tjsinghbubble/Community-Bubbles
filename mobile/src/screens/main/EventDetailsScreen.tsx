@@ -52,10 +52,16 @@ type Attendee = {
   status: string;
 };
 
+type Bubble = {
+  id: string;
+  creatorId: string;
+};
+
 export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
+  const [bubble, setBubble] = useState<Bubble | null>(null);
   const [isLoading, setIsLoading] = useState(!routeEvent);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isRsvpd, setIsRsvpd] = useState(false);
@@ -67,6 +73,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!event) {
       fetchEvent();
+    } else {
+      fetchBubble(event.bubbleId);
     }
     fetchAttendees();
   }, [eventId]);
@@ -75,11 +83,21 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getEvent(eventId) as Event;
       setEvent(data);
+      fetchBubble(data.bubbleId);
     } catch (error) {
       console.error('Failed to fetch event:', error);
       Alert.alert('Error', 'Failed to load event');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchBubble = async (bubbleId: string) => {
+    try {
+      const data = await apiService.getBubble(bubbleId) as Bubble;
+      setBubble(data);
+    } catch (error) {
+      console.error('Failed to fetch bubble:', error);
     }
   };
 
@@ -117,7 +135,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   };
 
   const handleEdit = () => {
-    Alert.alert('Edit Event', 'Event editing coming soon!');
+    navigation.navigate('EditEvent' as any, { event });
   };
 
   const handleDelete = () => {
@@ -140,6 +158,18 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             }
           },
         },
+      ]
+    );
+  };
+
+  const showAdminOptions = () => {
+    Alert.alert(
+      'Manage Event',
+      undefined,
+      [
+        { text: 'Edit Event', onPress: handleEdit },
+        { text: 'Delete Event', style: 'destructive', onPress: handleDelete },
+        { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
@@ -198,7 +228,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     );
   }
 
-  const isCreator = event.creatorId === user?.id;
+  const isEventCreator = event.creatorId === user?.id;
+  const isBubbleAdmin = bubble?.creatorId === user?.id;
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
   const isFull = event.attendeeLimit && goingCount >= event.attendeeLimit;
 
@@ -216,15 +249,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
 
-        {isCreator && (
-          <View style={styles.creatorActions}>
-            <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-              <Ionicons name="pencil" size={18} color="#fff" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-              <Ionicons name="trash" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
+        {canManage && (
+          <TouchableOpacity 
+            style={styles.optionsButton}
+            onPress={showAdminOptions}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#000" />
+          </TouchableOpacity>
         )}
 
         <View style={styles.content}>
@@ -332,7 +363,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      {!isCreator && (
+      {!isEventCreator && (
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
@@ -401,25 +432,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  creatorActions: {
+  optionsButton: {
     position: 'absolute',
     top: 50,
     right: 16,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  editButton: {
     width: 40,
     height: 40,
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deleteButton: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#dc2626',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',

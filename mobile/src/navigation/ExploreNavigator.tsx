@@ -8,6 +8,7 @@ import EventDetailsScreen from '../screens/main/EventDetailsScreen';
 import CampusJoinScreen from '../screens/main/CampusJoinScreen';
 import CampusVerifyScreen from '../screens/main/CampusVerifyScreen';
 import EditBubbleScreen from '../screens/main/EditBubbleScreen';
+import EditEventScreen from '../screens/main/EditEventScreen';
 
 export type BubbleData = {
   id: string;
@@ -45,6 +46,7 @@ export type ExploreStackParamList = {
   CampusJoin: undefined;
   CampusVerify: { email: string; campusName: string };
   EditBubble: { bubble: BubbleData };
+  EditEvent: { event: EventData };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -60,6 +62,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="CampusJoin" component={CampusJoinScreen} />
       <Stack.Screen name="CampusVerify" component={CampusVerifyScreen} />
       <Stack.Screen name="EditBubble" component={EditBubbleScreen} />
+      <Stack.Screen name="EditEvent" component={EditEventScreen} />
     </Stack.Navigator>
   );
 }
