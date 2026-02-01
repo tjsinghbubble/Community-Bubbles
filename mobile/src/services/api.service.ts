@@ -114,9 +114,28 @@ class ApiService {
     });
   }
 
-  async checkMembership(bubbleId: string): Promise<{ isMember: boolean }> {
+  async checkMembership(bubbleId: string): Promise<{ isMember: boolean; role: string | null }> {
     return this.request(`/api/bubbles/${bubbleId}/membership`, {
       method: 'GET',
+    });
+  }
+
+  async getBubbleMembers(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members`, {
+      method: 'GET',
+    });
+  }
+
+  async updateMemberRole(bubbleId: string, userId: string, role: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async relinquishAdmin(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members/me/relinquish-admin`, {
+      method: 'PUT',
     });
   }
 

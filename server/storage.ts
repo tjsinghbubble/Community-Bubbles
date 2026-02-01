@@ -34,9 +34,13 @@ export interface IStorage {
 
   getUserMemberships(userId: string): Promise<(Membership & { bubble: Bubble })[]>;
   getBubbleMemberships(bubbleId: string): Promise<Membership[]>;
+  getBubbleMembersWithUsers(bubbleId: string): Promise<(Membership & { user: User })[]>;
   createMembership(membership: InsertMembership): Promise<Membership>;
+  createMembershipWithRole(membership: InsertMembership, role: string): Promise<Membership>;
   deleteMembership(userId: string, bubbleId: string): Promise<void>;
   isMember(userId: string, bubbleId: string): Promise<boolean>;
+  getMemberRole(userId: string, bubbleId: string): Promise<string | null>;
+  updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void>;
 
   createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
   getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
@@ -122,8 +126,28 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(memberships).where(eq(memberships.bubbleId, bubbleId));
   }
 
+  async getBubbleMembersWithUsers(bubbleId: string): Promise<(Membership & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .innerJoin(users, eq(memberships.userId, users.id))
+      .where(eq(memberships.bubbleId, bubbleId))
+      .orderBy(desc(memberships.joinedAt));
+
+    return result.map((row) => ({
+      ...row.memberships,
+      user: row.users,
+    }));
+  }
+
   async createMembership(insertMembership: InsertMembership): Promise<Membership> {
     const result = await db.insert(memberships).values(insertMembership).returning();
+    await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
+    return result[0];
+  }
+
+  async createMembershipWithRole(insertMembership: InsertMembership, role: string): Promise<Membership> {
+    const result = await db.insert(memberships).values({ ...insertMembership, role }).returning();
     await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
     return result[0];
   }
@@ -142,6 +166,21 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
       .limit(1);
     return result.length > 0;
+  }
+
+  async getMemberRole(userId: string, bubbleId: string): Promise<string | null> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .limit(1);
+    return result[0]?.role || null;
+  }
+
+  async updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void> {
+    await db.update(memberships)
+      .set({ role })
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)));
   }
 
   async createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode> {

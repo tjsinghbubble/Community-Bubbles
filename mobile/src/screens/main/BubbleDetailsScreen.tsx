@@ -146,6 +146,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const isCreator = bubbleDetails?.creatorId === user?.id;
 
+  const handleViewMembers = () => {
+    navigation.navigate('BubbleMembers' as any, { 
+      bubbleId: bubble.id, 
+      bubbleTitle: bubble.title 
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
@@ -170,10 +177,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.tagline}>{bubble.tagline || 'A community for like-minded people'}</Text>
           
           <View style={styles.stats}>
-            <View style={styles.stat}>
+            <TouchableOpacity style={styles.stat} onPress={handleViewMembers}>
               <Text style={styles.statNumber}>{bubble.members || 0}</Text>
               <Text style={styles.statLabel}>Members</Text>
-            </View>
+              <Ionicons name="chevron-forward" size={12} color="#999" style={styles.statArrow} />
+            </TouchableOpacity>
             <View style={styles.stat}>
               <Text style={styles.statNumber}>{events.length}</Text>
               <Text style={styles.statLabel}>Events</Text>
@@ -366,6 +374,9 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#666',
+    marginTop: 4,
+  },
+  statArrow: {
     marginTop: 4,
   },
   section: {

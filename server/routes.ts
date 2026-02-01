@@ -213,10 +213,10 @@ export async function registerRoutes(
 
       const bubble = await storage.createBubble(data);
 
-      await storage.createMembership({
+      await storage.createMembershipWithRole({
         userId: req.userId!,
         bubbleId: bubble.id,
-      });
+      }, 'admin');
 
       res.json(bubble);
     } catch (error: any) {
@@ -267,8 +267,19 @@ export async function registerRoutes(
 
   app.get("/api/bubbles/:id/members", async (req, res) => {
     try {
-      const members = await storage.getBubbleMemberships(req.params.id);
-      res.json(members);
+      const members = await storage.getBubbleMembersWithUsers(req.params.id);
+      res.json(members.map(m => ({
+        id: m.id,
+        userId: m.userId,
+        bubbleId: m.bubbleId,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        user: {
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+        }
+      })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -277,9 +288,59 @@ export async function registerRoutes(
   app.get("/api/bubbles/:id/membership", authMiddleware, async (req, res) => {
     try {
       const isMember = await storage.isMember(req.userId!, req.params.id);
-      res.json({ isMember });
+      const role = await storage.getMemberRole(req.userId!, req.params.id);
+      res.json({ isMember, role });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/bubbles/:bubbleId/members/:userId/role", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const { role } = req.body;
+      
+      if (!role || !['member', 'admin'].includes(role)) {
+        return res.status(400).json({ error: "Invalid role. Must be 'member' or 'admin'" });
+      }
+      
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: "Only admins can change member roles" });
+      }
+      
+      const targetIsMember = await storage.isMember(userId, bubbleId);
+      if (!targetIsMember) {
+        return res.status(404).json({ error: "User is not a member of this bubble" });
+      }
+      
+      await storage.updateMemberRole(userId, bubbleId, role);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/bubbles/:bubbleId/members/me/relinquish-admin", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      
+      const myRole = await storage.getMemberRole(req.userId!, bubbleId);
+      if (myRole !== 'admin') {
+        return res.status(400).json({ error: "You are not an admin of this bubble" });
+      }
+      
+      const members = await storage.getBubbleMembersWithUsers(bubbleId);
+      const admins = members.filter(m => m.role === 'admin');
+      
+      if (admins.length <= 1) {
+        return res.status(400).json({ error: "Cannot relinquish admin rights - you are the only admin. Promote another member first." });
+      }
+      
+      await storage.updateMemberRole(req.userId!, bubbleId, 'member');
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
     }
   });
 

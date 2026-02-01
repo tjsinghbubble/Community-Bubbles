@@ -31,6 +31,7 @@ export const memberships = pgTable("memberships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  role: text("role").notNull().default('member'),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 });
 
@@ -56,6 +57,7 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
 
 export const insertMembershipSchema = createInsertSchema(memberships).omit({
   id: true,
+  role: true,
   joinedAt: true,
 });
 
