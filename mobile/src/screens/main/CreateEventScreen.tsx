@@ -19,6 +19,8 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
+import LocationPickerModal from '../../components/LocationPickerModal';
+import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -70,6 +72,9 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   // Step 4: Location
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
+  const [locationLatitude, setLocationLatitude] = useState<number | undefined>();
+  const [locationLongitude, setLocationLongitude] = useState<number | undefined>();
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   // Step 5: Privacy & Settings
   const [visibility, setVisibility] = useState('public');
@@ -428,34 +433,50 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     </View>
   );
 
+  const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number }) => {
+    setLocationName(location.name);
+    setLocationAddress(location.address);
+    setLocationLatitude(location.latitude);
+    setLocationLongitude(location.longitude);
+  };
+
   const renderStep4 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Location</Text>
       <Text style={styles.stepSubtitle}>Where will the event take place?</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Venue Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., Central Park, Coffee Shop"
-          placeholderTextColor="#999"
-          value={locationName}
-          onChangeText={setLocationName}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Address</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Full address or directions..."
-          placeholderTextColor="#999"
-          value={locationAddress}
-          onChangeText={setLocationAddress}
-          multiline
-          numberOfLines={2}
-          textAlignVertical="top"
-        />
+        <Text style={styles.label}>Search Location</Text>
+        <TouchableOpacity
+          style={styles.locationSearchButton}
+          onPress={() => setShowLocationPicker(true)}
+        >
+          {locationName ? (
+            <View style={styles.selectedLocation}>
+              <Ionicons name="location" size={20} color="hsl(210, 95%, 55%)" />
+              <View style={styles.selectedLocationText}>
+                <Text style={styles.selectedLocationName} numberOfLines={1}>{locationName}</Text>
+                <Text style={styles.selectedLocationAddress} numberOfLines={1}>{locationAddress}</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  setLocationName('');
+                  setLocationAddress('');
+                  setLocationLatitude(undefined);
+                  setLocationLongitude(undefined);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.locationSearchPlaceholder}>
+              <Ionicons name="search" size={20} color="#999" />
+              <Text style={styles.locationSearchPlaceholderText}>Search for a place...</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.locationTip}>
@@ -464,6 +485,13 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           You can also host virtual events by adding a meeting link in the description
         </Text>
       </View>
+
+      <LocationPickerModal
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelect={handleLocationSelect}
+        apiKey={GOOGLE_PLACES_API_KEY}
+      />
     </View>
   );
 
@@ -1025,6 +1053,40 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#666',
     lineHeight: 18,
+  },
+  locationSearchButton: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  locationSearchPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  locationSearchPlaceholderText: {
+    fontSize: 16,
+    color: '#999',
+  },
+  selectedLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  selectedLocationText: {
+    flex: 1,
+  },
+  selectedLocationName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  selectedLocationAddress: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
   sectionDivider: {
     height: 1,
