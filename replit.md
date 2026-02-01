@@ -49,10 +49,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Database Schema
 
-Three core tables managed by Drizzle ORM:
+Core tables managed by Drizzle ORM:
 - **users**: id, name, email, password (hashed), interests array, timestamps
 - **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, member count, creator reference
-- **memberships**: Join table linking users to bubbles with timestamps
+- **memberships**: Join table linking users to bubbles with role ('member' or 'admin') and timestamps
+- **events**: id, title, description, date, time, location, bubble reference, creator reference
+- **event_attendees**: Join table for event RSVPs with status
 
 ### Mobile Architecture
 
