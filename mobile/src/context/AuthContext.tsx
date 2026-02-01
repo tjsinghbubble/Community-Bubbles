@@ -12,6 +12,7 @@ type User = {
   campusEmail?: string | null;
   campusVerified?: boolean;
   dismissedCampusPrompt?: boolean;
+  isSuperAdmin?: boolean;
 };
 
 type AuthContextType = {

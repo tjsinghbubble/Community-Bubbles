@@ -33,6 +33,8 @@ export interface IStorage {
   getBubbles(): Promise<Bubble[]>;
   getBubble(id: string): Promise<Bubble | undefined>;
   createBubble(bubble: InsertBubble): Promise<Bubble>;
+  updateBubble(id: string, bubble: Partial<InsertBubble>): Promise<Bubble | undefined>;
+  deleteBubble(id: string): Promise<void>;
   updateBubbleMemberCount(id: string, delta: number): Promise<void>;
 
   getUserMemberships(userId: string): Promise<(Membership & { bubble: Bubble })[]>;
@@ -112,6 +114,21 @@ export class DatabaseStorage implements IStorage {
   async createBubble(insertBubble: InsertBubble): Promise<Bubble> {
     const result = await db.insert(bubbles).values(insertBubble).returning();
     return result[0];
+  }
+
+  async updateBubble(id: string, data: Partial<InsertBubble>): Promise<Bubble | undefined> {
+    const result = await db.update(bubbles).set(data).where(eq(bubbles.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteBubble(id: string): Promise<void> {
+    const bubbleEvents = await db.select({ id: events.id }).from(events).where(eq(events.bubbleId, id));
+    for (const event of bubbleEvents) {
+      await db.delete(eventAttendees).where(eq(eventAttendees.eventId, event.id));
+    }
+    await db.delete(events).where(eq(events.bubbleId, id));
+    await db.delete(memberships).where(eq(memberships.bubbleId, id));
+    await db.delete(bubbles).where(eq(bubbles.id, id));
   }
 
   async updateBubbleMemberCount(id: string, delta: number): Promise<void> {

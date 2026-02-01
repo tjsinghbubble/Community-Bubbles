@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 ### Database Schema
 
 Core tables managed by Drizzle ORM:
-- **users**: id, name, email, password (hashed), interests array, campusId, campusEmail, campusVerified, dismissedCampusPrompt, timestamps
+- **users**: id, name, email, password (hashed), interests array, campusId, campusEmail, campusVerified, dismissedCampusPrompt, isSuperAdmin (boolean), timestamps
 - **campuses**: id, domain (.edu), title (university name) - seeded with 50 US universities
 - **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, member count, creator reference, campusId (optional - for campus-only bubbles)
 - **memberships**: Join table linking users to bubbles with role ('member' or 'admin') and timestamps
@@ -101,6 +101,24 @@ Campus Mode allows college students to verify their .edu email addresses and acc
 - Public content filtered to exclude campus-only items (campusId is null for public)
 - Users can dismiss the student prompt ("I'm not a student") which persists to their record
 - Server enforces campus authorization on all related endpoints (details, members, events, RSVP, join)
+
+### Admin Features
+
+**Super Admins**:
+- Super admin status is set via the `isSuperAdmin` boolean field in the users table (manually set via database)
+- Super admins can edit and delete any bubble regardless of creator status
+- isSuperAdmin is returned in login and /auth/me responses for client-side authorization checks
+
+**Bubble Management**:
+- Bubble creators and super admins see an options button (ellipsis icon) in BubbleDetailsScreen header
+- Options menu provides Edit and Delete actions
+- Delete confirmation includes warning about cascading deletion of events
+- EditBubbleScreen allows modifying bubble details while preserving campus association
+
+**Authorization Model**:
+- Bubble edit/delete: Creator OR super admin
+- Event edit/delete: Event creator OR bubble admin (creator) OR super admin
+- All admin operations are verified server-side before mutations
 
 **API Endpoints**:
 - `POST /api/campus/send-verification` - Send verification code to .edu email

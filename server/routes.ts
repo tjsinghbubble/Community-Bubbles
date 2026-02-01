@@ -170,6 +170,7 @@ export async function registerRoutes(
           campusEmail: user.campusEmail,
           campusVerified: user.campusVerified,
           dismissedCampusPrompt: user.dismissedCampusPrompt,
+          isSuperAdmin: user.isSuperAdmin,
         },
         token,
       });
@@ -195,6 +196,7 @@ export async function registerRoutes(
         campusEmail: user.campusEmail,
         campusVerified: user.campusVerified,
         dismissedCampusPrompt: user.dismissedCampusPrompt,
+        isSuperAdmin: user.isSuperAdmin,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -267,6 +269,65 @@ export async function registerRoutes(
       }, 'admin');
 
       res.json(bubble);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/bubbles/:id", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.id;
+      const bubble = await storage.getBubble(bubbleId);
+
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isBubbleAdmin = bubble.creatorId === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to edit this bubble" });
+      }
+
+      const { title, tagline, category, description, rules, privacy, coverImage } = req.body;
+      const updateData: any = {};
+      
+      if (title !== undefined) updateData.title = title;
+      if (tagline !== undefined) updateData.tagline = tagline;
+      if (category !== undefined) updateData.category = category;
+      if (description !== undefined) updateData.description = description;
+      if (rules !== undefined) updateData.rules = rules;
+      if (privacy !== undefined) updateData.privacy = privacy;
+      if (coverImage !== undefined) updateData.coverImage = coverImage;
+
+      const updatedBubble = await storage.updateBubble(bubbleId, updateData);
+      res.json(updatedBubble);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/bubbles/:id", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.id;
+      const bubble = await storage.getBubble(bubbleId);
+
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isBubbleAdmin = bubble.creatorId === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to delete this bubble" });
+      }
+
+      await storage.deleteBubble(bubbleId);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -565,9 +626,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Event not found" });
       }
 
-      // Only creator can edit
-      if (event.creatorId !== req.userId) {
-        return res.status(403).json({ error: "Only the event creator can edit" });
+      const user = await storage.getUser(req.userId!);
+      const isEventCreator = event.creatorId === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.creatorId === req.userId;
+
+      if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to edit this event" });
       }
 
       const updated = await storage.updateEvent(req.params.id, req.body);
@@ -584,9 +650,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Event not found" });
       }
 
-      // Only creator can delete
-      if (event.creatorId !== req.userId) {
-        return res.status(403).json({ error: "Only the event creator can delete" });
+      const user = await storage.getUser(req.userId!);
+      const isEventCreator = event.creatorId === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.creatorId === req.userId;
+
+      if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to delete this event" });
       }
 
       await storage.deleteEvent(req.params.id);

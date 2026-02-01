@@ -100,6 +100,19 @@ class ApiService {
     });
   }
 
+  async updateBubble(id: string, data: any) {
+    return this.request(`/api/bubbles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBubble(id: string) {
+    return this.request(`/api/bubbles/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   async joinBubble(id: string) {
     return this.request(`/api/bubbles/${id}/join`, {
       method: 'POST',

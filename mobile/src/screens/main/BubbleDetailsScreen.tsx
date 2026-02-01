@@ -150,12 +150,61 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const isCreator = bubbleDetails?.creatorId === user?.id;
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const canManage = bubbleDetails && (isCreator || isSuperAdmin);
 
   const handleViewMembers = () => {
     navigation.navigate('BubbleMembers' as any, { 
       bubbleId: bubble.id, 
       bubbleTitle: bubble.title 
     });
+  };
+
+  const handleEditBubble = () => {
+    navigation.navigate('EditBubble' as any, { bubble: bubbleDetails || bubble });
+  };
+
+  const handleDeleteBubble = () => {
+    Alert.alert(
+      'Delete Bubble',
+      'Are you sure you want to delete this bubble? This action cannot be undone and will also delete all events in this bubble.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.deleteBubble(bubble.id);
+              setSuccessModalConfig({ 
+                title: 'Bubble Deleted', 
+                subtitle: 'The bubble has been successfully deleted' 
+              });
+              setShowSuccessModal(true);
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete bubble');
+            }
+          }
+        },
+      ]
+    );
+  };
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    navigation.goBack();
+  };
+
+  const showAdminOptions = () => {
+    Alert.alert(
+      'Manage Bubble',
+      undefined,
+      [
+        { text: 'Edit Bubble', onPress: handleEditBubble },
+        { text: 'Delete Bubble', style: 'destructive', onPress: handleDeleteBubble },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   return (
@@ -172,6 +221,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         >
           <Ionicons name="arrow-back" size={24} color="#000" />
         </TouchableOpacity>
+
+        {canManage && (
+          <TouchableOpacity 
+            style={styles.optionsButton}
+            onPress={showAdminOptions}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
 
         <View style={styles.content}>
           <View style={styles.categoryBadge}>
@@ -332,6 +390,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     left: 16,
+    width: 40,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  optionsButton: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
     width: 40,
     height: 40,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
