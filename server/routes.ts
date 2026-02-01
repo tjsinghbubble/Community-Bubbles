@@ -314,6 +314,18 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User is not a member of this bubble" });
       }
       
+      // Prevent demoting the last admin
+      if (role === 'member') {
+        const targetRole = await storage.getMemberRole(userId, bubbleId);
+        if (targetRole === 'admin') {
+          const members = await storage.getBubbleMembersWithUsers(bubbleId);
+          const admins = members.filter(m => m.role === 'admin');
+          if (admins.length <= 1) {
+            return res.status(400).json({ error: "Cannot demote the only admin. Promote another member first." });
+          }
+        }
+      }
+      
       await storage.updateMemberRole(userId, bubbleId, role);
       res.json({ success: true });
     } catch (error: any) {
