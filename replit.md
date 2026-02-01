@@ -80,16 +80,27 @@ Core tables managed by Drizzle ORM:
 Campus Mode allows college students to verify their .edu email addresses and access exclusive campus-specific bubbles and events:
 
 **Verification Flow**:
-1. User sees "Are you a student?" prompt card on ExploreScreen (dismissible)
+1. User sees "Are you a student?" prompt card on ExploreScreen (dismissible, only shows in public view)
 2. User navigates to CampusJoinScreen → enters .edu email
 3. System sends 6-digit verification code (shown in Alert during dev mode)
 4. User enters code on CampusVerifyScreen → campus association saved
-5. Verified users see Campus tab in ExploreScreen with campus-specific content
+5. Verified users see floating action button (FAB) with graduation cap icon (🎓) on ExploreScreen
+
+**Campus Content Toggle (FAB)**:
+- Verified users can toggle between public content and campus content using the FAB
+- FAB shows white background when inactive, blue when active
+- When active, a campus banner shows the university name
+- Student prompt card is hidden when viewing campus content
+
+**Creating Campus-Only Content**:
+- CreateBubbleScreen: Verified users see "Campus Only" toggle to restrict bubble to their campus
+- CreateEventScreen: If selected bubble has campusId, event inherits campus restriction (info banner shown). Otherwise, verified users can toggle "Campus Only" for public bubbles
 
 **Privacy Model**:
 - Campus bubbles/events are private - only visible to verified users of that campus
 - Public content filtered to exclude campus-only items (campusId is null for public)
 - Users can dismiss the student prompt ("I'm not a student") which persists to their record
+- Server enforces campus authorization on all related endpoints (details, members, events, RSVP, join)
 
 **API Endpoints**:
 - `POST /api/campus/send-verification` - Send verification code to .edu email
