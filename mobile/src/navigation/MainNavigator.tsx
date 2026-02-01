@@ -1,7 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
@@ -26,6 +27,9 @@ function PlaceholderScreen({ title }: { title: string }) {
 }
 
 export default function MainNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20);
+  
   return (
     <Tab.Navigator
       screenOptions={{
@@ -38,8 +42,8 @@ export default function MainNavigator() {
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 8,
-          height: 75,
-          paddingBottom: 20,
+          height: 60 + bottomPadding,
+          paddingBottom: bottomPadding,
           paddingTop: 8,
         },
         tabBarActiveTintColor: 'hsl(210, 95%, 55%)',
