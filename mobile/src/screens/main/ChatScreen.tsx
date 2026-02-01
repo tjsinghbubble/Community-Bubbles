@@ -15,12 +15,16 @@ import {
   Modal,
   Pressable,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type MessagesStackParamList = {
   MessagesList: undefined;
@@ -53,6 +57,8 @@ type Message = {
     text: string;
     senderName: string;
   };
+  type: 'text' | 'image';
+  imageUrl?: string;
 };
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
@@ -66,6 +72,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [isSending, setIsSending] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -83,7 +92,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       const data = await cometChatService.getMessages(groupId);
       const formattedMessages = await Promise.all(
         (data as any[])
-          .filter((msg: any) => msg.type === 'text')
+          .filter((msg: any) => msg.type === 'text' || msg.type === 'image')
           .map(async (msg: any) => {
             const reactions = parseReactions(msg.reactions || {}, user?.id || '');
             const parentMessage = msg.parentMessage ? {
@@ -94,7 +103,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
             return {
               id: msg.id?.toString(),
-              text: msg.text,
+              text: msg.text || '',
               sentAt: msg.sentAt,
               sender: {
                 uid: msg.sender?.uid || '',
@@ -103,6 +112,8 @@ export default function ChatScreen({ navigation, route }: Props) {
               },
               reactions,
               parentMessage,
+              type: msg.type as 'text' | 'image',
+              imageUrl: msg.type === 'image' ? msg.data?.url || msg.url : undefined,
             };
           })
       );
@@ -130,31 +141,36 @@ export default function ChatScreen({ navigation, route }: Props) {
   };
 
   const setupMessageListener = () => {
-    const listener = cometChatService.getMessageListener(
-      `chat_${groupId}`,
-      (message: any) => {
-        if (message.receiverId === groupId) {
-          const parentMessage = message.parentMessage ? {
-            id: message.parentMessage.id?.toString(),
-            text: message.parentMessage.text || '',
-            senderName: message.parentMessage.sender?.name || 'Unknown',
-          } : undefined;
+    const handleNewMessage = (message: any, type: 'text' | 'image') => {
+      if (message.receiverId === groupId) {
+        const parentMessage = message.parentMessage ? {
+          id: message.parentMessage.id?.toString(),
+          text: message.parentMessage.text || '',
+          senderName: message.parentMessage.sender?.name || 'Unknown',
+        } : undefined;
 
-          const newMsg: Message = {
-            id: message.id?.toString(),
-            text: message.text,
-            sentAt: message.sentAt,
-            sender: {
-              uid: message.sender?.uid || '',
-              name: message.sender?.name || 'Unknown',
-              avatar: message.sender?.avatar || undefined,
-            },
-            reactions: [],
-            parentMessage,
-          };
-          setMessages((prev) => [...prev, newMsg]);
-        }
+        const newMsg: Message = {
+          id: message.id?.toString(),
+          text: message.text || '',
+          sentAt: message.sentAt,
+          sender: {
+            uid: message.sender?.uid || '',
+            name: message.sender?.name || 'Unknown',
+            avatar: message.sender?.avatar || undefined,
+          },
+          reactions: [],
+          parentMessage,
+          type,
+          imageUrl: type === 'image' ? message.data?.url || message.url : undefined,
+        };
+        setMessages((prev) => [...prev, newMsg]);
       }
+    };
+
+    const listener = cometChatService.getFullMessageListener(
+      `chat_${groupId}`,
+      (message: any) => handleNewMessage(message, 'text'),
+      (message: any) => handleNewMessage(message, 'image')
     );
     cometChatService.addMessageListener(`chat_${groupId}`, listener);
 
@@ -241,6 +257,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           text: replyTo.text,
           senderName: replyTo.sender.name,
         } : undefined,
+        type: 'text',
       };
       setMessages((prev) => [...prev, newMsg]);
       
@@ -253,6 +270,83 @@ export default function ChatScreen({ navigation, route }: Props) {
       setReplyingTo(replyTo);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const pickImageFromGallery = async () => {
+    setShowAttachmentModal(false);
+    
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('Media library permission denied');
+      return;
+    }
+    
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await sendImage(result.assets[0]);
+    }
+  };
+
+  const takePhoto = async () => {
+    setShowAttachmentModal(false);
+    
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      console.log('Camera permission denied');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await sendImage(result.assets[0]);
+    }
+  };
+
+  const sendImage = async (asset: ImagePicker.ImagePickerAsset) => {
+    setIsUploadingImage(true);
+    
+    try {
+      const fileName = asset.fileName || `image_${Date.now()}.jpg`;
+      const mimeType = asset.mimeType || 'image/jpeg';
+      
+      const sentMessage: any = await cometChatService.sendMediaMessage(
+        groupId,
+        asset.uri,
+        fileName,
+        mimeType
+      );
+      
+      const newMsg: Message = {
+        id: sentMessage.id?.toString() || Date.now().toString(),
+        text: '',
+        sentAt: sentMessage.sentAt || Math.floor(Date.now() / 1000),
+        sender: {
+          uid: user?.id || '',
+          name: user?.name || 'You',
+        },
+        reactions: [],
+        type: 'image',
+        imageUrl: sentMessage.data?.url || sentMessage.url || asset.uri,
+      };
+      setMessages((prev) => [...prev, newMsg]);
+      
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('Failed to send image:', error);
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -373,14 +467,33 @@ export default function ChatScreen({ navigation, route }: Props) {
   const renderReplyPreview = (parentMessage: Message['parentMessage']) => {
     if (!parentMessage) return null;
     
+    const displayText = parentMessage.text || '📷 Photo';
+    
     return (
       <View style={styles.replyPreview}>
         <View style={styles.replyBar} />
         <View style={styles.replyContent}>
           <Text style={styles.replySenderName}>{parentMessage.senderName}</Text>
-          <Text style={styles.replyText} numberOfLines={1}>{parentMessage.text}</Text>
+          <Text style={styles.replyText} numberOfLines={1}>{displayText}</Text>
         </View>
       </View>
+    );
+  };
+
+  const renderImageMessage = (message: Message, isOwn: boolean) => {
+    if (!message.imageUrl) return null;
+    
+    return (
+      <TouchableOpacity 
+        onPress={() => setFullScreenImage(message.imageUrl!)}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{ uri: message.imageUrl }}
+          style={styles.messageImage}
+          resizeMode="cover"
+        />
+      </TouchableOpacity>
     );
   };
 
@@ -404,11 +517,17 @@ export default function ChatScreen({ navigation, route }: Props) {
             
             {message.parentMessage && renderReplyPreview(message.parentMessage)}
             
-            <View style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
-              <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
-                {message.text}
-              </Text>
-            </View>
+            {message.type === 'image' ? (
+              <View style={[styles.imageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+                {renderImageMessage(message, isOwn)}
+              </View>
+            ) : (
+              <View style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+                <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
+                  {message.text}
+                </Text>
+              </View>
+            )}
             
             {renderReactions(message)}
             
@@ -487,7 +606,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           <View style={styles.replyingToBar}>
             <View style={styles.replyingToContent}>
               <Text style={styles.replyingToLabel}>Replying to {replyingTo.sender.name}</Text>
-              <Text style={styles.replyingToText} numberOfLines={1}>{replyingTo.text}</Text>
+              <Text style={styles.replyingToText} numberOfLines={1}>
+                {replyingTo.type === 'image' ? '📷 Photo' : replyingTo.text}
+              </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyingTo(null)} style={styles.cancelReply}>
               <Ionicons name="close" size={20} color="#666" />
@@ -496,6 +617,17 @@ export default function ChatScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.inputContainer}>
+          <TouchableOpacity
+            style={styles.attachButton}
+            onPress={() => setShowAttachmentModal(true)}
+            disabled={isUploadingImage}
+          >
+            {isUploadingImage ? (
+              <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
+            ) : (
+              <Ionicons name="add-circle" size={28} color="hsl(210, 95%, 55%)" />
+            )}
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
@@ -518,6 +650,60 @@ export default function ChatScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showAttachmentModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAttachmentModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowAttachmentModal(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.attachmentModal}>
+                <Text style={styles.attachmentModalTitle}>Share</Text>
+                <View style={styles.attachmentOptions}>
+                  <TouchableOpacity style={styles.attachmentOption} onPress={takePhoto}>
+                    <View style={[styles.attachmentIcon, { backgroundColor: '#4CAF50' }]}>
+                      <Ionicons name="camera" size={24} color="#fff" />
+                    </View>
+                    <Text style={styles.attachmentLabel}>Camera</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.attachmentOption} onPress={pickImageFromGallery}>
+                    <View style={[styles.attachmentIcon, { backgroundColor: '#9C27B0' }]}>
+                      <Ionicons name="images" size={24} color="#fff" />
+                    </View>
+                    <Text style={styles.attachmentLabel}>Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <Modal
+        visible={!!fullScreenImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFullScreenImage(null)}
+      >
+        <View style={styles.fullScreenImageContainer}>
+          <TouchableOpacity
+            style={styles.fullScreenCloseButton}
+            onPress={() => setFullScreenImage(null)}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+          {fullScreenImage && (
+            <Image
+              source={{ uri: fullScreenImage }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -801,5 +987,83 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#ccc',
+  },
+  attachButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  imageBubble: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 4,
+  },
+  messageImage: {
+    width: SCREEN_WIDTH * 0.55,
+    height: SCREEN_WIDTH * 0.55,
+    borderRadius: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  attachmentModal: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  attachmentModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  attachmentOptions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+  },
+  attachmentOption: {
+    alignItems: 'center',
+  },
+  attachmentIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  attachmentLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
+  fullScreenImageContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: SCREEN_WIDTH,
+    height: '80%',
   },
 });

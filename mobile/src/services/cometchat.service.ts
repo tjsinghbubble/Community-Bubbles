@@ -243,6 +243,48 @@ class CometChatService {
       },
     });
   }
+
+  async sendMediaMessage(guid: string, fileUri: string, fileName: string, mimeType: string) {
+    try {
+      const receiverID = guid;
+      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
+      
+      const file = {
+        uri: fileUri,
+        name: fileName,
+        type: mimeType,
+      };
+      
+      const mediaMessage = new CometChat.MediaMessage(
+        receiverID,
+        file,
+        CometChat.MESSAGE_TYPE.IMAGE,
+        receiverType
+      );
+      
+      const message = await CometChat.sendMediaMessage(mediaMessage);
+      console.log('Media message sent successfully:', message);
+      return message;
+    } catch (error) {
+      console.error('Media message sending failed:', error);
+      throw error;
+    }
+  }
+
+  getFullMessageListener(
+    listenerID: string, 
+    onTextMessage: (message: any) => void,
+    onMediaMessage: (message: any) => void
+  ) {
+    return new CometChat.MessageListener({
+      onTextMessageReceived: (message: any) => {
+        onTextMessage(message);
+      },
+      onMediaMessageReceived: (message: any) => {
+        onMediaMessage(message);
+      },
+    });
+  }
 }
 
 export default new CometChatService();
