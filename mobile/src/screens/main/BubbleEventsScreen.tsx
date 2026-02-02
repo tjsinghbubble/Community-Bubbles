@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
+import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 
 type Props = {
@@ -32,14 +33,39 @@ type Event = {
   creatorId: string;
 };
 
+type Bubble = {
+  id: string;
+  creatorId: string;
+};
+
 export default function BubbleEventsScreen({ navigation, route }: Props) {
   const { bubbleId, bubbleTitle } = route.params;
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
+  const [bubble, setBubble] = useState<Bubble | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchEvents();
+    fetchBubble();
   }, [bubbleId]);
+
+  const fetchBubble = async () => {
+    try {
+      const data = await apiService.getBubble(bubbleId) as Bubble;
+      setBubble(data);
+    } catch (error) {
+      console.error('Failed to fetch bubble:', error);
+    }
+  };
+
+  const isCreator = bubble?.creatorId === user?.id;
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const canCreateEvent = isCreator || isSuperAdmin;
+
+  const handleCreateEvent = () => {
+    navigation.navigate('CreateEvent' as any, { bubbleId, bubbleTitle });
+  };
 
   const fetchEvents = async () => {
     try {
@@ -154,6 +180,12 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {canCreateEvent && (
+        <TouchableOpacity style={styles.fab} onPress={handleCreateEvent}>
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -254,5 +286,21 @@ const styles = StyleSheet.create({
   },
   eventChevron: {
     marginRight: 12,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

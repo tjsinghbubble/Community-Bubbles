@@ -128,10 +128,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleCreateEvent = () => {
-    navigation.navigate('CreateEvent' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title });
-  };
-
   const handleEventPress = (event: Event) => {
     navigation.navigate('EventDetails' as any, { eventId: event.id, event });
   };
@@ -242,15 +238,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           </Text>
 
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Events</Text>
-              {isCreator && (
-                <TouchableOpacity style={styles.createEventButton} onPress={handleCreateEvent}>
-                  <Ionicons name="add" size={18} color="#fff" />
-                  <Text style={styles.createEventButtonText}>Create</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <Text style={styles.sectionTitle}>Upcoming Events</Text>
 
             {eventsLoading ? (
               <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
@@ -465,20 +453,6 @@ const styles = StyleSheet.create({
     color: '#444',
     marginBottom: 24,
     lineHeight: 24,
-  },
-  createEventButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  createEventButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
   },
   noEvents: {
     alignItems: 'center',
