@@ -237,14 +237,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           </View>
           
           <Text style={styles.title}>{bubble.title}</Text>
-          <Text style={styles.tagline}>{bubble.tagline || 'A community for like-minded people'}</Text>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About</Text>
-            <Text style={styles.description}>
-              {bubble.description || 'Join us to connect with amazing people in your area who share your interests!'}
-            </Text>
-          </View>
+          <Text style={styles.description}>
+            {bubble.description || 'Join us to connect with amazing people in your area who share your interests!'}
+          </Text>
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -450,11 +445,6 @@ const styles = StyleSheet.create({
     color: '#000',
     marginBottom: 8,
   },
-  tagline: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
   section: {
     marginBottom: 24,
   },
@@ -473,6 +463,7 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 15,
     color: '#444',
+    marginBottom: 24,
     lineHeight: 24,
   },
   createEventButton: {
