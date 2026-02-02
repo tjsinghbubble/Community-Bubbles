@@ -9,6 +9,7 @@ import CampusJoinScreen from '../screens/main/CampusJoinScreen';
 import CampusVerifyScreen from '../screens/main/CampusVerifyScreen';
 import EditBubbleScreen from '../screens/main/EditBubbleScreen';
 import EditEventScreen from '../screens/main/EditEventScreen';
+import BubbleEventsScreen from '../screens/main/BubbleEventsScreen';
 
 export type BubbleData = {
   id: string;
@@ -41,6 +42,7 @@ export type ExploreStackParamList = {
   ExploreList: undefined;
   BubbleDetails: { bubble: BubbleData };
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
+  BubbleEvents: { bubbleId: string; bubbleTitle: string };
   CreateEvent: { bubbleId?: string; bubbleTitle?: string };
   EventDetails: { eventId: string; event?: EventData };
   CampusJoin: undefined;
@@ -57,6 +59,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
       <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreen} />
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
+      <Stack.Screen name="BubbleEvents" component={BubbleEventsScreen} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
       <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
       <Stack.Screen name="CampusJoin" component={CampusJoinScreen} />

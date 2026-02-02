@@ -238,18 +238,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           
           <Text style={styles.title}>{bubble.title}</Text>
           <Text style={styles.tagline}>{bubble.tagline || 'A community for like-minded people'}</Text>
-          
-          <View style={styles.stats}>
-            <TouchableOpacity style={styles.stat} onPress={handleViewMembers}>
-              <Text style={styles.statNumber}>{bubble.members || 0}</Text>
-              <Text style={styles.statLabel}>Members</Text>
-              <Ionicons name="chevron-forward" size={12} color="#999" style={styles.statArrow} />
-            </TouchableOpacity>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{events.length}</Text>
-              <Text style={styles.statLabel}>Events</Text>
-            </View>
-          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>About</Text>
@@ -281,7 +269,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               </View>
             ) : (
               <View style={styles.eventsList}>
-                {events.slice(0, 3).map((event) => (
+                {events.slice(0, 2).map((event) => (
                   <TouchableOpacity
                     key={event.id}
                     style={styles.eventCard}
@@ -329,14 +317,40 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                     <Ionicons name="chevron-forward" size={20} color="#ccc" style={styles.eventChevron} />
                   </TouchableOpacity>
                 ))}
-                {events.length > 3 && (
-                  <TouchableOpacity style={styles.viewAllButton}>
-                    <Text style={styles.viewAllText}>View all {events.length} events</Text>
+                {events.length > 2 && (
+                  <TouchableOpacity 
+                    style={styles.viewAllButton}
+                    onPress={() => navigation.navigate('BubbleEvents' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+                  >
+                    <Text style={styles.viewAllText}>Show all {events.length} events</Text>
                     <Ionicons name="arrow-forward" size={16} color="hsl(210, 95%, 55%)" />
                   </TouchableOpacity>
                 )}
               </View>
             )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Members ({bubble.members || 0})</Text>
+              {canManage && (
+                <TouchableOpacity style={styles.showAllLink} onPress={handleViewMembers}>
+                  <Text style={styles.showAllLinkText}>Show all</Text>
+                  <Ionicons name="arrow-forward" size={14} color="hsl(210, 95%, 55%)" />
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.adminsList}>
+              <View style={styles.adminRow}>
+                <View style={styles.adminAvatar}>
+                  <Ionicons name="person" size={20} color="#fff" />
+                </View>
+                <View style={styles.adminInfo}>
+                  <Text style={styles.adminName}>Bubble Creator</Text>
+                  <Text style={styles.adminRole}>Admin</Text>
+                </View>
+              </View>
+            </View>
           </View>
 
           <View style={styles.section}>
@@ -351,21 +365,26 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.joinButton, isMember && styles.leaveButton]}
-          onPress={handleJoinLeave}
-          disabled={isJoining}
-        >
-          {isJoining ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.joinButtonText}>
-              {isMember ? 'Leave Bubble' : 'Join Bubble'}
+      <TouchableOpacity
+        style={[styles.fab, isMember && styles.fabLeave]}
+        onPress={handleJoinLeave}
+        disabled={isJoining}
+      >
+        {isJoining ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <>
+            <Ionicons 
+              name={isMember ? "exit-outline" : "add"} 
+              size={22} 
+              color="#fff" 
+            />
+            <Text style={styles.fabText}>
+              {isMember ? 'Leave' : 'Join'}
             </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          </>
+        )}
+      </TouchableOpacity>
 
       <SuccessModal
         visible={showSuccessModal}
@@ -410,7 +429,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
   categoryBadge: {
     alignSelf: 'flex-start',
@@ -435,30 +454,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginBottom: 20,
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: 40,
-    marginBottom: 24,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  stat: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  statArrow: {
-    marginTop: 4,
   },
   section: {
     marginBottom: 24,
@@ -584,27 +579,68 @@ const styles = StyleSheet.create({
     color: '#555',
     lineHeight: 22,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 32,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  joinButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 12,
-    padding: 16,
+  showAllLink: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  leaveButton: {
+  showAllLinkText: {
+    fontSize: 14,
+    color: 'hsl(210, 95%, 55%)',
+    fontWeight: '500',
+  },
+  adminsList: {
+    gap: 12,
+  },
+  adminRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 12,
+  },
+  adminAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminInfo: {
+    marginLeft: 12,
+  },
+  adminName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+  },
+  adminRole: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    borderRadius: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabLeave: {
     backgroundColor: '#dc2626',
   },
-  joinButtonText: {
+  fabText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
