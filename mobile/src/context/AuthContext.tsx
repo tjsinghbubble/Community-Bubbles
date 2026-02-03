@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState, AppStateStatus } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
 
@@ -32,10 +33,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const sessionIdRef = useRef<string | null>(null);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     loadStoredAuth();
   }, []);
+
+  // Session tracking based on app state
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [token]);
+
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      // App came to foreground - start session
+      if (token) {
+        await startSession();
+      }
+    } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+      // App going to background - end session
+      await endSession();
+    }
+    appState.current = nextAppState;
+  };
+
+  const startSession = async () => {
+    try {
+      const response = await apiService.startSession() as { id: string };
+      sessionIdRef.current = response.id;
+    } catch (e) {
+      console.log('Failed to start session:', e);
+    }
+  };
+
+  const endSession = async () => {
+    if (sessionIdRef.current) {
+      try {
+        await apiService.endSession(sessionIdRef.current);
+        sessionIdRef.current = null;
+      } catch (e) {
+        console.log('Failed to end session:', e);
+      }
+    }
+  };
 
   const loadStoredAuth = async () => {
     try {
@@ -76,6 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.log('CometChat login error:', e);
     }
+    
+    // Start session on login
+    await startSession();
   };
 
   const signup = async (name: string, email: string, password: string, interests: string[]) => {
@@ -91,9 +136,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.log('CometChat login error:', e);
     }
+    
+    // Start session on signup
+    await startSession();
   };
 
   const logout = async () => {
+    // End session on logout
+    await endSession();
+    
     try {
       await cometChatService.logoutUser();
     } catch (e) {

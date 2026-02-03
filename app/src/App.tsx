@@ -17,6 +17,7 @@ type Metrics = {
   sessionLength: { averageSeconds: number; dailyData: { date: string; avgSeconds: number }[] };
   sessionsPerUser: { daily: number; weekly: number; dailyData: { date: string; sessionsPerUser: number }[] };
   overview: { totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number };
+  bubbleVisits: { topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number; dailyData: { date: string; visits: number }[] };
 };
 
 function formatDuration(seconds: number): string {
@@ -194,6 +195,46 @@ export default function App() {
               </LineChart>
             </ResponsiveContainer>
           </ChartCard>
+        </div>
+
+        {/* Bubble Visits */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Bubble Visits</h2>
+          <p className="text-gray-500 text-sm mb-4">Which bubbles are users interested in</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            <StatCard title="Total Visits" value={metrics.bubbleVisits.totalVisits} subtitle="All time" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ChartCard title="Daily Bubble Visits (Last 14 days)">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={metrics.bubbleVisits.dailyData.map(d => ({ ...d, date: formatDate(d.date) }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#999" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#999" />
+                  <Tooltip />
+                  <Bar dataKey="visits" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-gray-700 font-semibold mb-4">Top Bubbles (Last 30 days)</h3>
+              <div className="space-y-3">
+                {metrics.bubbleVisits.topBubbles.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No visits yet</p>
+                ) : (
+                  metrics.bubbleVisits.topBubbles.map((bubble, index) => (
+                    <div key={bubble.bubbleId} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-400 text-sm font-medium w-6">{index + 1}.</span>
+                        <span className="text-gray-700 font-medium">{bubble.title}</span>
+                      </div>
+                      <span className="text-gray-500 text-sm">{bubble.visits} visits</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="text-center text-gray-400 text-sm py-8">

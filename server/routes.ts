@@ -41,6 +41,21 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+  // CORS middleware for analytics dashboard
+  app.use((req, res, next) => {
+    const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001'];
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   app.post("/api/auth/send-verification", async (req, res) => {
     try {
       const { email } = req.body;
@@ -958,12 +973,13 @@ export async function registerRoutes(
   // Analytics - Get all metrics
   app.get("/api/analytics/metrics", async (req, res) => {
     try {
-      const [retention, dauMau, sessionLength, sessionsPerUser, overview] = await Promise.all([
+      const [retention, dauMau, sessionLength, sessionsPerUser, overview, bubbleVisits] = await Promise.all([
         storage.getRetentionMetrics(),
         storage.getDauMauMetrics(),
         storage.getAverageSessionLength(),
         storage.getSessionsPerUser(),
         storage.getOverviewMetrics(),
+        storage.getBubbleVisitsMetrics(),
       ]);
 
       res.json({
@@ -972,7 +988,30 @@ export async function registerRoutes(
         sessionLength,
         sessionsPerUser,
         overview,
+        bubbleVisits,
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Track bubble visit
+  app.post("/api/bubbles/:bubbleId/visit", async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const authHeader = req.headers.authorization;
+      let userId: string | undefined;
+      
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch (e) {}
+      }
+      
+      const visit = await storage.trackBubbleVisit(bubbleId, userId);
+      res.json(visit);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -63,6 +63,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const details = await apiService.getBubble(bubble.id);
       setBubbleDetails(details);
+      
+      // Track bubble visit
+      apiService.trackBubbleVisit(bubble.id).catch(() => {});
     } catch (error) {
       console.error('Failed to fetch bubble details:', error);
     }

@@ -9,6 +9,7 @@ import {
   eventAttendees,
   campuses,
   userSessions,
+  bubbleVisits,
   type User,
   type InsertUser,
   type Bubble,
@@ -24,6 +25,7 @@ import {
   type Campus,
   type InsertCampus,
   type UserSession,
+  type BubbleVisit,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -91,6 +93,10 @@ export interface IStorage {
   getAverageSessionLength(): Promise<{ averageSeconds: number; dailyData: { date: string; avgSeconds: number }[] }>;
   getSessionsPerUser(): Promise<{ daily: number; weekly: number; dailyData: { date: string; sessionsPerUser: number }[] }>;
   getOverviewMetrics(): Promise<{ totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number }>;
+  
+  // Bubble visits
+  trackBubbleVisit(bubbleId: string, userId?: string): Promise<BubbleVisit>;
+  getBubbleVisitsMetrics(): Promise<{ topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number; dailyData: { date: string; visits: number }[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -653,6 +659,66 @@ export class DatabaseStorage implements IStorage {
       totalEvents: eventsResult[0]?.count || 0,
       totalSessions: sessionsResult[0]?.count || 0,
     };
+  }
+
+  async trackBubbleVisit(bubbleId: string, userId?: string): Promise<BubbleVisit> {
+    const result = await db.insert(bubbleVisits).values({ 
+      bubbleId, 
+      userId: userId || null 
+    }).returning();
+    return result[0];
+  }
+
+  async getBubbleVisitsMetrics(): Promise<{ topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number; dailyData: { date: string; visits: number }[] }> {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Total visits
+    const totalResult = await db.select({ count: count() }).from(bubbleVisits);
+    const totalVisits = totalResult[0]?.count || 0;
+
+    // Top bubbles by visits
+    const allVisits = await db.select().from(bubbleVisits)
+      .where(gte(bubbleVisits.visitedAt, thirtyDaysAgo));
+    
+    const visitCounts: Record<string, number> = {};
+    for (const visit of allVisits) {
+      visitCounts[visit.bubbleId] = (visitCounts[visit.bubbleId] || 0) + 1;
+    }
+
+    const sortedBubbleIds = Object.entries(visitCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+
+    const topBubbles: { bubbleId: string; title: string; visits: number }[] = [];
+    for (const [bubbleId, visits] of sortedBubbleIds) {
+      const bubble = await db.select().from(bubbles).where(eq(bubbles.id, bubbleId)).limit(1);
+      topBubbles.push({
+        bubbleId,
+        title: bubble[0]?.title || 'Unknown',
+        visits,
+      });
+    }
+
+    // Daily visits for chart (last 14 days)
+    const dailyData: { date: string; visits: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const dayVisits = await db.select({ count: count() }).from(bubbleVisits)
+        .where(and(
+          gte(bubbleVisits.visitedAt, dayStart),
+          lt(bubbleVisits.visitedAt, dayEnd)
+        ));
+      
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        visits: dayVisits[0]?.count || 0,
+      });
+    }
+
+    return { topBubbles, totalVisits, dailyData };
   }
 }
 

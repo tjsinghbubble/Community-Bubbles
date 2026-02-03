@@ -274,6 +274,26 @@ class ApiService {
       verified: boolean;
     }>('/api/campus/my-campus');
   }
+
+  // Session tracking
+  async startSession() {
+    return this.request<{ id: string }>('/api/sessions/start', {
+      method: 'POST',
+    });
+  }
+
+  async endSession(sessionId: string) {
+    return this.request<any>(`/api/sessions/${sessionId}/end`, {
+      method: 'POST',
+    });
+  }
+
+  // Bubble visit tracking
+  async trackBubbleVisit(bubbleId: string) {
+    return this.request<any>(`/api/bubbles/${bubbleId}/visit`, {
+      method: 'POST',
+    });
+  }
 }
 
 export const apiService = new ApiService();

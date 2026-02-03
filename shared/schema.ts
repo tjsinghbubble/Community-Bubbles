@@ -168,3 +168,19 @@ export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
 
 export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
 export type UserSession = typeof userSessions.$inferSelect;
+
+// Bubble visits for analytics
+export const bubbleVisits = pgTable("bubble_visits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  userId: varchar("user_id").references(() => users.id),
+  visitedAt: timestamp("visited_at").notNull().defaultNow(),
+});
+
+export const insertBubbleVisitSchema = createInsertSchema(bubbleVisits).omit({
+  id: true,
+  visitedAt: true,
+});
+
+export type InsertBubbleVisit = z.infer<typeof insertBubbleVisitSchema>;
+export type BubbleVisit = typeof bubbleVisits.$inferSelect;
