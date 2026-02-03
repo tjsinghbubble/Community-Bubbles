@@ -2,11 +2,12 @@
 
 ## Overview
 
-Bubble is a social platform for building local communities through interest-based groups ("Bubbles"). The application consists of three main components:
+Bubble is a social platform for building local communities through interest-based groups ("Bubbles"). The application consists of four main components:
 
 1. **Web Client** - React SPA with Vite (legacy prototype, reference only)
 2. **Backend Server** - Express.js API with PostgreSQL database for authentication, bubbles, and memberships
 3. **Mobile App** - React Native/Expo app (PRIMARY APPLICATION - designed for iOS/Android local development)
+4. **Analytics Dashboard** - React app for viewing user metrics (local development only, see app/ folder)
 
 The platform enables users to create and join interest-based communities through a mobile-first experience. Users sign up, select interests, explore bubbles, join communities, and communicate through integrated real-time messaging powered by CometChat.
 

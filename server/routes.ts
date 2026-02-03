@@ -942,10 +942,13 @@ export async function registerRoutes(
     }
   });
 
-  // Session tracking - end session
+  // Session tracking - end session (validates ownership)
   app.post("/api/sessions/:sessionId/end", authMiddleware, async (req, res) => {
     try {
-      const session = await storage.endSession(req.params.sessionId);
+      const session = await storage.endSession(req.params.sessionId, req.userId!);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found or unauthorized" });
+      }
       res.json(session);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
