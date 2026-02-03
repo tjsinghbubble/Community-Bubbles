@@ -52,6 +52,8 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 export default function App() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +65,7 @@ export default function App() {
 
   const fetchMetrics = async () => {
     try {
-      const res = await fetch('/api/analytics/metrics');
+      const res = await fetch(`${API_URL}/api/analytics/metrics`);
       if (!res.ok) throw new Error('Failed to fetch metrics');
       const data = await res.json();
       setMetrics(data);
