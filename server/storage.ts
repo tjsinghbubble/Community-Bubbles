@@ -8,6 +8,7 @@ import {
   events,
   eventAttendees,
   campuses,
+  userSessions,
   type User,
   type InsertUser,
   type Bubble,
@@ -22,7 +23,9 @@ import {
   type InsertEventAttendee,
   type Campus,
   type InsertCampus,
+  type UserSession,
 } from "@shared/schema";
+import { sql, count, avg } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -79,6 +82,15 @@ export interface IStorage {
   getCampusBubbles(campusId: string): Promise<Bubble[]>;
   getPublicEvents(): Promise<(Event & { bubble: Bubble })[]>;
   getCampusEvents(campusId: string): Promise<(Event & { bubble: Bubble })[]>;
+
+  // Analytics
+  createSession(userId: string): Promise<UserSession>;
+  endSession(sessionId: string): Promise<UserSession | undefined>;
+  getRetentionMetrics(): Promise<{ day1: number; day7: number; day30: number }>;
+  getDauMauMetrics(): Promise<{ dau: number; mau: number; stickiness: number; dailyData: { date: string; dau: number }[] }>;
+  getAverageSessionLength(): Promise<{ averageSeconds: number; dailyData: { date: string; avgSeconds: number }[] }>;
+  getSessionsPerUser(): Promise<{ daily: number; weekly: number; dailyData: { date: string; sessionsPerUser: number }[] }>;
+  getOverviewMetrics(): Promise<{ totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -443,6 +455,202 @@ export class DatabaseStorage implements IStorage {
       ...row.events,
       bubble: row.bubbles,
     }));
+  }
+
+  // Analytics methods
+  async createSession(userId: string): Promise<UserSession> {
+    const result = await db.insert(userSessions).values({ userId }).returning();
+    return result[0];
+  }
+
+  async endSession(sessionId: string): Promise<UserSession | undefined> {
+    const session = await db.select().from(userSessions).where(eq(userSessions.id, sessionId)).limit(1);
+    if (!session[0]) return undefined;
+
+    const endedAt = new Date();
+    const startedAt = new Date(session[0].startedAt);
+    const durationSeconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
+
+    const result = await db.update(userSessions)
+      .set({ endedAt, durationSeconds })
+      .where(eq(userSessions.id, sessionId))
+      .returning();
+    return result[0];
+  }
+
+  async getRetentionMetrics(): Promise<{ day1: number; day7: number; day30: number }> {
+    const now = new Date();
+    const day1Ago = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000);
+    const day7Ago = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const day30Ago = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Get users who signed up before each period
+    const allUsers = await db.select().from(users);
+    
+    // Users who have sessions after their signup + N days
+    const calculateRetention = async (daysAgo: Date, dayOffset: number) => {
+      const cutoffDate = new Date(daysAgo.getTime() - dayOffset * 24 * 60 * 60 * 1000);
+      const eligibleUsers = allUsers.filter(u => new Date(u.createdAt) <= cutoffDate);
+      if (eligibleUsers.length === 0) return 0;
+
+      let returnedCount = 0;
+      for (const user of eligibleUsers) {
+        const userSignupPlusN = new Date(new Date(user.createdAt).getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        const sessions = await db.select().from(userSessions)
+          .where(and(
+            eq(userSessions.userId, user.id),
+            gte(userSessions.startedAt, userSignupPlusN)
+          ))
+          .limit(1);
+        if (sessions.length > 0) returnedCount++;
+      }
+      return eligibleUsers.length > 0 ? Math.round((returnedCount / eligibleUsers.length) * 100) : 0;
+    };
+
+    const day1 = await calculateRetention(day1Ago, 1);
+    const day7 = await calculateRetention(day7Ago, 7);
+    const day30 = await calculateRetention(day30Ago, 30);
+
+    return { day1, day7, day30 };
+  }
+
+  async getDauMauMetrics(): Promise<{ dau: number; mau: number; stickiness: number; dailyData: { date: string; dau: number }[] }> {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // DAU - unique users with sessions today
+    const dauResult = await db.selectDistinct({ userId: userSessions.userId })
+      .from(userSessions)
+      .where(gte(userSessions.startedAt, yesterday));
+    const dau = dauResult.length;
+
+    // MAU - unique users with sessions in last 30 days
+    const mauResult = await db.selectDistinct({ userId: userSessions.userId })
+      .from(userSessions)
+      .where(gte(userSessions.startedAt, thirtyDaysAgo));
+    const mau = mauResult.length;
+
+    const stickiness = mau > 0 ? Math.round((dau / mau) * 100) : 0;
+
+    // Daily DAU for chart (last 14 days)
+    const dailyData: { date: string; dau: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const dayUsers = await db.selectDistinct({ userId: userSessions.userId })
+        .from(userSessions)
+        .where(and(
+          gte(userSessions.startedAt, dayStart),
+          lt(userSessions.startedAt, dayEnd)
+        ));
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        dau: dayUsers.length,
+      });
+    }
+
+    return { dau, mau, stickiness, dailyData };
+  }
+
+  async getAverageSessionLength(): Promise<{ averageSeconds: number; dailyData: { date: string; avgSeconds: number }[] }> {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Overall average
+    const sessions = await db.select().from(userSessions)
+      .where(and(
+        gte(userSessions.durationSeconds, 0),
+        gte(userSessions.startedAt, new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000))
+      ));
+    
+    const totalDuration = sessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+    const averageSeconds = sessions.length > 0 ? Math.round(totalDuration / sessions.length) : 0;
+
+    // Daily averages for chart (last 14 days)
+    const dailyData: { date: string; avgSeconds: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      const daySessions = await db.select().from(userSessions)
+        .where(and(
+          gte(userSessions.startedAt, dayStart),
+          lt(userSessions.startedAt, dayEnd),
+          gte(userSessions.durationSeconds, 0)
+        ));
+      
+      const dayTotal = daySessions.reduce((sum, s) => sum + (s.durationSeconds || 0), 0);
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        avgSeconds: daySessions.length > 0 ? Math.round(dayTotal / daySessions.length) : 0,
+      });
+    }
+
+    return { averageSeconds, dailyData };
+  }
+
+  async getSessionsPerUser(): Promise<{ daily: number; weekly: number; dailyData: { date: string; sessionsPerUser: number }[] }> {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Daily sessions per user
+    const dailySessions = await db.select().from(userSessions)
+      .where(gte(userSessions.startedAt, yesterday));
+    const dailyUsers = await db.selectDistinct({ userId: userSessions.userId })
+      .from(userSessions)
+      .where(gte(userSessions.startedAt, yesterday));
+    const daily = dailyUsers.length > 0 ? Math.round((dailySessions.length / dailyUsers.length) * 10) / 10 : 0;
+
+    // Weekly sessions per user
+    const weeklySessions = await db.select().from(userSessions)
+      .where(gte(userSessions.startedAt, weekAgo));
+    const weeklyUsers = await db.selectDistinct({ userId: userSessions.userId })
+      .from(userSessions)
+      .where(gte(userSessions.startedAt, weekAgo));
+    const weekly = weeklyUsers.length > 0 ? Math.round((weeklySessions.length / weeklyUsers.length) * 10) / 10 : 0;
+
+    // Daily data for chart (last 14 days)
+    const dailyData: { date: string; sessionsPerUser: number }[] = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      
+      const daySessions = await db.select().from(userSessions)
+        .where(and(
+          gte(userSessions.startedAt, dayStart),
+          lt(userSessions.startedAt, dayEnd)
+        ));
+      const dayUsers = await db.selectDistinct({ userId: userSessions.userId })
+        .from(userSessions)
+        .where(and(
+          gte(userSessions.startedAt, dayStart),
+          lt(userSessions.startedAt, dayEnd)
+        ));
+      
+      dailyData.push({
+        date: dayStart.toISOString().split('T')[0],
+        sessionsPerUser: dayUsers.length > 0 ? Math.round((daySessions.length / dayUsers.length) * 10) / 10 : 0,
+      });
+    }
+
+    return { daily, weekly, dailyData };
+  }
+
+  async getOverviewMetrics(): Promise<{ totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number }> {
+    const usersResult = await db.select({ count: count() }).from(users);
+    const bubblesResult = await db.select({ count: count() }).from(bubbles);
+    const eventsResult = await db.select({ count: count() }).from(events);
+    const sessionsResult = await db.select({ count: count() }).from(userSessions);
+
+    return {
+      totalUsers: usersResult[0]?.count || 0,
+      totalBubbles: bubblesResult[0]?.count || 0,
+      totalEvents: eventsResult[0]?.count || 0,
+      totalSessions: sessionsResult[0]?.count || 0,
+    };
   }
 }
 

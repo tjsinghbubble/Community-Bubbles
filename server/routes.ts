@@ -930,6 +930,51 @@ export async function registerRoutes(
     }
   });
 
+  // ========== ANALYTICS ENDPOINTS ==========
+
+  // Session tracking - start session
+  app.post("/api/sessions/start", authMiddleware, async (req, res) => {
+    try {
+      const session = await storage.createSession(req.userId!);
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Session tracking - end session
+  app.post("/api/sessions/:sessionId/end", authMiddleware, async (req, res) => {
+    try {
+      const session = await storage.endSession(req.params.sessionId);
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Analytics - Get all metrics
+  app.get("/api/analytics/metrics", async (req, res) => {
+    try {
+      const [retention, dauMau, sessionLength, sessionsPerUser, overview] = await Promise.all([
+        storage.getRetentionMetrics(),
+        storage.getDauMauMetrics(),
+        storage.getAverageSessionLength(),
+        storage.getSessionsPerUser(),
+        storage.getOverviewMetrics(),
+      ]);
+
+      res.json({
+        retention,
+        dauMau,
+        sessionLength,
+        sessionsPerUser,
+        overview,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Seed campuses on startup
   seedCampuses().catch(console.error);
 

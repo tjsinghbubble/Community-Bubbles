@@ -150,3 +150,21 @@ export const insertCampusSchema = createInsertSchema(campuses).omit({
 
 export type InsertCampus = z.infer<typeof insertCampusSchema>;
 export type Campus = typeof campuses.$inferSelect;
+
+// User sessions for analytics tracking
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+  durationSeconds: integer("duration_seconds"),
+});
+
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
+  id: true,
+  endedAt: true,
+  durationSeconds: true,
+});
+
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
