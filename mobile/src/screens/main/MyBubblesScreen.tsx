@@ -26,6 +26,7 @@ type Bubble = {
   coverImage: string | null;
   distance: string | null;
   creatorId?: string;
+  status?: 'pending' | 'approved' | 'rejected';
 };
 
 type Event = {
@@ -43,6 +44,7 @@ type Event = {
     id: string;
     title: string;
   };
+  status?: 'pending' | 'approved' | 'rejected';
 };
 
 export default function MyBubblesScreen() {
@@ -255,8 +257,22 @@ export default function MyBubblesScreen() {
                     style={styles.cardImage}
                   />
                   <View style={styles.cardContent}>
-                    <View style={styles.categoryBadge}>
-                      <Text style={styles.categoryText}>{bubble.category}</Text>
+                    <View style={styles.badgeRow}>
+                      <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryText}>{bubble.category}</Text>
+                      </View>
+                      {bubble.status === 'pending' && (
+                        <View style={styles.pendingBadge}>
+                          <Ionicons name="time-outline" size={12} color="#FF9500" />
+                          <Text style={styles.pendingBadgeText}>Under Review</Text>
+                        </View>
+                      )}
+                      {bubble.status === 'rejected' && (
+                        <View style={styles.rejectedBadge}>
+                          <Ionicons name="close-circle-outline" size={12} color="#FF3B30" />
+                          <Text style={styles.rejectedBadgeText}>Rejected</Text>
+                        </View>
+                      )}
                     </View>
                     <Text style={styles.cardTitle}>{bubble.title}</Text>
                     <Text style={styles.cardTagline}>{bubble.tagline}</Text>
@@ -317,7 +333,21 @@ export default function MyBubblesScreen() {
                     style={styles.eventImage}
                   />
                   <View style={styles.eventContent}>
-                    <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                    <View style={styles.eventTitleRow}>
+                      <Text style={[styles.eventTitle, { flex: 1 }]} numberOfLines={1}>{event.title}</Text>
+                      {event.status === 'pending' && (
+                        <View style={styles.pendingBadgeSmall}>
+                          <Ionicons name="time-outline" size={10} color="#FF9500" />
+                          <Text style={styles.pendingBadgeTextSmall}>Review</Text>
+                        </View>
+                      )}
+                      {event.status === 'rejected' && (
+                        <View style={styles.rejectedBadgeSmall}>
+                          <Ionicons name="close-circle-outline" size={10} color="#FF3B30" />
+                          <Text style={styles.rejectedBadgeTextSmall}>Rejected</Text>
+                        </View>
+                      )}
+                    </View>
                     <View style={styles.eventMeta}>
                       <Ionicons name="time-outline" size={12} color="#666" />
                       <Text style={styles.eventMetaText}>
@@ -590,5 +620,72 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF5E6',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF9500',
+  },
+  rejectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  rejectedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF3B30',
+  },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pendingBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FFF5E6',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  pendingBadgeTextSmall: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FF9500',
+  },
+  rejectedBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: '#FFF0F0',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  rejectedBadgeTextSmall: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FF3B30',
   },
 });
