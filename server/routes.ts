@@ -348,6 +348,55 @@ export async function registerRoutes(
     }
   });
 
+  // Get pending bubbles (super admin only)
+  app.get("/api/admin/pending-bubbles", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const pendingBubbles = await storage.getPendingBubbles();
+      res.json(pendingBubbles);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Approve bubble (super admin only)
+  app.post("/api/admin/bubbles/:id/approve", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const bubble = await storage.approveBubble(req.params.id);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      res.json(bubble);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reject bubble (super admin only)
+  app.post("/api/admin/bubbles/:id/reject", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const { reason } = req.body;
+      const bubble = await storage.rejectBubble(req.params.id, reason);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      res.json(bubble);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   app.post("/api/bubbles/:id/join", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.id;
@@ -677,6 +726,86 @@ export async function registerRoutes(
 
       await storage.deleteEvent(req.params.id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get pending events for bubble admins
+  app.get("/api/admin/pending-events", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      
+      // Super admins see all pending events
+      if (user?.isSuperAdmin) {
+        const allPending = await storage.getPendingBubbles();
+        // Get all pending events
+        const pendingEvents: any[] = [];
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+        // Also get events for pending bubbles
+        for (const bubble of allPending) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+        return res.json(pendingEvents);
+      }
+      
+      // Bubble admins see pending events for their bubbles
+      const pendingEvents = await storage.getPendingEventsForAdmin(req.userId!);
+      res.json(pendingEvents);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Approve event (bubble admin or super admin)
+  app.post("/api/admin/events/:id/approve", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.creatorId === req.userId;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to approve this event" });
+      }
+
+      const approvedEvent = await storage.approveEvent(req.params.id);
+      res.json(approvedEvent);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reject event (bubble admin or super admin)
+  app.post("/api/admin/events/:id/reject", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.creatorId === req.userId;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to reject this event" });
+      }
+
+      const { reason } = req.body;
+      const rejectedEvent = await storage.rejectEvent(req.params.id, reason);
+      res.json(rejectedEvent);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
