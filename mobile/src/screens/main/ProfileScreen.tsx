@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,46 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
+import apiService from '../../services/api.service';
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
+  const navigation = useNavigation<any>();
+  const [hasAdminItems, setHasAdminItems] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const isSuperAdmin = user?.isSuperAdmin === true;
+
+  useEffect(() => {
+    checkAdminItems();
+  }, [user]);
+
+  const checkAdminItems = async () => {
+    if (!user) return;
+    
+    try {
+      let count = 0;
+      
+      if (isSuperAdmin) {
+        const pendingBubbles = await apiService.getPendingBubbles();
+        count += pendingBubbles.length;
+      }
+      
+      const pendingEvents = await apiService.getPendingEvents();
+      count += pendingEvents.length;
+      
+      setPendingCount(count);
+      setHasAdminItems(count > 0 || isSuperAdmin);
+    } catch (error) {
+      setHasAdminItems(isSuperAdmin);
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -91,7 +123,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>{isSuperAdmin ? 'Admin' : 'Profile'}</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -119,6 +151,28 @@ export default function ProfileScreen() {
             )}
           </View>
         </View>
+
+        {hasAdminItems && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Administration</Text>
+            
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              onPress={() => navigation.navigate('PendingReviews')}
+            >
+              <View style={styles.menuItemLeft}>
+                <Ionicons name="time-outline" size={24} color="#333" />
+                <Text style={styles.menuItemText}>Pending Reviews</Text>
+                {pendingCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{pendingCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -275,5 +329,20 @@ const styles = StyleSheet.create({
   deleteText: {
     fontSize: 16,
     color: '#FF3B30',
+  },
+  badge: {
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

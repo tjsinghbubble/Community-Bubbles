@@ -6,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
-import ProfileScreen from '../screens/main/ProfileScreen';
+import ProfileNavigator from './ProfileNavigator';
+import { useAuth } from '../context/AuthContext';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -29,6 +30,9 @@ function PlaceholderScreen({ title }: { title: string }) {
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20);
+  const { user } = useAuth();
+  
+  const isAdmin = user?.isSuperAdmin === true;
   
   return (
     <Tab.Navigator
@@ -93,10 +97,11 @@ export default function MainNavigator() {
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{
+          title: isAdmin ? 'Admin' : 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Ionicons name={isAdmin ? "shield-outline" : "person-outline"} size={size} color={color} />
           ),
         }}
       />

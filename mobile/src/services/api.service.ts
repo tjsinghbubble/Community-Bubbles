@@ -294,6 +294,41 @@ class ApiService {
       method: 'POST',
     });
   }
+
+  // Admin - Pending reviews
+  async getPendingBubbles() {
+    return this.request<any[]>('/api/admin/pending-bubbles');
+  }
+
+  async getPendingEvents() {
+    return this.request<any[]>('/api/admin/pending-events');
+  }
+
+  async approveBubble(bubbleId: string) {
+    return this.request<any>(`/api/admin/bubbles/${bubbleId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectBubble(bubbleId: string, reason?: string) {
+    return this.request<any>(`/api/admin/bubbles/${bubbleId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async approveEvent(eventId: string) {
+    return this.request<any>(`/api/admin/events/${eventId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectEvent(eventId: string, reason?: string) {
+    return this.request<any>(`/api/admin/events/${eventId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
 }
 
 export const apiService = new ApiService();
