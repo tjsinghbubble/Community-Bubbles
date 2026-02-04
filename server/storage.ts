@@ -41,6 +41,9 @@ export interface IStorage {
   updateBubble(id: string, bubble: Partial<InsertBubble>): Promise<Bubble | undefined>;
   deleteBubble(id: string): Promise<void>;
   updateBubbleMemberCount(id: string, delta: number): Promise<void>;
+  getPendingBubbles(): Promise<Bubble[]>;
+  approveBubble(id: string): Promise<Bubble | undefined>;
+  rejectBubble(id: string, reason?: string): Promise<Bubble | undefined>;
 
   getUserMemberships(userId: string): Promise<(Membership & { bubble: Bubble })[]>;
   getBubbleMemberships(bubbleId: string): Promise<Membership[]>;
@@ -66,6 +69,10 @@ export interface IStorage {
   createEvent(event: InsertEvent): Promise<Event>;
   updateEvent(id: string, event: Partial<InsertEvent>): Promise<Event | undefined>;
   deleteEvent(id: string): Promise<void>;
+  getPendingEventsForBubble(bubbleId: string): Promise<Event[]>;
+  getPendingEventsForAdmin(userId: string): Promise<(Event & { bubble: Bubble })[]>;
+  approveEvent(id: string): Promise<Event | undefined>;
+  rejectEvent(id: string, reason?: string): Promise<Event | undefined>;
 
   // Event Attendees
   getEventAttendees(eventId: string): Promise<EventAttendee[]>;
@@ -121,7 +128,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBubbles(): Promise<Bubble[]> {
-    return db.select().from(bubbles).orderBy(desc(bubbles.createdAt));
+    return db.select().from(bubbles)
+      .where(eq(bubbles.status, 'approved'))
+      .orderBy(desc(bubbles.createdAt));
   }
 
   async getBubble(id: string): Promise<Bubble | undefined> {
@@ -156,6 +165,28 @@ export class DatabaseStorage implements IStorage {
         .set({ members: bubble.members + delta })
         .where(eq(bubbles.id, id));
     }
+  }
+
+  async getPendingBubbles(): Promise<Bubble[]> {
+    return db.select().from(bubbles)
+      .where(eq(bubbles.status, 'pending'))
+      .orderBy(desc(bubbles.createdAt));
+  }
+
+  async approveBubble(id: string): Promise<Bubble | undefined> {
+    const result = await db.update(bubbles)
+      .set({ status: 'approved', rejectionReason: null })
+      .where(eq(bubbles.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async rejectBubble(id: string, reason?: string): Promise<Bubble | undefined> {
+    const result = await db.update(bubbles)
+      .set({ status: 'rejected', rejectionReason: reason || null })
+      .where(eq(bubbles.id, id))
+      .returning();
+    return result[0];
   }
 
   async getUserMemberships(userId: string): Promise<(Membership & { bubble: Bubble })[]> {
@@ -274,7 +305,11 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(events)
-      .where(and(eq(events.bubbleId, bubbleId), gte(events.date, today)))
+      .where(and(
+        eq(events.bubbleId, bubbleId),
+        eq(events.status, 'approved'),
+        gte(events.date, today)
+      ))
       .orderBy(events.date, events.startTime);
   }
 
@@ -284,7 +319,11 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(and(eq(events.visibility, 'public'), gte(events.date, today)))
+      .where(and(
+        eq(events.visibility, 'public'),
+        eq(events.status, 'approved'),
+        gte(events.date, today)
+      ))
       .orderBy(events.date, events.startTime);
     
     return result.map((row) => ({ ...row.events, bubble: row.bubbles }));
@@ -356,6 +395,49 @@ export class DatabaseStorage implements IStorage {
     await db.delete(events).where(eq(events.id, id));
   }
 
+  async getPendingEventsForBubble(bubbleId: string): Promise<Event[]> {
+    return db.select().from(events)
+      .where(and(eq(events.bubbleId, bubbleId), eq(events.status, 'pending')))
+      .orderBy(desc(events.createdAt));
+  }
+
+  async getPendingEventsForAdmin(userId: string): Promise<(Event & { bubble: Bubble })[]> {
+    // Get bubbles where user is admin/creator
+    const userBubbles = await db.select({ id: bubbles.id })
+      .from(bubbles)
+      .where(eq(bubbles.creatorId, userId));
+    
+    if (userBubbles.length === 0) return [];
+
+    const bubbleIds = userBubbles.map(b => b.id);
+    const result = await db.select()
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .where(and(
+        eq(events.status, 'pending'),
+        sql`${events.bubbleId} = ANY(ARRAY[${sql.join(bubbleIds.map(id => sql`${id}`), sql`, `)}]::varchar[])`
+      ))
+      .orderBy(desc(events.createdAt));
+
+    return result.map(row => ({ ...row.events, bubble: row.bubbles }));
+  }
+
+  async approveEvent(id: string): Promise<Event | undefined> {
+    const result = await db.update(events)
+      .set({ status: 'approved', rejectionReason: null })
+      .where(eq(events.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async rejectEvent(id: string, reason?: string): Promise<Event | undefined> {
+    const result = await db.update(events)
+      .set({ status: 'rejected', rejectionReason: reason || null })
+      .where(eq(events.id, id))
+      .returning();
+    return result[0];
+  }
+
   // Event Attendees
   async getEventAttendees(eventId: string): Promise<EventAttendee[]> {
     return db.select().from(eventAttendees).where(eq(eventAttendees.eventId, eventId));
@@ -420,13 +502,13 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicBubbles(): Promise<Bubble[]> {
     return db.select().from(bubbles)
-      .where(isNull(bubbles.campusId))
+      .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved')))
       .orderBy(desc(bubbles.createdAt));
   }
 
   async getCampusBubbles(campusId: string): Promise<Bubble[]> {
     return db.select().from(bubbles)
-      .where(eq(bubbles.campusId, campusId))
+      .where(and(eq(bubbles.campusId, campusId), eq(bubbles.status, 'approved')))
       .orderBy(desc(bubbles.createdAt));
   }
 
@@ -439,6 +521,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         isNull(events.campusId),
         eq(events.visibility, 'public'),
+        eq(events.status, 'approved'),
         gte(events.date, today)
       ))
       .orderBy(events.date, events.startTime);
@@ -454,7 +537,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(eq(events.campusId, campusId))
+      .where(and(eq(events.campusId, campusId), eq(events.status, 'approved')))
       .orderBy(desc(events.createdAt));
 
     return result.map(row => ({
