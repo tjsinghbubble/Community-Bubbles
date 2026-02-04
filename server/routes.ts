@@ -278,10 +278,8 @@ export async function registerRoutes(
 
       const bubble = await storage.createBubble(data);
 
-      await storage.createMembershipWithRole({
-        userId: req.userId!,
-        bubbleId: bubble.id,
-      }, 'admin');
+      // Note: Creator does NOT become admin until super admin approves the bubble
+      // This prevents creators from approving their own events before bubble approval
 
       res.json(bubble);
     } catch (error: any) {

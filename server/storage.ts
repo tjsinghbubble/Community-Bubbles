@@ -178,7 +178,34 @@ export class DatabaseStorage implements IStorage {
       .set({ status: 'approved', rejectionReason: null })
       .where(eq(bubbles.id, id))
       .returning();
-    return result[0];
+    
+    const approvedBubble = result[0];
+    
+    // When bubble is approved, make the creator an admin member
+    if (approvedBubble && approvedBubble.creatorId) {
+      // Check if membership already exists (shouldn't, but be safe)
+      const existingMembership = await db.select()
+        .from(memberships)
+        .where(and(
+          eq(memberships.userId, approvedBubble.creatorId),
+          eq(memberships.bubbleId, id)
+        ))
+        .limit(1);
+      
+      if (existingMembership.length === 0) {
+        await db.insert(memberships).values({
+          userId: approvedBubble.creatorId,
+          bubbleId: id,
+          role: 'admin',
+        });
+        // Update member count
+        await db.update(bubbles)
+          .set({ members: sql`${bubbles.members} + 1` })
+          .where(eq(bubbles.id, id));
+      }
+    }
+    
+    return approvedBubble;
   }
 
   async rejectBubble(id: string, reason?: string): Promise<Bubble | undefined> {
