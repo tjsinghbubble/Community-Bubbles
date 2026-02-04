@@ -1,4 +1,7 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ||
+  "https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev" ||
+  "http://localhost:3000";
 
 type AuthResponse = {
   user: {
@@ -19,19 +22,19 @@ class ApiService {
 
   private async request<T>(
     endpoint: string,
-    options?: RequestInit
+    options?: RequestInit,
   ): Promise<T> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     };
-    
+
     if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+      headers["Authorization"] = `Bearer ${this.token}`;
     }
 
     const url = `${API_URL}${endpoint}`;
-    console.log(`[API] Request: ${options?.method || 'GET'} ${url}`);
-    
+    console.log(`[API] Request: ${options?.method || "GET"} ${url}`);
+
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -42,7 +45,10 @@ class ApiService {
 
     // Get raw text first for debugging
     const rawText = await response.text();
-    console.log(`[API] Response ${endpoint} (status ${response.status}):`, rawText.substring(0, 500));
+    console.log(
+      `[API] Response ${endpoint} (status ${response.status}):`,
+      rawText.substring(0, 500),
+    );
 
     if (!response.ok) {
       let error;
@@ -63,171 +69,183 @@ class ApiService {
     }
   }
 
-  async signup(data: { name: string; email: string; password: string; interests: string[] }): Promise<AuthResponse> {
-    return this.request<AuthResponse>('/api/auth/signup', {
-      method: 'POST',
+  async signup(data: {
+    name: string;
+    email: string;
+    password: string;
+    interests: string[];
+  }): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/api/auth/signup", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    return this.request<AuthResponse>('/api/auth/login', {
-      method: 'POST',
+    return this.request<AuthResponse>("/api/auth/login", {
+      method: "POST",
       body: JSON.stringify({ email, password }),
     });
   }
 
   async getProfile() {
-    return this.request('/api/auth/me');
+    return this.request("/api/auth/me");
   }
 
   async getBubbles() {
-    return this.request('/api/bubbles', {
-      method: 'GET',
+    return this.request("/api/bubbles", {
+      method: "GET",
     });
   }
 
   async getBubble(id: string) {
     return this.request(`/api/bubbles/${id}`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async createBubble(data: any) {
-    return this.request('/api/bubbles', {
-      method: 'POST',
+    return this.request("/api/bubbles", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updateBubble(id: string, data: any) {
     return this.request(`/api/bubbles/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deleteBubble(id: string) {
     return this.request(`/api/bubbles/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
   async joinBubble(id: string) {
     return this.request(`/api/bubbles/${id}/join`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async leaveBubble(id: string) {
     return this.request(`/api/bubbles/${id}/leave`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async getMyBubbles() {
-    return this.request('/api/bubbles/my', {
-      method: 'GET',
+    return this.request("/api/bubbles/my", {
+      method: "GET",
     });
   }
 
-  async checkMembership(bubbleId: string): Promise<{ isMember: boolean; role: string | null }> {
+  async checkMembership(
+    bubbleId: string,
+  ): Promise<{ isMember: boolean; role: string | null }> {
     return this.request(`/api/bubbles/${bubbleId}/membership`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async getBubbleMembers(bubbleId: string) {
     return this.request(`/api/bubbles/${bubbleId}/members`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async updateMemberRole(bubbleId: string, userId: string, role: string) {
     return this.request(`/api/bubbles/${bubbleId}/members/${userId}/role`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify({ role }),
     });
   }
 
   async relinquishAdmin(bubbleId: string) {
-    return this.request(`/api/bubbles/${bubbleId}/members/me/relinquish-admin`, {
-      method: 'PUT',
-    });
+    return this.request(
+      `/api/bubbles/${bubbleId}/members/me/relinquish-admin`,
+      {
+        method: "PUT",
+      },
+    );
   }
 
   async getMyCreatedBubbles() {
-    return this.request('/api/bubbles/created/my', {
-      method: 'GET',
+    return this.request("/api/bubbles/created/my", {
+      method: "GET",
     });
   }
 
   async getMyEvents() {
-    return this.request('/api/events/my', {
-      method: 'GET',
+    return this.request("/api/events/my", {
+      method: "GET",
     });
   }
 
   async getMyCreatedEvents() {
-    return this.request('/api/events/created', {
-      method: 'GET',
+    return this.request("/api/events/created", {
+      method: "GET",
     });
   }
 
   async getBubbleEvents(bubbleId: string) {
     return this.request(`/api/bubbles/${bubbleId}/events`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async getEvent(id: string) {
     return this.request(`/api/events/${id}`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   async createEvent(data: any) {
-    return this.request('/api/events', {
-      method: 'POST',
+    return this.request("/api/events", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   async updateEvent(id: string, data: any) {
     return this.request(`/api/events/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deleteEvent(id: string) {
     return this.request(`/api/events/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
-  async rsvpEvent(eventId: string, status: string = 'going') {
+  async rsvpEvent(eventId: string, status: string = "going") {
     return this.request(`/api/events/${eventId}/rsvp`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ status }),
     });
   }
 
   async cancelRsvp(eventId: string) {
     return this.request(`/api/events/${eventId}/rsvp`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   }
 
   async getEventAttendees(eventId: string) {
     return this.request(`/api/events/${eventId}/attendees`, {
-      method: 'GET',
+      method: "GET",
     });
   }
 
   // Campus methods
   async getCampuses() {
-    return this.request<{ id: string; domain: string; title: string }[]>('/api/campuses');
+    return this.request<{ id: string; domain: string; title: string }[]>(
+      "/api/campuses",
+    );
   }
 
   async sendCampusVerification(email: string) {
@@ -237,8 +255,8 @@ class ApiService {
       campusId: string;
       campusName: string;
       devCode?: string;
-    }>('/api/campus/send-verification', {
-      method: 'POST',
+    }>("/api/campus/send-verification", {
+      method: "POST",
       body: JSON.stringify({ email }),
     });
   }
@@ -248,84 +266,84 @@ class ApiService {
       success: boolean;
       campus: { id: string; name: string; domain: string };
       user: any;
-    }>('/api/campus/verify-code', {
-      method: 'POST',
+    }>("/api/campus/verify-code", {
+      method: "POST",
       body: JSON.stringify({ email, code }),
     });
   }
 
   async dismissCampusPrompt() {
-    return this.request('/api/campus/dismiss-prompt', {
-      method: 'POST',
+    return this.request("/api/campus/dismiss-prompt", {
+      method: "POST",
     });
   }
 
   async getCampusBubbles() {
-    return this.request<any[]>('/api/campus/bubbles');
+    return this.request<any[]>("/api/campus/bubbles");
   }
 
   async getCampusEvents() {
-    return this.request<any[]>('/api/campus/events');
+    return this.request<any[]>("/api/campus/events");
   }
 
   async getMyCampus() {
     return this.request<{
       campus: { id: string; name: string; domain: string } | null;
       verified: boolean;
-    }>('/api/campus/my-campus');
+    }>("/api/campus/my-campus");
   }
 
   // Session tracking
   async startSession() {
-    return this.request<{ id: string }>('/api/sessions/start', {
-      method: 'POST',
+    return this.request<{ id: string }>("/api/sessions/start", {
+      method: "POST",
     });
   }
 
   async endSession(sessionId: string) {
     return this.request<any>(`/api/sessions/${sessionId}/end`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   // Bubble visit tracking
   async trackBubbleVisit(bubbleId: string) {
     return this.request<any>(`/api/bubbles/${bubbleId}/visit`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   // Admin - Pending reviews
   async getPendingBubbles() {
-    return this.request<any[]>('/api/admin/pending-bubbles');
+    return this.request<any[]>("/api/admin/pending-bubbles");
   }
 
   async getPendingEvents() {
-    return this.request<any[]>('/api/admin/pending-events');
+    return this.request<any[]>("/api/admin/pending-events");
   }
 
   async approveBubble(bubbleId: string) {
     return this.request<any>(`/api/admin/bubbles/${bubbleId}/approve`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async rejectBubble(bubbleId: string, reason?: string) {
     return this.request<any>(`/api/admin/bubbles/${bubbleId}/reject`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ reason }),
     });
   }
 
   async approveEvent(eventId: string) {
     return this.request<any>(`/api/admin/events/${eventId}/approve`, {
-      method: 'POST',
+      method: "POST",
     });
   }
 
   async rejectEvent(eventId: string, reason?: string) {
     return this.request<any>(`/api/admin/events/${eventId}/reject`, {
-      method: 'POST',
+      method: "POST",
       body: JSON.stringify({ reason }),
     });
   }
