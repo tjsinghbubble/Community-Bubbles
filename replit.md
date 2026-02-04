@@ -109,6 +109,19 @@ Campus Mode allows college students to verify their .edu email addresses and acc
 - Super admin status is set via the `isSuperAdmin` boolean field in the users table (manually set via database)
 - Super admins can edit and delete any bubble regardless of creator status
 - isSuperAdmin is returned in login and /auth/me responses for client-side authorization checks
+- Profile tab shows "Admin" label with shield icon for super admins
+
+**Content Approval Workflow**:
+- All new bubbles and events default to "pending" status and are not visible to regular users
+- Super admins approve/reject bubbles via PendingReviewsScreen accessible from Profile/Admin tab
+- Bubble admins (creators) and super admins approve/reject events for their bubbles
+- Optional rejection reason can be provided when rejecting content
+- Creators see "Under Review" badge on their pending content in MyBubblesScreen
+- Rejected content shows "Rejected" badge to creators
+
+**Content Status Field**:
+- `status`: 'pending' | 'approved' | 'rejected' (default: 'pending')
+- `rejectionReason`: Optional text explaining why content was rejected
 
 **Bubble Management**:
 - Bubble creators and super admins see an options button (ellipsis icon) in BubbleDetailsScreen header
@@ -118,10 +131,20 @@ Campus Mode allows college students to verify their .edu email addresses and acc
 
 **Authorization Model**:
 - Bubble edit/delete: Creator OR super admin
+- Bubble approve/reject: Super admin only
 - Event edit/delete: Event creator OR bubble admin (creator) OR super admin
+- Event approve/reject: Bubble admin (creator) OR super admin
 - All admin operations are verified server-side before mutations
 
-**API Endpoints**:
+**Admin API Endpoints**:
+- `GET /api/admin/pending-bubbles` - Get all pending bubbles (super admin)
+- `GET /api/admin/pending-events` - Get pending events for admin's bubbles
+- `POST /api/admin/bubbles/:id/approve` - Approve a bubble (super admin)
+- `POST /api/admin/bubbles/:id/reject` - Reject a bubble with optional reason (super admin)
+- `POST /api/admin/events/:id/approve` - Approve an event (bubble admin or super admin)
+- `POST /api/admin/events/:id/reject` - Reject an event with optional reason (bubble admin or super admin)
+
+**Campus API Endpoints**:
 - `POST /api/campus/send-verification` - Send verification code to .edu email
 - `POST /api/campus/verify-code` - Verify code and associate user with campus
 - `POST /api/campus/dismiss-prompt` - Dismiss the student prompt
