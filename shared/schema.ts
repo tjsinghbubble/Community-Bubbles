@@ -37,6 +37,8 @@ export const bubbles = pgTable("bubbles", {
   distance: text("distance"),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
+  status: text("status").notNull().default('pending'),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -114,6 +116,8 @@ export const events = pgTable("events", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
+  status: text("status").notNull().default('pending'),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
