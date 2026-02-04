@@ -184,24 +184,14 @@ export class DatabaseStorage implements IStorage {
     // When bubble is approved, make the creator an admin member
     if (approvedBubble && approvedBubble.creatorId) {
       // Check if membership already exists (shouldn't, but be safe)
-      const existingMembership = await db.select()
-        .from(memberships)
-        .where(and(
-          eq(memberships.userId, approvedBubble.creatorId),
-          eq(memberships.bubbleId, id)
-        ))
-        .limit(1);
+      const alreadyMember = await this.isMember(approvedBubble.creatorId, id);
       
-      if (existingMembership.length === 0) {
-        await db.insert(memberships).values({
+      if (!alreadyMember) {
+        // Use existing method to create membership with proper role and count update
+        await this.createMembershipWithRole({
           userId: approvedBubble.creatorId,
           bubbleId: id,
-          role: 'admin',
-        });
-        // Update member count
-        await db.update(bubbles)
-          .set({ members: sql`${bubbles.members} + 1` })
-          .where(eq(bubbles.id, id));
+        }, 'admin');
       }
     }
     
