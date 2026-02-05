@@ -241,7 +241,17 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           </Text>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Upcoming Events</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Upcoming Events</Text>
+              {canManage && (
+                <TouchableOpacity
+                  style={styles.createEventButton}
+                  onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+                >
+                  <Ionicons name="add" size={22} color="hsl(210, 95%, 55%)" />
+                </TouchableOpacity>
+              )}
+            </View>
 
             {eventsLoading ? (
               <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
@@ -449,7 +459,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 12,
+  },
+  createEventButton: {
+    padding: 4,
   },
   description: {
     fontSize: 15,
