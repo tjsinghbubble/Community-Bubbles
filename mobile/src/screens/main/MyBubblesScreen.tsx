@@ -11,7 +11,6 @@ import {
   RefreshControl,
   Platform,
   StatusBar,
-  Switch,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,7 +48,6 @@ type Event = {
 
 export default function MyBubblesScreen() {
   const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
-  const [showAdminOnly, setShowAdminOnly] = useState(false);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [createdBubbles, setCreatedBubbles] = useState<Bubble[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -169,8 +167,26 @@ export default function MyBubblesScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const displayBubbles = showAdminOnly ? createdBubbles : bubbles;
-  const displayEvents = showAdminOnly ? createdEvents : events;
+  const pendingOrRejectedBubbles = createdBubbles.filter(
+    b => b.status === 'pending' || b.status === 'rejected'
+  );
+  const joinedBubbleIds = new Set(bubbles.map(b => b.id));
+  const mergedBubbles = [
+    ...pendingOrRejectedBubbles.filter(b => !joinedBubbleIds.has(b.id)),
+    ...bubbles,
+  ];
+
+  const pendingOrRejectedEvents = createdEvents.filter(
+    e => e.status === 'pending' || e.status === 'rejected'
+  );
+  const attendingEventIds = new Set(events.map(e => e.id));
+  const mergedEvents = [
+    ...pendingOrRejectedEvents.filter(e => !attendingEventIds.has(e.id)),
+    ...events,
+  ];
+
+  const displayBubbles = mergedBubbles;
+  const displayEvents = mergedEvents;
 
   if (isLoading) {
     return (
@@ -207,27 +223,13 @@ export default function MyBubblesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* <View style={styles.filterRow}>
-        <Text style={styles.filterLabel}>Show only ones I created (Admin)</Text>
-        <Switch
-          value={showAdminOnly}
-          onValueChange={setShowAdminOnly}
-          trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 75%)' }}
-          thumbColor={showAdminOnly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
-        />
-      </View> */}
-
       {activeTab === 'bubbles' ? (
         <>
           {displayBubbles.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>
-                {showAdminOnly ? 'No bubbles created yet' : 'No bubbles yet'}
-              </Text>
+              <Text style={styles.emptyTitle}>No bubbles yet</Text>
               <Text style={styles.emptySubtitle}>
-                {showAdminOnly
-                  ? 'Create your first bubble to get started!'
-                  : 'Join some bubbles from the Explore tab or create your own!'}
+                Join some bubbles from the Explore tab or create your own!
               </Text>
               <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateBubble}>
                 <Ionicons name="add" size={20} color="#fff" />
@@ -242,7 +244,7 @@ export default function MyBubblesScreen() {
               }
             >
               <Text style={styles.listCount}>
-                {displayBubbles.length} {showAdminOnly ? 'created' : 'joined'}
+                {displayBubbles.length} bubble{displayBubbles.length !== 1 ? 's' : ''}
               </Text>
               {displayBubbles.map((bubble) => (
                 <TouchableOpacity
@@ -289,13 +291,9 @@ export default function MyBubblesScreen() {
         <>
           {displayEvents.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>
-                {showAdminOnly ? 'No events created yet' : 'No events yet'}
-              </Text>
+              <Text style={styles.emptyTitle}>No events yet</Text>
               <Text style={styles.emptySubtitle}>
-                {showAdminOnly
-                  ? 'Create your first event to get started!'
-                  : 'RSVP to events in your bubbles or create your own!'}
+                RSVP to events in your bubbles or create your own!
               </Text>
               <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateEvent}>
                 <Ionicons name="add" size={20} color="#fff" />
@@ -310,7 +308,7 @@ export default function MyBubblesScreen() {
               }
             >
               <Text style={styles.listCount}>
-                {displayEvents.length} {showAdminOnly ? 'created' : 'attending'}
+                {displayEvents.length} event{displayEvents.length !== 1 ? 's' : ''}
               </Text>
               {displayEvents.map((event) => (
                 <TouchableOpacity
