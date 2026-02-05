@@ -59,9 +59,8 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
     }
   };
 
-  const isCreator = bubble?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
-  const canCreateEvent = isCreator || isSuperAdmin;
+  const canCreateEvent = true; // Any logged-in user can propose events
 
   const handleCreateEvent = () => {
     navigation.navigate('CreateEvent' as any, { bubbleId, bubbleTitle });

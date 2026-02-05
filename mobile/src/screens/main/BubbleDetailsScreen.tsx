@@ -151,6 +151,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const isCreator = bubbleDetails?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = bubbleDetails && (isCreator || isSuperAdmin);
+  const canCreateEvent = isMember || isSuperAdmin;
 
   const handleViewMembers = () => {
     navigation.navigate('BubbleMembers' as any, { 
@@ -243,7 +244,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Upcoming Events</Text>
-              {canManage && (
+              {canCreateEvent && (
                 <TouchableOpacity
                   style={styles.createEventButton}
                   onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
