@@ -729,31 +729,28 @@ export async function registerRoutes(
     }
   });
 
-  // Get pending events for bubble admins
+  // Get all pending events (super admin only)
   app.get("/api/admin/pending-events", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);
       
-      // Super admins see all pending events
-      if (user?.isSuperAdmin) {
-        const allPending = await storage.getPendingBubbles();
-        // Get all pending events
-        const pendingEvents: any[] = [];
-        const allBubbles = await storage.getBubbles();
-        for (const bubble of allBubbles) {
-          const events = await storage.getPendingEventsForBubble(bubble.id);
-          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
-        }
-        // Also get events for pending bubbles
-        for (const bubble of allPending) {
-          const events = await storage.getPendingEventsForBubble(bubble.id);
-          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
-        }
-        return res.json(pendingEvents);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admins can view pending events" });
       }
-      
-      // Bubble admins see pending events for their bubbles
-      const pendingEvents = await storage.getPendingEventsForAdmin(req.userId!);
+
+      // Get all pending events from all bubbles
+      const pendingEvents: any[] = [];
+      const allBubbles = await storage.getBubbles();
+      for (const bubble of allBubbles) {
+        const events = await storage.getPendingEventsForBubble(bubble.id);
+        pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+      }
+      // Also get events for pending bubbles
+      const allPending = await storage.getPendingBubbles();
+      for (const bubble of allPending) {
+        const events = await storage.getPendingEventsForBubble(bubble.id);
+        pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+      }
       res.json(pendingEvents);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
