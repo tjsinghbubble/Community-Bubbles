@@ -20,6 +20,7 @@ import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
+import MultiImagePicker from '../../components/MultiImagePicker';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -51,7 +52,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [description, setDescription] = useState('');
   const [rulesText, setRulesText] = useState('');
   const [privacy, setPrivacy] = useState('Public');
-  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [campusOnly, setCampusOnly] = useState(false);
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -86,7 +87,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           description,
           rules,
           privacy,
-          coverImage: coverImageUrl || null,
+          coverImage: images.length > 0 ? images[0] : null,
+          images,
           campusId: campusOnly && isCampusVerified ? user?.campusId : null,
         }),
       });
@@ -259,19 +261,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           )}
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cover Image URL</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="https://example.com/image.jpg"
-              placeholderTextColor="#999"
-              value={coverImageUrl}
-              onChangeText={setCoverImageUrl}
-              autoCapitalize="none"
-              keyboardType="url"
+            <Text style={styles.label}>Photos</Text>
+            <MultiImagePicker
+              images={images}
+              onImagesChange={setImages}
+              maxImages={5}
             />
-            <Text style={styles.helperText}>
-              Optional: Add a cover image for your bubble
-            </Text>
           </View>
 
           <TouchableOpacity

@@ -23,6 +23,7 @@ import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
+import MultiImagePicker from '../../components/MultiImagePicker';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -68,8 +69,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
-  // Step 2: Cover Image
-  const [coverImageUrl, setCoverImageUrl] = useState('');
+  // Step 2: Images
+  const [images, setImages] = useState<string[]>([]);
 
   // Step 3: Date & Time
   const [date, setDate] = useState('');
@@ -165,7 +166,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         bubbleId: selectedBubble!.id,
         title: title.trim(),
         description: description.trim() || null,
-        coverImage: coverImageUrl.trim() || null,
+        coverImage: images.length > 0 ? images[0] : null,
+        images,
         date,
         startTime,
         endTime: endTime || null,
@@ -332,34 +334,15 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   const renderStep2 = () => (
     <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Cover Image</Text>
-      <Text style={styles.stepSubtitle}>Add a photo to make your event stand out</Text>
-
-      <View style={styles.imagePreviewContainer}>
-        {coverImageUrl ? (
-          <Image source={{ uri: coverImageUrl }} style={styles.imagePreview} />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="image-outline" size={48} color="#ccc" />
-            <Text style={styles.imagePlaceholderText}>No image selected</Text>
-          </View>
-        )}
-      </View>
+      <Text style={styles.stepTitle}>Event Photos</Text>
+      <Text style={styles.stepSubtitle}>Add photos to make your event stand out</Text>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Image URL</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="https://example.com/image.jpg"
-          placeholderTextColor="#999"
-          value={coverImageUrl}
-          onChangeText={setCoverImageUrl}
-          autoCapitalize="none"
-          keyboardType="url"
+        <MultiImagePicker
+          images={images}
+          onImagesChange={setImages}
+          maxImages={5}
         />
-        <Text style={styles.helperText}>
-          Paste a URL to an image for your event cover
-        </Text>
       </View>
     </View>
   );
@@ -664,8 +647,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       <Text style={styles.stepSubtitle}>Make sure everything looks good</Text>
 
       <View style={styles.previewCard}>
-        {coverImageUrl ? (
-          <Image source={{ uri: coverImageUrl }} style={styles.previewImage} />
+        {images.length > 0 ? (
+          <Image source={{ uri: images[0] }} style={styles.previewImage} />
         ) : (
           <View style={styles.previewImagePlaceholder}>
             <Ionicons name="calendar" size={40} color="#ccc" />
