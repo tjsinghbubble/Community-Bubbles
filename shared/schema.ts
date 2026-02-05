@@ -33,6 +33,7 @@ export const bubbles = pgTable("bubbles", {
   rules: text("rules").array().notNull().default(sql`'{}'::text[]`),
   privacy: text("privacy").notNull().default('Public'),
   coverImage: text("cover_image"),
+  images: text("images").array().notNull().default(sql`'{}'::text[]`),
   members: integer("members").notNull().default(0),
   distance: text("distance"),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
@@ -100,6 +101,7 @@ export const events = pgTable("events", {
   title: text("title").notNull(),
   description: text("description"), // Optional
   coverImage: text("cover_image"),
+  images: text("images").array().notNull().default(sql`'{}'::text[]`),
   date: text("date").notNull(), // YYYY-MM-DD format
   startTime: text("start_time").notNull(), // HH:MM format
   endTime: text("end_time"), // HH:MM format, optional

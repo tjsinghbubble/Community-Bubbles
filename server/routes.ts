@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { insertUserSchema, insertBubbleSchema, insertEventSchema } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
+import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -41,6 +42,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+  // Register object storage routes for image uploads
+  registerObjectStorageRoutes(app);
+  const objectStorageService = new ObjectStorageService();
+
   // CORS middleware for analytics dashboard
   app.use((req, res, next) => {
     const allowedOrigins = ['http://localhost:3001', 'http://127.0.0.1:3001'];
