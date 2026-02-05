@@ -19,6 +19,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import ImageCarousel from '../../components/ImageCarousel';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -30,6 +31,7 @@ type Event = {
   title: string;
   description: string | null;
   coverImage: string | null;
+  images: string[];
   date: string;
   startTime: string;
   endTime: string | null;
@@ -238,11 +240,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <Image
-          source={{
-            uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
-          }}
-          style={styles.coverImage}
+        <ImageCarousel
+          images={event.images || (event.coverImage ? [event.coverImage] : [])}
+          height={200}
+          fallbackImage="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800"
         />
 
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>

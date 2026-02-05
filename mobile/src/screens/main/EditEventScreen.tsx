@@ -22,6 +22,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
+import MultiImagePicker from '../../components/MultiImagePicker';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -39,7 +40,9 @@ export default function EditEventScreen({ navigation, route }: Props) {
   
   const [title, setTitle] = useState(event.title || '');
   const [description, setDescription] = useState(event.description || '');
-  const [coverImageUrl, setCoverImageUrl] = useState(event.coverImage || '');
+  const [images, setImages] = useState<string[]>(
+    Array.isArray(event.images) ? event.images : (event.coverImage ? [event.coverImage] : [])
+  );
   const [date, setDate] = useState(event.date || '');
   const [startTime, setStartTime] = useState(event.startTime || '');
   const [endTime, setEndTime] = useState(event.endTime || '');
@@ -71,7 +74,8 @@ export default function EditEventScreen({ navigation, route }: Props) {
       await apiService.updateEvent(event.id, {
         title,
         description: description || null,
-        coverImage: coverImageUrl || null,
+        coverImage: images.length > 0 ? images[0] : null,
+        images,
         date,
         startTime,
         endTime: endTime || null,
@@ -205,15 +209,11 @@ export default function EditEventScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cover Image URL</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="https://example.com/image.jpg"
-              placeholderTextColor="#999"
-              value={coverImageUrl}
-              onChangeText={setCoverImageUrl}
-              autoCapitalize="none"
-              keyboardType="url"
+            <Text style={styles.label}>Photos</Text>
+            <MultiImagePicker
+              images={images}
+              onImagesChange={setImages}
+              maxImages={5}
             />
           </View>
 

@@ -4,20 +4,16 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 /**
  * Register object storage routes for file uploads.
  *
- * This provides example routes for the presigned URL upload flow:
- * 1. POST /api/uploads/request-url - Get a presigned URL for uploading
+ * This provides routes for the presigned URL upload flow:
+ * 1. POST /api/uploads/request-url - Get a presigned URL for uploading (requires auth)
  * 2. The client then uploads directly to the presigned URL
- *
- * IMPORTANT: These are example routes. Customize based on your use case:
- * - Add authentication middleware for protected uploads
- * - Add file metadata storage (save to database after upload)
- * - Add ACL policies for access control
  */
-export function registerObjectStorageRoutes(app: Express): void {
+export function registerObjectStorageRoutes(app: Express, authMiddleware?: (req: any, res: any, next: any) => void): void {
   const objectStorageService = new ObjectStorageService();
 
   /**
    * Request a presigned URL for file upload.
+   * Requires authentication to prevent abuse.
    *
    * Request body (JSON):
    * {
@@ -31,11 +27,8 @@ export function registerObjectStorageRoutes(app: Express): void {
    *   "uploadURL": "https://storage.googleapis.com/...",
    *   "objectPath": "/objects/uploads/uuid"
    * }
-   *
-   * IMPORTANT: The client should NOT send the file to this endpoint.
-   * Send JSON metadata only, then upload the file directly to uploadURL.
    */
-  app.post("/api/uploads/request-url", async (req, res) => {
+  const uploadHandler = async (req: any, res: any) => {
     try {
       const { name, size, contentType } = req.body;
 
@@ -60,7 +53,14 @@ export function registerObjectStorageRoutes(app: Express): void {
       console.error("Error generating upload URL:", error);
       res.status(500).json({ error: "Failed to generate upload URL" });
     }
-  });
+  };
+
+  // Register upload route with optional auth middleware
+  if (authMiddleware) {
+    app.post("/api/uploads/request-url", authMiddleware, uploadHandler);
+  } else {
+    app.post("/api/uploads/request-url", uploadHandler);
+  }
 
   /**
    * Serve uploaded objects.

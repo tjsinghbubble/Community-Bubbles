@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
+import ImageCarousel from '../../components/ImageCarousel';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -210,9 +211,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView>
-        <Image 
-          source={{ uri: bubble.image || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800' }} 
-          style={styles.coverImage} 
+        <ImageCarousel
+          images={bubbleDetails?.images || (bubble.image ? [bubble.image] : [])}
+          height={200}
+          fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
         />
         
         <TouchableOpacity 

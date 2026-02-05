@@ -53,9 +53,9 @@ Preferred communication style: Simple, everyday language.
 Core tables managed by Drizzle ORM:
 - **users**: id, name, email, password (hashed), interests array, campusId, campusEmail, campusVerified, dismissedCampusPrompt, isSuperAdmin (boolean), timestamps
 - **campuses**: id, domain (.edu), title (university name) - seeded with 50 US universities
-- **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, member count, creator reference, campusId (optional - for campus-only bubbles)
+- **bubbles**: id, title, tagline, category, description, rules, privacy, cover image, images array (multi-image support), member count, creator reference, campusId (optional - for campus-only bubbles)
 - **memberships**: Join table linking users to bubbles with role ('member' or 'admin') and timestamps
-- **events**: id, title, description, date, time, location, bubble reference, creator reference, campusId (optional - for campus-only events)
+- **events**: id, title, description, date, time, location, cover image, images array (multi-image support), bubble reference, creator reference, campusId (optional - for campus-only events)
 - **event_attendees**: Join table for event RSVPs with status
 - **verification_codes**: Stores 6-digit codes for email verification (campus and signup)
 
@@ -189,6 +189,25 @@ Campus Mode allows college students to verify their .edu email addresses and acc
 - `@cometchat/chat-sdk-react-native` - Messaging
 - `nativewind` - Tailwind styling
 
+### Multi-Image Upload Feature
+
+Bubbles and events support multiple image uploads using Replit App Storage:
+
+**Upload Flow**:
+1. User selects images via MultiImagePicker component (up to 5 images per bubble/event)
+2. Mobile app requests presigned URL from `/api/uploads/request-url` (requires auth)
+3. Image is uploaded directly to Google Cloud Storage via presigned URL
+4. Image URL is stored in the images array and first image becomes coverImage
+
+**Components**:
+- `mobile/src/components/MultiImagePicker.tsx` - Image picker with upload functionality
+- `mobile/src/components/ImageCarousel.tsx` - Swipeable carousel for viewing images
+- `server/replit_integrations/object_storage/` - Object storage routes and services
+
+**API Endpoints**:
+- `POST /api/uploads/request-url` - Get presigned URL for upload (auth required)
+- `GET /objects/uploads/:objectId` - Serve uploaded images
+
 ### Environment Variables Required
 
 - `DATABASE_URL` - PostgreSQL connection string
@@ -197,3 +216,5 @@ Campus Mode allows college students to verify their .edu email addresses and acc
 - `COMETCHAT_REGION` - CometChat region (default: "us")
 - `COMETCHAT_AUTH_KEY` - CometChat authentication key
 - `EXPO_PUBLIC_API_URL` - Backend URL for mobile app
+- `PRIVATE_OBJECT_DIR` - Private object storage directory (auto-configured)
+- `PUBLIC_OBJECT_SEARCH_PATHS` - Public object storage search paths (auto-configured)

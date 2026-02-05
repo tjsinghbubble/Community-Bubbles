@@ -18,6 +18,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import MultiImagePicker from '../../components/MultiImagePicker';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -53,7 +54,9 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
     Array.isArray(bubble.rules) ? bubble.rules.join('\n') : ''
   );
   const [privacy, setPrivacy] = useState(bubble.privacy || 'Public');
-  const [coverImageUrl, setCoverImageUrl] = useState(bubble.coverImage || '');
+  const [images, setImages] = useState<string[]>(
+    Array.isArray(bubble.images) ? bubble.images : (bubble.coverImage ? [bubble.coverImage] : [])
+  );
   
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPrivacyPicker, setShowPrivacyPicker] = useState(false);
@@ -79,7 +82,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         description,
         rules,
         privacy,
-        coverImage: coverImageUrl || null,
+        coverImage: images.length > 0 ? images[0] : null,
+        images,
         campusId: bubble.campusId,
       });
 
@@ -195,19 +199,12 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cover Image URL</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="https://example.com/image.jpg"
-              placeholderTextColor="#999"
-              value={coverImageUrl}
-              onChangeText={setCoverImageUrl}
-              autoCapitalize="none"
-              keyboardType="url"
+            <Text style={styles.label}>Photos</Text>
+            <MultiImagePicker
+              images={images}
+              onImagesChange={setImages}
+              maxImages={5}
             />
-            <Text style={styles.helperText}>
-              Optional: Add a cover image for your bubble
-            </Text>
           </View>
 
           <TouchableOpacity
