@@ -151,7 +151,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const isCreator = bubbleDetails?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = bubbleDetails && (isCreator || isSuperAdmin);
-  const canCreateEvent = isMember || isSuperAdmin;
+  const canCreateEvent = !!user; // Any logged-in user can propose events
 
   const handleViewMembers = () => {
     navigation.navigate('BubbleMembers' as any, { 
