@@ -760,7 +760,7 @@ export async function registerRoutes(
     }
   });
 
-  // Approve event (bubble admin or super admin)
+  // Approve event (super admin only)
   app.post("/api/admin/events/:id/approve", authMiddleware, async (req, res) => {
     try {
       const event = await storage.getEvent(req.params.id);
@@ -770,11 +770,9 @@ export async function registerRoutes(
 
       const user = await storage.getUser(req.userId!);
       const isSuperAdmin = user?.isSuperAdmin === true;
-      const bubble = await storage.getBubble(event.bubbleId);
-      const isBubbleAdmin = bubble?.creatorId === req.userId;
 
-      if (!isBubbleAdmin && !isSuperAdmin) {
-        return res.status(403).json({ error: "Not authorized to approve this event" });
+      if (!isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admins can approve events" });
       }
 
       const approvedEvent = await storage.approveEvent(req.params.id);
@@ -784,7 +782,7 @@ export async function registerRoutes(
     }
   });
 
-  // Reject event (bubble admin or super admin)
+  // Reject event (super admin only)
   app.post("/api/admin/events/:id/reject", authMiddleware, async (req, res) => {
     try {
       const event = await storage.getEvent(req.params.id);
@@ -794,11 +792,9 @@ export async function registerRoutes(
 
       const user = await storage.getUser(req.userId!);
       const isSuperAdmin = user?.isSuperAdmin === true;
-      const bubble = await storage.getBubble(event.bubbleId);
-      const isBubbleAdmin = bubble?.creatorId === req.userId;
 
-      if (!isBubbleAdmin && !isSuperAdmin) {
-        return res.status(403).json({ error: "Not authorized to reject this event" });
+      if (!isSuperAdmin) {
+        return res.status(403).json({ error: "Only super admins can reject events" });
       }
 
       const { reason } = req.body;
