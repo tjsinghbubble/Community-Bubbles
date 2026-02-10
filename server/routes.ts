@@ -235,7 +235,10 @@ export async function registerRoutes(
   app.get("/api/bubbles/my", authMiddleware, async (req, res) => {
     try {
       const memberships = await storage.getUserMemberships(req.userId!);
-      const bubbles = memberships.map((m) => m.bubble);
+      const bubbles = memberships.map((m) => ({
+        ...m.bubble,
+        role: m.role,
+      }));
       res.json(bubbles);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

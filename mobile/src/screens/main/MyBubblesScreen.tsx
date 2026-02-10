@@ -11,10 +11,16 @@ import {
   RefreshControl,
   Platform,
   StatusBar,
+  Dimensions,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_GAP = 12;
+const CARD_PADDING = 20;
+const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2;
 
 type Bubble = {
   id: string;
@@ -25,84 +31,36 @@ type Bubble = {
   coverImage: string | null;
   distance: string | null;
   creatorId?: string;
-  status?: 'pending' | 'approved' | 'rejected';
-};
-
-type Event = {
-  id: string;
-  title: string;
-  description: string | null;
-  coverImage: string | null;
-  date: string;
-  startTime: string;
-  endTime: string | null;
-  locationName: string | null;
-  creatorId: string;
-  bubbleId: string;
-  bubble?: {
-    id: string;
-    title: string;
-  };
+  role?: string;
   status?: 'pending' | 'approved' | 'rejected';
 };
 
 export default function MyBubblesScreen() {
-  const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [createdBubbles, setCreatedBubbles] = useState<Bubble[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [createdEvents, setCreatedEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<any>();
 
   const fetchData = async () => {
     try {
-      console.log('[MyBubbles] Starting fetchData...');
-      
-      // Fetch each API separately to identify which one fails
-      let bubblesData = [];
-      let createdBubblesData = [];
-      let eventsData = [];
-      let createdEventsData = [];
-      
+      let bubblesData: Bubble[] = [];
+      let createdBubblesData: Bubble[] = [];
+
       try {
-        console.log('[MyBubbles] Fetching getMyBubbles...');
         bubblesData = await apiService.getMyBubbles() as Bubble[];
-        console.log('[MyBubbles] getMyBubbles success:', bubblesData);
       } catch (err) {
         console.error('[MyBubbles] getMyBubbles FAILED:', err);
       }
-      
+
       try {
-        console.log('[MyBubbles] Fetching getMyCreatedBubbles...');
         createdBubblesData = await apiService.getMyCreatedBubbles() as Bubble[];
-        console.log('[MyBubbles] getMyCreatedBubbles success:', createdBubblesData);
       } catch (err) {
         console.error('[MyBubbles] getMyCreatedBubbles FAILED:', err);
       }
-      
-      try {
-        console.log('[MyBubbles] Fetching getMyEvents...');
-        eventsData = await apiService.getMyEvents() as Event[];
-        console.log('[MyBubbles] getMyEvents success:', eventsData);
-      } catch (err) {
-        console.error('[MyBubbles] getMyEvents FAILED:', err);
-      }
-      
-      try {
-        console.log('[MyBubbles] Fetching getMyCreatedEvents...');
-        createdEventsData = await apiService.getMyCreatedEvents() as Event[];
-        console.log('[MyBubbles] getMyCreatedEvents success:', createdEventsData);
-      } catch (err) {
-        console.error('[MyBubbles] getMyCreatedEvents FAILED:', err);
-      }
-      
+
       setBubbles(bubblesData);
       setCreatedBubbles(createdBubblesData);
-      setEvents(eventsData);
-      setCreatedEvents(createdEventsData);
-      console.log('[MyBubbles] fetchData complete');
     } catch (error) {
       console.error('[MyBubbles] Failed to fetch data:', error);
     } finally {
@@ -139,54 +97,18 @@ export default function MyBubblesScreen() {
     });
   };
 
-  const handleEventPress = (event: Event) => {
-    navigation.navigate('Explore', {
-      screen: 'EventDetails',
-      params: { eventId: event.id, event },
-    });
-  };
-
   const handleCreateBubble = () => {
     navigation.navigate('CreateBubble' as never);
-  };
-
-  const handleCreateEvent = () => {
-    navigation.navigate('CreateEvent' as never);
-  };
-
-  const formatEventDate = (date: string) => {
-    const d = new Date(date + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const pendingOrRejectedBubbles = createdBubbles.filter(
     b => b.status === 'pending' || b.status === 'rejected'
   );
   const joinedBubbleIds = new Set(bubbles.map(b => b.id));
-  const mergedBubbles = [
+  const displayBubbles = [
     ...pendingOrRejectedBubbles.filter(b => !joinedBubbleIds.has(b.id)),
     ...bubbles,
   ];
-
-  const pendingOrRejectedEvents = createdEvents.filter(
-    e => e.status === 'pending' || e.status === 'rejected'
-  );
-  const attendingEventIds = new Set(events.map(e => e.id));
-  const mergedEvents = [
-    ...pendingOrRejectedEvents.filter(e => !attendingEventIds.has(e.id)),
-    ...events,
-  ];
-
-  const displayBubbles = mergedBubbles;
-  const displayEvents = mergedEvents;
 
   if (isLoading) {
     return (
@@ -201,183 +123,72 @@ export default function MyBubblesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Bubbles</Text>
-      </View>
-
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'bubbles' && styles.activeTab]}
-          onPress={() => setActiveTab('bubbles')}
-        >
-          <Text style={[styles.tabText, activeTab === 'bubbles' && styles.activeTabText]}>
-            Bubbles
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'events' && styles.activeTab]}
-          onPress={() => setActiveTab('events')}
-        >
-          <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>
-            Events
-          </Text>
+        <Text style={styles.headerTitle}>Your Bubbles</Text>
+        <TouchableOpacity style={styles.bellButton}>
+          <Ionicons name="notifications-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>
 
-      {activeTab === 'bubbles' ? (
-        <>
-          {displayBubbles.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No bubbles yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Join some bubbles from the Explore tab or create your own!
-              </Text>
-              <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateBubble}>
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.list}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            >
-              <Text style={styles.listCount}>
-                {displayBubbles.length} bubble{displayBubbles.length !== 1 ? 's' : ''}
-              </Text>
-              {displayBubbles.map((bubble) => (
-                <TouchableOpacity
-                  key={bubble.id}
-                  style={styles.card}
-                  onPress={() => handleBubblePress(bubble)}
-                >
+      {displayBubbles.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>No bubbles yet</Text>
+          <Text style={styles.emptySubtitle}>
+            Join some bubbles from the Explore tab or create your own!
+          </Text>
+          <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateBubble}>
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.gridList}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <View style={styles.gridContainer}>
+            {displayBubbles.map((bubble) => (
+              <TouchableOpacity
+                key={bubble.id}
+                style={styles.gridCard}
+                onPress={() => handleBubblePress(bubble)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.gridImageContainer}>
                   <Image
                     source={{
                       uri: bubble.coverImage || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
                     }}
-                    style={styles.cardImage}
+                    style={styles.gridImage}
                   />
-                  <View style={styles.cardContent}>
-                    <View style={styles.badgeRow}>
-                      <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryText}>{bubble.category}</Text>
-                      </View>
-                      {bubble.status === 'pending' && (
-                        <View style={styles.pendingBadge}>
-                          <Ionicons name="time-outline" size={12} color="#FF9500" />
-                          <Text style={styles.pendingBadgeText}>Under Review</Text>
-                        </View>
-                      )}
-                      {bubble.status === 'rejected' && (
-                        <View style={styles.rejectedBadge}>
-                          <Ionicons name="close-circle-outline" size={12} color="#FF3B30" />
-                          <Text style={styles.rejectedBadgeText}>Rejected</Text>
-                        </View>
-                      )}
+                  {bubble.status === 'pending' ? (
+                    <View style={styles.gridPendingBadge}>
+                      <Text style={styles.gridPendingText}>Pending</Text>
                     </View>
-                    <Text style={styles.cardTitle}>{bubble.title}</Text>
-                    <Text style={styles.cardTagline}>{bubble.tagline}</Text>
-                    <View style={styles.cardMeta}>
-                      <Text style={styles.memberCount}>{bubble.members} members</Text>
+                  ) : bubble.status === 'rejected' ? (
+                    <View style={styles.gridRejectedBadge}>
+                      <Text style={styles.gridRejectedText}>Rejected</Text>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </>
-      ) : (
-        <>
-          {displayEvents.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>No events yet</Text>
-              <Text style={styles.emptySubtitle}>
-                RSVP to events in your bubbles or create your own!
-              </Text>
-              <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateEvent}>
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.createFirstButtonText}>Create an Event</Text>
+                  ) : (
+                    <View style={styles.gridCategoryBadge}>
+                      <Text style={styles.gridCategoryText}>{bubble.category}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.gridTitle} numberOfLines={1}>{bubble.title}</Text>
+                <Text style={styles.gridRole}>
+                  {bubble.role === 'admin' ? 'Admin' : 'Member'}
+                </Text>
               </TouchableOpacity>
-            </View>
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.list}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-              }
-            >
-              <Text style={styles.listCount}>
-                {displayEvents.length} event{displayEvents.length !== 1 ? 's' : ''}
-              </Text>
-              {displayEvents.map((event) => (
-                <TouchableOpacity
-                  key={event.id}
-                  style={styles.eventCard}
-                  onPress={() => handleEventPress(event)}
-                >
-                  <View style={styles.eventDate}>
-                    <Text style={styles.eventDateDay}>
-                      {new Date(event.date + 'T00:00:00').getDate()}
-                    </Text>
-                    <Text style={styles.eventDateMonth}>
-                      {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                    </Text>
-                  </View>
-                  <Image
-                    source={{
-                      uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
-                    }}
-                    style={styles.eventImage}
-                  />
-                  <View style={styles.eventContent}>
-                    <View style={styles.eventTitleRow}>
-                      <Text style={[styles.eventTitle, { flex: 1 }]} numberOfLines={1}>{event.title}</Text>
-                      {event.status === 'pending' && (
-                        <View style={styles.pendingBadgeSmall}>
-                          <Ionicons name="time-outline" size={10} color="#FF9500" />
-                          <Text style={styles.pendingBadgeTextSmall}>Review</Text>
-                        </View>
-                      )}
-                      {event.status === 'rejected' && (
-                        <View style={styles.rejectedBadgeSmall}>
-                          <Ionicons name="close-circle-outline" size={10} color="#FF3B30" />
-                          <Text style={styles.rejectedBadgeTextSmall}>Rejected</Text>
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.eventMeta}>
-                      <Ionicons name="time-outline" size={12} color="#666" />
-                      <Text style={styles.eventMetaText}>
-                        {formatTime(event.startTime)}
-                        {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
-                      </Text>
-                    </View>
-                    {event.locationName && (
-                      <View style={styles.eventMeta}>
-                        <Ionicons name="location-outline" size={12} color="#666" />
-                        <Text style={styles.eventMetaText} numberOfLines={1}>
-                          {event.locationName}
-                        </Text>
-                      </View>
-                    )}
-                    {event.bubble && (
-                      <View style={styles.eventBubble}>
-                        <Ionicons name="people-outline" size={12} color="hsl(210, 95%, 55%)" />
-                        <Text style={styles.eventBubbleText}>{event.bubble.title}</Text>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
-        </>
+            ))}
+          </View>
+        </ScrollView>
       )}
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={activeTab === 'bubbles' ? handleCreateBubble : handleCreateEvent}
+        onPress={handleCreateBubble}
       >
         <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
@@ -397,60 +208,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    padding: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    backgroundColor: '#e8e8e8',
-    borderRadius: 12,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  activeTab: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: 'hsl(210, 95%, 55%)',
-  },
-  filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
-  filterLabel: {
-    fontSize: 14,
-    color: '#666',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000',
   },
-  listCount: {
-    fontSize: 13,
-    color: 'hsl(210, 95%, 55%)',
-    fontWeight: '600',
-    marginBottom: 8,
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   empty: {
     flex: 1,
@@ -470,123 +245,81 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  list: {
-    padding: 16,
-    gap: 16,
+  gridList: {
+    padding: CARD_PADDING,
     paddingBottom: 100,
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
   },
-  cardImage: {
+  gridCard: {
+    width: CARD_WIDTH,
+  },
+  gridImageContainer: {
     width: '100%',
-    height: 120,
+    height: CARD_WIDTH * 0.85,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#eee',
   },
-  cardContent: {
-    padding: 16,
+  gridImage: {
+    width: '100%',
+    height: '100%',
   },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'hsl(210, 95%, 95%)',
+  gridCategoryBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 8,
   },
-  categoryText: {
+  gridCategoryText: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'hsl(210, 95%, 45%)',
+    color: '#333',
   },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
+  gridPendingBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  cardTagline: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 8,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  memberCount: {
-    fontSize: 12,
-    color: '#888',
-  },
-  eventCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  eventDate: {
-    width: 60,
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 8,
-  },
-  eventDateDay: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  eventDateMonth: {
+  gridPendingText: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    color: '#FF3B30',
   },
-  eventImage: {
-    width: 80,
-    height: 100,
+  gridRejectedBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  eventContent: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
+  gridRejectedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FF3B30',
   },
-  eventTitle: {
+  gridTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 4,
+    marginTop: 8,
   },
-  eventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  gridRole: {
+    fontSize: 13,
+    color: '#888',
     marginTop: 2,
-  },
-  eventMetaText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  eventBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
-  },
-  eventBubbleText: {
-    fontSize: 12,
-    color: 'hsl(210, 95%, 55%)',
-    fontWeight: '500',
   },
   createFirstButton: {
     flexDirection: 'row',
@@ -618,72 +351,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  pendingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF5E6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  pendingBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FF9500',
-  },
-  rejectedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FFF0F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  rejectedBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#FF3B30',
-  },
-  eventTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pendingBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#FFF5E6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  pendingBadgeTextSmall: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#FF9500',
-  },
-  rejectedBadgeSmall: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: '#FFF0F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  rejectedBadgeTextSmall: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#FF3B30',
   },
 });
