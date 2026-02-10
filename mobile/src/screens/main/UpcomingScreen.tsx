@@ -1,0 +1,335 @@
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
+  Platform,
+  StatusBar,
+} from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import apiService from '../../services/api.service';
+
+type UpcomingEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  coverImage: string | null;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  locationName: string | null;
+  bubbleId: string;
+  bubble?: {
+    id: string;
+    title: string;
+  };
+};
+
+type GroupedEvents = {
+  label: string;
+  events: UpcomingEvent[];
+};
+
+function groupEventsByTimePeriod(events: UpcomingEvent[]): GroupedEvents[] {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const dayOfWeek = today.getDay();
+  const endOfWeek = new Date(today);
+  endOfWeek.setDate(today.getDate() + (7 - dayOfWeek));
+
+  const groups: Map<string, UpcomingEvent[]> = new Map();
+  const groupOrder: string[] = [];
+
+  for (const event of events) {
+    const eventDate = new Date(event.date + 'T00:00:00');
+    let label: string;
+
+    if (eventDate <= endOfWeek) {
+      label = 'This week';
+    } else {
+      label = eventDate.toLocaleDateString('en-US', { month: 'long' });
+      const eventYear = eventDate.getFullYear();
+      if (eventYear !== now.getFullYear()) {
+        label = `${label} ${eventYear}`;
+      }
+    }
+
+    if (!groups.has(label)) {
+      groups.set(label, []);
+      groupOrder.push(label);
+    }
+    groups.get(label)!.push(event);
+  }
+
+  return groupOrder.map(label => ({
+    label,
+    events: groups.get(label)!,
+  }));
+}
+
+function formatTime(time: string): string {
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${minutes} ${ampm}`;
+}
+
+function formatEventDate(date: string): string {
+  const d = new Date(date + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+}
+
+export default function UpcomingScreen() {
+  const [events, setEvents] = useState<UpcomingEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation<any>();
+
+  const fetchData = async () => {
+    try {
+      const data = await apiService.getUpcomingEvents() as UpcomingEvent[];
+      setEvents(data);
+    } catch (error) {
+      console.error('[Upcoming] Failed to fetch events:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const handleEventPress = (event: UpcomingEvent) => {
+    navigation.navigate('Explore', {
+      screen: 'EventDetails',
+      params: { eventId: event.id, event },
+    });
+  };
+
+  const grouped = groupEventsByTimePeriod(events);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Your Upcoming Events</Text>
+        <TouchableOpacity style={styles.bellButton}>
+          <Ionicons name="notifications-outline" size={24} color="#333" />
+        </TouchableOpacity>
+      </View>
+
+      {events.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="calendar-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyTitle}>No upcoming events</Text>
+          <Text style={styles.emptySubtitle}>
+            Events from your bubbles will appear here
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {grouped.map((group, groupIndex) => (
+            <View key={group.label}>
+              {groupIndex > 0 && (
+                <View style={styles.timelineSeparator}>
+                  <View style={styles.timelineLine} />
+                  <Text style={styles.timelineSeparatorText}>{group.label}</Text>
+                  <View style={styles.timelineLine} />
+                </View>
+              )}
+              {groupIndex === 0 && (
+                <Text style={styles.sectionTitle}>{group.label}</Text>
+              )}
+
+              {group.events.map((event) => (
+                <TouchableOpacity
+                  key={event.id}
+                  style={styles.eventCard}
+                  onPress={() => handleEventPress(event)}
+                  activeOpacity={0.7}
+                >
+                  {event.bubble && (
+                    <Text style={styles.bubbleName}>{event.bubble.title}</Text>
+                  )}
+                  <View style={styles.eventCardInner}>
+                    <Image
+                      source={{
+                        uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+                      }}
+                      style={styles.eventImage}
+                    />
+                    <View style={styles.eventInfo}>
+                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                      <Text style={styles.eventDateTime}>
+                        {formatEventDate(event.date)} | {formatTime(event.startTime)}
+                        {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
+                      </Text>
+                      {event.locationName && (
+                        <Text style={styles.eventLocation} numberOfLines={1}>
+                          {event.locationName}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#000',
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  empty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '400',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  timelineSeparator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+    gap: 12,
+  },
+  timelineLine: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#ccc',
+    alignSelf: 'center',
+  },
+  timelineSeparatorText: {
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#666',
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+  },
+  bubbleName: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  eventCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  eventImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: '#eee',
+  },
+  eventInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  eventTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#000',
+  },
+  eventDateTime: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 2,
+  },
+  eventLocation: {
+    fontSize: 13,
+    color: '#555',
+  },
+});

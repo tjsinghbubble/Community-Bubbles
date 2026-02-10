@@ -1,12 +1,13 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
 import ProfileNavigator from './ProfileNavigator';
+import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 
 export type MainTabParamList = {
@@ -18,14 +19,6 @@ export type MainTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
-
-function PlaceholderScreen({ title }: { title: string }) {
-  return (
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>{title} - Coming Soon</Text>
-    </View>
-  );
-}
 
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
@@ -69,7 +62,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen 
         name="Upcoming" 
-        children={() => <PlaceholderScreen title="Upcoming" />}
+        component={UpcomingScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
@@ -109,16 +102,3 @@ export default function MainNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  placeholderText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#666',
-  },
-});

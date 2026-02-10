@@ -190,6 +190,12 @@ class ApiService {
     });
   }
 
+  async getUpcomingEvents() {
+    return this.request("/api/events/upcoming", {
+      method: "GET",
+    });
+  }
+
   async getBubbleEvents(bubbleId: string) {
     return this.request(`/api/bubbles/${bubbleId}/events`, {
       method: "GET",

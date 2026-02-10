@@ -565,8 +565,16 @@ export async function registerRoutes(
   // Events API
   app.get("/api/events", async (req, res) => {
     try {
-      // Return only public events (excludes campus-specific ones)
       const events = await storage.getPublicEvents();
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/upcoming", async (req, res) => {
+    try {
+      const events = await storage.getUpcomingEvents();
       res.json(events);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
