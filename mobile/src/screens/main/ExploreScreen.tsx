@@ -12,6 +12,8 @@ import {
   RefreshControl,
   TextInput,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -55,6 +57,7 @@ export default function ExploreScreen() {
   const [showStudentPrompt, setShowStudentPrompt] = useState(true);
   const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
   const [showCampusContent, setShowCampusContent] = useState(false);
+  const [showCreateSheet, setShowCreateSheet] = useState(false);
 
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
@@ -420,12 +423,53 @@ export default function ExploreScreen() {
       
       {isCampusVerified && (
         <TouchableOpacity 
-          style={[styles.fab, showCampusContent && styles.fabActive]} 
+          style={[styles.campusFab, showCampusContent && styles.campusFabActive]} 
           onPress={handleCampusToggle}
         >
           <Text style={{ fontSize: 24 }}>🎓</Text>
         </TouchableOpacity>
       )}
+
+      <TouchableOpacity
+        style={styles.createFab}
+        onPress={() => setShowCreateSheet(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add-circle" size={56} color="hsl(210, 95%, 55%)" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={showCreateSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCreateSheet(false)}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={() => setShowCreateSheet(false)}>
+          <Pressable style={styles.sheetContainer} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Create New</Text>
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={() => {
+                setShowCreateSheet(false);
+                navigation.navigate('CreateBubble');
+              }}
+            >
+              <Text style={styles.sheetOptionText}>Bubble</Text>
+            </TouchableOpacity>
+            <View style={styles.sheetDivider} />
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={() => {
+                setShowCreateSheet(false);
+                navigation.navigate('CreateEvent', {});
+              }}
+            >
+              <Text style={styles.sheetOptionText}>Event</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -669,10 +713,10 @@ const styles = StyleSheet.create({
     padding: 40,
     gap: 12,
   },
-  fab: {
+  campusFab: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
+    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -687,9 +731,60 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e0e0e0',
   },
-  fabActive: {
+  campusFabActive: {
     backgroundColor: 'hsl(210, 95%, 55%)',
     borderColor: 'hsl(210, 95%, 55%)',
+  },
+  createFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ccc',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 8,
+  },
+  sheetOption: {
+    width: '100%',
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  sheetOptionText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: 'hsl(210, 95%, 55%)',
+  },
+  sheetDivider: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#e0e0e0',
   },
   campusBanner: {
     flexDirection: 'row',
