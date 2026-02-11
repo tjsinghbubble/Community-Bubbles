@@ -35,6 +35,7 @@ type Bubble = {
   title: string;
   category: string;
   campusId?: number | null;
+  coverImage?: string | null;
 };
 
 const VISIBILITY_OPTIONS = [
@@ -52,6 +53,7 @@ const ENVIRONMENT_OPTIONS = [
 export default function CreateEventScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const routeParams = route?.params as { bubbleId?: string; bubbleTitle?: string } | undefined;
+  const isBubblePreselected = !!routeParams?.bubbleId;
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -285,23 +287,44 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       <Text style={styles.stepTitle}>Basic Info</Text>
       <Text style={styles.stepSubtitle}>What's your event about?</Text>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Select Bubble *</Text>
-        <TouchableOpacity
-          style={styles.selectInput}
-          onPress={() => setShowBubblePicker(true)}
-        >
-          <Text style={selectedBubble ? styles.selectText : styles.selectPlaceholder}>
-            {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
-          </Text>
-          <Ionicons name="chevron-down" size={20} color="#666" />
-        </TouchableOpacity>
-        {myBubbles.length === 0 && (
-          <Text style={styles.helperTextWarning}>
-            You need to create a bubble first to host events
-          </Text>
-        )}
-      </View>
+      {isBubblePreselected ? (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Bubble</Text>
+          <View style={styles.preselectedBubble}>
+            {selectedBubble?.coverImage ? (
+              <Image source={{ uri: selectedBubble.coverImage }} style={styles.preselectedBubbleImage} />
+            ) : (
+              <View style={[styles.preselectedBubbleImage, { backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="people" size={16} color="#999" />
+              </View>
+            )}
+            <View>
+              <Text style={styles.preselectedBubbleName}>{selectedBubble?.title || routeParams?.bubbleTitle || 'Loading...'}</Text>
+              {selectedBubble?.category && (
+                <Text style={styles.preselectedBubbleCategory}>{selectedBubble.category}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Select Bubble *</Text>
+          <TouchableOpacity
+            style={styles.selectInput}
+            onPress={() => setShowBubblePicker(true)}
+          >
+            <Text style={selectedBubble ? styles.selectText : styles.selectPlaceholder}>
+              {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
+          {myBubbles.length === 0 && (
+            <Text style={styles.helperTextWarning}>
+              You need to create a bubble first to host events
+            </Text>
+          )}
+        </View>
+      )}
 
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Event Name *</Text>
@@ -792,20 +815,27 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 myBubbles.map(bubble => (
                   <TouchableOpacity
                     key={bubble.id}
-                    style={styles.modalOption}
+                    style={styles.bubblePickerRow}
                     onPress={() => {
                       setSelectedBubble(bubble);
                       setShowBubblePicker(false);
                     }}
                   >
-                    <View>
+                    {bubble.coverImage ? (
+                      <Image source={{ uri: bubble.coverImage }} style={styles.bubblePickerImage} />
+                    ) : (
+                      <View style={[styles.bubblePickerImage, { backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Ionicons name="people" size={20} color="#999" />
+                      </View>
+                    )}
+                    <View style={styles.bubblePickerInfo}>
                       <Text style={[
-                        styles.modalOptionText,
+                        styles.bubblePickerName,
                         selectedBubble?.id === bubble.id && styles.modalOptionSelected
                       ]}>
                         {bubble.title}
                       </Text>
-                      <Text style={styles.modalOptionSubtext}>{bubble.category}</Text>
+                      <Text style={styles.bubblePickerCategory}>{bubble.category}</Text>
                     </View>
                     {selectedBubble?.id === bubble.id && (
                       <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
@@ -1323,6 +1353,59 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     padding: 20,
+  },
+  preselectedBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f5ff',
+    padding: 12,
+    borderRadius: 12,
+    gap: 12,
+  },
+  preselectedBubbleImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  preselectedBubbleName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#000',
+  },
+  preselectedBubbleCategory: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 1,
+  },
+  bubblePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    gap: 12,
+  },
+  bubblePickerImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  bubblePickerInfo: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  bubblePickerName: {
+    fontSize: 16,
+    color: '#333',
+    textAlign: 'right',
+  },
+  bubblePickerCategory: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+    textAlign: 'right',
   },
   successModalOverlay: {
     flex: 1,
