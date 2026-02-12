@@ -44,18 +44,17 @@ type Props = {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const CATEGORIES = [
-  { label: 'Running', image: require('../../assets/images/interest-running.jpg') },
-  { label: 'Cooking', image: require('../../assets/images/interest-cooking.jpg') },
-  { label: 'Coffee Meets', image: require('../../assets/images/interest-coffee.jpg') },
-  { label: 'Professional', image: require('../../assets/images/explore-meetup.jpg') },
-  { label: 'Hiking', image: require('../../assets/images/interest-hiking.jpg') },
-  { label: 'Tennis', image: require('../../assets/images/interest-tennis.jpg') },
-  { label: 'Biking', image: require('../../assets/images/interest-biking.jpg') },
-  { label: 'Pets', image: require('../../assets/images/interest-pets.jpg') },
-  { label: 'Arts & Crafts', image: require('../../assets/images/interest-crafts.jpg') },
-  { label: 'Gardening', image: require('../../assets/images/interest-gardening.jpg') },
-  { label: 'Food & Drink', image: require('../../assets/images/explore-food.jpg') },
-  { label: 'Wellness', image: require('../../assets/images/explore-wellness.jpg') },
+  { label: 'Running', image: require('../../assets/images/running.jpg') },
+  { label: 'Cooking', image: require('../../assets/images/cooking.jpg') },
+  { label: 'Coffee Meets', image: require('../../assets/images/coffee-meets.jpg') },
+  { label: 'Hiking', image: require('../../assets/images/hiking.jpg') },
+  { label: 'Tennis', image: require('../../assets/images/tennis.jpg') },
+  { label: 'Biking', image: require('../../assets/images/biking.jpg') },
+  { label: 'Arts & Crafts', image: require('../../assets/images/arts-crafts.jpg') },
+  { label: 'Community', image: require('../../assets/images/community.jpg') },
+  { label: 'Gardening', image: require('../../assets/images/gardening.jpg') },
+  { label: 'Wellness', image: require('../../assets/images/wellness.jpg') },
+  { label: 'Yoga', image: require('../../assets/images/yoga.jpg') },
 ];
 
 const MANDATORY_RULES = [
