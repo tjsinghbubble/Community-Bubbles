@@ -14,6 +14,7 @@ import {
   Modal,
   Image,
   Switch,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -38,74 +39,90 @@ type Bubble = {
   coverImage?: string | null;
 };
 
+const STEP_TITLES = ['Event Details', 'Date & Location', 'Privacy & Settings', 'Review & Publish'];
+
 const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Public', description: 'Anyone can see and RSVP' },
-  { value: 'request', label: 'Request to Join', description: 'Users must request to attend' },
-  { value: 'private', label: 'Private', description: 'Only visible to bubble members' },
+  { value: 'public', label: 'Public', description: 'Anyone can discover and join' },
+  { value: 'request', label: 'Request to Join', description: 'Host approval required before attending' },
+  { value: 'private', label: 'Private', description: 'Invite-only event' },
 ];
 
 const ENVIRONMENT_OPTIONS = [
-  { key: 'petFriendly', label: 'Pet Friendly', icon: 'paw' as const },
-  { key: 'smokeFree', label: 'Smoke Free', icon: 'ban' as const },
-  { key: 'wheelchairAccessible', label: 'Wheelchair Accessible', icon: 'accessibility' as const },
+  { key: 'petFriendly', label: 'Pet Friendly', description: 'Pets are welcome', icon: 'paw' as const },
+  { key: 'smokeFree', label: 'Smoke Free', description: 'No smoking allowed', icon: 'ban' as const },
+  { key: 'wheelchairAccessible', label: 'Wheelchair Accessible', description: 'Accessible venue', icon: 'accessibility' as const },
+];
+
+const RECURRENCE_OPTIONS = [
+  { value: 'never', label: 'Never' },
+  { value: 'daily', label: 'Every Day' },
+  { value: 'weekly', label: 'Every Week' },
+  { value: 'biweekly', label: 'Every 2 Weeks' },
+  { value: 'monthly', label: 'Every Month' },
+  { value: 'yearly', label: 'Every Year' },
+  { value: 'custom', label: 'Custom' },
+];
+
+const CUSTOM_FREQUENCY_OPTIONS = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'yearly', label: 'Yearly' },
 ];
 
 export default function CreateEventScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const routeParams = route?.params as { bubbleId?: string; bubbleTitle?: string } | undefined;
   const isBubblePreselected = !!routeParams?.bubbleId;
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdEvent, setCreatedEvent] = useState<any>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [campusOnly, setCampusOnly] = useState(false);
-  
+
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  // User's bubbles for selection
   const [myBubbles, setMyBubbles] = useState<Bubble[]>([]);
   const [showBubblePicker, setShowBubblePicker] = useState(false);
-
-  // Step 1: Basic Info
   const [selectedBubble, setSelectedBubble] = useState<Bubble | null>(null);
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-
-  // Step 2: Images
   const [images, setImages] = useState<string[]>([]);
 
-  // Step 3: Date & Time
   const [date, setDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [recurrenceType, setRecurrenceType] = useState('never');
+  const [recurringEnabled, setRecurringEnabled] = useState(false);
+  const [recurrenceCustomFrequency, setRecurrenceCustomFrequency] = useState('weekly');
+  const [recurrenceCustomInterval, setRecurrenceCustomInterval] = useState('1');
+  const [showCustomFrequencyPicker, setShowCustomFrequencyPicker] = useState(false);
 
-  // Step 4: Location
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
   const [locationLatitude, setLocationLatitude] = useState<number | undefined>();
   const [locationLongitude, setLocationLongitude] = useState<number | undefined>();
+  const [locationTbd, setLocationTbd] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
-  // Step 5: Privacy & Settings
   const [visibility, setVisibility] = useState('public');
-  const [showVisibilityPicker, setShowVisibilityPicker] = useState(false);
   const [petFriendly, setPetFriendly] = useState(false);
   const [smokeFree, setSmokeFree] = useState(false);
   const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
-  const [attendeeLimitEnabled, setAttendeeLimitEnabled] = useState(false);
   const [attendeeLimit, setAttendeeLimit] = useState('');
-  const [rsvpDeadlineEnabled, setRsvpDeadlineEnabled] = useState(false);
   const [rsvpDeadline, setRsvpDeadline] = useState('');
 
-  // Date/Time picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
-  const [showRsvpDeadlinePicker, setShowRsvpDeadlinePicker] = useState(false);
+  const [showRsvpDatePicker, setShowRsvpDatePicker] = useState(false);
+  const [showRsvpTimePicker, setShowRsvpTimePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedStartTime, setSelectedStartTime] = useState<Date>(new Date());
   const [selectedEndTime, setSelectedEndTime] = useState<Date>(new Date());
-  const [selectedRsvpDeadline, setSelectedRsvpDeadline] = useState<Date>(new Date());
+  const [selectedRsvpDate, setSelectedRsvpDate] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchMyBubbles();
@@ -115,12 +132,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getMyCreatedBubbles() as Bubble[];
       setMyBubbles(data);
-      
-      // Auto-select bubble if passed via route params
       if (routeParams?.bubbleId) {
-        const preselectedBubble = data.find(b => b.id === routeParams.bubbleId);
-        if (preselectedBubble) {
-          setSelectedBubble(preselectedBubble);
+        const preselected = data.find(b => b.id === routeParams.bubbleId);
+        if (preselected) {
+          setSelectedBubble(preselected);
         }
       }
     } catch (error) {
@@ -128,82 +143,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     }
   };
 
-  const canProceedToNext = () => {
-    switch (step) {
-      case 1:
-        return selectedBubble && title.trim().length >= 3;
-      case 2:
-        return true; // Cover image is optional
-      case 3:
-        return date && startTime;
-      case 4:
-        return true; // Location is optional
-      case 5:
-        return true;
-      case 6:
-        return true;
-      default:
-        return false;
-    }
-  };
-
-  const handleNext = () => {
-    if (step < 6) {
-      setStep(step + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    } else {
-      navigation.goBack();
-    }
-  };
-
-  const handlePublish = async () => {
-    setLoading(true);
-    try {
-      const eventData = {
-        bubbleId: selectedBubble!.id,
-        title: title.trim(),
-        description: description.trim() || null,
-        coverImage: images.length > 0 ? images[0] : null,
-        images,
-        date,
-        startTime,
-        endTime: endTime || null,
-        locationName: locationName.trim() || null,
-        locationAddress: locationAddress.trim() || null,
-        visibility,
-        petFriendly,
-        smokeFree,
-        wheelchairAccessible,
-        attendeeLimit: attendeeLimitEnabled && attendeeLimit ? parseInt(attendeeLimit) : null,
-        rsvpDeadline: rsvpDeadlineEnabled && rsvpDeadline ? rsvpDeadline : null,
-        campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? user?.campusId : null),
-      };
-
-      const event = await apiService.createEvent(eventData);
-      setCreatedEvent(event);
-      setShowSuccessModal(true);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create event');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSuccessClose = () => {
-    setShowSuccessModal(false);
-    navigation.goBack();
-  };
-
   const formatDateForDisplay = (dateStr: string) => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-');
-    const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    return `${month}/${day}/${year}`;
   };
 
   const formatTimeForDisplay = (timeStr: string) => {
@@ -215,9 +158,20 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Date picker handlers
+  const formatRsvpForDisplay = (dateStr: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const year = d.getFullYear();
+    const h = d.getHours();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${month}/${day}/${year} ${hour12}:${min} ${ampm}`;
+  };
+
   const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
-    // Always hide picker on Android, or on iOS when dismissed/set
     if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
       setShowDatePicker(false);
     }
@@ -254,137 +208,229 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     }
   };
 
-  const onRsvpDeadlineChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
+  const onRsvpDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
     if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
-      setShowRsvpDeadlinePicker(false);
+      setShowRsvpDatePicker(false);
     }
     if (event.type === 'set' && selectedDateValue) {
-      setSelectedRsvpDeadline(selectedDateValue);
-      const year = selectedDateValue.getFullYear();
-      const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
-      const day = String(selectedDateValue.getDate()).padStart(2, '0');
-      setRsvpDeadline(`${year}-${month}-${day}`);
+      setSelectedRsvpDate(selectedDateValue);
+      setRsvpDeadline(selectedDateValue.toISOString());
+      if (Platform.OS === 'android') {
+        setShowRsvpTimePicker(true);
+      }
     }
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {[1, 2, 3, 4, 5, 6].map((s) => (
-        <View
-          key={s}
-          style={[
-            styles.stepDot,
-            s === step && styles.stepDotActive,
-            s < step && styles.stepDotCompleted,
-          ]}
-        />
-      ))}
+  const onRsvpTimeChange = (event: DateTimePickerEvent, selectedTimeValue?: Date) => {
+    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+      setShowRsvpTimePicker(false);
+    }
+    if (event.type === 'set' && selectedTimeValue) {
+      const combined = new Date(selectedRsvpDate);
+      combined.setHours(selectedTimeValue.getHours(), selectedTimeValue.getMinutes());
+      setSelectedRsvpDate(combined);
+      setRsvpDeadline(combined.toISOString());
+    }
+  };
+
+  const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number }) => {
+    setLocationName(location.name);
+    setLocationAddress(location.address);
+    setLocationLatitude(location.latitude);
+    setLocationLongitude(location.longitude);
+  };
+
+  const handleNext = () => {
+    if (step === 1) {
+      if (!selectedBubble) {
+        Alert.alert('Required', 'Please select a bubble for this event');
+        return;
+      }
+      if (title.trim().length < 3) {
+        Alert.alert('Required', 'Event title must be at least 3 characters');
+        return;
+      }
+      if (!description.trim()) {
+        Alert.alert('Required', 'Please add an event description');
+        return;
+      }
+    }
+    if (step === 2) {
+      if (!date) {
+        Alert.alert('Required', 'Please select a date');
+        return;
+      }
+      if (!startTime) {
+        Alert.alert('Required', 'Please select a start time');
+        return;
+      }
+    }
+    if (step < 4) {
+      setStep(step + 1);
+    }
+  };
+
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    } else {
+      navigation.goBack();
+    }
+  };
+
+  const handlePublish = async () => {
+    setLoading(true);
+    try {
+      const eventData: any = {
+        bubbleId: selectedBubble!.id,
+        title: title.trim(),
+        description: description.trim() || null,
+        coverImage: images.length > 0 ? images[0] : null,
+        images,
+        date,
+        startTime,
+        endTime: endTime || null,
+        locationName: locationTbd ? 'TBD' : (locationName.trim() || null),
+        locationAddress: locationTbd ? 'TBD' : (locationAddress.trim() || null),
+        locationLat: locationLatitude ? String(locationLatitude) : null,
+        locationLng: locationLongitude ? String(locationLongitude) : null,
+        locationTbd,
+        visibility,
+        petFriendly,
+        smokeFree,
+        wheelchairAccessible,
+        attendeeLimit: attendeeLimit ? parseInt(attendeeLimit) : null,
+        rsvpDeadline: rsvpDeadline || null,
+        recurrenceType: recurringEnabled ? recurrenceType : 'never',
+        recurrenceCustomFrequency: recurrenceType === 'custom' ? recurrenceCustomFrequency : null,
+        recurrenceCustomInterval: recurrenceType === 'custom' ? parseInt(recurrenceCustomInterval) || 1 : null,
+        campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? user?.campusId : null),
+      };
+
+      const event = await apiService.createEvent(eventData);
+      setCreatedEvent(event);
+      setShowSuccess(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create event');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn}>
+        <Ionicons name="arrow-back" size={24} color="#000" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>{STEP_TITLES[step - 1]}</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn}>
+        <Text style={styles.headerCancelText}>Cancel</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderEventCard = () => (
+    <View style={styles.reviewCard}>
+      {images.length > 0 ? (
+        <Image source={{ uri: images[0] }} style={styles.reviewCardImage} />
+      ) : (
+        <View style={styles.reviewCardImagePlaceholder}>
+          <Ionicons name="image-outline" size={48} color="#ccc" />
+        </View>
+      )}
+      <View style={styles.reviewCardBody}>
+        <Text style={styles.reviewCardTitle}>{title}</Text>
+        {description ? <Text style={styles.reviewCardDescription}>{description}</Text> : null}
+        <View style={styles.reviewInfoRow}>
+          <Text style={styles.reviewInfoIcon}>📅</Text>
+          <Text style={styles.reviewInfoText}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
+        </View>
+        <View style={styles.reviewInfoRow}>
+          <Text style={styles.reviewInfoIcon}>⏰</Text>
+          <Text style={styles.reviewInfoText}>
+            {startTime ? formatTimeForDisplay(startTime) : '--:--'}
+            {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
+          </Text>
+        </View>
+        {(locationTbd || locationAddress) ? (
+          <View style={styles.reviewInfoRow}>
+            <Text style={styles.reviewInfoIcon}>📍</Text>
+            <Text style={styles.reviewInfoText}>{locationTbd ? 'TBD' : locationAddress}</Text>
+          </View>
+        ) : null}
+        {attendeeLimit ? (
+          <View style={styles.reviewInfoRow}>
+            <Text style={styles.reviewInfoIcon}>👥</Text>
+            <Text style={styles.reviewInfoText}>Limit: {attendeeLimit} people</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 
   const renderStep1 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Basic Info</Text>
-      <Text style={styles.stepSubtitle}>What's your event about?</Text>
-
-      {isBubblePreselected ? (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Bubble</Text>
-          <View style={styles.preselectedBubble}>
-            {selectedBubble?.coverImage ? (
-              <Image source={{ uri: selectedBubble.coverImage }} style={styles.preselectedBubbleImage} />
-            ) : (
-              <View style={[styles.preselectedBubbleImage, { backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="people" size={16} color="#999" />
-              </View>
-            )}
-            <View>
-              <Text style={styles.preselectedBubbleName}>{selectedBubble?.title || routeParams?.bubbleTitle || 'Loading...'}</Text>
-              {selectedBubble?.category && (
-                <Text style={styles.preselectedBubbleCategory}>{selectedBubble.category}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Select Bubble *</Text>
-          <TouchableOpacity
-            style={styles.selectInput}
-            onPress={() => setShowBubblePicker(true)}
-          >
-            <Text style={selectedBubble ? styles.selectText : styles.selectPlaceholder}>
+    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+      {!isBubblePreselected && (
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Select Bubble *</Text>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowBubblePicker(true)}>
+            <Text style={selectedBubble ? styles.fieldValue : styles.fieldPlaceholder}>
               {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
             </Text>
             <Ionicons name="chevron-down" size={20} color="#666" />
           </TouchableOpacity>
-          {myBubbles.length === 0 && (
-            <Text style={styles.helperTextWarning}>
-              You need to create a bubble first to host events
-            </Text>
-          )}
         </View>
       )}
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Event Name *</Text>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Event Title *</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Give your event a catchy name"
+          style={styles.fieldInput}
+          placeholder="Ex. San Francisco Art Makers"
           placeholderTextColor="#999"
           value={title}
           onChangeText={setTitle}
           maxLength={80}
         />
-        <Text style={styles.charCount}>{title.length}/80</Text>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Description</Text>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Event Description *</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Tell people what to expect..."
+          style={styles.fieldTextArea}
+          placeholder="What's your event about?"
           placeholderTextColor="#999"
           value={description}
           onChangeText={setDescription}
           multiline
-          numberOfLines={4}
+          numberOfLines={5}
           textAlignVertical="top"
         />
       </View>
-    </View>
-  );
 
-  const renderStep2 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Event Photos</Text>
-      <Text style={styles.stepSubtitle}>Add photos to make your event stand out</Text>
-
-      <View style={styles.inputGroup}>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Add a Cover Photo (Strongly Recommended)</Text>
         <MultiImagePicker
           images={images}
           onImagesChange={setImages}
-          maxImages={5}
+          maxImages={1}
         />
+        {images.length > 0 && (
+          <Text style={styles.uploadSuccessText}>Successfully Uploaded!</Text>
+        )}
       </View>
-    </View>
+    </ScrollView>
   );
 
-  const renderStep3 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Date & Time</Text>
-      <Text style={styles.stepSubtitle}>When is your event happening?</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Date *</Text>
-        <TouchableOpacity
-          style={styles.pickerButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Ionicons name="calendar-outline" size={20} color="#666" />
-          <Text style={[styles.pickerButtonText, !date && styles.pickerPlaceholder]}>
-            {date ? formatDateForDisplay(date) : 'Select a date'}
+  const renderStep2 = () => (
+    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Date *</Text>
+        <TouchableOpacity style={styles.fieldInput} onPress={() => setShowDatePicker(true)}>
+          <Text style={date ? styles.fieldValue : styles.fieldPlaceholder}>
+            {date ? formatDateForDisplay(date) : 'Select Date'}
           </Text>
+          <Ionicons name="calendar-outline" size={20} color="#666" />
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -398,15 +444,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.timeRow}>
-        <View style={[styles.inputGroup, { flex: 1 }]}>
-          <Text style={styles.label}>Start Time *</Text>
-          <TouchableOpacity
-            style={styles.pickerButton}
-            onPress={() => setShowStartTimePicker(true)}
-          >
-            <Ionicons name="time-outline" size={20} color="#666" />
-            <Text style={[styles.pickerButtonText, !startTime && styles.pickerPlaceholder]}>
-              {startTime ? formatTimeForDisplay(startTime) : 'Start'}
+        <View style={styles.timeField}>
+          <Text style={styles.fieldLabel}>Start Time *</Text>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowStartTimePicker(true)}>
+            <Text style={startTime ? styles.fieldValue : styles.fieldPlaceholder}>
+              {startTime ? formatTimeForDisplay(startTime) : '00:00'}
             </Text>
           </TouchableOpacity>
           {showStartTimePicker && (
@@ -419,16 +461,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             />
           )}
         </View>
-
-        <View style={[styles.inputGroup, { flex: 1 }]}>
-          <Text style={styles.label}>End Time</Text>
-          <TouchableOpacity
-            style={styles.pickerButton}
-            onPress={() => setShowEndTimePicker(true)}
-          >
-            <Ionicons name="time-outline" size={20} color="#666" />
-            <Text style={[styles.pickerButtonText, !endTime && styles.pickerPlaceholder]}>
-              {endTime ? formatTimeForDisplay(endTime) : 'End'}
+        <View style={styles.timeField}>
+          <Text style={styles.fieldLabel}>End Time *</Text>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowEndTimePicker(true)}>
+            <Text style={endTime ? styles.fieldValue : styles.fieldPlaceholder}>
+              {endTime ? formatTimeForDisplay(endTime) : '00:00'}
             </Text>
           </TouchableOpacity>
           {showEndTimePicker && (
@@ -443,61 +480,116 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      <Text style={styles.helperText}>Tap to select date and time</Text>
-    </View>
-  );
+      <View style={styles.divider} />
 
-  const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number }) => {
-    setLocationName(location.name);
-    setLocationAddress(location.address);
-    setLocationLatitude(location.latitude);
-    setLocationLongitude(location.longitude);
-  };
-
-  const renderStep4 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Location</Text>
-      <Text style={styles.stepSubtitle}>Where will the event take place?</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Search Location</Text>
-        <TouchableOpacity
-          style={styles.locationSearchButton}
-          onPress={() => setShowLocationPicker(true)}
-        >
-          {locationName ? (
-            <View style={styles.selectedLocation}>
-              <Ionicons name="location" size={20} color="hsl(210, 95%, 55%)" />
-              <View style={styles.selectedLocationText}>
-                <Text style={styles.selectedLocationName} numberOfLines={1}>{locationName}</Text>
-                <Text style={styles.selectedLocationAddress} numberOfLines={1}>{locationAddress}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setLocationName('');
-                  setLocationAddress('');
-                  setLocationLatitude(undefined);
-                  setLocationLongitude(undefined);
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close-circle" size={20} color="#999" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.locationSearchPlaceholder}>
-              <Ionicons name="search" size={20} color="#999" />
-              <Text style={styles.locationSearchPlaceholderText}>Search for a place...</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Recurring Event</Text>
+        <Switch
+          value={recurringEnabled}
+          onValueChange={(val) => {
+            setRecurringEnabled(val);
+            if (!val) setRecurrenceType('never');
+          }}
+          trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
+          thumbColor={recurringEnabled ? '#2196F3' : '#f4f3f4'}
+        />
       </View>
 
-      <View style={styles.locationTip}>
-        <Ionicons name="information-circle-outline" size={20} color="#666" />
-        <Text style={styles.locationTipText}>
-          You can also host virtual events by adding a meeting link in the description
-        </Text>
+      {recurringEnabled && (
+        <View style={styles.recurrenceContainer}>
+          {RECURRENCE_OPTIONS.filter(o => o.value !== 'never').map((option, idx) => (
+            <React.Fragment key={option.value}>
+              <TouchableOpacity
+                style={styles.recurrenceOption}
+                onPress={() => setRecurrenceType(option.value)}
+              >
+                <Text style={styles.recurrenceOptionText}>{option.label}</Text>
+                {recurrenceType === option.value && (
+                  <Ionicons name="checkmark" size={20} color="#2196F3" />
+                )}
+              </TouchableOpacity>
+              {idx < RECURRENCE_OPTIONS.filter(o => o.value !== 'never').length - 1 && (
+                <View style={styles.recurrenceDivider} />
+              )}
+            </React.Fragment>
+          ))}
+
+          {recurrenceType === 'custom' && (
+            <View style={styles.customRecurrenceContainer}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Frequency</Text>
+                <TouchableOpacity
+                  style={styles.fieldInput}
+                  onPress={() => setShowCustomFrequencyPicker(!showCustomFrequencyPicker)}
+                >
+                  <Text style={styles.fieldValue}>
+                    {CUSTOM_FREQUENCY_OPTIONS.find(f => f.value === recurrenceCustomFrequency)?.label}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+                {showCustomFrequencyPicker && (
+                  <View style={styles.dropdownList}>
+                    {CUSTOM_FREQUENCY_OPTIONS.map((freq) => (
+                      <TouchableOpacity
+                        key={freq.value}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setRecurrenceCustomFrequency(freq.value);
+                          setShowCustomFrequencyPicker(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.dropdownItemText,
+                          recurrenceCustomFrequency === freq.value && styles.dropdownItemTextActive
+                        ]}>{freq.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>Every</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={recurrenceCustomInterval}
+                  onChangeText={(val) => {
+                    const num = val.replace(/[^0-9]/g, '');
+                    if (num === '' || (parseInt(num) >= 1 && parseInt(num) <= 999)) {
+                      setRecurrenceCustomInterval(num);
+                    }
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+
+      <View style={styles.divider} />
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Location</Text>
+        <TouchableOpacity style={styles.fieldInput} onPress={() => setShowLocationPicker(true)}>
+          <Text style={locationName ? styles.fieldValue : styles.fieldPlaceholder}>
+            {locationTbd ? 'TBD' : (locationName || 'Search location or enter address')}
+          </Text>
+          <Ionicons name="search" size={20} color="#999" />
+        </TouchableOpacity>
+        {locationName && !locationTbd ? (
+          <Text style={styles.locationAddressText}>{locationAddress}</Text>
+        ) : null}
+      </View>
+
+      <View style={styles.toggleRow}>
+        <Text style={styles.toggleLabel}>Location TBD</Text>
+        <Switch
+          value={locationTbd}
+          onValueChange={setLocationTbd}
+          trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
+          thumbColor={locationTbd ? '#2196F3' : '#f4f3f4'}
+        />
       </View>
 
       <LocationPickerModal
@@ -506,413 +598,223 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         onSelect={handleLocationSelect}
         apiKey={GOOGLE_PLACES_API_KEY}
       />
-    </View>
+    </ScrollView>
   );
 
-  const renderStep5 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Privacy & Settings</Text>
-      <Text style={styles.stepSubtitle}>Control who can see and join your event</Text>
-
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>Visibility</Text>
+  const renderStep3 = () => (
+    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+      <Text style={styles.sectionTitle}>Who Can See This Event? *</Text>
+      {VISIBILITY_OPTIONS.map((option) => (
         <TouchableOpacity
-          style={styles.selectInput}
-          onPress={() => setShowVisibilityPicker(true)}
+          key={option.value}
+          style={styles.radioRow}
+          onPress={() => setVisibility(option.value)}
         >
-          <Text style={styles.selectText}>
-            {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
-          </Text>
-          <Ionicons name="chevron-down" size={20} color="#666" />
-        </TouchableOpacity>
-        <Text style={styles.helperText}>
-          {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.description}
-        </Text>
-      </View>
-
-      {selectedBubble?.campusId ? (
-        <>
-          <View style={styles.sectionDivider} />
-          <View style={styles.campusInfoRow}>
-            <Text style={{ fontSize: 16 }}>🎓</Text>
-            <View style={styles.campusInfoText}>
-              <Text style={styles.campusToggleLabel}>Campus Only Event</Text>
-              <Text style={styles.helperText}>
-                This event will only be visible to students from the bubble's campus
-              </Text>
-            </View>
+          <View style={[styles.radioCircle, visibility === option.value && styles.radioCircleSelected]}>
+            {visibility === option.value && <View style={styles.radioCircleInner} />}
           </View>
-        </>
-      ) : isCampusVerified && (
-        <>
-          <View style={styles.sectionDivider} />
-          <View style={styles.campusToggleRow}>
-            <View style={styles.campusToggleInfo}>
-              <View style={styles.campusToggleLabelRow}>
-                <Text style={{ fontSize: 16 }}>🎓</Text>
-                <Text style={styles.campusToggleLabel}>Campus Only</Text>
-              </View>
-              <Text style={styles.helperText}>
-                Only students from your campus can see and attend this event
-              </Text>
-            </View>
-            <Switch
-              value={campusOnly}
-              onValueChange={setCampusOnly}
-              trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
-              thumbColor={campusOnly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
-            />
-          </View>
-        </>
-      )}
-
-      <View style={styles.sectionDivider} />
-
-      <Text style={styles.sectionTitle}>Environment</Text>
-      {ENVIRONMENT_OPTIONS.map(option => (
-        <TouchableOpacity
-          key={option.key}
-          style={styles.checkboxRow}
-          onPress={() => {
-            if (option.key === 'petFriendly') setPetFriendly(!petFriendly);
-            if (option.key === 'smokeFree') setSmokeFree(!smokeFree);
-            if (option.key === 'wheelchairAccessible') setWheelchairAccessible(!wheelchairAccessible);
-          }}
-        >
-          <View style={styles.checkboxIcon}>
-            <Ionicons name={option.icon} size={20} color="#666" />
-          </View>
-          <Text style={styles.checkboxLabel}>{option.label}</Text>
-          <View style={[
-            styles.checkbox,
-            (option.key === 'petFriendly' && petFriendly ||
-             option.key === 'smokeFree' && smokeFree ||
-             option.key === 'wheelchairAccessible' && wheelchairAccessible) && styles.checkboxChecked
-          ]}>
-            {(option.key === 'petFriendly' && petFriendly ||
-             option.key === 'smokeFree' && smokeFree ||
-             option.key === 'wheelchairAccessible' && wheelchairAccessible) && (
-              <Ionicons name="checkmark" size={16} color="#fff" />
-            )}
+          <View style={styles.radioTextContainer}>
+            <Text style={styles.radioLabel}>{option.label}</Text>
+            <Text style={styles.radioDescription}>{option.description}</Text>
           </View>
         </TouchableOpacity>
       ))}
 
-      <View style={styles.sectionDivider} />
+      <View style={styles.divider} />
 
-      <Text style={styles.sectionTitle}>Capacity</Text>
-      <TouchableOpacity
-        style={styles.checkboxRow}
-        onPress={() => setAttendeeLimitEnabled(!attendeeLimitEnabled)}
-      >
-        <View style={styles.checkboxIcon}>
-          <Ionicons name="people-outline" size={20} color="#666" />
-        </View>
-        <Text style={styles.checkboxLabel}>Limit attendees</Text>
-        <View style={[styles.checkbox, attendeeLimitEnabled && styles.checkboxChecked]}>
-          {attendeeLimitEnabled && <Ionicons name="checkmark" size={16} color="#fff" />}
-        </View>
-      </TouchableOpacity>
-      {attendeeLimitEnabled && (
+      <Text style={styles.sectionTitle}>Event Environment</Text>
+      {ENVIRONMENT_OPTIONS.map((option) => {
+        const isChecked =
+          (option.key === 'petFriendly' && petFriendly) ||
+          (option.key === 'smokeFree' && smokeFree) ||
+          (option.key === 'wheelchairAccessible' && wheelchairAccessible);
+        return (
+          <TouchableOpacity
+            key={option.key}
+            style={styles.checkboxRow}
+            onPress={() => {
+              if (option.key === 'petFriendly') setPetFriendly(!petFriendly);
+              if (option.key === 'smokeFree') setSmokeFree(!smokeFree);
+              if (option.key === 'wheelchairAccessible') setWheelchairAccessible(!wheelchairAccessible);
+            }}
+          >
+            <View style={[styles.checkboxBox, isChecked && styles.checkboxBoxChecked]}>
+              {isChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+            <Ionicons name={option.icon} size={20} color="#666" style={styles.checkboxIcon} />
+            <View style={styles.checkboxTextContainer}>
+              <Text style={styles.checkboxLabel}>{option.label}</Text>
+              <Text style={styles.checkboxDescription}>{option.description}</Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      <View style={styles.divider} />
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Attendee Limit</Text>
         <TextInput
-          style={[styles.input, styles.limitInput]}
-          placeholder="Maximum attendees"
+          style={styles.fieldInput}
+          placeholder="E.g. 25 (Leave empty for unlimited)"
           placeholderTextColor="#999"
           value={attendeeLimit}
-          onChangeText={setAttendeeLimit}
+          onChangeText={(val) => setAttendeeLimit(val.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
         />
-      )}
+      </View>
 
-      <View style={styles.sectionDivider} />
-
-      <Text style={styles.sectionTitle}>RSVP Deadline</Text>
-      <TouchableOpacity
-        style={styles.checkboxRow}
-        onPress={() => setRsvpDeadlineEnabled(!rsvpDeadlineEnabled)}
-      >
-        <View style={styles.checkboxIcon}>
-          <Ionicons name="time-outline" size={20} color="#666" />
-        </View>
-        <Text style={styles.checkboxLabel}>Set RSVP deadline</Text>
-        <View style={[styles.checkbox, rsvpDeadlineEnabled && styles.checkboxChecked]}>
-          {rsvpDeadlineEnabled && <Ionicons name="checkmark" size={16} color="#fff" />}
-        </View>
-      </TouchableOpacity>
-      {rsvpDeadlineEnabled && (
-        <>
-          <TouchableOpacity
-            style={[styles.pickerButton, styles.limitInput]}
-            onPress={() => setShowRsvpDeadlinePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={20} color="#666" />
-            <Text style={[styles.pickerButtonText, !rsvpDeadline && styles.pickerPlaceholder]}>
-              {rsvpDeadline ? formatDateForDisplay(rsvpDeadline) : 'Select deadline date'}
-            </Text>
-          </TouchableOpacity>
-          {showRsvpDeadlinePicker && (
-            <DateTimePicker
-              value={selectedRsvpDeadline}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={onRsvpDeadlineChange}
-              minimumDate={new Date()}
-            />
-          )}
-        </>
-      )}
-    </View>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>RSVP Deadline</Text>
+        <TouchableOpacity
+          style={styles.fieldInput}
+          onPress={() => setShowRsvpDatePicker(true)}
+        >
+          <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
+            {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}
+          </Text>
+          <Ionicons name="calendar-outline" size={20} color="#666" />
+        </TouchableOpacity>
+        {showRsvpDatePicker && (
+          <DateTimePicker
+            value={selectedRsvpDate}
+            mode={Platform.OS === 'ios' ? 'datetime' : 'date'}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onRsvpDateChange}
+            minimumDate={new Date()}
+          />
+        )}
+        {showRsvpTimePicker && Platform.OS === 'android' && (
+          <DateTimePicker
+            value={selectedRsvpDate}
+            mode="time"
+            display="default"
+            onChange={onRsvpTimeChange}
+          />
+        )}
+      </View>
+    </ScrollView>
   );
 
-  const renderStep6 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Review & Publish</Text>
-      <Text style={styles.stepSubtitle}>Make sure everything looks good</Text>
+  const renderStep4 = () => (
+    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
+      {renderEventCard()}
+    </ScrollView>
+  );
 
-      <View style={styles.previewCard}>
-        {images.length > 0 ? (
-          <Image source={{ uri: images[0] }} style={styles.previewImage} />
-        ) : (
-          <View style={styles.previewImagePlaceholder}>
-            <Ionicons name="calendar" size={40} color="#ccc" />
-          </View>
-        )}
+  const renderSuccessScreen = () => (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <ScrollView contentContainerStyle={styles.successContainer}>
+        <View style={styles.successCheckCircle}>
+          <Ionicons name="checkmark" size={48} color="#fff" />
+        </View>
+        <Text style={styles.successTitle}>Event Created!</Text>
+        <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => {
+            if (createdEvent?.id) {
+              navigation.navigate('EventDetails', { eventId: createdEvent.id });
+            } else {
+              navigation.goBack();
+            }
+          }}
+        >
+          <Text style={styles.primaryButtonText}>View Event</Text>
+        </TouchableOpacity>
+        <View style={styles.successCardWrapper}>
+          {renderEventCard()}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
 
-        <View style={styles.previewContent}>
-          <Text style={styles.previewBubble}>{selectedBubble?.title}</Text>
-          <Text style={styles.previewTitle}>{title}</Text>
-          {description && <Text style={styles.previewDescription}>{description}</Text>}
-
-          <View style={styles.previewRow}>
-            <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.previewText}>{formatDateForDisplay(date)}</Text>
-          </View>
-
-          <View style={styles.previewRow}>
-            <Ionicons name="time-outline" size={16} color="#666" />
-            <Text style={styles.previewText}>
-              {formatTimeForDisplay(startTime)}
-              {endTime && ` - ${formatTimeForDisplay(endTime)}`}
-            </Text>
-          </View>
-
-          {locationName && (
-            <View style={styles.previewRow}>
-              <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.previewText}>{locationName}</Text>
-            </View>
-          )}
-
-          <View style={styles.previewBadges}>
-            <View style={styles.previewBadge}>
-              <Text style={styles.previewBadgeText}>
-                {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label}
-              </Text>
-            </View>
-            {attendeeLimitEnabled && attendeeLimit && (
-              <View style={styles.previewBadge}>
-                <Text style={styles.previewBadgeText}>Max {attendeeLimit}</Text>
-              </View>
+  const renderBubblePickerModal = () => (
+    <Modal
+      visible={showBubblePicker}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowBubblePicker(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Select a Bubble</Text>
+          <ScrollView style={styles.modalScrollContent}>
+            {myBubbles.map((bubble, idx) => (
+              <React.Fragment key={bubble.id}>
+                <TouchableOpacity
+                  style={styles.bubbleRow}
+                  onPress={() => {
+                    setSelectedBubble(bubble);
+                    setShowBubblePicker(false);
+                  }}
+                >
+                  {bubble.coverImage ? (
+                    <Image source={{ uri: bubble.coverImage }} style={styles.bubbleRowImage} />
+                  ) : (
+                    <View style={styles.bubbleRowImagePlaceholder}>
+                      <Ionicons name="people" size={20} color="#999" />
+                    </View>
+                  )}
+                  <View style={styles.bubbleRowTextContainer}>
+                    <Text style={styles.bubbleRowName}>{bubble.title}</Text>
+                    <Text style={styles.bubbleRowCategory}>{bubble.category}</Text>
+                  </View>
+                </TouchableOpacity>
+                {idx < myBubbles.length - 1 && <View style={styles.bubbleRowDivider} />}
+              </React.Fragment>
+            ))}
+            {myBubbles.length === 0 && (
+              <Text style={styles.emptyBubblesText}>You need to create a bubble first to host events</Text>
             )}
-          </View>
-
-          {(petFriendly || smokeFree || wheelchairAccessible) && (
-            <View style={styles.previewEnvironment}>
-              {petFriendly && <Ionicons name="paw" size={16} color="hsl(210, 95%, 55%)" />}
-              {smokeFree && <Ionicons name="ban" size={16} color="hsl(210, 95%, 55%)" />}
-              {wheelchairAccessible && <Ionicons name="accessibility" size={16} color="hsl(210, 95%, 55%)" />}
-            </View>
-          )}
+          </ScrollView>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 
-  const renderCurrentStep = () => {
-    switch (step) {
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      case 5: return renderStep5();
-      case 6: return renderStep6();
-      default: return null;
-    }
+  if (showSuccess) {
+    return renderSuccessScreen();
+  }
+
+  const getBottomButtonLabel = () => {
+    if (step === 3) return 'Review';
+    if (step === 4) return 'Publish Event';
+    return 'Next';
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Ionicons name={step === 1 ? 'close' : 'arrow-back'} size={24} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Event</Text>
-        <Text style={styles.stepCounter}>{step}/6</Text>
-      </View>
-
-      {renderStepIndicator()}
-
-      <ScrollView
-        style={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <KeyboardAvoidingView
+        style={styles.flex1}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {renderCurrentStep()}
-      </ScrollView>
+        {renderHeader()}
 
-      <View style={styles.footer}>
-        {step < 6 ? (
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
+
+        <View style={styles.bottomButtonContainer}>
           <TouchableOpacity
-            style={[styles.nextButton, !canProceedToNext() && styles.buttonDisabled]}
-            onPress={handleNext}
-            disabled={!canProceedToNext()}
-          >
-            <Text style={styles.nextButtonText}>Continue</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.publishButton, loading && styles.buttonDisabled]}
-            onPress={handlePublish}
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+            onPress={step === 4 ? handlePublish : handleNext}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
-                <Text style={styles.publishButtonText}>Publish Event</Text>
-              </>
+              <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
             )}
           </TouchableOpacity>
-        )}
-      </View>
-
-      <Modal
-        visible={showBubblePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowBubblePicker(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowBubblePicker(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Bubble</Text>
-              <TouchableOpacity onPress={() => setShowBubblePicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalScroll}>
-              {myBubbles.length === 0 ? (
-                <Text style={styles.noBubblesText}>
-                  You haven't created any bubbles yet. Create a bubble first to host events.
-                </Text>
-              ) : (
-                myBubbles.map(bubble => (
-                  <TouchableOpacity
-                    key={bubble.id}
-                    style={styles.bubblePickerRow}
-                    onPress={() => {
-                      setSelectedBubble(bubble);
-                      setShowBubblePicker(false);
-                    }}
-                  >
-                    {bubble.coverImage ? (
-                      <Image source={{ uri: bubble.coverImage }} style={styles.bubblePickerImage} />
-                    ) : (
-                      <View style={[styles.bubblePickerImage, { backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center' }]}>
-                        <Ionicons name="people" size={20} color="#999" />
-                      </View>
-                    )}
-                    <View style={styles.bubblePickerInfo}>
-                      <Text style={[
-                        styles.bubblePickerName,
-                        selectedBubble?.id === bubble.id && styles.modalOptionSelected
-                      ]}>
-                        {bubble.title}
-                      </Text>
-                      <Text style={styles.bubblePickerCategory}>{bubble.category}</Text>
-                    </View>
-                    {selectedBubble?.id === bubble.id && (
-                      <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={showVisibilityPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowVisibilityPicker(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowVisibilityPicker(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Event Visibility</Text>
-              <TouchableOpacity onPress={() => setShowVisibilityPicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-            {VISIBILITY_OPTIONS.map(option => (
-              <TouchableOpacity
-                key={option.value}
-                style={styles.modalOption}
-                onPress={() => {
-                  setVisibility(option.value);
-                  setShowVisibilityPicker(false);
-                }}
-              >
-                <View>
-                  <Text style={[
-                    styles.modalOptionText,
-                    visibility === option.value && styles.modalOptionSelected
-                  ]}>
-                    {option.label}
-                  </Text>
-                  <Text style={styles.modalOptionSubtext}>{option.description}</Text>
-                </View>
-                {visibility === option.value && (
-                  <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={showSuccessModal}
-        transparent
-        animationType="fade"
-      >
-        <View style={styles.successModalOverlay}>
-          <View style={styles.successModalContent}>
-            <View style={styles.successIcon}>
-              <Ionicons name="checkmark-circle" size={64} color="hsl(142, 71%, 45%)" />
-            </View>
-            <Text style={styles.successTitle}>Event Created!</Text>
-            <Text style={styles.successSubtitle}>
-              Your event has been published to {selectedBubble?.title}
-            </Text>
-            <TouchableOpacity style={styles.successButton} onPress={handleSuccessClose}>
-              <Text style={styles.successButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
         </View>
-      </Modal>
+      </KeyboardAvoidingView>
+
+      {renderBubblePickerModal()}
     </SafeAreaView>
   );
 }
@@ -923,6 +825,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
+  flex1: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -932,498 +837,320 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  backButton: {
-    padding: 8,
+  headerBackBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#000',
   },
-  stepCounter: {
-    fontSize: 14,
-    color: '#666',
+  headerCancelBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+  headerCancelText: {
+    fontSize: 16,
+    color: '#2196F3',
     fontWeight: '500',
-  },
-  stepIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-  },
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ddd',
-  },
-  stepDotActive: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    width: 24,
-  },
-  stepDotCompleted: {
-    backgroundColor: 'hsl(210, 95%, 75%)',
   },
   scrollContent: {
     flex: 1,
   },
-  stepContent: {
+  scrollContentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
-  stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
-  },
-  stepSubtitle: {
-    fontSize: 15,
-    color: '#666',
-    marginBottom: 24,
-  },
-  inputGroup: {
+  fieldGroup: {
     marginBottom: 20,
   },
-  label: {
+  fieldLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#333',
     marginBottom: 8,
   },
-  input: {
+  fieldInput: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
     color: '#000',
-  },
-  pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fieldTextArea: {
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    gap: 12,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#000',
+    minHeight: 120,
+    textAlignVertical: 'top',
   },
-  pickerButtonText: {
+  fieldValue: {
     fontSize: 16,
     color: '#000',
     flex: 1,
   },
-  pickerPlaceholder: {
-    color: '#999',
-  },
-  textArea: {
-    minHeight: 100,
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  selectInput: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectText: {
-    fontSize: 16,
-    color: '#000',
-  },
-  selectPlaceholder: {
+  fieldPlaceholder: {
     fontSize: 16,
     color: '#999',
+    flex: 1,
   },
-  helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 6,
-  },
-  helperTextWarning: {
-    fontSize: 12,
-    color: '#e74c3c',
-    marginTop: 6,
-  },
-  imagePreviewContainer: {
-    marginBottom: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  imagePreview: {
-    width: '100%',
-    height: 200,
-    borderRadius: 16,
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: 200,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-  },
-  imagePlaceholderText: {
+  uploadSuccessText: {
     fontSize: 14,
-    color: '#999',
+    color: '#4CAF50',
+    fontWeight: '500',
     marginTop: 8,
   },
   timeRow: {
     flexDirection: 'row',
-    gap: 16,
-  },
-  datePreview: {
-    fontSize: 13,
-    color: 'hsl(210, 95%, 55%)',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  timePreview: {
-    fontSize: 13,
-    color: 'hsl(210, 95%, 55%)',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  locationTip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f0f5ff',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  locationTipText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-  locationSearchButton: {
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  locationSearchPlaceholder: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
+    marginBottom: 4,
   },
-  locationSearchPlaceholderText: {
-    fontSize: 16,
-    color: '#999',
-  },
-  selectedLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  selectedLocationText: {
+  timeField: {
     flex: 1,
+    marginBottom: 16,
   },
-  selectedLocationName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  selectedLocationAddress: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  sectionDivider: {
+  divider: {
     height: 1,
     backgroundColor: '#eee',
     marginVertical: 20,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  recurrenceContainer: {
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  recurrenceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  recurrenceOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  recurrenceDivider: {
+    height: 1,
+    backgroundColor: '#eee',
+  },
+  customRecurrenceContainer: {
+    marginTop: 12,
+    paddingLeft: 8,
+  },
+  dropdownList: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 10,
+    marginTop: 4,
+    backgroundColor: '#fff',
+  },
+  dropdownItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  dropdownItemTextActive: {
+    color: '#2196F3',
+    fontWeight: '600',
+  },
+  locationAddressText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+    paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 16,
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  radioCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  radioCircleSelected: {
+    borderColor: '#2196F3',
+  },
+  radioCircleInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#2196F3',
+  },
+  radioTextContainer: {
+    flex: 1,
+  },
+  radioLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  radioDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
+    gap: 12,
   },
-  checkboxIcon: {
-    width: 32,
-    marginRight: 8,
-  },
-  checkboxLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: '#333',
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+  checkboxBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: '#ddd',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderColor: 'hsl(210, 95%, 55%)',
+  checkboxBoxChecked: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
   },
-  limitInput: {
-    marginTop: 8,
-    marginLeft: 40,
+  checkboxIcon: {
+    marginRight: 4,
   },
-  previewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    overflow: 'hidden',
+  checkboxTextContainer: {
+    flex: 1,
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  checkboxDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  bottomButtonContainer: {
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  primaryButton: {
+    backgroundColor: '#2196F3',
+    borderRadius: 25,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.6,
+  },
+  primaryButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  reviewCard: {
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#eee',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
   },
-  previewImage: {
+  reviewCardImage: {
     width: '100%',
-    height: 160,
-  },
-  previewImagePlaceholder: {
-    width: '100%',
-    height: 160,
+    height: 180,
     backgroundColor: '#f0f0f0',
+  },
+  reviewCardImagePlaceholder: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  previewContent: {
+  reviewCardBody: {
     padding: 16,
   },
-  previewBubble: {
-    fontSize: 12,
-    color: 'hsl(210, 95%, 55%)',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  previewTitle: {
+  reviewCardTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#000',
     marginBottom: 8,
   },
-  previewDescription: {
+  reviewCardDescription: {
     fontSize: 14,
     color: '#666',
     marginBottom: 12,
     lineHeight: 20,
   },
-  previewRow: {
+  reviewInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 8,
   },
-  previewText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  previewBadges: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  previewBadge: {
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  previewBadgeText: {
-    fontSize: 12,
-    color: 'hsl(210, 95%, 45%)',
-    fontWeight: '600',
-  },
-  previewEnvironment: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  footer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  nextButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  nextButtonText: {
-    color: '#fff',
+  reviewInfoIcon: {
     fontSize: 16,
-    fontWeight: '600',
-  },
-  publishButton: {
-    backgroundColor: 'hsl(142, 71%, 45%)',
-    borderRadius: 25,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  publishButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  modalScroll: {
-    maxHeight: 400,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalOptionText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  modalOptionSubtext: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  modalOptionSelected: {
-    color: 'hsl(210, 95%, 55%)',
-    fontWeight: '600',
-  },
-  noBubblesText: {
-    fontSize: 14,
-    color: '#666',
+    width: 24,
     textAlign: 'center',
-    padding: 20,
   },
-  preselectedBubble: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f5ff',
-    padding: 12,
-    borderRadius: 12,
-    gap: 12,
-  },
-  preselectedBubbleImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  preselectedBubbleName: {
+  reviewInfoText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-  },
-  preselectedBubbleCategory: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 1,
-  },
-  bubblePickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    gap: 12,
-  },
-  bubblePickerImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  bubblePickerInfo: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  bubblePickerName: {
-    fontSize: 16,
     color: '#333',
-    textAlign: 'right',
-  },
-  bubblePickerCategory: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-    textAlign: 'right',
-  },
-  successModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
+  },
+  successContainer: {
+    flexGrow: 1,
     alignItems: 'center',
     padding: 24,
+    paddingTop: 60,
   },
-  successModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 32,
+  successCheckCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
-    maxWidth: 320,
-  },
-  successIcon: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   successTitle: {
     fontSize: 24,
@@ -1432,60 +1159,88 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   successSubtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#666',
+    marginBottom: 32,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
   },
-  successButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
-    paddingVertical: 14,
-    paddingHorizontal: 48,
+  successCardWrapper: {
+    width: '100%',
+    marginTop: 24,
   },
-  successButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  campusToggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  campusToggleInfo: {
+  modalOverlay: {
     flex: 1,
-    marginRight: 12,
-    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
   },
-  campusToggleLabelRow: {
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#ddd',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+  },
+  bubbleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  campusToggleLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  campusInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'hsl(210, 95%, 85%)',
+    paddingVertical: 12,
     gap: 12,
   },
-  campusInfoText: {
+  bubbleRowImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  bubbleRowImagePlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bubbleRowTextContainer: {
     flex: 1,
-    gap: 4,
+    alignItems: 'flex-end',
+  },
+  bubbleRowName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  bubbleRowCategory: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  bubbleRowDivider: {
+    height: 1,
+    backgroundColor: '#eee',
+  },
+  emptyBubblesText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });
