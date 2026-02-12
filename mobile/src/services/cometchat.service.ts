@@ -88,10 +88,13 @@ class CometChatService {
       console.log('Joined group:', group);
       return group;
     } catch (error: any) {
-      // Handle already a member case gracefully
       if (error?.code === 'ERR_ALREADY_JOINED') {
         console.log('Already a member of group:', guid);
         return await CometChat.getGroup(guid);
+      }
+      if (error?.code === 'ERR_GROUP_JOIN_NOT_ALLOWED') {
+        console.log('Join group note:', error?.code);
+        return null;
       }
       console.error('Failed to join group:', error);
       throw error;
