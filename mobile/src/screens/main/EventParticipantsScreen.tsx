@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -42,6 +43,7 @@ type Attendee = {
     id: string;
     name: string;
     email: string;
+    profilePhoto?: string | null;
   };
 };
 
@@ -198,9 +200,13 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 
     return (
       <View style={styles.attendeeRow} key={attendee.id}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{getInitials(attendee.user.name)}</Text>
-        </View>
+        {attendee.user.profilePhoto ? (
+          <Image source={{ uri: attendee.user.profilePhoto }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{getInitials(attendee.user.name)}</Text>
+          </View>
+        )}
         <Text style={styles.attendeeName} numberOfLines={1}>{displayName}</Text>
         {!isMe && (
           <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(attendee)}>
@@ -376,6 +382,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral.cloudGrey,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
   },
   avatarText: {

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -35,6 +36,7 @@ type Member = {
     id: string;
     name: string;
     email: string;
+    profilePhoto?: string | null;
   };
 };
 
@@ -177,9 +179,13 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     return (
       <View style={styles.memberRow}>
         <View style={styles.avatarContainer}>
-          <View style={[styles.avatar, isItemAdmin && styles.adminAvatar]}>
-            <Text style={styles.avatarText}>{getInitials(item.user.name)}</Text>
-          </View>
+          {item.user.profilePhoto ? (
+            <Image source={{ uri: item.user.profilePhoto }} style={[styles.avatarImage, isItemAdmin && styles.adminAvatarBorder]} />
+          ) : (
+            <View style={[styles.avatar, isItemAdmin && styles.adminAvatar]}>
+              <Text style={styles.avatarText}>{getInitials(item.user.name)}</Text>
+            </View>
+          )}
           {isItemAdmin && (
             <View style={styles.adminBadge}>
               <Ionicons name="shield-checkmark" size={12} color={Colors.brand.skyWhite} />
@@ -381,8 +387,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
   adminAvatar: {
     backgroundColor: Colors.brand.bubbleBlue,
+  },
+  adminAvatarBorder: {
+    borderWidth: 2,
+    borderColor: Colors.brand.bubbleBlue,
   },
   avatarText: {
     color: Colors.brand.skyWhite,

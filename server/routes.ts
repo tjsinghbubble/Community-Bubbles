@@ -941,6 +941,7 @@ export async function registerRoutes(
           id: a.user.id,
           name: a.user.name,
           email: a.user.email,
+          profilePhoto: a.user.profilePhoto,
         }
       })));
     } catch (error: any) {
