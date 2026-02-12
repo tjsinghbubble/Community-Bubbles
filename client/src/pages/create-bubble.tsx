@@ -32,6 +32,8 @@ import interestCrafts from "@/assets/images/interest-crafts.jpg";
 import exploreMeetup from "@/assets/images/explore-meetup.jpg";
 import exploreFood from "@/assets/images/explore-food.jpg";
 import exploreWellness from "@/assets/images/explore-wellness.jpg";
+import catArtsCrafts from "@assets/arts-crafts_1770882675717.jpg";
+import catCommunity from "@assets/community_1770882700040.jpg";
 
 const DS = {
   color: {
@@ -61,7 +63,8 @@ const CATEGORIES = [
   { label: "Tennis", image: interestTennis },
   { label: "Biking", image: interestBiking },
   { label: "Pets", image: interestPets },
-  { label: "Arts & Crafts", image: interestCrafts },
+  { label: "Arts & Crafts", image: catArtsCrafts },
+  { label: "Community", image: catCommunity },
   { label: "Gardening", image: interestGardening },
   { label: "Food & Drink", image: exploreFood },
   { label: "Wellness", image: exploreWellness },
