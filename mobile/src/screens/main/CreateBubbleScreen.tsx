@@ -726,8 +726,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.light,
   },
   headerBack: {
     padding: Spacing.xs,
@@ -747,7 +745,8 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    fontWeight: Typography.weights.medium,
+    color: Colors.status.error,
   },
 
   progressContainer: {
@@ -1144,16 +1143,18 @@ const styles = StyleSheet.create({
   },
 
   bottomBar: {
-    padding: Spacing.xl,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: Spacing.xxxl,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.xl,
-    backgroundColor: Colors.background.primary,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border.light,
+    paddingTop: Spacing.lg,
   },
   primaryButton: {
-    height: 56,
+    height: 48,
     borderRadius: Radius.full,
-    backgroundColor: Colors.brand.primary,
+    backgroundColor: Colors.text.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
