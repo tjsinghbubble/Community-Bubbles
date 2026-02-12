@@ -13,7 +13,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -98,15 +99,21 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.button, (!accepted || isLoading) && styles.buttonDisabled]}
           onPress={handleGetStarted}
           disabled={!accepted || isLoading}
         >
-          {isLoading ? (
-            <ActivityIndicator color={Colors.brand.skyWhite} />
-          ) : (
-            <Text style={styles.buttonText}>Get Started</Text>
-          )}
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={[styles.button, (!accepted || isLoading) && styles.buttonDisabled]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.neutral.charcoal} />
+            ) : (
+              <Text style={styles.buttonText}>Get Started</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -189,7 +196,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   button: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -198,7 +204,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

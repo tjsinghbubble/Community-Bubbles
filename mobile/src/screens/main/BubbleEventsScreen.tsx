@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -182,8 +183,15 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
       )}
 
       {canCreateEvent && (
-        <TouchableOpacity style={styles.fab} onPress={handleCreateEvent}>
-          <Ionicons name="add" size={24} color={Colors.brand.skyWhite} />
+        <TouchableOpacity onPress={handleCreateEvent}>
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={styles.fab}
+          >
+            <Ionicons name="add" size={24} color={Colors.neutral.charcoal} />
+          </LinearGradient>
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -294,7 +302,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.brand.bubbleBlue,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.neutral.charcoal,

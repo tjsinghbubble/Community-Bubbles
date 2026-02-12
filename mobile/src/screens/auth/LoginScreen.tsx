@@ -14,7 +14,8 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -80,18 +81,22 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.button,
-              (!email || !password || isLoading) && styles.buttonDisabled,
-            ]}
             onPress={handleLogin}
             disabled={!email || !password || isLoading}
+            style={(!email || !password || isLoading) ? styles.buttonDisabled : undefined}
           >
-            {isLoading ? (
-              <ActivityIndicator color={Colors.brand.skyWhite} />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.button}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={Colors.neutral.charcoal} />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
@@ -150,7 +155,6 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
   },
   button: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -160,7 +164,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

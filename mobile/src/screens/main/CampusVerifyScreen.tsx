@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -135,18 +136,22 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
         </View>
 
         <TouchableOpacity
-          style={[
-            styles.verifyButton,
-            (!isCodeComplete || isLoading) && styles.buttonDisabled,
-          ]}
+          style={[(!isCodeComplete || isLoading) && styles.buttonDisabled]}
           onPress={handleVerify}
           disabled={!isCodeComplete || isLoading}
         >
-          {isLoading ? (
-            <ActivityIndicator color={Colors.brand.skyWhite} />
-          ) : (
-            <Text style={styles.verifyButtonText}>Verify</Text>
-          )}
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={styles.verifyButton}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.neutral.charcoal} />
+            ) : (
+              <Text style={styles.verifyButtonText}>Verify</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -238,17 +243,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.skyWhite,
   },
   verifyButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
   buttonDisabled: {
-    backgroundColor: Colors.neutral.coolMist,
+    opacity: 0.5,
   },
   verifyButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

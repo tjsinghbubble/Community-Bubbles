@@ -19,7 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -209,18 +210,22 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.saveButton,
-              (!isFormValid || loading) && styles.buttonDisabled,
-            ]}
+            style={[(!isFormValid || loading) && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={!isFormValid || loading}
           >
-            {loading ? (
-              <ActivityIndicator color={Colors.brand.skyWhite} />
-            ) : (
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            )}
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.saveButton}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.neutral.charcoal} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Changes</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -402,7 +407,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   saveButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -412,7 +416,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

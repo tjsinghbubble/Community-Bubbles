@@ -10,7 +10,8 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -85,11 +86,17 @@ export default function InterestsScreen({ navigation, route }: Props) {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.button, selected.length < 3 && styles.buttonDisabled]}
           onPress={handleContinue}
           disabled={selected.length < 3}
         >
-          <Text style={styles.buttonText}>Continue</Text>
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={[styles.button, selected.length < 3 && styles.buttonDisabled]}
+          >
+            <Text style={styles.buttonText}>Continue</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -163,7 +170,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   button: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -172,7 +178,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

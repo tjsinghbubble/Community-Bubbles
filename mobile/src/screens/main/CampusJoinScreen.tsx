@@ -16,7 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -110,15 +111,22 @@ export default function CampusJoinScreen({ navigation }: Props) {
         </View>
 
         <TouchableOpacity
-          style={[styles.verifyButton, isLoading && styles.buttonDisabled]}
+          style={[isLoading && styles.buttonDisabled]}
           onPress={handleVerifyEmail}
           disabled={isLoading}
         >
-          {isLoading ? (
-            <ActivityIndicator color={Colors.brand.skyWhite} />
-          ) : (
-            <Text style={styles.verifyButtonText}>Verify My .edu Email</Text>
-          )}
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={styles.verifyButton}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={Colors.neutral.charcoal} />
+            ) : (
+              <Text style={styles.verifyButtonText}>Verify My .edu Email</Text>
+            )}
+          </LinearGradient>
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
@@ -182,7 +190,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral.cloudGrey,
   },
   verifyButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -192,7 +199,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   verifyButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

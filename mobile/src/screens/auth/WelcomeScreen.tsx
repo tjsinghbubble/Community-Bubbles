@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
@@ -63,10 +64,16 @@ export default function WelcomeScreen({ navigation }: Props) {
 
         <View style={styles.buttons}>
           <TouchableOpacity
-            style={styles.signUpButton}
             onPress={() => navigation.navigate('Signup')}
           >
-            <Text style={styles.signUpText}>Sign Up</Text>
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.signUpButton}
+            >
+              <Text style={styles.signUpText}>Sign Up</Text>
+            </LinearGradient>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -153,13 +160,12 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   signUpButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
   },
   signUpText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

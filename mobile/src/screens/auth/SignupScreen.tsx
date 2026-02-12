@@ -18,7 +18,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -185,18 +186,24 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.button,
-                (!isFormValid || loading) && styles.buttonDisabled,
-              ]}
               onPress={handleContinue}
               disabled={!isFormValid || loading}
             >
-              {loading ? (
-                <ActivityIndicator color={Colors.brand.skyWhite} />
-              ) : (
-                <Text style={styles.buttonText}>Continue</Text>
-              )}
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={[
+                  styles.button,
+                  (!isFormValid || loading) && styles.buttonDisabled,
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator color={Colors.neutral.charcoal} />
+                ) : (
+                  <Text style={styles.buttonText}>Continue</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -301,14 +308,20 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
             </View>
             <TouchableOpacity
-              style={[
-                styles.modalButton,
-                (!birthMonth || !birthDay || !birthYear) && styles.buttonDisabled
-              ]}
               onPress={handleDateConfirm}
               disabled={!birthMonth || !birthDay || !birthYear}
             >
-              <Text style={styles.buttonText}>Confirm</Text>
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={[
+                  styles.modalButton,
+                  (!birthMonth || !birthDay || !birthYear) && styles.buttonDisabled
+                ]}
+              >
+                <Text style={styles.buttonText}>Confirm</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -394,7 +407,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   button: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -404,7 +416,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -472,7 +484,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',

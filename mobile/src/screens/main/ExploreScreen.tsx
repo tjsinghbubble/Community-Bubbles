@@ -23,7 +23,8 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -244,8 +245,15 @@ export default function ExploreScreen() {
         <Text style={styles.studentPromptSubtitle}>
           Unlock exclusive campus events, verified student communities, and connect with classmates
         </Text>
-        <TouchableOpacity style={styles.joinCampusButton} onPress={handleJoinCampus}>
-          <Text style={styles.joinCampusButtonText}>Join a campus</Text>
+        <TouchableOpacity onPress={handleJoinCampus}>
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={styles.joinCampusButton}
+          >
+            <Text style={styles.joinCampusButtonText}>Join a campus</Text>
+          </LinearGradient>
         </TouchableOpacity>
         <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
@@ -648,7 +656,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   joinCampusButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -657,7 +664,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinCampusButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

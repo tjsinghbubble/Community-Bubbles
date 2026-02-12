@@ -19,7 +19,8 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
-import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -369,16 +370,24 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         onPress={handleJoinLeave}
         disabled={isJoining}
       >
+        {!isMember && (
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
         {isJoining ? (
-          <ActivityIndicator color={Colors.brand.skyWhite} size="small" />
+          <ActivityIndicator color={isMember ? Colors.brand.skyWhite : Colors.neutral.charcoal} size="small" />
         ) : (
           <>
             <Ionicons 
               name={isMember ? "exit-outline" : "add"} 
               size={22} 
-              color={Colors.brand.skyWhite} 
+              color={isMember ? Colors.brand.skyWhite : Colors.neutral.charcoal} 
             />
-            <Text style={styles.fabText}>
+            <Text style={isMember ? styles.fabText : styles.fabTextJoin}>
               {isMember ? 'Leave' : 'Join'}
             </Text>
           </>
@@ -607,13 +616,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 24,
     right: 20,
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: 28,
     paddingHorizontal: 20,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    overflow: 'hidden',
     shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -625,6 +634,11 @@ const styles = StyleSheet.create({
   },
   fabText: {
     color: Colors.brand.skyWhite,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fabTextJoin: {
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

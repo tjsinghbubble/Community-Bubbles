@@ -21,7 +21,8 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -271,18 +272,22 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.createButton,
-              (!isFormValid || loading) && styles.buttonDisabled,
-            ]}
+            style={[(!isFormValid || loading) && styles.buttonDisabled]}
             onPress={handleCreate}
             disabled={!isFormValid || loading}
           >
-            {loading ? (
-              <ActivityIndicator color={Colors.brand.skyWhite} />
-            ) : (
-              <Text style={styles.createButtonText}>Create Bubble</Text>
-            )}
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.createButton}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.neutral.charcoal} />
+              ) : (
+                <Text style={styles.createButtonText}>Create Bubble</Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -464,7 +469,6 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   createButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
@@ -474,7 +478,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   createButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },

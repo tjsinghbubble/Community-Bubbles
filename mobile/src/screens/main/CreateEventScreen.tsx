@@ -734,7 +734,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     >
       {usableHeight > 0 ? (
         <View style={styles.flex1}>
-          <View style={{ height: usableHeight * 0.5 }}>
+          <View style={{ height: usableHeight * 0.5, paddingHorizontal: 20, paddingTop: 12, alignItems: 'center' }}>
             {images.length > 0 ? (
               <Image source={{ uri: images[0] }} style={styles.reviewCoverImage} />
             ) : (
@@ -742,14 +742,14 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 <Ionicons name="image-outline" size={56} color={Colors.neutral.coolMist} />
               </View>
             )}
+            <Text style={styles.reviewTitle} numberOfLines={1}>{title}</Text>
           </View>
 
           <View style={styles.reviewSeparator} />
 
           <View style={{ height: usableHeight * 0.2, paddingHorizontal: 20, justifyContent: 'center' }}>
-            <Text style={styles.reviewTitle} numberOfLines={1}>{title}</Text>
             {description ? (
-              <Text style={styles.reviewDescription} numberOfLines={3}>{description}</Text>
+              <Text style={styles.reviewDescription} numberOfLines={4}>{description}</Text>
             ) : null}
           </View>
 
@@ -757,49 +757,29 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
           <View style={{ height: usableHeight * 0.3, paddingHorizontal: 20, justifyContent: 'center' }}>
             <View style={styles.reviewDetailRow}>
-              <View style={styles.reviewDetailIconContainer}>
-                <Ionicons name="calendar-outline" size={20} color={Colors.brand.bubbleBlue} />
-              </View>
-              <View style={styles.reviewDetailTextContainer}>
-                <Text style={styles.reviewDetailLabel}>Date</Text>
-                <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
-              </View>
+              <Ionicons name="calendar-outline" size={18} color={Colors.neutral.charcoal} />
+              <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <View style={styles.reviewDetailIconContainer}>
-                <Ionicons name="time-outline" size={20} color={Colors.brand.bubbleBlue} />
-              </View>
-              <View style={styles.reviewDetailTextContainer}>
-                <Text style={styles.reviewDetailLabel}>Time</Text>
-                <Text style={styles.reviewDetailValue}>
-                  {startTime ? formatTimeForDisplay(startTime) : '--:--'}
-                  {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
-                </Text>
-              </View>
+              <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
+              <Text style={styles.reviewDetailValue}>
+                {startTime ? formatTimeForDisplay(startTime) : '--:--'}
+                {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
+              </Text>
             </View>
 
             {(locationTbd || locationAddress) ? (
               <View style={styles.reviewDetailRow}>
-                <View style={styles.reviewDetailIconContainer}>
-                  <Ionicons name="location-outline" size={20} color={Colors.brand.bubbleBlue} />
-                </View>
-                <View style={styles.reviewDetailTextContainer}>
-                  <Text style={styles.reviewDetailLabel}>Location</Text>
-                  <Text style={styles.reviewDetailValue} numberOfLines={1}>{locationTbd ? 'TBD' : locationAddress}</Text>
-                </View>
+                <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+                <Text style={styles.reviewDetailValue} numberOfLines={2}>{locationTbd ? 'TBD' : locationAddress}</Text>
               </View>
             ) : null}
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
-                <View style={styles.reviewDetailIconContainer}>
-                  <Ionicons name="people-outline" size={20} color={Colors.brand.bubbleBlue} />
-                </View>
-                <View style={styles.reviewDetailTextContainer}>
-                  <Text style={styles.reviewDetailLabel}>Limit</Text>
-                  <Text style={styles.reviewDetailValue}>{attendeeLimit} people</Text>
-                </View>
+                <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
+                <Text style={styles.reviewDetailValue}>Limit: {attendeeLimit} people</Text>
               </View>
             ) : null}
           </View>
@@ -949,11 +929,18 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+              style={[loading && styles.primaryButtonDisabled]}
               onPress={handleNext}
               disabled={loading}
             >
-              <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -1218,7 +1205,6 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.neutral.coolMist,
   },
   primaryButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
@@ -1247,7 +1233,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
   },
   successEventCard: {
     borderRadius: 12,
@@ -1273,59 +1259,45 @@ const styles = StyleSheet.create({
   },
   reviewCoverImage: {
     width: '100%',
-    height: '100%',
+    flex: 1,
+    borderRadius: 12,
     resizeMode: 'cover',
   },
   reviewCoverPlaceholder: {
     width: '100%',
-    height: '100%',
+    flex: 1,
+    borderRadius: 12,
     backgroundColor: Colors.neutral.cloudGrey,
     justifyContent: 'center',
     alignItems: 'center',
   },
   reviewSeparator: {
     height: 1,
-    backgroundColor: Colors.neutral.coolMist,
+    backgroundColor: Colors.neutral.cloudGrey,
     marginHorizontal: 20,
   },
   reviewTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
-    marginBottom: 8,
+    marginTop: 10,
+    textAlign: 'center',
   },
   reviewDescription: {
     fontSize: 15,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     lineHeight: 22,
   },
   reviewDetailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  reviewDetailIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.neutral.cloudGrey,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reviewDetailTextContainer: {
-    flex: 1,
-  },
-  reviewDetailLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: Colors.neutral.coolMist,
-    marginBottom: 2,
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 12,
   },
   reviewDetailValue: {
     fontSize: 15,
-    fontWeight: '500',
     color: Colors.neutral.charcoal,
+    flex: 1,
   },
   stepIndicatorBar: {
     flexDirection: 'row',

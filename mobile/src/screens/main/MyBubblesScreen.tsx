@@ -16,7 +16,8 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_GAP = 12;
@@ -136,9 +137,16 @@ export default function MyBubblesScreen() {
           <Text style={styles.emptySubtitle}>
             Join some bubbles from the Explore tab or create your own!
           </Text>
-          <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateBubble}>
-            <Ionicons name="add" size={20} color={Colors.brand.skyWhite} />
-            <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
+          <TouchableOpacity onPress={handleCreateBubble}>
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.createFirstButton}
+            >
+              <Ionicons name="add" size={20} color={Colors.neutral.charcoal} />
+              <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       ) : (
@@ -187,11 +195,15 @@ export default function MyBubblesScreen() {
         </ScrollView>
       )}
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleCreateBubble}
-      >
-        <Ionicons name="add" size={28} color={Colors.brand.skyWhite} />
+      <TouchableOpacity onPress={handleCreateBubble}>
+        <LinearGradient
+          colors={Gradients.button.colors as unknown as string[]}
+          start={Gradients.button.start}
+          end={Gradients.button.end}
+          style={styles.fab}
+        >
+          <Ionicons name="add" size={28} color={Colors.neutral.charcoal} />
+        </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -325,7 +337,6 @@ const styles = StyleSheet.create({
   createFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.brand.bubbleBlue,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: Radius.full,
@@ -333,7 +344,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createFirstButtonText: {
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -344,7 +355,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: Colors.neutral.charcoal,

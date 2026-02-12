@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type PendingBubble = {
   id: string;
@@ -234,18 +235,25 @@ export default function PendingReviewsScreen() {
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={[styles.actionButton, styles.approveButton]}
+                        style={{ flex: 1 }}
                         onPress={() => handleApproveBubble(bubble.id)}
                         disabled={actionLoading === bubble.id}
                       >
-                        {actionLoading === bubble.id ? (
-                          <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
-                            <Text style={styles.approveText}>Approve</Text>
-                          </>
-                        )}
+                        <LinearGradient
+                          colors={Gradients.button.colors as unknown as string[]}
+                          start={Gradients.button.start}
+                          end={Gradients.button.end}
+                          style={[styles.actionButton, styles.approveButton]}
+                        >
+                          {actionLoading === bubble.id ? (
+                            <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                              <Text style={styles.approveText}>Approve</Text>
+                            </>
+                          )}
+                        </LinearGradient>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -289,18 +297,25 @@ export default function PendingReviewsScreen() {
                       </TouchableOpacity>
                       
                       <TouchableOpacity
-                        style={[styles.actionButton, styles.approveButton]}
+                        style={{ flex: 1 }}
                         onPress={() => handleApproveEvent(event.id)}
                         disabled={actionLoading === event.id}
                       >
-                        {actionLoading === event.id ? (
-                          <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
-                        ) : (
-                          <>
-                            <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
-                            <Text style={styles.approveText}>Approve</Text>
-                          </>
-                        )}
+                        <LinearGradient
+                          colors={Gradients.button.colors as unknown as string[]}
+                          start={Gradients.button.start}
+                          end={Gradients.button.end}
+                          style={[styles.actionButton, styles.approveButton]}
+                        >
+                          {actionLoading === event.id ? (
+                            <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                              <Text style={styles.approveText}>Approve</Text>
+                            </>
+                          )}
+                        </LinearGradient>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -459,7 +474,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F0',
   },
   approveButton: {
-    backgroundColor: Colors.brand.bubbleBlue,
   },
   rejectText: {
     fontSize: 14,
@@ -469,6 +483,6 @@ const styles = StyleSheet.create({
   approveText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
   },
 });
