@@ -17,6 +17,33 @@ The platform enables users to create and join interest-based communities through
 
 Preferred communication style: Simple, everyday language.
 
+## Design System
+
+All UI development MUST reference the design system at `mobile/src/styles/theme.ts`. This file contains every color, button variant, input style, selection control, icon state, gradient, and spacing token used across the app.
+
+**Key imports for any screen:**
+```typescript
+import { Colors, Spacing, Radius, Typography, ButtonStyles, ButtonTextStyles, InputStyles, Gradients } from '../styles/theme';
+```
+
+**Core Brand Colors:**
+- Bubble Blue `#35A8F7` — primary actions, links, active states
+- Midnight `#1E1F26` — nav bars, modals, dark backgrounds
+- Sky White `#FFFFFF` — cards, surfaces
+- Background `#FAFAFA` — screen backgrounds
+
+**Button Variants:** primaryGradient (Gradient 2), secondary (solid blue), disabled (grey), outline (blue border), light (light blue fill), ghost (grey border), destructive (red border)
+
+**Gradient 2** (used on primary buttons): `#A8D8F7` → `#35A8F7` (requires `expo-linear-gradient` or equivalent)
+
+**States:** Success Green `#34C759`, Alert Red `#FF3B30`, Carrot `#F9888C`
+
+**Neutrals:** Cloud Grey `#F5F6F8`, Cool Mist `#969696`, Charcoal `#4D4D4D` (primary text)
+
+**Icon colors:** default=Charcoal, active=Bubble Blue, inactive=Cool Mist, error=Alert Red
+
+**IMPORTANT:** When building or editing any UI, always use theme tokens instead of hardcoded hex values. This ensures brand consistency across all screens.
+
 ## System Architecture
 
 ### Frontend Architecture (Web)
