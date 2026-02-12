@@ -70,7 +70,7 @@ const PRIVACY_OPTIONS = [
   { value: 'Private', label: 'Private', subtitle: 'Invite-only event' },
 ];
 
-const STEP_TITLES = ['Pick Category', 'Bubble Details', 'Rules', 'Privacy & Settings', 'Preview'];
+const STEP_TITLES = ['Create a Bubble', 'Bubble Details', 'Rules', 'Privacy & Settings', 'Preview'];
 
 export default function CreateBubbleScreen({ navigation }: Props) {
   const { token, user } = useAuth();
@@ -99,6 +99,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [ruleText, setRuleText] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [expandAbout, setExpandAbout] = useState(false);
+  const [expandAttachments, setExpandAttachments] = useState(false);
+  const [expandRules, setExpandRules] = useState(false);
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
@@ -236,7 +239,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={Colors.brand.primary} />
-          <Text style={styles.loadingText}>Submitting your bubble...</Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -247,7 +250,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.centeredContainer}>
           <Text style={styles.celebrationEmoji}>🎉</Text>
-          <Text style={styles.successTitle}>Thanks for submitting{'\n'}your bubble</Text>
+          <Text style={styles.successTitle}>Thanks for submitting your bubble</Text>
           <Text style={styles.successSubtitle}>
             We'll look over the details and let you know when your bubble is live
           </Text>
@@ -256,7 +259,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             onPress={() => navigation.goBack()}
           >
             <View style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>Back to Bubbles</Text>
+              <Text style={styles.primaryButtonText}>Finish</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -269,7 +272,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       <TouchableOpacity style={styles.headerBack} onPress={goBack}>
         <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>{STEP_TITLES[step]}</Text>
+      <Text style={styles.headerTitle}>{step === 4 ? title : STEP_TITLES[step]}</Text>
       <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
@@ -367,23 +370,16 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Location</Text>
-        <View style={styles.locationInputRow}>
-          <TextInput
-            style={[styles.fieldInput, { flex: 1 }]}
-            placeholder='Search location or enter address'
-            placeholderTextColor={Colors.text.tertiary}
-            value={locationName}
-            onChangeText={setLocationName}
-            editable={false}
-          />
-          <TouchableOpacity
-            style={styles.mapPinButton}
-            onPress={() => setShowLocationPicker(true)}
-          >
-            <Ionicons name="location" size={20} color={Colors.brand.primary} />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
+        <TouchableOpacity
+          style={styles.locationFieldButton}
+          onPress={() => setShowLocationPicker(true)}
+        >
+          <Ionicons name="search-outline" size={18} color={Colors.text.tertiary} />
+          <Text style={locationName ? styles.locationFieldText : styles.locationFieldPlaceholder}>
+            {locationName || 'Search location or enter address'}
+          </Text>
+        </TouchableOpacity>
         {locationAddress ? (
           <Text style={styles.locationSubtext}>{locationAddress}</Text>
         ) : null}
@@ -427,12 +423,20 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Cover Photo <Text style={styles.optional}>(optional)</Text></Text>
+        <Text style={styles.fieldLabel}>Add a Cover Photo <Text style={styles.optional}>(Strongly Recommended)</Text></Text>
         <MultiImagePicker
           images={images}
           onImagesChange={setImages}
           maxImages={1}
         />
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Add Attachments</Text>
+        <TouchableOpacity style={styles.attachmentsButton}>
+          <Ionicons name="add" size={18} color={Colors.text.tertiary} />
+          <Text style={styles.attachmentsButtonText}>Add Attachments</Text>
+        </TouchableOpacity>
       </View>
 
       {isCampusVerified && (
@@ -468,51 +472,31 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const renderStepRules = () => (
     <View style={styles.formSection}>
-      {MANDATORY_RULES.map((rule, index) => (
-        <View key={`mandatory-${index}`} style={styles.ruleItem}>
-          <View style={styles.ruleNumberBadge}>
-            <Text style={styles.ruleNumberText}>{index + 1}</Text>
-          </View>
-          <View style={styles.ruleContent}>
-            <Text style={styles.ruleText}>{rule}</Text>
-            <View style={styles.ruleBadge}>
-              <Ionicons name="lock-closed" size={10} color={Colors.text.tertiary} />
-              <Text style={styles.ruleBadgeText}>Required</Text>
-            </View>
-          </View>
-        </View>
-      ))}
-
-      <View style={styles.ruleItem}>
-        <View style={styles.ruleNumberBadge}>
-          <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1}</Text>
-        </View>
-        <View style={styles.ruleContent}>
-          <Text style={styles.ruleText}>{DEFAULT_OPTIONAL_RULE}</Text>
-          <View style={styles.ruleBadge}>
-            <Text style={styles.ruleBadgeText}>Default</Text>
-          </View>
-        </View>
-      </View>
-
-      {customRules.map((rule, index) => (
-        <View key={`custom-${index}`} style={styles.ruleItem}>
-          <View style={styles.ruleNumberBadge}>
-            <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1 + index + 1}</Text>
-          </View>
-          <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
-            <Text style={styles.ruleText}>{rule}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => deleteRule(index)} style={styles.ruleDeleteBtn}>
-            <Ionicons name="close-circle" size={20} color={Colors.text.tertiary} />
-          </TouchableOpacity>
-        </View>
-      ))}
-
       <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
         <Ionicons name="add" size={20} color={Colors.brand.primary} />
         <Text style={styles.addRuleText}>Add Rule</Text>
       </TouchableOpacity>
+
+      {MANDATORY_RULES.map((rule, index) => (
+        <View key={`mandatory-${index}`} style={styles.ruleItem}>
+          <View style={styles.ruleContent}>
+            <Text style={styles.ruleText}>{rule}</Text>
+          </View>
+          <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+        </View>
+      ))}
+
+      {customRules.map((rule, index) => (
+        <View key={`custom-${index}`} style={styles.ruleItem}>
+          <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
+            <Text style={styles.ruleText}>{rule}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => deleteRule(index)} style={{ padding: Spacing.xs }}>
+            <Ionicons name="close-circle" size={18} color={Colors.text.tertiary} />
+          </TouchableOpacity>
+          <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+        </View>
+      ))}
     </View>
   );
 
@@ -560,76 +544,63 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const renderStepPreview = () => (
     <View style={styles.formSection}>
-      <View style={styles.reviewCard}>
-        {images.length > 0 ? (
-          <Image source={{ uri: images[0] }} style={styles.reviewCoverImage} />
-        ) : (
-          <View style={[styles.reviewCoverImage, styles.reviewCoverPlaceholder]}>
-            <Ionicons name="image-outline" size={40} color={Colors.text.tertiary} />
-          </View>
-        )}
-
-        <View style={styles.reviewBody}>
-          <View style={styles.reviewCategoryBadge}>
-            <Text style={styles.reviewCategoryText}>{category}</Text>
-          </View>
-          <Text style={styles.reviewTitle}>{title}</Text>
-          {tagline ? <Text style={styles.reviewTagline}>{tagline}</Text> : null}
-
-          <View style={styles.reviewInfoRow}>
-            <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
-            <Text style={styles.reviewInfoText}>0 members</Text>
-          </View>
+      {images.length > 0 ? (
+        <Image source={{ uri: images[0] }} style={styles.previewCoverImage} />
+      ) : (
+        <View style={[styles.previewCoverImage, styles.reviewCoverPlaceholder]}>
+          <Ionicons name="image-outline" size={40} color={Colors.text.tertiary} />
         </View>
+      )}
 
-        <View style={styles.reviewDivider} />
+      <Text style={styles.previewTagline}>{tagline || title}</Text>
 
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewSectionTitle}>Description</Text>
-          <Text style={styles.reviewSectionBody}>{description}</Text>
+      <View style={styles.previewDivider} />
+
+      <TouchableOpacity
+        style={styles.previewSectionHeader}
+        onPress={() => setExpandAbout(!expandAbout)}
+      >
+        <Text style={styles.previewSectionTitle}>About</Text>
+        <Ionicons name={expandAbout ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+      </TouchableOpacity>
+      {expandAbout && (
+        <Text style={styles.previewSectionBody}>{description}</Text>
+      )}
+
+      <View style={styles.previewDivider} />
+
+      <TouchableOpacity
+        style={styles.previewSectionHeader}
+        onPress={() => setExpandAttachments(!expandAttachments)}
+      >
+        <Text style={styles.previewSectionTitle}>Attachments</Text>
+        <Ionicons name={expandAttachments ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+      </TouchableOpacity>
+
+      <View style={styles.previewDivider} />
+
+      <View style={styles.previewMembersRow}>
+        <View style={styles.reviewInfoRow}>
+          <Ionicons name="people-outline" size={18} color={Colors.text.primary} />
+          <Text style={styles.previewMembersText}>{memberLimit || '0'} Members</Text>
         </View>
-
-        {locationName ? (
-          <>
-            <View style={styles.reviewDivider} />
-            <View style={styles.reviewSection}>
-              <Text style={styles.reviewSectionTitle}>Location</Text>
-              <View style={styles.reviewInfoRow}>
-                <Ionicons name="location-outline" size={16} color={Colors.text.tertiary} />
-                <Text style={styles.reviewInfoText}>{locationName} · {radiusMiles} mi radius</Text>
-              </View>
-              {locationAddress ? (
-                <Text style={styles.reviewLocationAddress}>{locationAddress}</Text>
-              ) : null}
-            </View>
-          </>
-        ) : null}
-
-        <View style={styles.reviewDivider} />
-
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewSectionTitle}>Rules ({allRules.length})</Text>
-          {allRules.map((rule, i) => (
-            <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
-          ))}
-        </View>
-
-        <View style={styles.reviewDivider} />
-
-        <View style={styles.reviewSection}>
-          <Text style={styles.reviewSectionTitle}>Privacy</Text>
-          <View style={styles.reviewInfoRow}>
-            <Ionicons name="lock-closed-outline" size={16} color={Colors.text.tertiary} />
-            <Text style={styles.reviewInfoText}>{PRIVACY_OPTIONS.find(p => p.value === privacy)?.label || privacy}</Text>
-          </View>
-          {memberLimit ? (
-            <View style={styles.reviewInfoRow}>
-              <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
-              <Text style={styles.reviewInfoText}>{memberLimit} member limit</Text>
-            </View>
-          ) : null}
-        </View>
+        <TouchableOpacity>
+          <Text style={styles.previewViewLink}>view {'>'}</Text>
+        </TouchableOpacity>
       </View>
+
+      <View style={styles.previewDivider} />
+
+      <TouchableOpacity
+        style={styles.previewSectionHeader}
+        onPress={() => setExpandRules(!expandRules)}
+      >
+        <Text style={styles.previewSectionTitle}>Bubble Rules</Text>
+        <Ionicons name={expandRules ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+      </TouchableOpacity>
+      {expandRules && allRules.map((rule, i) => (
+        <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
+      ))}
     </View>
   );
 
@@ -1059,86 +1030,110 @@ const styles = StyleSheet.create({
     color: Colors.brand.primary,
   },
 
-  reviewCard: {
-    backgroundColor: Colors.background.card,
-    borderRadius: Radius.lg,
+  locationFieldButton: {
+    height: 48,
     borderWidth: 1,
     borderColor: Colors.border.default,
-    overflow: 'hidden',
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.background.primary,
   },
-  reviewCoverImage: {
-    width: '100%',
-    height: 180,
-    backgroundColor: Colors.background.surface,
+  locationFieldText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    flex: 1,
   },
+  locationFieldPlaceholder: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
+    flex: 1,
+  },
+  attachmentsButton: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    borderRadius: Radius.md,
+    borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.background.primary,
+  },
+  attachmentsButtonText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
+  },
+
   reviewCoverPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  reviewBody: {
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  reviewCategoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.background.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.full,
-  },
-  reviewCategoryText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.secondary,
-  },
-  reviewTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-  },
-  reviewTagline: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
   },
   reviewInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginTop: Spacing.xxs,
-  },
-  reviewInfoText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
-  },
-  reviewDivider: {
-    height: 1,
-    backgroundColor: Colors.border.light,
-    marginHorizontal: Spacing.lg,
-  },
-  reviewSection: {
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  reviewSectionTitle: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
-  },
-  reviewSectionBody: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.secondary,
-    lineHeight: Typography.lineHeight.base,
   },
   reviewRuleItem: {
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
     lineHeight: Typography.lineHeight.base,
     paddingBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md,
   },
-  reviewLocationAddress: {
+
+  previewCoverImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.background.surface,
+  },
+  previewTagline: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    paddingVertical: Spacing.md,
+    lineHeight: Typography.lineHeight.base,
+  },
+  previewDivider: {
+    height: 1,
+    backgroundColor: Colors.border.light,
+  },
+  previewSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  previewSectionTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  previewSectionBody: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.base,
+    paddingBottom: Spacing.md,
+  },
+  previewMembersRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  previewMembersText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  previewViewLink: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
-    marginLeft: Spacing.xxl + Spacing.sm,
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.medium,
   },
 
   bottomBar: {
