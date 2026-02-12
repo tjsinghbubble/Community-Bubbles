@@ -25,7 +25,17 @@ import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, RadioStyles, Gradients, SwitchColors } from '../../styles/theme';
+import {
+  Colors,
+  Spacing,
+  Radius,
+  Typography,
+  RadioStyles,
+  Gradients,
+  SwitchColors,
+  ModalStyles,
+  SliderStyles,
+} from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -48,13 +58,20 @@ const CATEGORIES = [
   { label: 'Wellness', image: require('../../assets/images/explore-wellness.jpg') },
 ];
 
-const PRIVACY_OPTIONS = [
-  { value: 'Public', label: 'Public', subtitle: 'Anyone can find and join this bubble' },
-  { value: 'Request', label: 'Request to Join', subtitle: 'People must request to join' },
-  { value: 'Private', label: 'Private', subtitle: 'Only invited members can join' },
+const MANDATORY_RULES = [
+  'Be Respectful. Treat all members with kindness and courtesy.',
+  'Stay On Topic. Keep posts relevant to the bubble\'s purpose.',
 ];
 
-const STEP_TITLES = ['Pick Category', 'Bubble Details', 'Rules', 'Privacy & Settings', 'Review'];
+const DEFAULT_OPTIONAL_RULE = 'Have fun and be yourself!';
+
+const PRIVACY_OPTIONS = [
+  { value: 'Public', label: 'Public', subtitle: 'Anyone can discover and join' },
+  { value: 'Request', label: 'Request to Join', subtitle: 'Admin approval required before joining' },
+  { value: 'Private', label: 'Private', subtitle: 'Invite-only event' },
+];
+
+const STEP_TITLES = ['Pick Category', 'Bubble Details', 'Rules', 'Privacy & Settings', 'Preview'];
 
 export default function CreateBubbleScreen({ navigation }: Props) {
   const { token, user } = useAuth();
@@ -72,8 +89,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [locationLng, setLocationLng] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(15);
   const [images, setImages] = useState<string[]>([]);
-  const [attachments, setAttachments] = useState<string[]>([]);
-  const [rules, setRules] = useState<string[]>([]);
+  const [customRules, setCustomRules] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
   const [campusOnly, setCampusOnly] = useState(false);
@@ -85,11 +101,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const [aboutExpanded, setAboutExpanded] = useState(false);
-  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
-  const [rulesExpanded, setRulesExpanded] = useState(false);
-
   const isCampusVerified = user?.campusVerified && user?.campusId;
+
+  const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...customRules];
 
   const handleLocationSelect = (location: { name: string; address: string; lat: number; lng: number }) => {
     setLocationName(location.name);
@@ -102,7 +116,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const canGoNext = () => {
     switch (step) {
       case 0: return !!category;
-      case 1: return !!title && !!description && !!locationName;
+      case 1: return !!title && !!description;
       case 2: return true;
       case 3: return !!privacy;
       case 4: return true;
@@ -134,7 +148,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const openEditRule = (index: number) => {
     setEditingRuleIndex(index);
-    setRuleText(rules[index]);
+    setRuleText(customRules[index]);
     setShowRuleModal(true);
   };
 
@@ -142,18 +156,18 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     const trimmed = ruleText.trim();
     if (!trimmed) return;
     if (editingRuleIndex !== null) {
-      const updated = [...rules];
+      const updated = [...customRules];
       updated[editingRuleIndex] = trimmed;
-      setRules(updated);
+      setCustomRules(updated);
     } else {
-      setRules([...rules, trimmed]);
+      setCustomRules([...customRules, trimmed]);
     }
     setShowRuleModal(false);
     setRuleText('');
   };
 
   const deleteRule = (index: number) => {
-    setRules(rules.filter((_, i) => i !== index));
+    setCustomRules(customRules.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
@@ -170,11 +184,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           tagline: tagline || title,
           category,
           description,
-          rules,
+          rules: allRules,
           privacy,
           coverImage: images.length > 0 ? images[0] : null,
           images,
-          attachments,
+          attachments: [],
           memberLimit: memberLimit && !isNaN(parseInt(memberLimit)) ? parseInt(memberLimit) : null,
           locationName: locationName || null,
           locationAddress: locationAddress || null,
@@ -227,7 +241,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             style={styles.loadingImage}
             resizeMode="contain"
           />
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} style={{ marginTop: 24 }} />
+          <ActivityIndicator size="large" color={Colors.brand.primary} style={{ marginTop: Spacing.xxl }} />
           <Text style={styles.loadingText}>Submitting your bubble...</Text>
         </View>
       </SafeAreaView>
@@ -238,6 +252,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centeredContainer}>
+          <Text style={styles.celebrationEmoji}>🎉</Text>
           <Image
             source={require('../../assets/images/bubble-submit-success.png')}
             style={styles.successImage}
@@ -245,20 +260,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           />
           <Text style={styles.successTitle}>Thanks for submitting{'\n'}your bubble</Text>
           <Text style={styles.successSubtitle}>
-            We'll review it and let you know when it's live!
+            We'll look over the details and let you know when your bubble is live
           </Text>
           <TouchableOpacity
             style={styles.finishButton}
             onPress={() => navigation.goBack()}
           >
-            <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText}>Finish</Text>
-            </LinearGradient>
+            <View style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Back to Bubbles</Text>
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -268,7 +278,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity style={styles.headerBack} onPress={goBack}>
-        <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
+        <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{STEP_TITLES[step]}</Text>
       <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
@@ -283,8 +293,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <View
           key={i}
           style={[
-            styles.progressDot,
-            i <= step && styles.progressDotActive,
+            styles.progressSegment,
+            i <= step && styles.progressSegmentActive,
           ]}
         />
       ))}
@@ -292,30 +302,33 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepCategory = () => {
-    const colWidth = (SCREEN_WIDTH - 40 - 24) / 3;
+    const colWidth = (SCREEN_WIDTH - (Spacing.xl * 2) - (Spacing.md * 2)) / 3;
     return (
-      <View style={styles.categoryGrid}>
-        {CATEGORIES.map((cat) => {
-          const selected = category === cat.label;
-          return (
-            <TouchableOpacity
-              key={cat.label}
-              style={[styles.categoryCard, { width: colWidth }, selected && styles.categoryCardSelected]}
-              onPress={() => setCategory(cat.label)}
-              activeOpacity={0.8}
-            >
-              <Image source={cat.image} style={[styles.categoryImage, { width: colWidth, height: colWidth * 0.75 }]} />
-              {selected && (
-                <View style={styles.categoryCheckOverlay}>
-                  <View style={styles.categoryCheck}>
-                    <Ionicons name="checkmark" size={16} color={Colors.brand.skyWhite} />
+      <View style={styles.formSection}>
+        <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
+        <View style={styles.categoryGrid}>
+          {CATEGORIES.map((cat) => {
+            const selected = category === cat.label;
+            return (
+              <TouchableOpacity
+                key={cat.label}
+                style={[styles.categoryCard, { width: colWidth }, selected && styles.categoryCardSelected]}
+                onPress={() => setCategory(selected ? '' : cat.label)}
+                activeOpacity={0.8}
+              >
+                <Image source={cat.image} style={[styles.categoryImage, { width: colWidth, height: colWidth * 0.75 }]} />
+                {selected && (
+                  <View style={styles.categoryCheckOverlay}>
+                    <View style={styles.categoryCheck}>
+                      <Ionicons name="checkmark" size={14} color={Colors.background.primary} />
+                    </View>
                   </View>
-                </View>
-              )}
-              <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+                )}
+                <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -327,11 +340,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <TextInput
           style={styles.fieldInput}
           placeholder='Ex: Corgi Fam'
-          placeholderTextColor={Colors.neutral.coolMist}
+          placeholderTextColor={Colors.text.tertiary}
           value={title}
-          onChangeText={setTitle}
-          maxLength={50}
+          onChangeText={(t) => setTitle(t.slice(0, 60))}
+          maxLength={60}
         />
+        <Text style={styles.charCount}>{title.length}/60</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -339,11 +353,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <TextInput
           style={styles.fieldInput}
           placeholder='Meetup with other Corgi Parents near you'
-          placeholderTextColor={Colors.neutral.coolMist}
+          placeholderTextColor={Colors.text.tertiary}
           value={tagline}
-          onChangeText={setTagline}
+          onChangeText={(t) => setTagline(t.slice(0, 100))}
           maxLength={100}
         />
+        <Text style={styles.charCount}>{tagline.length}/100</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -351,68 +366,83 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <TextInput
           style={[styles.fieldInput, styles.textArea]}
           placeholder='Tell people what this bubble is about...'
-          placeholderTextColor={Colors.neutral.coolMist}
+          placeholderTextColor={Colors.text.tertiary}
           value={description}
-          onChangeText={setDescription}
+          onChangeText={(t) => setDescription(t.slice(0, 500))}
           multiline
           numberOfLines={4}
           textAlignVertical="top"
+          maxLength={500}
         />
+        <Text style={styles.charCount}>{description.length}/500</Text>
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
-        <TouchableOpacity style={styles.fieldInputRow} onPress={() => setShowLocationPicker(true)}>
-          <Ionicons name="search" size={18} color={Colors.neutral.coolMist} />
-          <Text style={locationName ? styles.fieldValue : styles.fieldPlaceholder}>
-            {locationName || 'Search location or enter address'}
-          </Text>
-        </TouchableOpacity>
-        {locationName ? (
+        <Text style={styles.fieldLabel}>Location</Text>
+        <View style={styles.locationInputRow}>
+          <TextInput
+            style={[styles.fieldInput, { flex: 1 }]}
+            placeholder='Search location or enter address'
+            placeholderTextColor={Colors.text.tertiary}
+            value={locationName}
+            onChangeText={setLocationName}
+            editable={false}
+          />
+          <TouchableOpacity
+            style={styles.mapPinButton}
+            onPress={() => setShowLocationPicker(true)}
+          >
+            <Ionicons name="location" size={20} color={Colors.brand.primary} />
+          </TouchableOpacity>
+        </View>
+        {locationAddress ? (
           <Text style={styles.locationSubtext}>{locationAddress}</Text>
         ) : null}
+      </View>
 
-        <View style={styles.radiusRow}>
-          <Text style={styles.radiusLabel}>Radius</Text>
-          <View style={styles.radiusStepper}>
+      <View style={styles.fieldGroup}>
+        <View style={styles.radiusHeader}>
+          <Text style={styles.fieldLabel}>Radius</Text>
+          <Text style={styles.radiusValueText}>{radiusMiles} miles</Text>
+        </View>
+        <View style={styles.sliderContainer}>
+          <View style={styles.sliderTrack}>
+            <View style={[styles.sliderFill, { width: `${((radiusMiles - 1) / 49) * 100}%` }]} />
+          </View>
+          <View style={styles.sliderTicksRow}>
+            {[1, 10, 20, 30, 40, 50].map((val) => (
+              <TouchableOpacity
+                key={val}
+                onPress={() => setRadiusMiles(val)}
+                style={styles.sliderTick}
+              >
+                <Text style={[styles.sliderTickText, radiusMiles === val && styles.sliderTickActive]}>{val}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.sliderStepRow}>
             <TouchableOpacity
-              style={styles.radiusStepBtn}
-              onPress={() => setRadiusMiles(Math.max(1, radiusMiles - 5))}
+              style={styles.sliderStepBtn}
+              onPress={() => setRadiusMiles(Math.max(1, radiusMiles - 1))}
             >
-              <Ionicons name="remove" size={18} color={Colors.neutral.charcoal} />
+              <Ionicons name="remove" size={16} color={Colors.text.secondary} />
             </TouchableOpacity>
-            <Text style={styles.radiusValue}>{radiusMiles} miles</Text>
             <TouchableOpacity
-              style={styles.radiusStepBtn}
-              onPress={() => setRadiusMiles(Math.min(50, radiusMiles + 5))}
+              style={styles.sliderStepBtn}
+              onPress={() => setRadiusMiles(Math.min(50, radiusMiles + 1))}
             >
-              <Ionicons name="add" size={18} color={Colors.neutral.charcoal} />
+              <Ionicons name="add" size={16} color={Colors.text.secondary} />
             </TouchableOpacity>
           </View>
         </View>
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Add a Cover Photo <Text style={styles.optional}>(Strongly Recommended)</Text></Text>
+        <Text style={styles.fieldLabel}>Cover Photo <Text style={styles.optional}>(optional)</Text></Text>
         <MultiImagePicker
           images={images}
           onImagesChange={setImages}
           maxImages={1}
-        />
-      </View>
-
-      <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Add Attachments</Text>
-        {attachments.length > 0 ? (
-          <View style={styles.attachmentBadge}>
-            <Ionicons name="document-attach" size={18} color={Colors.brand.bubbleBlue} />
-            <Text style={styles.attachmentBadgeText}>({attachments.length}) Attachments Added</Text>
-          </View>
-        ) : null}
-        <MultiImagePicker
-          images={attachments}
-          onImagesChange={setAttachments}
-          maxImages={5}
         />
       </View>
 
@@ -421,7 +451,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
               <View style={styles.toggleLabelRow}>
-                <Text style={{ fontSize: 16 }}>🎓</Text>
+                <Text style={{ fontSize: Typography.sizes.md }}>🎓</Text>
                 <Text style={styles.toggleLabel}>Campus Only</Text>
               </View>
               <Text style={styles.helperText}>
@@ -449,25 +479,51 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const renderStepRules = () => (
     <View style={styles.formSection}>
-      <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
-        <Ionicons name="add" size={22} color={Colors.brand.bubbleBlue} />
-        <Text style={styles.addRuleText}>Add Rule</Text>
-      </TouchableOpacity>
+      {MANDATORY_RULES.map((rule, index) => (
+        <View key={`mandatory-${index}`} style={styles.ruleItem}>
+          <View style={styles.ruleNumberBadge}>
+            <Text style={styles.ruleNumberText}>{index + 1}</Text>
+          </View>
+          <View style={styles.ruleContent}>
+            <Text style={styles.ruleText}>{rule}</Text>
+            <View style={styles.ruleBadge}>
+              <Ionicons name="lock-closed" size={10} color={Colors.text.tertiary} />
+              <Text style={styles.ruleBadgeText}>Required</Text>
+            </View>
+          </View>
+        </View>
+      ))}
 
-      {rules.map((rule, index) => (
-        <View key={index} style={styles.ruleItem}>
-          <View style={styles.ruleGripIcon}>
-            <Ionicons name="menu" size={18} color={Colors.neutral.coolMist} />
+      <View style={styles.ruleItem}>
+        <View style={styles.ruleNumberBadge}>
+          <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1}</Text>
+        </View>
+        <View style={styles.ruleContent}>
+          <Text style={styles.ruleText}>{DEFAULT_OPTIONAL_RULE}</Text>
+          <View style={styles.ruleBadge}>
+            <Text style={styles.ruleBadgeText}>Default</Text>
+          </View>
+        </View>
+      </View>
+
+      {customRules.map((rule, index) => (
+        <View key={`custom-${index}`} style={styles.ruleItem}>
+          <View style={styles.ruleNumberBadge}>
+            <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1 + index + 1}</Text>
           </View>
           <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
-            <Text style={styles.ruleNumber}>{index + 1}.</Text>
-            <Text style={styles.ruleText} numberOfLines={2}>{rule}</Text>
+            <Text style={styles.ruleText}>{rule}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => deleteRule(index)} style={styles.ruleDelete}>
-            <Ionicons name="close-circle" size={20} color={Colors.neutral.coolMist} />
+          <TouchableOpacity onPress={() => deleteRule(index)} style={styles.ruleDeleteBtn}>
+            <Ionicons name="close-circle" size={20} color={Colors.text.tertiary} />
           </TouchableOpacity>
         </View>
       ))}
+
+      <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
+        <Ionicons name="add" size={20} color={Colors.brand.primary} />
+        <Text style={styles.addRuleText}>Add Rule</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -475,24 +531,26 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     <View style={styles.formSection}>
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Who Can See This Bubble? <Text style={styles.required}>*</Text></Text>
-        {PRIVACY_OPTIONS.map((opt) => {
-          const selected = privacy === opt.value;
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              style={[RadioStyles.card, selected && RadioStyles.cardSelected, { marginTop: Spacing.sm }]}
-              onPress={() => setPrivacy(opt.value)}
-            >
-              <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
-                {selected && <View style={RadioStyles.innerDot} />}
-              </View>
-              <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                <Text style={RadioStyles.label}>{opt.label}</Text>
-                <Text style={RadioStyles.description}>{opt.subtitle}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        <View style={{ gap: Spacing.sm, marginTop: Spacing.sm }}>
+          {PRIVACY_OPTIONS.map((opt) => {
+            const selected = privacy === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
+                onPress={() => setPrivacy(opt.value)}
+              >
+                <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
+                  {selected && <View style={RadioStyles.innerDot} />}
+                </View>
+                <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                  <Text style={RadioStyles.label}>{opt.label}</Text>
+                  <Text style={RadioStyles.description}>{opt.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -500,24 +558,25 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <TextInput
           style={styles.fieldInput}
           placeholder='Ex: 20'
-          placeholderTextColor={Colors.neutral.coolMist}
+          placeholderTextColor={Colors.text.tertiary}
           value={memberLimit}
-          onChangeText={setMemberLimit}
+          onChangeText={(t) => setMemberLimit(t.replace(/[^0-9]/g, '').slice(0, 5))}
           keyboardType="number-pad"
+          maxLength={5}
         />
         <Text style={styles.helperText}>Leave empty for unlimited</Text>
       </View>
     </View>
   );
 
-  const renderStepReview = () => (
+  const renderStepPreview = () => (
     <View style={styles.formSection}>
       <View style={styles.reviewCard}>
         {images.length > 0 ? (
           <Image source={{ uri: images[0] }} style={styles.reviewCoverImage} />
         ) : (
           <View style={[styles.reviewCoverImage, styles.reviewCoverPlaceholder]}>
-            <Ionicons name="image-outline" size={40} color={Colors.neutral.coolMist} />
+            <Ionicons name="image-outline" size={40} color={Colors.text.tertiary} />
           </View>
         )}
 
@@ -528,78 +587,59 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           <Text style={styles.reviewTitle}>{title}</Text>
           {tagline ? <Text style={styles.reviewTagline}>{tagline}</Text> : null}
 
-          {locationName ? (
-            <View style={styles.reviewInfoRow}>
-              <Ionicons name="location-outline" size={16} color={Colors.neutral.coolMist} />
-              <Text style={styles.reviewInfoText}>{locationName} · {radiusMiles} mi radius</Text>
-            </View>
-          ) : null}
-
           <View style={styles.reviewInfoRow}>
-            <Ionicons name="lock-closed-outline" size={16} color={Colors.neutral.coolMist} />
-            <Text style={styles.reviewInfoText}>{PRIVACY_OPTIONS.find(p => p.value === privacy)?.label || privacy}</Text>
+            <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
+            <Text style={styles.reviewInfoText}>0 members</Text>
           </View>
-
-          {memberLimit ? (
-            <View style={styles.reviewInfoRow}>
-              <Ionicons name="people-outline" size={16} color={Colors.neutral.coolMist} />
-              <Text style={styles.reviewInfoText}>{memberLimit} member limit</Text>
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.reviewDivider} />
 
-        <TouchableOpacity
-          style={styles.expandableHeader}
-          onPress={() => setAboutExpanded(!aboutExpanded)}
-        >
-          <Text style={styles.expandableTitle}>About</Text>
-          <Ionicons name={aboutExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.neutral.coolMist} />
-        </TouchableOpacity>
-        {aboutExpanded && (
-          <Text style={styles.expandableContent}>{description}</Text>
-        )}
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Description</Text>
+          <Text style={styles.reviewSectionBody}>{description}</Text>
+        </View>
 
-        {attachments.length > 0 && (
+        {locationName ? (
           <>
             <View style={styles.reviewDivider} />
-            <TouchableOpacity
-              style={styles.expandableHeader}
-              onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}
-            >
-              <Text style={styles.expandableTitle}>Attachments ({attachments.length})</Text>
-              <Ionicons name={attachmentsExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.neutral.coolMist} />
-            </TouchableOpacity>
-            {attachmentsExpanded && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {attachments.map((uri, i) => (
-                  <Image key={i} source={{ uri }} style={styles.attachmentThumb} />
-                ))}
-              </ScrollView>
-            )}
-          </>
-        )}
-
-        {rules.length > 0 && (
-          <>
-            <View style={styles.reviewDivider} />
-            <TouchableOpacity
-              style={styles.expandableHeader}
-              onPress={() => setRulesExpanded(!rulesExpanded)}
-            >
-              <Text style={styles.expandableTitle}>Bubble Rules ({rules.length})</Text>
-              <Ionicons name={rulesExpanded ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.neutral.coolMist} />
-            </TouchableOpacity>
-            {rulesExpanded && (
-              <View style={{ marginTop: 8 }}>
-                {rules.map((rule, i) => (
-                  <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
-                ))}
+            <View style={styles.reviewSection}>
+              <Text style={styles.reviewSectionTitle}>Location</Text>
+              <View style={styles.reviewInfoRow}>
+                <Ionicons name="location-outline" size={16} color={Colors.text.tertiary} />
+                <Text style={styles.reviewInfoText}>{locationName} · {radiusMiles} mi radius</Text>
               </View>
-            )}
+              {locationAddress ? (
+                <Text style={styles.reviewLocationAddress}>{locationAddress}</Text>
+              ) : null}
+            </View>
           </>
-        )}
+        ) : null}
+
+        <View style={styles.reviewDivider} />
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Rules ({allRules.length})</Text>
+          {allRules.map((rule, i) => (
+            <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
+          ))}
+        </View>
+
+        <View style={styles.reviewDivider} />
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Privacy</Text>
+          <View style={styles.reviewInfoRow}>
+            <Ionicons name="lock-closed-outline" size={16} color={Colors.text.tertiary} />
+            <Text style={styles.reviewInfoText}>{PRIVACY_OPTIONS.find(p => p.value === privacy)?.label || privacy}</Text>
+          </View>
+          {memberLimit ? (
+            <View style={styles.reviewInfoRow}>
+              <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
+              <Text style={styles.reviewInfoText}>{memberLimit} member limit</Text>
+            </View>
+          ) : null}
+        </View>
       </View>
     </View>
   );
@@ -610,7 +650,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       case 1: return renderStepDetails();
       case 2: return renderStepRules();
       case 3: return renderStepPrivacy();
-      case 4: return renderStepReview();
+      case 4: return renderStepPreview();
       default: return null;
     }
   };
@@ -626,16 +666,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           disabled={disabled}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.gradientButton}
-          >
-            <Text style={styles.gradientButtonText}>
+          <View style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>
               {isReview ? 'Submit for review' : 'Next'}
             </Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
     );
@@ -672,16 +707,16 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           activeOpacity={1}
           onPress={() => setShowRuleModal(false)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {editingRuleIndex !== null ? 'Edit Rule' : 'Add Rule'}
               </Text>
             </View>
             <TextInput
-              style={[styles.fieldInput, styles.textArea, { marginVertical: 16 }]}
+              style={[styles.fieldInput, styles.textArea, { marginVertical: Spacing.lg }]}
               placeholder="Enter your rule..."
-              placeholderTextColor={Colors.neutral.coolMist}
+              placeholderTextColor={Colors.text.tertiary}
               value={ruleText}
               onChangeText={setRuleText}
               multiline
@@ -689,19 +724,21 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               textAlignVertical="top"
               autoFocus
             />
-            <View style={styles.modalActions}>
+            <View style={styles.modalFooter}>
               <TouchableOpacity
-                style={styles.modalCancelBtn}
+                style={styles.modalSecondaryBtn}
                 onPress={() => setShowRuleModal(false)}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalSecondaryText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.modalSaveBtn, !ruleText.trim() && { opacity: 0.5 }]}
+                style={[styles.primaryButton, { flex: 1 }, !ruleText.trim() && { opacity: 0.5 }]}
                 onPress={saveRule}
                 disabled={!ruleText.trim()}
               >
-                <Text style={styles.modalSaveText}>Save</Text>
+                <Text style={styles.primaryButtonText}>
+                  {editingRuleIndex !== null ? 'Save' : 'Add Rule'}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -714,9 +751,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -724,16 +762,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.cloudGrey,
+    borderBottomColor: Colors.border.light,
   },
   headerBack: {
     padding: Spacing.xs,
     width: 60,
   },
   headerTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.md,
     textAlign: 'center',
     flex: 1,
   },
@@ -742,24 +781,26 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   cancelText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
   },
+
   progressContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 6,
+    paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,
+    gap: Spacing.xs,
   },
-  progressDot: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.neutral.cloudGrey,
+  progressSegment: {
+    flex: 1,
+    height: Spacing.xs,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.border.light,
   },
-  progressDotActive: {
-    backgroundColor: Colors.brand.bubbleBlue,
+  progressSegmentActive: {
+    backgroundColor: Colors.brand.primary,
   },
+
   content: {
     flex: 1,
   },
@@ -771,198 +812,184 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   fieldLabel: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.primary,
   },
   required: {
-    color: Colors.state.error,
+    color: Colors.status.error,
   },
   optional: {
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
     fontWeight: Typography.weights.regular,
     fontSize: Typography.sizes.sm,
   },
   fieldInput: {
+    height: 48,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     borderRadius: Radius.md,
-    padding: Spacing.lg,
-    fontSize: Typography.sizes.md,
-    backgroundColor: Colors.brand.skyWhite,
-    color: Colors.neutral.charcoal,
-  },
-  fieldInputRow: {
-    borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.brand.skyWhite,
-  },
-  fieldValue: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    flex: 1,
-  },
-  fieldPlaceholder: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
-    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    fontSize: Typography.sizes.base,
+    backgroundColor: Colors.background.primary,
+    color: Colors.text.primary,
   },
   textArea: {
-    minHeight: 100,
+    height: undefined,
+    minHeight: 120,
+    paddingVertical: Spacing.lg,
     textAlignVertical: 'top',
   },
-  locationSubtext: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
-    marginTop: 2,
-  },
-  radiusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.md,
-  },
-  radiusLabel: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutral.charcoal,
-  },
-  radiusStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  radiusStepBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radiusValue: {
-    fontSize: Typography.sizes.md,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: Typography.weights.semiBold,
-    minWidth: 70,
-    textAlign: 'center',
+  charCount: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    textAlign: 'right',
   },
   helperText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
   },
 
+  stepPrompt: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.lg,
+  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: Spacing.xl,
     gap: Spacing.md,
   },
   categoryCard: {
     borderRadius: Radius.md,
     overflow: 'hidden',
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.surface,
     borderWidth: 2,
     borderColor: 'transparent',
   },
   categoryCardSelected: {
-    borderColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.primary,
   },
   categoryImage: {
-    borderTopLeftRadius: Radius.md,
-    borderTopRightRadius: Radius.md,
+    borderTopLeftRadius: Radius.md - 2,
+    borderTopRightRadius: Radius.md - 2,
   },
   categoryCheckOverlay: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: Spacing.xs,
+    right: Spacing.xs,
   },
   categoryCheck: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: Colors.brand.bubbleBlue,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryLabel: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.secondary,
     textAlign: 'center',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
   },
   categoryLabelSelected: {
-    color: Colors.brand.bubbleBlue,
+    color: Colors.brand.primary,
     fontWeight: Typography.weights.semiBold,
   },
 
-  addRuleButton: {
-    borderWidth: 1.5,
-    borderColor: Colors.brand.bubbleBlue,
-    borderStyle: 'dashed',
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
+  locationInputRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  mapPinButton: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.sm,
+    backgroundColor: Colors.background.primary,
   },
-  addRuleText: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.bubbleBlue,
+  locationSubtext: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginTop: Spacing.xxs,
   },
-  ruleItem: {
+
+  radiusHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
+  },
+  radiusValueText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.semiBold,
+  },
+  sliderContainer: {
     gap: Spacing.sm,
   },
-  ruleGripIcon: {
-    paddingRight: Spacing.xs,
+  sliderTrack: {
+    height: SliderStyles.track.height,
+    backgroundColor: Colors.border.light,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
   },
-  ruleContent: {
-    flex: 1,
+  sliderFill: {
+    height: '100%',
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+  },
+  sliderTicksRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    justifyContent: 'space-between',
   },
-  ruleNumber: {
-    fontSize: Typography.sizes.md,
+  sliderTick: {
+    paddingVertical: Spacing.xxs,
+  },
+  sliderTickText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+  },
+  sliderTickActive: {
+    color: Colors.brand.primary,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
   },
-  ruleText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    flex: 1,
+  sliderStepRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  ruleDelete: {
-    padding: Spacing.xs,
+  sliderStepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.background.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border.default,
   },
 
   toggleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.surface,
     padding: Spacing.lg,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
   },
   toggleInfo: {
     flex: 1,
     marginRight: Spacing.md,
-    gap: 4,
+    gap: Spacing.xxs,
   },
   toggleLabelRow: {
     flexDirection: 'row',
@@ -970,34 +997,90 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   toggleLabel: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
 
-  attachmentBadge: {
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.background.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+  },
+  ruleNumberBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.background.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.xxs,
+  },
+  ruleNumberText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+  },
+  ruleContent: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  ruleText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
+  },
+  ruleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    gap: Spacing.xxs,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.surface,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xxs,
+    borderRadius: Radius.xs,
   },
-  attachmentBadgeText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.brand.bubbleBlue,
+  ruleBadgeText: {
+    fontSize: Typography.sizes.xxs,
+    color: Colors.text.tertiary,
     fontWeight: Typography.weights.medium,
+  },
+  ruleDeleteBtn: {
+    padding: Spacing.xs,
+  },
+  addRuleButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.brand.primary,
+    borderStyle: 'dashed',
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  addRuleText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.primary,
   },
 
   reviewCard: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.card,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Colors.neutral.cloudGrey,
+    borderColor: Colors.border.default,
     overflow: 'hidden',
   },
   reviewCoverImage: {
     width: '100%',
     height: 180,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.surface,
   },
   reviewCoverPlaceholder: {
     alignItems: 'center',
@@ -1009,7 +1092,7 @@ const styles = StyleSheet.create({
   },
   reviewCategoryBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.surface,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: Radius.full,
@@ -1017,80 +1100,77 @@ const styles = StyleSheet.create({
   reviewCategoryText: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.secondary,
   },
   reviewTitle: {
     fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
   reviewTagline: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
   },
   reviewInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.xxs,
   },
   reviewInfoText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
   },
   reviewDivider: {
     height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.border.light,
     marginHorizontal: Spacing.lg,
   },
-  expandableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  reviewSection: {
     padding: Spacing.lg,
+    gap: Spacing.sm,
   },
-  expandableTitle: {
-    fontSize: Typography.sizes.md,
+  reviewSectionTitle: {
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
-  expandableContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    lineHeight: 22,
+  reviewSectionBody: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.base,
   },
   reviewRuleItem: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
-    lineHeight: 22,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.base,
+    paddingBottom: Spacing.xs,
   },
-  attachmentThumb: {
-    width: 60,
-    height: 60,
-    borderRadius: Radius.sm,
-    marginRight: Spacing.sm,
-    marginLeft: Spacing.lg,
+  reviewLocationAddress: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginLeft: Spacing.xxl + Spacing.sm,
   },
 
   bottomBar: {
     padding: Spacing.xl,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.xl,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     borderTopWidth: 1,
-    borderTopColor: Colors.neutral.cloudGrey,
+    borderTopColor: Colors.border.light,
   },
-  gradientButton: {
+  primaryButton: {
+    height: 56,
     borderRadius: Radius.full,
-    paddingVertical: 14,
+    backgroundColor: Colors.brand.primary,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  gradientButtonText: {
-    fontSize: Typography.sizes.lg,
+  primaryButtonText: {
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.background.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -1106,14 +1186,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.xxxl,
   },
+  celebrationEmoji: {
+    fontSize: 48,
+    marginBottom: Spacing.lg,
+  },
   loadingImage: {
     width: 120,
     height: 120,
   },
   loadingText: {
     marginTop: Spacing.lg,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
   },
   successImage: {
     width: 200,
@@ -1123,60 +1207,56 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: Typography.sizes.xxl,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: Spacing.md,
   },
   successSubtitle: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
     textAlign: 'center',
+    lineHeight: Typography.lineHeight.base,
   },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: `rgba(0,0,0,${ModalStyles.overlay.opacity})`,
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: Colors.brand.skyWhite,
+  modalContainer: {
+    backgroundColor: Colors.background.card,
     borderTopLeftRadius: Radius.xl,
     borderTopRightRadius: Radius.xl,
-    padding: Spacing.xl,
+    padding: Spacing.lg,
   },
   modalHeader: {
     alignItems: 'center',
+    paddingBottom: Spacing.sm,
   },
   modalTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.md,
   },
-  modalActions: {
+  modalFooter: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
     gap: Spacing.md,
   },
-  modalCancelBtn: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
+  modalSecondaryBtn: {
+    flex: 1,
+    height: 56,
     borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
+    backgroundColor: Colors.background.primary,
   },
-  modalCancelText: {
+  modalSecondaryText: {
     fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-  },
-  modalSaveBtn: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: Radius.full,
-    backgroundColor: Colors.brand.bubbleBlue,
-  },
-  modalSaveText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.brand.skyWhite,
     fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
 });

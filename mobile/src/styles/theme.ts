@@ -1,7 +1,39 @@
 import { StyleSheet, Platform } from 'react-native';
 
 export const Colors = {
+  text: {
+    primary: '#1E1F26',
+    secondary: '#4D4D4D',
+    tertiary: '#969696',
+    disabled: '#C7C7CC',
+  },
+
+  background: {
+    primary: '#FFFFFF',
+    secondary: '#FAFAFA',
+    surface: '#F5F6F8',
+    card: '#FFFFFF',
+  },
+
+  border: {
+    default: '#E2E2E2',
+    light: '#F0F0F0',
+    focus: '#35A8F7',
+    disabled: '#98B4C8',
+  },
+
+  status: {
+    success: '#34C759',
+    warning: '#F59E0B',
+    error: '#FF3B30',
+    info: '#35A8F7',
+  },
+
   brand: {
+    primary: '#35A8F7',
+    primaryLight: '#5AB9EA',
+    primaryDark: '#2A8AD4',
+    accent: '#0EADFF',
     bubbleBlue: '#35A8F7',
     midnight: '#1E1F26',
     skyWhite: '#FFFFFF',
@@ -9,6 +41,7 @@ export const Colors = {
   },
 
   neutral: {
+    black: '#000000',
     cloudGrey: '#F5F6F8',
     coolMist: '#969696',
     charcoal: '#4D4D4D',
@@ -40,18 +73,34 @@ export const Gradients = {
 };
 
 export const Typography = {
-  fontFamily: Platform.select({
-    ios: 'System',
-    android: 'Roboto',
-  }),
+  fontFamily: {
+    regular: Platform.select({ ios: 'System', android: 'Roboto' }),
+    medium: Platform.select({ ios: 'System', android: 'Roboto' }),
+    demiBold: Platform.select({ ios: 'System', android: 'Roboto' }),
+    bold: Platform.select({ ios: 'System', android: 'Roboto' }),
+  },
   sizes: {
-    xs: 11,
-    sm: 13,
-    md: 15,
-    lg: 17,
+    xxs: 9,
+    xs: 10,
+    sm: 11,
+    base: 14,
+    md: 16,
+    lg: 18,
     xl: 20,
     xxl: 24,
+    xxxl: 28,
+    hero: 34,
     heading: 28,
+  },
+  lineHeight: {
+    sm: 15.03,
+    base: 19.12,
+    md: 21.86,
+    lg: 24.59,
+    xl: 27.32,
+  },
+  letterSpacing: {
+    tight: -0.5,
   },
   weights: {
     regular: '400' as const,
@@ -62,6 +111,7 @@ export const Typography = {
 };
 
 export const Spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,
@@ -69,21 +119,25 @@ export const Spacing = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
+  xxxxl: 40,
+  huge: 48,
 };
 
 export const Radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  full: 999,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 100,
+  round: 9999,
 };
 
 export const IconColors = {
-  default: Colors.neutral.charcoal,
-  active: Colors.brand.bubbleBlue,
-  inactive: Colors.neutral.coolMist,
-  error: Colors.state.error,
+  default: Colors.text.secondary,
+  active: Colors.brand.primary,
+  inactive: Colors.text.tertiary,
+  error: Colors.status.error,
 };
 
 export const LogoVariants = {
@@ -93,27 +147,27 @@ export const LogoVariants = {
     textColor: Colors.brand.skyWhite,
   },
   blue: {
-    background: Colors.brand.bubbleBlue,
+    background: Colors.brand.primary,
     symbolColor: Colors.brand.skyWhite,
     textColor: Colors.brand.skyWhite,
   },
   light: {
     background: Colors.brand.skyWhite,
-    symbolColor: Colors.brand.bubbleBlue,
-    textColor: Colors.brand.bubbleBlue,
+    symbolColor: Colors.brand.primary,
+    textColor: Colors.brand.primary,
   },
 };
 
 export const LoadingState = {
-  spinnerColor: Colors.brand.bubbleBlue,
+  spinnerColor: Colors.brand.primary,
   trackColor: '#E8E8E8',
-  textColor: Colors.neutral.charcoal,
-  backgroundColor: Colors.brand.background,
+  textColor: Colors.text.primary,
+  backgroundColor: Colors.background.secondary,
 };
 
 export const ButtonStyles = StyleSheet.create({
   base: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -121,7 +175,7 @@ export const ButtonStyles = StyleSheet.create({
   },
 
   primaryGradient: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -130,36 +184,36 @@ export const ButtonStyles = StyleSheet.create({
   },
 
   secondary: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primaryLight,
   },
 
   disabled: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.neutral.coolMist,
+    backgroundColor: Colors.text.tertiary,
   },
 
   outline: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     borderWidth: 1.5,
-    borderColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.primary,
   },
 
   light: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -168,122 +222,127 @@ export const ButtonStyles = StyleSheet.create({
   },
 
   ghost: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
   },
 
   destructive: {
-    height: 48,
+    height: 56,
     borderRadius: Radius.full,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.skyWhite,
-    borderWidth: 1.5,
-    borderColor: Colors.state.error,
+    backgroundColor: Colors.status.error,
   },
 });
 
 export const ButtonTextStyles = StyleSheet.create({
   primaryGradient: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   secondary: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.skyWhite,
+    color: Colors.brand.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   disabled: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.skyWhite,
+    color: Colors.background.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   outline: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.bubbleBlue,
+    color: Colors.brand.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   light: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.bubbleBlue,
+    color: Colors.brand.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   ghost: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.medium,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
   destructive: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.state.error,
+    color: Colors.background.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
 });
 
 export const InputStyles = StyleSheet.create({
   label: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
     marginBottom: Spacing.sm,
   },
   requiredAsterisk: {
-    color: Colors.state.error,
+    color: Colors.status.error,
   },
   field: {
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.lg,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    backgroundColor: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
   },
   fieldError: {
-    borderColor: Colors.state.error,
+    borderColor: Colors.status.error,
     borderWidth: 1.5,
   },
   fieldFocused: {
-    borderColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.border.focus,
     borderWidth: 1.5,
   },
   placeholder: {
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
   },
   errorMessage: {
     fontSize: Typography.sizes.sm,
-    color: Colors.state.error,
+    color: Colors.status.error,
     marginTop: Spacing.xs,
   },
   subtext: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
     marginTop: Spacing.xs,
   },
   forgotLink: {
     fontSize: Typography.sizes.sm,
-    color: Colors.brand.bubbleBlue,
+    color: Colors.brand.primary,
     marginTop: Spacing.sm,
   },
   fieldWithIcon: {
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.lg,
     paddingRight: 48,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    backgroundColor: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
   },
@@ -299,27 +358,27 @@ export const InputStyles = StyleSheet.create({
 export const TextAreaStyles = StyleSheet.create({
   field: {
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     borderRadius: Radius.md,
     padding: Spacing.lg,
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
-    backgroundColor: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
     minHeight: 120,
     textAlignVertical: 'top' as const,
   },
   fieldError: {
-    borderColor: Colors.state.error,
+    borderColor: Colors.status.error,
     borderWidth: 1.5,
   },
   charCount: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
     textAlign: 'right' as const,
     marginTop: Spacing.xs,
   },
   charCountError: {
-    color: Colors.state.error,
+    color: Colors.status.error,
   },
 });
 
@@ -327,26 +386,63 @@ export const SelectStyles = StyleSheet.create({
   field: {
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
   },
   fieldText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
   },
   fieldPlaceholder: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
   },
 });
 
 export const SelectColors = {
-  chevron: Colors.neutral.charcoal,
+  chevron: Colors.text.secondary,
+};
+
+export const SliderStyles = {
+  track: {
+    height: Spacing.xs,
+    background: Colors.border.light,
+    radius: Radius.full,
+  },
+  fill: {
+    background: Colors.brand.primary,
+  },
+  thumb: {
+    size: Spacing.lg,
+    background: Colors.background.primary,
+    border: Colors.border.focus,
+    radius: Radius.full,
+  },
+};
+
+export const ModalStyles = {
+  overlay: {
+    background: Colors.neutral.black,
+    opacity: 0.4,
+  },
+  container: {
+    background: Colors.background.card,
+    radius: Radius.xl,
+    padding: Spacing.lg,
+  },
+  header: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    lineHeight: Typography.lineHeight.md,
+  },
+  footer: {
+    gap: Spacing.md,
+  },
 };
 
 export const RadioStyles = StyleSheet.create({
@@ -360,42 +456,42 @@ export const RadioStyles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   circleSelected: {
-    borderColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.primary,
   },
   innerDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primary,
   },
   label: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
     marginLeft: Spacing.md,
   },
   description: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.text.tertiary,
     marginLeft: Spacing.md,
   },
   card: {
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    borderRadius: Radius.md,
+    borderColor: Colors.border.default,
+    borderRadius: Radius.lg,
     padding: Spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.card,
   },
   cardSelected: {
-    borderColor: Colors.brand.bubbleBlue,
-    backgroundColor: Colors.neutral.cloudGrey,
+    borderColor: Colors.brand.primary,
+    backgroundColor: Colors.background.surface,
   },
 });
 
@@ -408,32 +504,40 @@ export const CheckboxStyles = StyleSheet.create({
   box: {
     width: 22,
     height: 22,
-    borderRadius: Radius.sm,
+    borderRadius: Radius.xs,
     borderWidth: 2,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.border.default,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   boxChecked: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primary,
+    borderColor: Colors.brand.primary,
   },
   label: {
-    fontSize: Typography.sizes.md,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
     marginLeft: Spacing.md,
   },
 });
 
 export const CheckboxColors = {
-  checkmark: Colors.brand.skyWhite,
+  checkmark: Colors.background.primary,
 };
 
 export const SwitchColors = {
   trackFalse: '#E0E0E0',
   trackTrue: '#A8D8F7',
   thumbFalse: '#F4F3F4',
-  thumbTrue: Colors.brand.bubbleBlue,
+  thumbTrue: Colors.brand.primary,
+};
+
+export const CardStyles = {
+  default: {
+    background: Colors.background.card,
+    radius: Radius.lg,
+    border: Colors.border.default,
+  },
 };
 
 const theme = {
@@ -451,10 +555,13 @@ const theme = {
   TextAreaStyles,
   SelectStyles,
   SelectColors,
+  SliderStyles,
+  ModalStyles,
   RadioStyles,
   CheckboxStyles,
   CheckboxColors,
   SwitchColors,
+  CardStyles,
 };
 
 export default theme;
