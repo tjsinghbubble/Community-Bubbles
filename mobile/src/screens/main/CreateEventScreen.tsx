@@ -55,6 +55,8 @@ const ENVIRONMENT_OPTIONS = [
   { key: 'wheelchairAccessible', label: 'Wheelchair Accessible', description: 'Accessible venue', icon: 'accessibility' as const },
 ];
 
+const TIME_MINUTE_INTERVAL = 5;
+
 const RECURRENCE_OPTIONS = [
   { value: 'never', label: 'Never' },
   { value: 'daily', label: 'Every Day' },
@@ -460,7 +462,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               display="default"
               onChange={onStartTimeChange}
               is24Hour={false}
-              minuteInterval={5}
+              minuteInterval={TIME_MINUTE_INTERVAL}
             />
           )}
         </View>
@@ -478,7 +480,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               display="default"
               onChange={onEndTimeChange}
               is24Hour={false}
-              minuteInterval={5}
+              minuteInterval={TIME_MINUTE_INTERVAL}
             />
           )}
         </View>
@@ -499,7 +501,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   }
                 }}
                 is24Hour={false}
-                minuteInterval={5}
+                minuteInterval={TIME_MINUTE_INTERVAL}
                 style={{ height: 200, width: '100%' }}
               />
               <View style={styles.timePickerActions}>
@@ -541,7 +543,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   }
                 }}
                 is24Hour={false}
-                minuteInterval={5}
+                minuteInterval={TIME_MINUTE_INTERVAL}
                 style={{ height: 200, width: '100%' }}
               />
               <View style={styles.timePickerActions}>
@@ -869,7 +871,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={onRsvpDateChange}
             minimumDate={new Date()}
-            minuteInterval={5}
+            minuteInterval={TIME_MINUTE_INTERVAL}
           />
         )}
         {showRsvpTimePicker && Platform.OS === 'android' && (
@@ -878,7 +880,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             mode="time"
             display="default"
             onChange={onRsvpTimeChange}
-            minuteInterval={5}
+            minuteInterval={TIME_MINUTE_INTERVAL}
           />
         )}
       </View>
