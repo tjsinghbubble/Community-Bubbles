@@ -178,13 +178,14 @@ function PrimaryBtn({ label, disabled, onClick, testId }: { label: string; disab
     <button
       disabled={disabled}
       onClick={onClick}
-      className="w-full font-semibold text-white transition-opacity"
+      className="w-full font-semibold transition-opacity"
       style={{
         height: DS.button.height,
         borderRadius: DS.radius.full,
-        backgroundColor: DS.color.brand.primary,
+        background: `linear-gradient(135deg, ${DS.color.brand.primary}, #FFFFFF)`,
         fontSize: DS.font.md,
         letterSpacing: DS.ls.tight,
+        color: DS.color.text.primary,
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
@@ -635,12 +636,13 @@ function StepRules({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => 
               <button
                 onClick={saveRule}
                 disabled={!ruleText.trim()}
-                className="flex-1 font-semibold text-white"
+                className="flex-1 font-semibold"
                 style={{
                   height: DS.button.height,
                   borderRadius: DS.radius.full,
-                  backgroundColor: DS.color.brand.primary,
+                  background: `linear-gradient(135deg, ${DS.color.brand.primary}, #FFFFFF)`,
                   fontSize: DS.font.md,
+                  color: DS.color.text.primary,
                   opacity: ruleText.trim() ? 1 : 0.5,
                 }}
                 data-testid="button-rule-save"
