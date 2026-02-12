@@ -19,13 +19,14 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -741,28 +742,54 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const renderSuccessScreen = () => (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
-      <ScrollView contentContainerStyle={styles.successContainer}>
-        <View style={styles.successCheckCircle}>
-          <Ionicons name="checkmark" size={48} color={Colors.brand.skyWhite} />
-        </View>
-        <Text style={styles.successTitle}>Event Created!</Text>
-        <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => {
-            if (createdEvent?.id) {
-              navigation.navigate('EventDetails', { eventId: createdEvent.id });
-            } else {
-              navigation.goBack();
-            }
-          }}
-        >
-          <Text style={styles.primaryButtonText}>View Event</Text>
-        </TouchableOpacity>
-        <View style={styles.successCardWrapper}>
-          {renderEventCard()}
-        </View>
+      {renderHeader()}
+      <View style={styles.stepIndicatorBar}>
+        <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
+        <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
+        <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
+        <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
+      </View>
+      <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
+        {renderEventCard()}
       </ScrollView>
+      <View style={styles.bottomButtonContainer}>
+        <TouchableOpacity style={styles.publishButton} disabled>
+          <View style={styles.publishButtonContent}>
+            <Ionicons name="checkmark" size={20} color={Colors.brand.skyWhite} style={{ marginRight: 8 }} />
+            <Text style={styles.publishButtonText}>Publish Event</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+      <Modal visible={showSuccess} transparent animationType="fade">
+        <View style={styles.successOverlay}>
+          <View style={styles.successModal}>
+            <View style={styles.successCheckCircle}>
+              <Ionicons name="checkmark" size={48} color={Colors.brand.skyWhite} />
+            </View>
+            <Text style={styles.successTitle}>Event Created!</Text>
+            <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (createdEvent?.id) {
+                  navigation.navigate('EventDetails', { eventId: createdEvent.id });
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              style={{ width: '100%' }}
+            >
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={styles.successViewButton}
+              >
+                <Text style={styles.successViewButtonText}>View Event</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 
@@ -836,17 +863,30 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         {step === 4 && renderStep4()}
 
         <View style={styles.bottomButtonContainer}>
-          <TouchableOpacity
-            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
-            onPress={step === 4 ? handlePublish : handleNext}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={Colors.brand.skyWhite} />
-            ) : (
+          {step === 4 ? (
+            <TouchableOpacity
+              style={[styles.publishButton, loading && styles.primaryButtonDisabled]}
+              onPress={handlePublish}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={Colors.brand.skyWhite} />
+              ) : (
+                <View style={styles.publishButtonContent}>
+                  <Ionicons name="checkmark" size={20} color={Colors.brand.skyWhite} style={{ marginRight: 8 }} />
+                  <Text style={styles.publishButtonText}>Publish Event</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+              onPress={handleNext}
+              disabled={loading}
+            >
               <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -1115,6 +1155,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  publishButton: {
+    backgroundColor: Colors.state.success,
+    borderRadius: Radius.full,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publishButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publishButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
+  },
   primaryButtonDisabled: {
     opacity: 0.6,
   },
@@ -1173,11 +1230,35 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
     flex: 1,
   },
-  successContainer: {
-    flexGrow: 1,
+  stepIndicatorBar: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 4,
+    paddingVertical: 8,
+  },
+  stepIndicatorSegment: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.neutral.coolMist,
+  },
+  stepIndicatorActive: {
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    paddingTop: 60,
+  },
+  successModal: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
   },
   successCheckCircle: {
     width: 80,
@@ -1197,12 +1278,21 @@ const styles = StyleSheet.create({
   successSubtitle: {
     fontSize: 16,
     color: Colors.neutral.coolMist,
-    marginBottom: 32,
+    marginBottom: 24,
     textAlign: 'center',
+    lineHeight: 22,
   },
-  successCardWrapper: {
+  successViewButton: {
+    borderRadius: Radius.full,
+    paddingVertical: 14,
+    paddingHorizontal: 48,
     width: '100%',
-    marginTop: 24,
+    alignItems: 'center',
+  },
+  successViewButtonText: {
+    color: Colors.neutral.charcoal,
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

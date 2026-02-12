@@ -21,8 +21,8 @@ export const Colors = {
   },
 
   gradient: {
-    gradient2Start: '#A8D8F7',
-    gradient2End: '#35A8F7',
+    gradient2Start: '#35A8F7',
+    gradient2End: '#FFFFFF',
   },
 };
 
@@ -35,7 +35,7 @@ export const Gradients = {
   alert: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
     start: { x: 0, y: 0 },
-    end: { x: 1, y: 0 },
+    end: { x: 1, y: 1 },
   },
 };
 
@@ -194,7 +194,7 @@ export const ButtonTextStyles = StyleSheet.create({
   primaryGradient: {
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.skyWhite,
+    color: Colors.neutral.charcoal,
   },
   secondary: {
     fontSize: Typography.sizes.lg,
