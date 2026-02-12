@@ -294,28 +294,33 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepCategory = () => {
-    const colWidth = (SCREEN_WIDTH - (Spacing.xl * 2) - (Spacing.md * 2)) / 3;
+    const gridPadding = Spacing.lg;
+    const gap = Spacing.sm;
+    const colWidth = (SCREEN_WIDTH - (gridPadding * 2) - (gap * 2)) / 3;
     return (
       <View style={styles.formSection}>
         <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
-        <View style={styles.categoryGrid}>
+        <View style={[styles.categoryGrid, { paddingHorizontal: 0 }]}>
           {CATEGORIES.map((cat) => {
             const selected = category === cat.label;
             return (
               <TouchableOpacity
                 key={cat.label}
-                style={[styles.categoryCard, { width: colWidth }, selected && styles.categoryCardSelected]}
+                style={[styles.categoryCard, { width: colWidth }]}
                 onPress={() => setCategory(selected ? '' : cat.label)}
                 activeOpacity={0.8}
               >
-                <Image source={cat.image} style={[styles.categoryImage, { width: colWidth, height: colWidth * 0.75 }]} />
-                {selected && (
-                  <View style={styles.categoryCheckOverlay}>
-                    <View style={styles.categoryCheck}>
-                      <Ionicons name="checkmark" size={14} color={Colors.background.primary} />
+                <View style={{ position: 'relative' }}>
+                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: colWidth, height: colWidth }]} />
+                  {selected && (
+                    <View style={styles.categoryCheckOverlay}>
+                      <View style={styles.categoryCheck}>
+                        <Ionicons name="checkmark" size={14} color={Colors.background.primary} />
+                      </View>
                     </View>
-                  </View>
-                )}
+                  )}
+                  {selected && <View style={styles.categoryImageSelectedBorder} />}
+                </View>
                 <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
               </TouchableOpacity>
             );
@@ -753,7 +758,7 @@ const styles = StyleSheet.create({
   },
   progressSegment: {
     flex: 1,
-    height: Spacing.xs,
+    height: 2,
     borderRadius: Radius.full,
     backgroundColor: Colors.border.light,
   },
@@ -819,21 +824,23 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   categoryCard: {
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-    backgroundColor: Colors.background.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryCardSelected: {
-    borderColor: Colors.brand.primary,
+    alignItems: 'center',
   },
   categoryImage: {
-    borderTopLeftRadius: Radius.md - 2,
-    borderTopRightRadius: Radius.md - 2,
+    borderRadius: Radius.md,
+  },
+  categoryImageSelectedBorder: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: Radius.md,
+    borderWidth: 2.5,
+    borderColor: Colors.brand.primary,
   },
   categoryCheckOverlay: {
     position: 'absolute',
@@ -849,12 +856,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   categoryLabel: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
     color: Colors.text.secondary,
     textAlign: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   categoryLabelSelected: {
     color: Colors.brand.primary,
