@@ -294,9 +294,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepCategory = () => {
-    const gridPadding = Spacing.lg;
+    const sectionPadding = Spacing.xl;
     const gap = Spacing.sm;
-    const colWidth = (SCREEN_WIDTH - (gridPadding * 2) - (gap * 2)) / 3;
+    const colWidth = (SCREEN_WIDTH - (sectionPadding * 2) - (gap * 2)) / 3;
     return (
       <View style={styles.formSection}>
         <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
