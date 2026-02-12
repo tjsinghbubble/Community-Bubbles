@@ -136,6 +136,13 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         const preselected = data.find(b => b.id === routeParams.bubbleId);
         if (preselected) {
           setSelectedBubble(preselected);
+        } else {
+          setSelectedBubble({
+            id: routeParams.bubbleId,
+            title: routeParams.bubbleTitle || 'Selected Bubble',
+            category: '',
+            coverImage: null,
+          });
         }
       }
     } catch (error) {
@@ -462,7 +469,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           )}
         </View>
         <View style={styles.timeField}>
-          <Text style={styles.fieldLabel}>End Time *</Text>
+          <Text style={styles.fieldLabel}>End Time</Text>
           <TouchableOpacity style={styles.fieldInput} onPress={() => setShowEndTimePicker(true)}>
             <Text style={endTime ? styles.fieldValue : styles.fieldPlaceholder}>
               {endTime ? formatTimeForDisplay(endTime) : '00:00'}
@@ -497,18 +504,23 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
       {recurringEnabled && (
         <View style={styles.recurrenceContainer}>
-          {RECURRENCE_OPTIONS.filter(o => o.value !== 'never').map((option, idx) => (
+          {RECURRENCE_OPTIONS.map((option, idx) => (
             <React.Fragment key={option.value}>
               <TouchableOpacity
                 style={styles.recurrenceOption}
-                onPress={() => setRecurrenceType(option.value)}
+                onPress={() => {
+                  setRecurrenceType(option.value);
+                  if (option.value === 'never') {
+                    setRecurringEnabled(false);
+                  }
+                }}
               >
                 <Text style={styles.recurrenceOptionText}>{option.label}</Text>
                 {recurrenceType === option.value && (
                   <Ionicons name="checkmark" size={20} color="#2196F3" />
                 )}
               </TouchableOpacity>
-              {idx < RECURRENCE_OPTIONS.filter(o => o.value !== 'never').length - 1 && (
+              {idx < RECURRENCE_OPTIONS.length - 1 && (
                 <View style={styles.recurrenceDivider} />
               )}
             </React.Fragment>
@@ -619,6 +631,29 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           </View>
         </TouchableOpacity>
       ))}
+
+      {selectedBubble?.campusId ? (
+        <View style={styles.campusInfoBanner}>
+          <Text style={styles.campusInfoIcon}>🎓</Text>
+          <View style={styles.campusInfoContent}>
+            <Text style={styles.campusInfoTitle}>Campus Only Event</Text>
+            <Text style={styles.campusInfoDescription}>This event will only be visible to students from the bubble's campus</Text>
+          </View>
+        </View>
+      ) : isCampusVerified ? (
+        <View style={styles.toggleRow}>
+          <View style={styles.campusToggleLeft}>
+            <Text style={styles.campusInfoIcon}>🎓</Text>
+            <Text style={styles.toggleLabel}>Campus Only</Text>
+          </View>
+          <Switch
+            value={campusOnly}
+            onValueChange={setCampusOnly}
+            trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
+            thumbColor={campusOnly ? '#2196F3' : '#f4f3f4'}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.divider} />
 
@@ -1242,5 +1277,38 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  campusInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'hsl(210, 95%, 95%)',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'hsl(210, 95%, 85%)',
+    gap: 10,
+    marginTop: 12,
+  },
+  campusInfoIcon: {
+    fontSize: 18,
+  },
+  campusInfoContent: {
+    flex: 1,
+    gap: 4,
+  },
+  campusInfoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  campusInfoDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+  },
+  campusToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });
