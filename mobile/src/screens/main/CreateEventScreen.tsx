@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -86,6 +86,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const [campusOnly, setCampusOnly] = useState(false);
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
+  const step3ScrollRef = useRef<ScrollView>(null);
+  const rsvpSectionY = useRef(0);
 
   const [myBubbles, setMyBubbles] = useState<Bubble[]>([]);
   const [showBubblePicker, setShowBubblePicker] = useState(false);
@@ -768,7 +770,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   );
 
   const renderStep3 = () => (
-    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
+    <ScrollView ref={step3ScrollRef} style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
       <Text style={styles.sectionTitle}>Who Can See This Event? *</Text>
       {VISIBILITY_OPTIONS.map((option) => (
         <TouchableOpacity
@@ -853,11 +855,19 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         />
       </View>
 
-      <View style={styles.fieldGroup}>
+      <View
+        style={styles.fieldGroup}
+        onLayout={(e) => { rsvpSectionY.current = e.nativeEvent.layout.y; }}
+      >
         <Text style={styles.fieldLabel}>RSVP Deadline</Text>
         <TouchableOpacity
           style={styles.fieldInput}
-          onPress={() => setShowRsvpDatePicker(true)}
+          onPress={() => {
+            setShowRsvpDatePicker(true);
+            setTimeout(() => {
+              step3ScrollRef.current?.scrollTo({ y: rsvpSectionY.current - 40, animated: true });
+            }, 100);
+          }}
         >
           <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
             {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}

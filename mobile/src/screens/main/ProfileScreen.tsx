@@ -136,7 +136,7 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 175</Text>
+          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 180</Text>
         </View>
 
         <View style={styles.section}>
