@@ -62,13 +62,13 @@ export const Colors = {
 export const Gradients = {
   button: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0, y: 0 },
-    end: { x: 1, y: 1 },
+    start: { x: 0.2, y: 0 },
+    end: { x: 0.8, y: 1 },
   },
   alert: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0, y: 0 },
-    end: { x: 1, y: 1 },
+    start: { x: 0.2, y: 0 },
+    end: { x: 0.8, y: 1 },
   },
 };
 
