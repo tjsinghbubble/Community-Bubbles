@@ -340,24 +340,24 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
               className="relative overflow-hidden text-center"
               style={{
                 borderRadius: DS.radius.md,
-                backgroundColor: DS.color.bg.surface,
                 border: `2px solid ${sel ? DS.color.brand.primary : "transparent"}`,
               }}
               onClick={() => setDraft({ ...draft, category: sel ? "" : cat.label })}
               data-testid={`category-${cat.label.toLowerCase().replace(/[&\s]+/g, "-")}`}
             >
-              <img src={cat.image} alt={cat.label} className="aspect-[4/3] w-full object-cover" />
+              <img src={cat.image} alt={cat.label} className="aspect-square w-full object-cover" />
               {sel && (
                 <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full" style={{ backgroundColor: DS.color.brand.primary }}>
                   <Check className="h-3 w-3 text-white" />
                 </div>
               )}
               <div
-                className="py-2 px-1"
+                className="absolute inset-x-0 bottom-0 px-1 py-1.5"
                 style={{
+                  background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)",
                   fontSize: DS.font.sm,
                   fontWeight: sel ? 600 : 500,
-                  color: sel ? DS.color.brand.primary : DS.color.text.secondary,
+                  color: "#FFFFFF",
                 }}
               >
                 {cat.label}
