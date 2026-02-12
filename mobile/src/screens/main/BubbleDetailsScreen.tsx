@@ -9,6 +9,11 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
+  Platform,
+  StatusBar,
+  Share,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -20,7 +25,7 @@ import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -39,6 +44,12 @@ type Event = {
   creatorId: string;
 };
 
+const MOCK_ATTACHMENTS = [
+  'Google sheet for equipment',
+  'Tournament schedule',
+  'Score sheet',
+];
+
 export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
   const { user } = useAuth();
@@ -50,6 +61,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [bubbleDetails, setBubbleDetails] = useState<any>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
+  const [activeTab, setActiveTab] = useState<'Details' | 'Events'>('Details');
+  const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
 
   useEffect(() => {
     checkMembership();
@@ -66,7 +81,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const details = await apiService.getBubble(bubble.id);
       setBubbleDetails(details);
-      
       apiService.trackBubbleVisit(bubble.id).catch(() => {});
     } catch (error) {
       console.error('Failed to fetch bubble details:', error);
@@ -97,7 +111,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const handleJoinLeave = async () => {
     if (!user) return;
-    
     setIsJoining(true);
     try {
       if (isMember) {
@@ -156,9 +169,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const canCreateEvent = !!user;
 
   const handleViewMembers = () => {
-    navigation.navigate('BubbleMembers' as any, { 
-      bubbleId: bubble.id, 
-      bubbleTitle: bubble.title 
+    navigation.navigate('BubbleMembers' as any, {
+      bubbleId: bubble.id,
+      bubbleTitle: bubble.title,
     });
   };
 
@@ -172,21 +185,21 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       'Are you sure you want to delete this bubble? This action cannot be undone and will also delete all events in this bubble.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
               await apiService.deleteBubble(bubble.id);
-              setSuccessModalConfig({ 
-                title: 'Bubble Deleted', 
-                subtitle: 'The bubble has been successfully deleted' 
+              setSuccessModalConfig({
+                title: 'Bubble Deleted',
+                subtitle: 'The bubble has been successfully deleted',
               });
               setShowSuccessModal(true);
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete bubble');
             }
-          }
+          },
         },
       ]
     );
@@ -209,196 +222,341 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
+  const handleShareBubble = async () => {
+    setShowKebabMenu(false);
+    try {
+      await Share.share({
+        message: `Check out "${bubble.title}" on Bubble!`,
+      });
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  };
+
+  const handleDirectMessage = () => {
+    setShowKebabMenu(false);
+  };
+
+  const handleReportConcern = () => {
+    setShowKebabMenu(false);
+    Alert.alert('Report', 'Thank you for your report. We will review this bubble.');
+  };
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+        <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
+      <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>
+        <Ionicons name="ellipsis-vertical" size={22} color={Colors.text.primary} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderKebabMenu = () => (
+    <Modal
+      visible={showKebabMenu}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowKebabMenu(false)}
+    >
+      <TouchableOpacity
+        style={styles.kebabOverlay}
+        activeOpacity={1}
+        onPress={() => setShowKebabMenu(false)}
+      >
+        <View style={styles.kebabDropdown}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
+            <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
+            <Text style={styles.kebabItemText}>Share Bubble</Text>
+          </TouchableOpacity>
+          <View style={styles.kebabSeparator} />
+          <TouchableOpacity style={styles.kebabItem} onPress={handleDirectMessage}>
+            <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
+            <Text style={styles.kebabItemText}>Direct Message</Text>
+          </TouchableOpacity>
+          <View style={styles.kebabSeparator} />
+          <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
+            <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
+            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a concern</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
+  const renderTabs = () => (
+    <View style={styles.tabBar}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'Details' && styles.tabActive]}
+        onPress={() => setActiveTab('Details')}
+      >
+        <Text style={[styles.tabText, activeTab === 'Details' && styles.tabTextActive]}>Details</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === 'Events' && styles.tabActive]}
+        onPress={() => setActiveTab('Events')}
+      >
+        <Text style={[styles.tabText, activeTab === 'Events' && styles.tabTextActive]}>Events</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderCoverPhoto = () => (
+    <View>
+      <View style={styles.coverPhotoContainer}>
         <ImageCarousel
           images={bubbleDetails?.images || (bubble.image ? [bubble.image] : [])}
-          height={200}
+          height={220}
           fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
         />
-        
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
+        <TouchableOpacity style={styles.cameraButton}>
+          <Ionicons name="camera" size={18} color={Colors.background.primary} />
         </TouchableOpacity>
-
-        {canManage && (
-          <TouchableOpacity 
-            style={styles.optionsButton}
-            onPress={showAdminOptions}
-          >
-            <Ionicons name="ellipsis-horizontal" size={24} color={Colors.neutral.charcoal} />
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.content}>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{bubble.category}</Text>
-          </View>
-          
-          <Text style={styles.title}>{bubble.title}</Text>
-          <Text style={styles.description}>
-            {bubble.description || 'Join us to connect with amazing people in your area who share your interests!'}
-          </Text>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Upcoming Events</Text>
-              {canCreateEvent && (
-                <TouchableOpacity
-                  style={styles.createEventButton}
-                  onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-                >
-                  <Ionicons name="add" size={22} color={Colors.brand.bubbleBlue} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {eventsLoading ? (
-              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
-            ) : events.length === 0 ? (
-              <View style={styles.noEvents}>
-                <Ionicons name="calendar-outline" size={32} color={Colors.neutral.coolMist} />
-                <Text style={styles.noEventsText}>No upcoming events</Text>
-                {isCreator && (
-                  <Text style={styles.noEventsSubtext}>Create the first event for this bubble!</Text>
-                )}
-              </View>
-            ) : (
-              <View style={styles.eventsList}>
-                {events.slice(0, 2).map((event) => (
-                  <TouchableOpacity
-                    key={event.id}
-                    style={styles.eventCard}
-                    onPress={() => handleEventPress(event)}
-                  >
-                    <View style={styles.eventDateBox}>
-                      <Text style={styles.eventDateDay}>
-                        {new Date(event.date + 'T00:00:00').getDate()}
-                      </Text>
-                      <Text style={styles.eventDateMonth}>
-                        {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                      </Text>
-                    </View>
-                    <Image
-                      source={{
-                        uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
-                      }}
-                      style={styles.eventImage}
-                    />
-                    <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-                      <View style={styles.eventMeta}>
-                        <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
-                        <Text style={styles.eventMetaText}>
-                          {formatTime(event.startTime)}
-                        </Text>
-                      </View>
-                      {event.locationName && (
-                        <View style={styles.eventMeta}>
-                          <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
-                          <Text style={styles.eventMetaText} numberOfLines={1}>
-                            {event.locationName}
-                          </Text>
-                        </View>
-                      )}
-                      {event.attendeeLimit && (
-                        <View style={styles.eventMeta}>
-                          <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
-                          <Text style={styles.eventMetaText}>
-                            Max {event.attendeeLimit}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} style={styles.eventChevron} />
-                  </TouchableOpacity>
-                ))}
-                {events.length > 2 && (
-                  <TouchableOpacity 
-                    style={styles.viewAllButton}
-                    onPress={() => navigation.navigate('BubbleEvents' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-                  >
-                    <Text style={styles.viewAllText}>Show all {events.length} events</Text>
-                    <Ionicons name="arrow-forward" size={16} color={Colors.brand.bubbleBlue} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Members ({bubble.members || 0})</Text>
-              {canManage && (
-                <TouchableOpacity style={styles.showAllLink} onPress={handleViewMembers}>
-                  <Text style={styles.showAllLinkText}>Show all</Text>
-                  <Ionicons name="arrow-forward" size={14} color={Colors.brand.bubbleBlue} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <View style={styles.adminsList}>
-              <View style={styles.adminRow}>
-                <View style={styles.adminAvatar}>
-                  <Ionicons name="person" size={20} color={Colors.brand.skyWhite} />
-                </View>
-                <View style={styles.adminInfo}>
-                  <Text style={styles.adminName}>Bubble Creator</Text>
-                  <Text style={styles.adminRole}>Admin</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Community Guidelines</Text>
-            <View style={styles.rules}>
-              <Text style={styles.rule}>• Be respectful to all members</Text>
-              <Text style={styles.rule}>• No spam or self-promotion</Text>
-              <Text style={styles.rule}>• Keep discussions on topic</Text>
-              <Text style={styles.rule}>• Have fun and make connections!</Text>
-            </View>
-          </View>
+      </View>
+      <Text style={styles.tagline}>
+        {bubble.tagline || bubble.category || 'Community Bubble'}
+      </Text>
+      {isMember && (
+        <View style={styles.activeMemberRow}>
+          <View style={styles.greenDot} />
+          <Text style={styles.activeMemberText}>Active Member</Text>
         </View>
-      </ScrollView>
+      )}
+    </View>
+  );
 
+  const renderSeparator = () => (
+    <View style={styles.separator} />
+  );
+
+  const renderBulletinBoard = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={styles.sectionHeading}>Bulletin Board</Text>
+        <TouchableOpacity>
+          <Text style={styles.linkText}>view all {'>'}</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.bulletinCard}>
+        <Text style={styles.pinIcon}>📌</Text>
+        <Text style={styles.bulletinTitle}>Welcome to {bubble.title}!</Text>
+        <Text style={styles.bulletinBody}>
+          Thanks for joining our community. Please read the guidelines and introduce yourself. We're excited to have you here!
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderAboutSection = () => (
+    <View style={styles.section}>
+      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAboutExpanded(!aboutExpanded)}>
+        <Text style={styles.sectionHeading}>About</Text>
+        <Ionicons
+          name={aboutExpanded ? 'chevron-up' : 'chevron-down'}
+          size={22}
+          color={Colors.text.primary}
+        />
+      </TouchableOpacity>
+      {aboutExpanded && (
+        <Text style={styles.bodyText}>
+          {bubble.description || bubbleDetails?.description || 'Join us to connect with amazing people in your area who share your interests!'}
+        </Text>
+      )}
+    </View>
+  );
+
+  const renderAttachmentsSection = () => (
+    <View style={styles.section}>
+      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
+        <Text style={styles.sectionHeading}>Attachments</Text>
+        <Ionicons
+          name={attachmentsExpanded ? 'chevron-up' : 'chevron-down'}
+          size={22}
+          color={Colors.text.primary}
+        />
+      </TouchableOpacity>
+      {attachmentsExpanded && (
+        <View>
+          {MOCK_ATTACHMENTS.map((item, index) => (
+            <View key={index} style={styles.attachmentItem}>
+              <Ionicons name="attach" size={18} color={Colors.text.tertiary} />
+              <Text style={styles.attachmentText}>{item}</Text>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton}>
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderMembersRow = () => (
+    <View style={styles.section}>
+      <View style={styles.sectionHeaderRow}>
+        <View style={styles.membersLeft}>
+          <Ionicons name="people-outline" size={20} color={Colors.text.primary} />
+          <Text style={styles.membersCount}>{bubble.members || 0}</Text>
+          <Text style={styles.membersLabel}>Members</Text>
+        </View>
+        <TouchableOpacity onPress={handleViewMembers}>
+          <Text style={styles.linkText}>view {'>'}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderJoinLeaveButton = () => {
+    if (isLoading) return null;
+
+    if (isMember) {
+      return (
+        <TouchableOpacity
+          style={styles.leaveButton}
+          onPress={handleJoinLeave}
+          disabled={isJoining}
+        >
+          {isJoining ? (
+            <ActivityIndicator color={Colors.status.error} size="small" />
+          ) : (
+            <Text style={styles.leaveButtonText}>Leave Bubble</Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    return (
       <TouchableOpacity
-        style={[styles.fab, isMember && styles.fabLeave]}
+        style={styles.joinButton}
         onPress={handleJoinLeave}
         disabled={isJoining}
       >
-        {!isMember && (
-          <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={StyleSheet.absoluteFillObject}
-          />
-        )}
+        <LinearGradient
+          colors={Gradients.button.colors as unknown as string[]}
+          start={Gradients.button.start}
+          end={Gradients.button.end}
+          style={StyleSheet.absoluteFillObject}
+        />
         {isJoining ? (
-          <ActivityIndicator color={isMember ? Colors.brand.skyWhite : Colors.neutral.charcoal} size="small" />
+          <ActivityIndicator color={Colors.text.primary} size="small" />
         ) : (
-          <>
-            <Ionicons 
-              name={isMember ? "exit-outline" : "add"} 
-              size={22} 
-              color={isMember ? Colors.brand.skyWhite : Colors.neutral.charcoal} 
-            />
-            <Text style={isMember ? styles.fabText : styles.fabTextJoin}>
-              {isMember ? 'Leave' : 'Join'}
-            </Text>
-          </>
+          <Text style={styles.joinButtonText}>Join Bubble</Text>
         )}
       </TouchableOpacity>
+    );
+  };
 
+  const renderDetailsTab = () => (
+    <View>
+      {renderCoverPhoto()}
+      {renderSeparator()}
+      {renderBulletinBoard()}
+      {renderSeparator()}
+      {renderAboutSection()}
+      {renderSeparator()}
+      {renderAttachmentsSection()}
+      {renderSeparator()}
+      {renderMembersRow()}
+      {renderSeparator()}
+      <View style={styles.section}>
+        {renderJoinLeaveButton()}
+      </View>
+    </View>
+  );
+
+  const renderEventsTab = () => (
+    <View style={styles.section}>
+      {canCreateEvent && (
+        <TouchableOpacity
+          style={styles.createEventRow}
+          onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={Colors.brand.primary} />
+          <Text style={styles.createEventText}>Create Event</Text>
+        </TouchableOpacity>
+      )}
+      {eventsLoading ? (
+        <ActivityIndicator size="small" color={Colors.brand.primary} style={{ marginTop: Spacing.xl }} />
+      ) : events.length === 0 ? (
+        <View style={styles.noEvents}>
+          <Ionicons name="calendar-outline" size={32} color={Colors.text.tertiary} />
+          <Text style={styles.noEventsText}>No upcoming events</Text>
+        </View>
+      ) : (
+        <View style={styles.eventsList}>
+          {events.map((event) => (
+            <TouchableOpacity
+              key={event.id}
+              style={styles.eventCard}
+              onPress={() => handleEventPress(event)}
+            >
+              <View style={styles.eventDateBox}>
+                <Text style={styles.eventDateDay}>
+                  {new Date(event.date + 'T00:00:00').getDate()}
+                </Text>
+                <Text style={styles.eventDateMonth}>
+                  {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
+                </Text>
+              </View>
+              <Image
+                source={{
+                  uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+                }}
+                style={styles.eventImage}
+              />
+              <View style={styles.eventInfo}>
+                <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                <View style={styles.eventMeta}>
+                  <Ionicons name="time-outline" size={12} color={Colors.text.tertiary} />
+                  <Text style={styles.eventMetaText}>{formatTime(event.startTime)}</Text>
+                </View>
+                {event.locationName && (
+                  <View style={styles.eventMeta}>
+                    <Ionicons name="location-outline" size={12} color={Colors.text.tertiary} />
+                    <Text style={styles.eventMetaText} numberOfLines={1}>{event.locationName}</Text>
+                  </View>
+                )}
+                {event.attendeeLimit && (
+                  <View style={styles.eventMeta}>
+                    <Ionicons name="people-outline" size={12} color={Colors.text.tertiary} />
+                    <Text style={styles.eventMetaText}>Max {event.attendeeLimit}</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} style={{ marginRight: Spacing.md }} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      {renderHeader()}
+      {renderTabs()}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {activeTab === 'Details' ? renderDetailsTab() : renderEventsTab()}
+      </ScrollView>
+      {renderKebabMenu()}
       <SuccessModal
         visible={showSuccessModal}
         title={successModalConfig.title}
         subtitle={successModalConfig.subtitle}
-        onClose={() => setShowSuccessModal(false)}
+        onClose={handleSuccessModalClose}
       />
     </SafeAreaView>
   );
@@ -407,120 +565,292 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
   },
-  coverImage: {
-    width: '100%',
-    height: 250,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  headerButton: {
     width: 40,
     height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  optionsButton: {
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: Colors.brand.primary,
+  },
+  tabText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
+  },
+  tabTextActive: {
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xxxl,
+  },
+  coverPhotoContainer: {
+    position: 'relative',
+  },
+  cameraButton: {
     position: 'absolute',
-    top: 50,
-    right: 16,
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  content: {
-    padding: 20,
-    paddingBottom: 80,
+  tagline: {
+    textAlign: 'center',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.primary,
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.xl,
   },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 12,
+  activeMemberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'hsl(210, 95%, 45%)',
+  greenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.status.success,
+    marginRight: Spacing.xs,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.neutral.charcoal,
-    marginBottom: 8,
+  activeMemberText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+    marginHorizontal: Spacing.xl,
+    marginVertical: Spacing.lg,
   },
   section: {
-    marginBottom: 24,
+    paddingHorizontal: Spacing.xl,
   },
-  sectionHeader: {
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: Spacing.md,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
+  sectionHeading: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
   },
-  createEventButton: {
-    padding: 4,
+  linkText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.brand.primary,
   },
-  description: {
-    fontSize: 15,
-    color: Colors.neutral.charcoal,
-    marginBottom: 24,
-    lineHeight: 24,
+  bulletinCard: {
+    backgroundColor: Colors.background.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    position: 'relative',
+  },
+  pinIcon: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    fontSize: 16,
+  },
+  bulletinTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.xs,
+  },
+  bulletinBody: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    lineHeight: 18,
+  },
+  bodyText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: 20,
+  },
+  attachmentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  attachmentText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.brand.primary,
+    textDecorationLine: 'underline',
+  },
+  addButton: {
+    marginTop: Spacing.xs,
+  },
+  addButtonText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.medium,
+  },
+  membersLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  membersCount: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  membersLabel: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+  },
+  leaveButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.status.error,
+    borderRadius: Radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.sm,
+  },
+  leaveButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.error,
+  },
+  joinButton: {
+    borderRadius: Radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginTop: Spacing.sm,
+  },
+  joinButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  kebabOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  kebabDropdown: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    right: Spacing.lg,
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  kebabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  kebabItemText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+  },
+  kebabSeparator: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+    marginHorizontal: Spacing.lg,
+  },
+  createEventRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  createEventText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.medium,
   },
   noEvents: {
     alignItems: 'center',
-    paddingVertical: 24,
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: 12,
+    paddingVertical: Spacing.xxl,
   },
   noEventsText: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
-    marginTop: 8,
-  },
-  noEventsSubtext: {
-    fontSize: 12,
-    color: Colors.neutral.coolMist,
-    marginTop: 4,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginTop: Spacing.sm,
   },
   eventsList: {
-    gap: 12,
+    gap: Spacing.md,
   },
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: 12,
+    backgroundColor: Colors.background.surface,
+    borderRadius: Radius.md,
     overflow: 'hidden',
   },
   eventDateBox: {
     width: 50,
-    backgroundColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primary,
     paddingVertical: 10,
     alignItems: 'center',
   },
   eventDateDay: {
     fontSize: 20,
-    fontWeight: '700',
-    color: Colors.brand.skyWhite,
+    fontWeight: Typography.weights.bold,
+    color: Colors.background.primary,
   },
   eventDateMonth: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semiBold,
     color: 'rgba(255,255,255,0.9)',
   },
   eventImage: {
@@ -529,14 +859,14 @@ const styles = StyleSheet.create({
   },
   eventInfo: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
   eventTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 4,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.xs,
   },
   eventMeta: {
     flexDirection: 'row',
@@ -545,101 +875,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   eventMetaText: {
-    fontSize: 11,
-    color: Colors.neutral.coolMist,
-  },
-  eventChevron: {
-    marginRight: 12,
-  },
-  viewAllButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 12,
-  },
-  viewAllText: {
-    fontSize: 14,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
-  },
-  rules: {
-    gap: 8,
-  },
-  rule: {
-    fontSize: 14,
-    color: Colors.neutral.charcoal,
-    lineHeight: 22,
-  },
-  showAllLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  showAllLinkText: {
-    fontSize: 14,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '500',
-  },
-  adminsList: {
-    gap: 12,
-  },
-  adminRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
-    padding: 12,
-    borderRadius: 12,
-  },
-  adminAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.brand.bubbleBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminInfo: {
-    marginLeft: 12,
-  },
-  adminName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
-  adminRole: {
-    fontSize: 12,
-    color: Colors.neutral.coolMist,
-    marginTop: 2,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    borderRadius: 28,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    overflow: 'hidden',
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  fabLeave: {
-    backgroundColor: Colors.state.error,
-  },
-  fabText: {
-    color: Colors.brand.skyWhite,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  fabTextJoin: {
-    color: Colors.neutral.charcoal,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
   },
 });
