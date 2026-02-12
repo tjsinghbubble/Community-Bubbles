@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -553,7 +554,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                 style={styles.replyOption}
                 onPress={() => handleReply(message)}
               >
-                <Ionicons name="arrow-undo" size={20} color="#666" />
+                <Ionicons name="arrow-undo" size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
           </View>
@@ -566,7 +567,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="hsl(210, 95%, 55%)" />
+          <Ionicons name="arrow-back" size={24} color={Colors.brand.bubbleBlue} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
@@ -581,7 +582,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         <TouchableWithoutFeedback onPress={() => setShowReactionPicker(null)}>
           {isLoading ? (
             <View style={styles.loading}>
-              <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+              <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
             </View>
           ) : (
             <ScrollView
@@ -611,7 +612,7 @@ export default function ChatScreen({ navigation, route }: Props) {
               </Text>
             </View>
             <TouchableOpacity onPress={() => setReplyingTo(null)} style={styles.cancelReply}>
-              <Ionicons name="close" size={20} color="#666" />
+              <Ionicons name="close" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
         )}
@@ -623,15 +624,15 @@ export default function ChatScreen({ navigation, route }: Props) {
             disabled={isUploadingImage}
           >
             {isUploadingImage ? (
-              <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
+              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
             ) : (
-              <Ionicons name="add-circle" size={28} color="hsl(210, 95%, 55%)" />
+              <Ionicons name="add-circle" size={28} color={Colors.brand.bubbleBlue} />
             )}
           </TouchableOpacity>
           <TextInput
             style={styles.input}
             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.neutral.coolMist}
             value={newMessage}
             onChangeText={setNewMessage}
             multiline
@@ -643,9 +644,9 @@ export default function ChatScreen({ navigation, route }: Props) {
             disabled={!newMessage.trim() || isSending}
           >
             {isSending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
             ) : (
-              <Ionicons name="send" size={20} color="#fff" />
+              <Ionicons name="send" size={20} color={Colors.brand.skyWhite} />
             )}
           </TouchableOpacity>
         </View>
@@ -664,14 +665,14 @@ export default function ChatScreen({ navigation, route }: Props) {
                 <Text style={styles.attachmentModalTitle}>Share</Text>
                 <View style={styles.attachmentOptions}>
                   <TouchableOpacity style={styles.attachmentOption} onPress={takePhoto}>
-                    <View style={[styles.attachmentIcon, { backgroundColor: '#4CAF50' }]}>
-                      <Ionicons name="camera" size={24} color="#fff" />
+                    <View style={[styles.attachmentIcon, { backgroundColor: Colors.state.success }]}>
+                      <Ionicons name="camera" size={24} color={Colors.brand.skyWhite} />
                     </View>
                     <Text style={styles.attachmentLabel}>Camera</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.attachmentOption} onPress={pickImageFromGallery}>
                     <View style={[styles.attachmentIcon, { backgroundColor: '#9C27B0' }]}>
-                      <Ionicons name="images" size={24} color="#fff" />
+                      <Ionicons name="images" size={24} color={Colors.brand.skyWhite} />
                     </View>
                     <Text style={styles.attachmentLabel}>Gallery</Text>
                   </TouchableOpacity>
@@ -693,7 +694,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             style={styles.fullScreenCloseButton}
             onPress={() => setFullScreenImage(null)}
           >
-            <Ionicons name="close" size={28} color="#fff" />
+            <Ionicons name="close" size={28} color={Colors.brand.skyWhite} />
           </TouchableOpacity>
           {fullScreenImage && (
             <Image
@@ -711,15 +712,15 @@ export default function ChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -731,7 +732,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   keyboardView: {
     flex: 1,
@@ -757,11 +758,11 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#888',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
   },
   messageRow: {
@@ -780,12 +781,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   avatarPlaceholder: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitials: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -812,28 +813,28 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   ownBubble: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     borderBottomRightRadius: 4,
   },
   otherBubble: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Colors.neutral.coolMist,
   },
   messageText: {
     fontSize: 15,
     lineHeight: 20,
   },
   ownText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   otherText: {
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   messageTime: {
     fontSize: 11,
-    color: '#888',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
     marginLeft: 4,
   },
@@ -850,7 +851,7 @@ const styles = StyleSheet.create({
   },
   replyBar: {
     width: 3,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   replyContent: {
     flex: 1,
@@ -863,7 +864,7 @@ const styles = StyleSheet.create({
   },
   replyText: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   reactionsContainer: {
@@ -875,15 +876,15 @@ const styles = StyleSheet.create({
   reactionBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Colors.neutral.coolMist,
   },
   reactionBadgeActive: {
-    borderColor: 'hsl(210, 95%, 55%)',
+    borderColor: Colors.brand.bubbleBlue,
     backgroundColor: 'hsl(210, 95%, 97%)',
   },
   reactionEmoji: {
@@ -891,7 +892,7 @@ const styles = StyleSheet.create({
   },
   reactionCount: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginLeft: 4,
   },
   reactionPickerContainer: {
@@ -905,10 +906,10 @@ const styles = StyleSheet.create({
   },
   reactionPicker: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 24,
     padding: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
@@ -925,23 +926,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderLeftWidth: 1,
-    borderLeftColor: '#eee',
+    borderLeftColor: Colors.neutral.coolMist,
     marginLeft: 4,
     paddingLeft: 12,
   },
   replyingToBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   replyingToContent: {
     flex: 1,
     borderLeftWidth: 3,
-    borderLeftColor: 'hsl(210, 95%, 55%)',
+    borderLeftColor: Colors.brand.bubbleBlue,
     paddingLeft: 10,
   },
   replyingToLabel: {
@@ -951,7 +952,7 @@ const styles = StyleSheet.create({
   },
   replyingToText: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   cancelReply: {
@@ -961,32 +962,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     paddingRight: 16,
     fontSize: 16,
     maxHeight: 100,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
   },
   attachButton: {
     width: 44,
@@ -1011,7 +1012,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   attachmentModal: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -1020,7 +1021,7 @@ const styles = StyleSheet.create({
   attachmentModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -1042,11 +1043,11 @@ const styles = StyleSheet.create({
   },
   attachmentLabel: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   fullScreenImageContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: Colors.neutral.charcoal,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -105,12 +106,12 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
 
         <View style={styles.iconContainer}>
           <View style={styles.emailIcon}>
-            <Ionicons name="mail" size={48} color="hsl(210, 95%, 55%)" />
+            <Ionicons name="mail" size={48} color={Colors.brand.bubbleBlue} />
           </View>
         </View>
 
@@ -142,7 +143,7 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           disabled={!isCodeComplete || isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.brand.skyWhite} />
           ) : (
             <Text style={styles.verifyButtonText}>Verify</Text>
           )}
@@ -154,7 +155,7 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           disabled={resending}
         >
           {resending ? (
-            <ActivityIndicator color="hsl(210, 95%, 55%)" />
+            <ActivityIndicator color={Colors.brand.bubbleBlue} />
           ) : (
             <Text style={styles.resendButtonText}>Send new code</Text>
           )}
@@ -178,7 +179,7 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   content: {
     flex: 1,
@@ -205,13 +206,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     marginBottom: 32,
   },
@@ -225,29 +226,29 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     fontSize: 24,
     fontWeight: '600',
     textAlign: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   codeInputFilled: {
-    borderColor: 'hsl(210, 95%, 55%)',
-    backgroundColor: '#fff',
+    borderColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.skyWhite,
   },
   verifyButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
   },
   verifyButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendButtonText: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontSize: 14,
     fontWeight: '500',
   },

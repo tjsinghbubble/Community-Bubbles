@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import MultiImagePicker from '../../components/MultiImagePicker';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -102,7 +103,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Bubble</Text>
         <View style={styles.headerSpacer} />
@@ -119,7 +120,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <TextInput
               style={styles.input}
               placeholder="Give your bubble a name"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={title}
               onChangeText={setTitle}
               maxLength={50}
@@ -131,7 +132,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <TextInput
               style={styles.input}
               placeholder="A short description"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={tagline}
               onChangeText={setTagline}
               maxLength={100}
@@ -147,7 +148,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               <Text style={category ? styles.selectText : styles.selectPlaceholder}>
                 {category || 'Select a category'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
+              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -156,7 +157,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Tell people what this bubble is about..."
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={description}
               onChangeText={setDescription}
               multiline
@@ -173,7 +174,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="1. Be respectful&#10;2. No spam&#10;3. Stay on topic"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={rulesText}
               onChangeText={setRulesText}
               multiline
@@ -189,7 +190,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               onPress={() => setShowPrivacyPicker(true)}
             >
               <Text style={styles.selectText}>{privacy}</Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
+              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
             <Text style={styles.helperText}>
               {privacy === 'Public' 
@@ -216,7 +217,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             disabled={!isFormValid || loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
               <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
@@ -239,7 +240,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Category</Text>
               <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -259,7 +260,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                     {cat}
                   </Text>
                   {category === cat && (
-                    <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -283,7 +284,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Privacy</Text>
               <TouchableOpacity onPress={() => setShowPrivacyPicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
               </TouchableOpacity>
             </View>
             {PRIVACY_OPTIONS.map((option) => (
@@ -302,7 +303,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                   {option}
                 </Text>
                 {privacy === option && (
-                  <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
+                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
                 )}
               </TouchableOpacity>
             ))}
@@ -326,7 +327,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerSpacer: {
     width: 40,
@@ -363,45 +364,45 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
   },
   textArea: {
     minHeight: 100,
   },
   selectInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   selectText: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   selectPlaceholder: {
     fontSize: 16,
-    color: '#999',
+    color: Colors.neutral.coolMist,
   },
   helperText: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
   },
   saveButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -411,7 +412,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -421,7 +422,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   modalOption: {
     flexDirection: 'row',
@@ -444,14 +445,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   modalOptionSelected: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
 });

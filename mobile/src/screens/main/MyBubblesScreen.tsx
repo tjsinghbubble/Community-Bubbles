@@ -16,6 +16,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_GAP = 12;
@@ -114,7 +115,7 @@ export default function MyBubblesScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -125,7 +126,7 @@ export default function MyBubblesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Bubbles</Text>
         <TouchableOpacity style={styles.bellButton}>
-          <Ionicons name="notifications-outline" size={24} color="#333" />
+          <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
       </View>
 
@@ -136,7 +137,7 @@ export default function MyBubblesScreen() {
             Join some bubbles from the Explore tab or create your own!
           </Text>
           <TouchableOpacity style={styles.createFirstButton} onPress={handleCreateBubble}>
-            <Ionicons name="add" size={20} color="#fff" />
+            <Ionicons name="add" size={20} color={Colors.brand.skyWhite} />
             <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
           </TouchableOpacity>
         </View>
@@ -190,7 +191,7 @@ export default function MyBubblesScreen() {
         style={styles.fab}
         onPress={handleCreateBubble}
       >
-        <Ionicons name="add" size={28} color="#fff" />
+        <Ionicons name="add" size={28} color={Colors.brand.skyWhite} />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -199,7 +200,7 @@ export default function MyBubblesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loading: {
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   bellButton: {
     width: 40,
@@ -236,12 +237,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
     height: CARD_WIDTH * 0.85,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#eee',
+    backgroundColor: Colors.neutral.coolMist,
   },
   gridImage: {
     width: '100%',
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
   gridCategoryText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   gridPendingBadge: {
     position: 'absolute',
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
   gridPendingText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: Colors.state.error,
   },
   gridRejectedBadge: {
     position: 'absolute',
@@ -308,31 +309,31 @@ const styles = StyleSheet.create({
   gridRejectedText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: Colors.state.error,
   },
   gridTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginTop: 8,
   },
   gridRole: {
     fontSize: 13,
-    color: '#888',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   createFirstButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: Radius.full,
     marginTop: 20,
     gap: 8,
   },
   createFirstButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -343,10 +344,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

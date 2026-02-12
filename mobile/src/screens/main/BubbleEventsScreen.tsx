@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -111,14 +112,14 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
       <View style={styles.eventInfo}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.eventMeta}>
-          <Ionicons name="time-outline" size={12} color="#666" />
+          <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
           <Text style={styles.eventMetaText}>
             {formatTime(event.startTime)}
           </Text>
         </View>
         {event.locationName && (
           <View style={styles.eventMeta}>
-            <Ionicons name="location-outline" size={12} color="#666" />
+            <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
             <Text style={styles.eventMetaText} numberOfLines={1}>
               {event.locationName}
             </Text>
@@ -126,14 +127,14 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
         )}
         {event.attendeeLimit && (
           <View style={styles.eventMeta}>
-            <Ionicons name="people-outline" size={12} color="#666" />
+            <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
             <Text style={styles.eventMetaText}>
               Max {event.attendeeLimit}
             </Text>
           </View>
         )}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" style={styles.eventChevron} />
+      <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} style={styles.eventChevron} />
     </TouchableOpacity>
   );
 
@@ -142,12 +143,12 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Events</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -157,7 +158,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <View style={styles.headerTextContainer}>
           <Text style={styles.headerTitle}>Events</Text>
@@ -167,7 +168,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 
       {events.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="calendar-outline" size={48} color="#ccc" />
+          <Ionicons name="calendar-outline" size={48} color={Colors.neutral.coolMist} />
           <Text style={styles.emptyText}>No events yet</Text>
         </View>
       ) : (
@@ -182,7 +183,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 
       {canCreateEvent && (
         <TouchableOpacity style={styles.fab} onPress={handleCreateEvent}>
-          <Ionicons name="add" size={24} color="#fff" />
+          <Ionicons name="add" size={24} color={Colors.brand.skyWhite} />
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -192,14 +193,14 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     marginRight: 12,
@@ -210,11 +211,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   loadingContainer: {
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   listContent: {
     padding: 16,
@@ -239,7 +240,7 @@ const styles = StyleSheet.create({
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -247,12 +248,12 @@ const styles = StyleSheet.create({
     width: 50,
     padding: 8,
     alignItems: 'center',
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   eventDateDay: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   eventDateMonth: {
     fontSize: 10,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 2,
   },
   eventMeta: {
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
   },
   eventMetaText: {
     fontSize: 11,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   eventChevron: {
     marginRight: 12,
@@ -293,10 +294,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

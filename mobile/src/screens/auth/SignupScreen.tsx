@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -99,7 +100,7 @@ export default function SignupScreen({ navigation }: Props) {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#000" />
+            <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Sign up</Text>
           <View style={styles.headerSpacer} />
@@ -115,7 +116,7 @@ export default function SignupScreen({ navigation }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="Full Name"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.neutral.coolMist}
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -134,7 +135,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
+                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
 
@@ -147,7 +148,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
+                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
               <Text style={styles.helperText}>
                 To keep the community safe, we only allow members 18 and up.
@@ -159,7 +160,7 @@ export default function SignupScreen({ navigation }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="john.doe@gmail.com"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.neutral.coolMist}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -176,7 +177,7 @@ export default function SignupScreen({ navigation }: Props) {
               <TextInput
                 style={styles.input}
                 placeholder="Create a password"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.neutral.coolMist}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -192,7 +193,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!isFormValid || loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.brand.skyWhite} />
               ) : (
                 <Text style={styles.buttonText}>Continue</Text>
               )}
@@ -216,7 +217,7 @@ export default function SignupScreen({ navigation }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
               <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
             {GENDER_OPTIONS.map((option) => (
@@ -235,7 +236,7 @@ export default function SignupScreen({ navigation }: Props) {
                   {option}
                 </Text>
                 {gender === option && (
-                  <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
+                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
                 )}
               </TouchableOpacity>
             ))}
@@ -258,7 +259,7 @@ export default function SignupScreen({ navigation }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Date of Birth</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
             <View style={styles.dateInputRow}>
@@ -267,7 +268,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <TextInput
                   style={styles.dateInput}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={Colors.neutral.coolMist}
                   value={birthMonth}
                   onChangeText={(text) => setBirthMonth(text.slice(0, 2))}
                   keyboardType="number-pad"
@@ -279,7 +280,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <TextInput
                   style={styles.dateInput}
                   placeholder="DD"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={Colors.neutral.coolMist}
                   value={birthDay}
                   onChangeText={(text) => setBirthDay(text.slice(0, 2))}
                   keyboardType="number-pad"
@@ -291,7 +292,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <TextInput
                   style={styles.dateInput}
                   placeholder="YYYY"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={Colors.neutral.coolMist}
                   value={birthYear}
                   onChangeText={(text) => setBirthYear(text.slice(0, 4))}
                   keyboardType="number-pad"
@@ -319,7 +320,7 @@ export default function SignupScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   keyboardView: {
@@ -332,7 +333,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.brand.midnight,
   },
   headerSpacer: {
     width: 40,
@@ -358,43 +359,43 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
   },
   selectInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   selectText: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   selectPlaceholder: {
     fontSize: 16,
-    color: '#999',
+    color: Colors.neutral.coolMist,
   },
   helperText: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     lineHeight: 16,
   },
   button: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
     marginTop: 12,
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -428,7 +429,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.brand.midnight,
   },
   modalOption: {
     flexDirection: 'row',
@@ -436,14 +437,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   modalOptionSelected: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
   dateInputRow: {
@@ -458,21 +459,21 @@ const styles = StyleSheet.create({
   dateLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   dateInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
   },
   modalButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
   },

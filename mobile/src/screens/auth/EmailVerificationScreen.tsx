@@ -17,6 +17,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'EmailVerification'>;
@@ -115,7 +116,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Email Verification</Text>
         <View style={styles.headerSpacer} />
@@ -154,7 +155,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           disabled={!isCodeComplete || loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.brand.skyWhite} />
           ) : (
             <Text style={styles.verifyButtonText}>Verify</Text>
           )}
@@ -166,7 +167,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           disabled={resending}
         >
           {resending ? (
-            <ActivityIndicator color="hsl(210, 95%, 55%)" />
+            <ActivityIndicator color={Colors.brand.bubbleBlue} />
           ) : (
             <Text style={styles.resendButtonText}>Send new code</Text>
           )}
@@ -186,7 +187,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerSpacer: {
     width: 40,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 40,
@@ -232,21 +233,21 @@ const styles = StyleSheet.create({
     width: 50,
     height: 60,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     fontSize: 24,
     fontWeight: '600',
     textAlign: 'center',
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
   },
   codeInputFilled: {
-    borderColor: 'hsl(210, 95%, 55%)',
-    backgroundColor: '#fff',
+    borderColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.skyWhite,
   },
   verifyButton: {
-    backgroundColor: '#999',
-    borderRadius: 25,
+    backgroundColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
     paddingVertical: 16,
     paddingHorizontal: 80,
     alignItems: 'center',
@@ -254,24 +255,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
   },
   verifyButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
   resendButton: {
     borderWidth: 1,
-    borderColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    borderColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     paddingVertical: 16,
     paddingHorizontal: 40,
     alignItems: 'center',
     width: '100%',
   },
   resendButtonText: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -82,7 +83,7 @@ export default function CampusJoinScreen({ navigation }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
 
         <View style={styles.iconContainer}>
@@ -99,7 +100,7 @@ export default function CampusJoinScreen({ navigation }: Props) {
           <TextInput
             style={styles.input}
             placeholder="School email address"
-            placeholderTextColor="#999"
+            placeholderTextColor={Colors.neutral.coolMist}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -114,7 +115,7 @@ export default function CampusJoinScreen({ navigation }: Props) {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.brand.skyWhite} />
           ) : (
             <Text style={styles.verifyButtonText}>Verify My .edu Email</Text>
           )}
@@ -131,7 +132,7 @@ export default function CampusJoinScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   content: {
     flex: 1,
@@ -153,13 +154,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
     marginBottom: 12,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 40,
@@ -169,20 +170,20 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   verifyButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
@@ -191,13 +192,13 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   verifyButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
   disclaimer: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
   },
 });

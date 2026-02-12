@@ -23,6 +23,7 @@ import SuccessModal from '../../components/SuccessModal';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -170,7 +171,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Event</Text>
         <View style={styles.headerSpacer} />
@@ -187,7 +188,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             <TextInput
               style={styles.input}
               placeholder="What's your event called?"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={title}
               onChangeText={setTitle}
               maxLength={100}
@@ -199,7 +200,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Tell people about your event..."
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={description}
               onChangeText={setDescription}
               multiline
@@ -226,7 +227,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Text style={date ? styles.selectText : styles.selectPlaceholder}>
                 {date ? formatDisplayDate(date) : 'Select date'}
               </Text>
-              <Ionicons name="calendar" size={20} color="#666" />
+              <Ionicons name="calendar" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -240,7 +241,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                 <Text style={startTime ? styles.selectText : styles.selectPlaceholder}>
                   {startTime ? formatDisplayTime(startTime) : 'Start'}
                 </Text>
-                <Ionicons name="time" size={20} color="#666" />
+                <Ionicons name="time" size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
 
@@ -253,7 +254,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                 <Text style={endTime ? styles.selectText : styles.selectPlaceholder}>
                   {endTime ? formatDisplayTime(endTime) : 'End'}
                 </Text>
-                <Ionicons name="time" size={20} color="#666" />
+                <Ionicons name="time" size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
           </View>
@@ -274,7 +275,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                   </Text>
                 )}
               </View>
-              <Ionicons name="location" size={20} color="#666" />
+              <Ionicons name="location" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -287,7 +288,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Text style={styles.selectText}>
                 {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label || 'Public'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
+              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -299,8 +300,8 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Switch
                 value={petFriendly}
                 onValueChange={setPetFriendly}
-                trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 80%)' }}
-                thumbColor={petFriendly ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+                trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+                thumbColor={petFriendly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
               />
             </View>
 
@@ -309,8 +310,8 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Switch
                 value={smokeFree}
                 onValueChange={setSmokeFree}
-                trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 80%)' }}
-                thumbColor={smokeFree ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+                trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+                thumbColor={smokeFree ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
               />
             </View>
 
@@ -319,8 +320,8 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Switch
                 value={wheelchairAccessible}
                 onValueChange={setWheelchairAccessible}
-                trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 80%)' }}
-                thumbColor={wheelchairAccessible ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+                trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+                thumbColor={wheelchairAccessible ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
               />
             </View>
 
@@ -329,8 +330,8 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Switch
                 value={attendeeLimitEnabled}
                 onValueChange={setAttendeeLimitEnabled}
-                trackColor={{ false: '#ddd', true: 'hsl(210, 95%, 80%)' }}
-                thumbColor={attendeeLimitEnabled ? 'hsl(210, 95%, 55%)' : '#f4f3f4'}
+                trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+                thumbColor={attendeeLimitEnabled ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
               />
             </View>
 
@@ -338,7 +339,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <TextInput
                 style={[styles.input, { marginTop: 8 }]}
                 placeholder="Maximum number of attendees"
-                placeholderTextColor="#999"
+                placeholderTextColor={Colors.neutral.coolMist}
                 value={attendeeLimit}
                 onChangeText={setAttendeeLimit}
                 keyboardType="number-pad"
@@ -355,7 +356,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             disabled={!isFormValid || loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
               <Text style={styles.saveButtonText}>Save Changes</Text>
             )}
@@ -406,7 +407,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Visibility</Text>
               <TouchableOpacity onPress={() => setShowVisibilityPicker(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
               </TouchableOpacity>
             </View>
             {VISIBILITY_OPTIONS.map((option) => (
@@ -428,7 +429,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                   <Text style={styles.modalOptionDescription}>{option.description}</Text>
                 </View>
                 {visibility === option.value && (
-                  <Ionicons name="checkmark" size={20} color="hsl(210, 95%, 55%)" />
+                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
                 )}
               </TouchableOpacity>
             ))}
@@ -459,7 +460,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -469,7 +470,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -477,7 +478,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerSpacer: {
     width: 40,
@@ -496,41 +497,41 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
   },
   textArea: {
     minHeight: 100,
   },
   selectInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   selectText: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   selectPlaceholder: {
     fontSize: 16,
-    color: '#999',
+    color: Colors.neutral.coolMist,
   },
   locationAddress: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   rowInputs: {
@@ -541,12 +542,12 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 4,
   },
   toggleRow: {
@@ -557,10 +558,10 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     fontSize: 15,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   saveButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -570,7 +571,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -595,7 +596,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   modalOption: {
     flexDirection: 'row',
@@ -603,19 +604,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   modalOptionText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   modalOptionSelected: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
   modalOptionDescription: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
 });

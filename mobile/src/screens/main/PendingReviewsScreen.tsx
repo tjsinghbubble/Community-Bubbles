@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type PendingBubble = {
   id: string;
@@ -168,7 +169,7 @@ export default function PendingReviewsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -183,7 +184,7 @@ export default function PendingReviewsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pending Reviews</Text>
         <View style={styles.placeholder} />
@@ -197,7 +198,7 @@ export default function PendingReviewsScreen() {
       >
         {!hasPendingItems ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={64} color="#ccc" />
+            <Ionicons name="checkmark-circle-outline" size={64} color={Colors.neutral.coolMist} />
             <Text style={styles.emptyTitle}>All Caught Up!</Text>
             <Text style={styles.emptyText}>No items pending review</Text>
           </View>
@@ -223,10 +224,10 @@ export default function PendingReviewsScreen() {
                         disabled={actionLoading === bubble.id}
                       >
                         {actionLoading === bubble.id ? (
-                          <ActivityIndicator size="small" color="#FF3B30" />
+                          <ActivityIndicator size="small" color={Colors.state.error} />
                         ) : (
                           <>
-                            <Ionicons name="close" size={18} color="#FF3B30" />
+                            <Ionicons name="close" size={18} color={Colors.state.error} />
                             <Text style={styles.rejectText}>Reject</Text>
                           </>
                         )}
@@ -238,10 +239,10 @@ export default function PendingReviewsScreen() {
                         disabled={actionLoading === bubble.id}
                       >
                         {actionLoading === bubble.id ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
                         ) : (
                           <>
-                            <Ionicons name="checkmark" size={18} color="#fff" />
+                            <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
                             <Text style={styles.approveText}>Approve</Text>
                           </>
                         )}
@@ -259,13 +260,13 @@ export default function PendingReviewsScreen() {
                   <View key={event.id} style={styles.card}>
                     <View style={styles.cardHeader}>
                       <View style={styles.bubbleTag}>
-                        <Ionicons name="apps-outline" size={14} color="hsl(210, 95%, 45%)" />
+                        <Ionicons name="apps-outline" size={14} color={Colors.brand.bubbleBlue} />
                         <Text style={styles.bubbleTagText}>{event.bubble?.title || 'Unknown Bubble'}</Text>
                       </View>
                     </View>
                     <Text style={styles.cardTitle}>{event.title}</Text>
                     <View style={styles.eventMeta}>
-                      <Ionicons name="calendar-outline" size={14} color="#666" />
+                      <Ionicons name="calendar-outline" size={14} color={Colors.neutral.coolMist} />
                       <Text style={styles.eventMetaText}>
                         {formatDate(event.date)} at {event.startTime}
                       </Text>
@@ -278,10 +279,10 @@ export default function PendingReviewsScreen() {
                         disabled={actionLoading === event.id}
                       >
                         {actionLoading === event.id ? (
-                          <ActivityIndicator size="small" color="#FF3B30" />
+                          <ActivityIndicator size="small" color={Colors.state.error} />
                         ) : (
                           <>
-                            <Ionicons name="close" size={18} color="#FF3B30" />
+                            <Ionicons name="close" size={18} color={Colors.state.error} />
                             <Text style={styles.rejectText}>Reject</Text>
                           </>
                         )}
@@ -293,10 +294,10 @@ export default function PendingReviewsScreen() {
                         disabled={actionLoading === event.id}
                       >
                         {actionLoading === event.id ? (
-                          <ActivityIndicator size="small" color="#fff" />
+                          <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
                         ) : (
                           <>
-                            <Ionicons name="checkmark" size={18} color="#fff" />
+                            <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
                             <Text style={styles.approveText}>Approve</Text>
                           </>
                         )}
@@ -316,7 +317,7 @@ export default function PendingReviewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loadingContainer: {
@@ -325,14 +326,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 4,
@@ -340,7 +341,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   placeholder: {
     width: 32,
@@ -357,12 +358,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     marginTop: 8,
   },
   section: {
@@ -371,16 +372,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 12,
     textTransform: 'uppercase',
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
@@ -398,7 +399,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    color: 'hsl(210, 95%, 45%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '500',
   },
   bubbleTag: {
@@ -413,18 +414,18 @@ const styles = StyleSheet.create({
   },
   bubbleTagText: {
     fontSize: 12,
-    color: 'hsl(210, 95%, 45%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '500',
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 12,
   },
   eventMeta: {
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
   },
   eventMetaText: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   cardActions: {
     flexDirection: 'row',
@@ -443,7 +444,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   actionButton: {
     flex: 1,
@@ -458,16 +459,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F0',
   },
   approveButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   rejectText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: Colors.state.error,
   },
   approveText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
 });

@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
@@ -114,7 +115,7 @@ export default function ProfileScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -135,7 +136,7 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>Version = 155</Text>
+          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 155</Text>
         </View>
 
         <View style={styles.section}>
@@ -162,7 +163,7 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('PendingReviews')}
             >
               <View style={styles.menuItemLeft}>
-                <Ionicons name="time-outline" size={24} color="#333" />
+                <Ionicons name="time-outline" size={24} color={Colors.neutral.charcoal} />
                 <Text style={styles.menuItemText}>Pending Reviews</Text>
                 {pendingCount > 0 && (
                   <View style={styles.badge}>
@@ -170,7 +171,7 @@ export default function ProfileScreen() {
                   </View>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#999" />
+              <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
         )}
@@ -180,10 +181,10 @@ export default function ProfileScreen() {
           
           <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
             <View style={styles.menuItemLeft}>
-              <Ionicons name="log-out-outline" size={24} color="#333" />
+              <Ionicons name="log-out-outline" size={24} color={Colors.neutral.charcoal} />
               <Text style={styles.menuItemText}>Log Out</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -193,13 +194,13 @@ export default function ProfileScreen() {
           >
             <View style={styles.menuItemLeft}>
               {deleting ? (
-                <ActivityIndicator size="small" color="#FF3B30" />
+                <ActivityIndicator size="small" color={Colors.state.error} />
               ) : (
-                <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+                <Ionicons name="trash-outline" size={24} color={Colors.state.error} />
               )}
               <Text style={styles.deleteText}>Delete Account</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#FF3B30" />
+            <Ionicons name="chevron-forward" size={20} color={Colors.state.error} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -220,7 +221,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loadingContainer: {
@@ -229,22 +230,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   content: {
     flex: 1,
   },
   avatarSection: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     alignItems: 'center',
     paddingVertical: 30,
     marginBottom: 16,
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -261,20 +262,20 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   userName: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 4,
   },
   userEmail: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   section: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     marginBottom: 16,
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 12,
     textTransform: 'uppercase',
   },
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   noInterests: {
-    color: '#999',
+    color: Colors.neutral.coolMist,
     fontSize: 14,
     fontStyle: 'italic',
   },
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -322,17 +323,17 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   deleteItem: {
     borderBottomWidth: 0,
   },
   deleteText: {
     fontSize: 16,
-    color: '#FF3B30',
+    color: Colors.state.error,
   },
   badge: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: 12,
     minWidth: 24,
     height: 24,
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   badgeText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 12,
     fontWeight: '600',
   },

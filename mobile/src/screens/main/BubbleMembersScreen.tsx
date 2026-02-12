@@ -14,6 +14,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type MembersStackParamList = {
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
@@ -181,7 +182,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
           </View>
           {isItemAdmin && (
             <View style={styles.adminBadge}>
-              <Ionicons name="shield-checkmark" size={12} color="#fff" />
+              <Ionicons name="shield-checkmark" size={12} color={Colors.brand.skyWhite} />
             </View>
           )}
         </View>
@@ -198,7 +199,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         {isAdmin && !isMe && (
           <View style={styles.actions}>
             {isUpdating === item.userId ? (
-              <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
+              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
             ) : (
               <>
                 {isItemAdmin ? (
@@ -214,7 +215,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
                     style={styles.promoteButton}
                     onPress={() => handlePromote(item)}
                   >
-                    <Ionicons name="arrow-up" size={16} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="arrow-up" size={16} color={Colors.brand.bubbleBlue} />
                     <Text style={styles.promoteText}>Promote</Text>
                   </TouchableOpacity>
                 )}
@@ -237,7 +238,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="hsl(210, 95%, 55%)" />
+          <Ionicons name="arrow-back" size={24} color={Colors.brand.bubbleBlue} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Members</Text>
@@ -254,7 +255,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
 
       {isLoading ? (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       ) : (
         <FlatList
@@ -287,15 +288,15 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
     padding: 8,
@@ -307,11 +308,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   relinquishButton: {
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     padding: 12,
     marginHorizontal: 16,
     marginTop: 16,
@@ -350,13 +351,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textTransform: 'uppercase',
   },
   sectionCount: {
     fontSize: 12,
-    color: '#999',
-    backgroundColor: '#e5e5e5',
+    color: Colors.neutral.coolMist,
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -364,7 +365,7 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
@@ -376,15 +377,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: Colors.neutral.coolMist,
     justifyContent: 'center',
     alignItems: 'center',
   },
   adminAvatar: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   avatarText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -395,11 +396,11 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#22c55e',
+    backgroundColor: Colors.state.success,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: Colors.brand.skyWhite,
   },
   memberInfo: {
     flex: 1,
@@ -408,11 +409,11 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   memberRole: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   actions: {
@@ -431,7 +432,7 @@ const styles = StyleSheet.create({
   promoteText: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
   },
   demoteButton: {
     flexDirection: 'row',

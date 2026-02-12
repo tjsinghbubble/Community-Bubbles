@@ -23,6 +23,7 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -209,27 +210,27 @@ export default function ExploreScreen() {
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
       <TouchableOpacity style={styles.iconButton} onPress={handleFilterPress}>
-        <Ionicons name="options-outline" size={24} color="#333" />
+        <Ionicons name="options-outline" size={24} color={Colors.neutral.charcoal} />
       </TouchableOpacity>
       
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#999" />
+        <Ionicons name="search-outline" size={20} color={Colors.neutral.coolMist} />
         <TextInput
           style={styles.searchInput}
           placeholder="Start your search"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.neutral.coolMist}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         )}
       </View>
       
       <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
-        <Ionicons name="notifications-outline" size={24} color="#333" />
+        <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
       </TouchableOpacity>
     </View>
   );
@@ -263,7 +264,7 @@ export default function ExploreScreen() {
           <Ionicons 
             name="chatbubbles-outline" 
             size={28} 
-            color={activeTab === 'bubbles' ? 'hsl(210, 95%, 55%)' : '#999'} 
+            color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
         </View>
         <Text style={[styles.tabText, activeTab === 'bubbles' && styles.activeTabText]}>
@@ -279,7 +280,7 @@ export default function ExploreScreen() {
           <Ionicons 
             name="calendar-outline" 
             size={28} 
-            color={activeTab === 'events' ? 'hsl(210, 95%, 55%)' : '#999'} 
+            color={activeTab === 'events' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
         </View>
         <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>
@@ -307,7 +308,7 @@ export default function ExploreScreen() {
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
         <View style={styles.cardMeta}>
-          <Ionicons name="people-outline" size={12} color="#666" />
+          <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
           <Text style={styles.metaText}>{bubble.members} members</Text>
         </View>
       </View>
@@ -330,12 +331,12 @@ export default function ExploreScreen() {
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={12} color="#666" />
+          <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
           <Text style={styles.metaText}>{formatTime(event.startTime)}</Text>
         </View>
         {event.locationName && (
           <View style={styles.cardMeta}>
-            <Ionicons name="location-outline" size={12} color="#666" />
+            <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
             <Text style={styles.metaText} numberOfLines={1}>{event.locationName}</Text>
           </View>
         )}
@@ -349,7 +350,7 @@ export default function ExploreScreen() {
         {renderSearchHeader()}
         {renderTabs()}
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -401,7 +402,7 @@ export default function ExploreScreen() {
           <Ionicons 
             name={activeTab === 'bubbles' ? 'chatbubbles-outline' : 'calendar-outline'} 
             size={48} 
-            color="#ccc" 
+            color={Colors.neutral.coolMist} 
           />
           <Text style={styles.emptyTitle}>{getEmptyMessage().title}</Text>
           <Text style={styles.emptySubtitle}>{getEmptyMessage().subtitle}</Text>
@@ -435,7 +436,7 @@ export default function ExploreScreen() {
         onPress={() => setShowCreateSheet(true)}
         activeOpacity={0.8}
       >
-        <Ionicons name="add-circle" size={56} color="hsl(210, 95%, 55%)" />
+        <Ionicons name="add-circle" size={56} color={Colors.brand.bubbleBlue} />
       </TouchableOpacity>
 
       <Modal
@@ -477,7 +478,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   searchContainer: {
@@ -498,12 +499,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -533,10 +534,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#999',
+    color: Colors.neutral.coolMist,
   },
   activeTabText: {
-    color: '#000',
+    color: Colors.neutral.charcoal,
     fontWeight: '600',
   },
   loading: {
@@ -555,11 +556,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -571,11 +572,11 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -584,7 +585,7 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 120,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: Colors.neutral.coolMist,
   },
   badge: {
     position: 'absolute',
@@ -598,7 +599,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: 'hsl(210, 95%, 45%)',
+    color: Colors.brand.bubbleBlue,
   },
   cardContent: {
     padding: 12,
@@ -606,7 +607,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 6,
   },
   cardMeta: {
@@ -617,16 +618,16 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     flex: 1,
   },
   studentPromptCard: {
     width: '100%',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -636,18 +637,18 @@ const styles = StyleSheet.create({
   studentPromptTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   studentPromptSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 20,
   },
   joinCampusButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinCampusButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -664,19 +665,19 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   notStudentButtonText: {
-    color: '#666',
+    color: Colors.neutral.coolMist,
     fontSize: 14,
   },
   campusContent: {
     padding: 16,
   },
   campusHeader: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -685,13 +686,13 @@ const styles = StyleSheet.create({
   campusName: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginTop: 12,
     textAlign: 'center',
   },
   campusSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
   },
   campusSection: {
@@ -700,7 +701,7 @@ const styles = StyleSheet.create({
   campusSectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 12,
   },
   campusGrid: {
@@ -720,20 +721,20 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: Colors.neutral.coolMist,
   },
   campusFabActive: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
   },
   createFab: {
     position: 'absolute',
@@ -751,7 +752,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 40,
@@ -761,14 +762,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
     marginTop: 12,
     marginBottom: 16,
   },
   sheetTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   sheetOption: {
@@ -779,12 +780,12 @@ const styles = StyleSheet.create({
   sheetOptionText: {
     fontSize: 18,
     fontWeight: '500',
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
   },
   sheetDivider: {
     width: '100%',
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: Colors.neutral.coolMist,
   },
   campusBanner: {
     flexDirection: 'row',
@@ -800,6 +801,6 @@ const styles = StyleSheet.create({
   campusBannerText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'hsl(210, 95%, 40%)',
+    color: Colors.brand.bubbleBlue,
   },
 });

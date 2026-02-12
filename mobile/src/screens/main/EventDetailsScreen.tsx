@@ -20,6 +20,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -224,7 +225,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -247,7 +248,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         />
 
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
 
         {canManage && (
@@ -255,7 +256,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             style={styles.optionsButton}
             onPress={showAdminOptions}
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#000" />
+            <Ionicons name="ellipsis-horizontal" size={24} color={Colors.neutral.charcoal} />
           </TouchableOpacity>
         )}
 
@@ -292,27 +293,27 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               onPress={() => openInMaps(event.locationName!, event.locationAddress)}
               activeOpacity={0.7}
             >
-              <Ionicons name="location" size={20} color="hsl(210, 95%, 55%)" />
+              <Ionicons name="location" size={20} color={Colors.brand.bubbleBlue} />
               <View style={styles.locationInfo}>
                 <Text style={styles.locationName}>{event.locationName}</Text>
                 {event.locationAddress && (
                   <Text style={styles.locationAddress}>{event.locationAddress}</Text>
                 )}
               </View>
-              <Ionicons name="open-outline" size={18} color="#999" />
+              <Ionicons name="open-outline" size={18} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           )}
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Ionicons name="people" size={20} color="#666" />
+              <Ionicons name="people" size={20} color={Colors.neutral.coolMist} />
               <Text style={styles.statText}>
                 {goingCount} {goingCount === 1 ? 'person' : 'people'} going
               </Text>
             </View>
             {event.attendeeLimit && (
               <View style={styles.statItem}>
-                <Ionicons name="warning-outline" size={20} color={isFull ? '#e74c3c' : '#666'} />
+                <Ionicons name="warning-outline" size={20} color={isFull ? Colors.state.error : Colors.neutral.coolMist} />
                 <Text style={[styles.statText, isFull && styles.fullText]}>
                   {isFull ? 'Event Full' : `${event.attendeeLimit - goingCount} spots left`}
                 </Text>
@@ -333,19 +334,19 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               <View style={styles.environmentTags}>
                 {event.petFriendly && (
                   <View style={styles.envTag}>
-                    <Ionicons name="paw" size={16} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="paw" size={16} color={Colors.brand.bubbleBlue} />
                     <Text style={styles.envTagText}>Pet Friendly</Text>
                   </View>
                 )}
                 {event.smokeFree && (
                   <View style={styles.envTag}>
-                    <Ionicons name="ban" size={16} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="ban" size={16} color={Colors.brand.bubbleBlue} />
                     <Text style={styles.envTagText}>Smoke Free</Text>
                   </View>
                 )}
                 {event.wheelchairAccessible && (
                   <View style={styles.envTag}>
-                    <Ionicons name="accessibility" size={16} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="accessibility" size={16} color={Colors.brand.bubbleBlue} />
                     <Text style={styles.envTagText}>Wheelchair Accessible</Text>
                   </View>
                 )}
@@ -376,13 +377,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             disabled={isRsvping || (isFull && !isRsvpd)}
           >
             {isRsvping ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
               <>
                 <Ionicons
                   name={isRsvpd ? 'close-circle' : 'checkmark-circle'}
                   size={20}
-                  color="#fff"
+                  color={Colors.brand.skyWhite}
                 />
                 <Text style={styles.rsvpButtonText}>
                   {isRsvpd ? 'Cancel RSVP' : isFull ? 'Event Full' : 'RSVP - Going'}
@@ -411,7 +412,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   loading: {
     flex: 1,
@@ -464,7 +465,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 20,
   },
   dateTimeSection: {
@@ -473,12 +474,12 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 20,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 12,
   },
   dateBox: {
     width: 60,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -486,7 +487,7 @@ const styles = StyleSheet.create({
   dateDay: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   dateMonth: {
     fontSize: 11,
@@ -499,19 +500,19 @@ const styles = StyleSheet.create({
   fullDate: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 4,
   },
   timeText: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   locationSection: {
     flexDirection: 'row',
     gap: 12,
     marginBottom: 20,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 12,
   },
   locationInfo: {
@@ -520,12 +521,12 @@ const styles = StyleSheet.create({
   locationName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 2,
   },
   locationAddress: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     lineHeight: 18,
   },
   statsRow: {
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
     marginBottom: 20,
   },
   statItem: {
@@ -543,11 +544,11 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     fontWeight: '500',
   },
   fullText: {
-    color: '#e74c3c',
+    color: Colors.state.error,
   },
   section: {
     marginBottom: 24,
@@ -555,12 +556,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
-    color: '#444',
+    color: Colors.neutral.charcoal,
     lineHeight: 24,
   },
   environmentTags: {
@@ -602,12 +603,12 @@ const styles = StyleSheet.create({
     right: 0,
     padding: 20,
     paddingBottom: 32,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   rsvpButton: {
-    backgroundColor: 'hsl(142, 71%, 45%)',
+    backgroundColor: Colors.state.success,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -616,13 +617,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cancelButton: {
-    backgroundColor: '#dc2626',
+    backgroundColor: Colors.state.error,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
   },
   rsvpButtonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },

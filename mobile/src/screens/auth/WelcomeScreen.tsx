@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
@@ -83,7 +84,7 @@ export default function WelcomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
@@ -127,22 +128,22 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   circle1: {
-    borderColor: 'hsl(210, 95%, 55%)',
+    borderColor: Colors.brand.bubbleBlue,
     backgroundColor: 'transparent',
   },
   circle2: {
-    borderColor: 'hsl(210, 95%, 55%)',
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    borderColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.bubbleBlue,
     marginLeft: -6,
   },
   logoText: {
     fontSize: 28,
     fontWeight: '700',
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
   },
   tagline: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -152,26 +153,26 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   signUpButton: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
   },
   signUpText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
   logInButton: {
-    backgroundColor: '#fff',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'hsl(210, 95%, 55%)',
+    borderColor: Colors.brand.bubbleBlue,
   },
   logInText: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -102,7 +103,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           disabled={!accepted || isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={Colors.brand.skyWhite} />
           ) : (
             <Text style={styles.buttonText}>Get Started</Text>
           )}
@@ -115,7 +116,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   scroll: {
     flex: 1,
@@ -127,31 +128,31 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   guidelines: {
     padding: 16,
     gap: 16,
   },
   card: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 16,
     padding: 20,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   cardDescription: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     lineHeight: 20,
   },
   checkbox: {
@@ -165,31 +166,31 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxBoxChecked: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
   },
   checkmark: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: 'bold',
   },
   checkboxLabel: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   footer: {
     padding: 24,
     paddingBottom: 32,
   },
   button: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 12,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
   },
@@ -197,7 +198,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },

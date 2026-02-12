@@ -25,6 +25,7 @@ import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -327,7 +328,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn}>
-        <Ionicons name="arrow-back" size={24} color="#000" />
+        <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{STEP_TITLES[step - 1]}</Text>
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn}>
@@ -342,7 +343,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         <Image source={{ uri: images[0] }} style={styles.reviewCardImage} />
       ) : (
         <View style={styles.reviewCardImagePlaceholder}>
-          <Ionicons name="image-outline" size={48} color="#ccc" />
+          <Ionicons name="image-outline" size={48} color={Colors.neutral.coolMist} />
         </View>
       )}
       <View style={styles.reviewCardBody}>
@@ -384,7 +385,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <Text style={selectedBubble ? styles.fieldValue : styles.fieldPlaceholder}>
               {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
             </Text>
-            <Ionicons name="chevron-down" size={20} color="#666" />
+            <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         </View>
       )}
@@ -394,7 +395,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         <TextInput
           style={styles.fieldInput}
           placeholder="Ex. San Francisco Art Makers"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.neutral.coolMist}
           value={title}
           onChangeText={setTitle}
           maxLength={80}
@@ -406,7 +407,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         <TextInput
           style={styles.fieldTextArea}
           placeholder="What's your event about?"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.neutral.coolMist}
           value={description}
           onChangeText={setDescription}
           multiline
@@ -437,7 +438,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={date ? styles.fieldValue : styles.fieldPlaceholder}>
             {date ? formatDateForDisplay(date) : 'Select Date'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color="#666" />
+          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -497,8 +498,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             setRecurringEnabled(val);
             if (!val) setRecurrenceType('never');
           }}
-          trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
-          thumbColor={recurringEnabled ? '#2196F3' : '#f4f3f4'}
+          trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+          thumbColor={recurringEnabled ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
         />
       </View>
 
@@ -517,7 +518,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               >
                 <Text style={styles.recurrenceOptionText}>{option.label}</Text>
                 {recurrenceType === option.value && (
-                  <Ionicons name="checkmark" size={20} color="#2196F3" />
+                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
                 )}
               </TouchableOpacity>
               {idx < RECURRENCE_OPTIONS.length - 1 && (
@@ -537,7 +538,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   <Text style={styles.fieldValue}>
                     {CUSTOM_FREQUENCY_OPTIONS.find(f => f.value === recurrenceCustomFrequency)?.label}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color="#666" />
+                  <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
                 </TouchableOpacity>
                 {showCustomFrequencyPicker && (
                   <View style={styles.dropdownList}>
@@ -587,7 +588,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={locationName ? styles.fieldValue : styles.fieldPlaceholder}>
             {locationTbd ? 'TBD' : (locationName || 'Search location or enter address')}
           </Text>
-          <Ionicons name="search" size={20} color="#999" />
+          <Ionicons name="search" size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {locationName && !locationTbd ? (
           <Text style={styles.locationAddressText}>{locationAddress}</Text>
@@ -599,8 +600,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         <Switch
           value={locationTbd}
           onValueChange={setLocationTbd}
-          trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
-          thumbColor={locationTbd ? '#2196F3' : '#f4f3f4'}
+          trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+          thumbColor={locationTbd ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
         />
       </View>
 
@@ -649,8 +650,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Switch
             value={campusOnly}
             onValueChange={setCampusOnly}
-            trackColor={{ false: '#e0e0e0', true: 'hsl(210, 95%, 75%)' }}
-            thumbColor={campusOnly ? '#2196F3' : '#f4f3f4'}
+            trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+            thumbColor={campusOnly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
           />
         </View>
       ) : null}
@@ -674,9 +675,9 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             }}
           >
             <View style={[styles.checkboxBox, isChecked && styles.checkboxBoxChecked]}>
-              {isChecked && <Ionicons name="checkmark" size={16} color="#fff" />}
+              {isChecked && <Ionicons name="checkmark" size={16} color={Colors.brand.skyWhite} />}
             </View>
-            <Ionicons name={option.icon} size={20} color="#666" style={styles.checkboxIcon} />
+            <Ionicons name={option.icon} size={20} color={Colors.neutral.coolMist} style={styles.checkboxIcon} />
             <View style={styles.checkboxTextContainer}>
               <Text style={styles.checkboxLabel}>{option.label}</Text>
               <Text style={styles.checkboxDescription}>{option.description}</Text>
@@ -692,7 +693,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         <TextInput
           style={styles.fieldInput}
           placeholder="E.g. 25 (Leave empty for unlimited)"
-          placeholderTextColor="#999"
+          placeholderTextColor={Colors.neutral.coolMist}
           value={attendeeLimit}
           onChangeText={(val) => setAttendeeLimit(val.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
@@ -708,7 +709,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
             {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color="#666" />
+          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showRsvpDatePicker && (
           <DateTimePicker
@@ -739,10 +740,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   const renderSuccessScreen = () => (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
       <ScrollView contentContainerStyle={styles.successContainer}>
         <View style={styles.successCheckCircle}>
-          <Ionicons name="checkmark" size={48} color="#fff" />
+          <Ionicons name="checkmark" size={48} color={Colors.brand.skyWhite} />
         </View>
         <Text style={styles.successTitle}>Event Created!</Text>
         <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
@@ -790,7 +791,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     <Image source={{ uri: bubble.coverImage }} style={styles.bubbleRowImage} />
                   ) : (
                     <View style={styles.bubbleRowImagePlaceholder}>
-                      <Ionicons name="people" size={20} color="#999" />
+                      <Ionicons name="people" size={20} color={Colors.neutral.coolMist} />
                     </View>
                   )}
                   <View style={styles.bubbleRowTextContainer}>
@@ -822,7 +823,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
       <KeyboardAvoidingView
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -841,7 +842,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
               <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
             )}
@@ -857,7 +858,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   flex1: {
@@ -870,7 +871,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   headerBackBtn: {
     width: 40,
@@ -881,7 +882,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   headerCancelBtn: {
     paddingHorizontal: 4,
@@ -889,7 +890,7 @@ const styles = StyleSheet.create({
   },
   headerCancelText: {
     fontSize: 16,
-    color: '#2196F3',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '500',
   },
   scrollContent: {
@@ -905,45 +906,45 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   fieldInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   fieldTextArea: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
     minHeight: 120,
     textAlignVertical: 'top',
   },
   fieldValue: {
     fontSize: 16,
-    color: '#000',
+    color: Colors.neutral.charcoal,
     flex: 1,
   },
   fieldPlaceholder: {
     fontSize: 16,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     flex: 1,
   },
   uploadSuccessText: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: Colors.state.success,
     fontWeight: '500',
     marginTop: 8,
   },
@@ -958,7 +959,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#eee',
+    backgroundColor: Colors.neutral.coolMist,
     marginVertical: 20,
   },
   toggleRow: {
@@ -970,7 +971,7 @@ const styles = StyleSheet.create({
   toggleLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   recurrenceContainer: {
     marginTop: 8,
@@ -985,11 +986,11 @@ const styles = StyleSheet.create({
   },
   recurrenceOptionText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   recurrenceDivider: {
     height: 1,
-    backgroundColor: '#eee',
+    backgroundColor: Colors.neutral.coolMist,
   },
   customRecurrenceContainer: {
     marginTop: 12,
@@ -997,35 +998,35 @@ const styles = StyleSheet.create({
   },
   dropdownList: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     borderRadius: 10,
     marginTop: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   dropdownItem: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   dropdownItemText: {
     fontSize: 16,
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   dropdownItemTextActive: {
-    color: '#2196F3',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
   locationAddressText: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
     paddingHorizontal: 4,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 16,
   },
   radioRow: {
@@ -1039,19 +1040,19 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
   },
   radioCircleSelected: {
-    borderColor: '#2196F3',
+    borderColor: Colors.brand.bubbleBlue,
   },
   radioCircleInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   radioTextContainer: {
     flex: 1,
@@ -1059,11 +1060,11 @@ const styles = StyleSheet.create({
   radioLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   radioDescription: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   checkboxRow: {
@@ -1077,13 +1078,13 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: Colors.neutral.coolMist,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxBoxChecked: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
   },
   checkboxIcon: {
     marginRight: 4,
@@ -1094,22 +1095,22 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   checkboxDescription: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   bottomButtonContainer: {
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 8 : 20,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: Colors.neutral.coolMist,
   },
   primaryButton: {
-    backgroundColor: '#2196F3',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1120,24 +1121,24 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   reviewCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: Colors.neutral.coolMist,
     overflow: 'hidden',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   reviewCardImage: {
     width: '100%',
     height: 180,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   reviewCardImagePlaceholder: {
     width: '100%',
     height: 180,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1147,12 +1148,12 @@ const styles = StyleSheet.create({
   reviewCardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   reviewCardDescription: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -1169,7 +1170,7 @@ const styles = StyleSheet.create({
   },
   reviewInfoText: {
     fontSize: 15,
-    color: '#333',
+    color: Colors.neutral.charcoal,
     flex: 1,
   },
   successContainer: {
@@ -1182,7 +1183,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#4CAF50',
+    backgroundColor: Colors.state.success,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -1190,12 +1191,12 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   successSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 32,
     textAlign: 'center',
   },
@@ -1209,7 +1210,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -1219,7 +1220,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#ddd',
+    backgroundColor: Colors.neutral.coolMist,
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 16,
@@ -1227,7 +1228,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     paddingHorizontal: 20,
     marginBottom: 16,
   },
@@ -1244,13 +1245,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.neutral.cloudGrey,
   },
   bubbleRowImagePlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: Colors.neutral.coolMist,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1261,31 +1262,31 @@ const styles = StyleSheet.create({
   bubbleRowName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   bubbleRowCategory: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   bubbleRowDivider: {
     height: 1,
-    backgroundColor: '#eee',
+    backgroundColor: Colors.neutral.coolMist,
   },
   emptyBubblesText: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     paddingVertical: 20,
   },
   campusInfoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'hsl(210, 95%, 95%)',
+    backgroundColor: '#E8F4FD',
     padding: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'hsl(210, 95%, 85%)',
+    borderColor: SwitchColors.trackTrue,
     gap: 10,
     marginTop: 12,
   },
@@ -1299,11 +1300,11 @@ const styles = StyleSheet.create({
   campusInfoTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   campusInfoDescription: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     lineHeight: 18,
   },
   campusToggleLeft: {

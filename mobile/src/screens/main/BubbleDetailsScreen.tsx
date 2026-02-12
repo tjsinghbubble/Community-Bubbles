@@ -19,6 +19,7 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -65,7 +66,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       const details = await apiService.getBubble(bubble.id);
       setBubbleDetails(details);
       
-      // Track bubble visit
       apiService.trackBubbleVisit(bubble.id).catch(() => {});
     } catch (error) {
       console.error('Failed to fetch bubble details:', error);
@@ -152,7 +152,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const isCreator = bubbleDetails?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = bubbleDetails && (isCreator || isSuperAdmin);
-  const canCreateEvent = !!user; // Any logged-in user can propose events
+  const canCreateEvent = !!user;
 
   const handleViewMembers = () => {
     navigation.navigate('BubbleMembers' as any, { 
@@ -221,7 +221,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000" />
+          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
 
         {canManage && (
@@ -229,7 +229,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             style={styles.optionsButton}
             onPress={showAdminOptions}
           >
-            <Ionicons name="ellipsis-horizontal" size={24} color="#000" />
+            <Ionicons name="ellipsis-horizontal" size={24} color={Colors.neutral.charcoal} />
           </TouchableOpacity>
         )}
 
@@ -251,16 +251,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                   style={styles.createEventButton}
                   onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
                 >
-                  <Ionicons name="add" size={22} color="hsl(210, 95%, 55%)" />
+                  <Ionicons name="add" size={22} color={Colors.brand.bubbleBlue} />
                 </TouchableOpacity>
               )}
             </View>
 
             {eventsLoading ? (
-              <ActivityIndicator size="small" color="hsl(210, 95%, 55%)" />
+              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
             ) : events.length === 0 ? (
               <View style={styles.noEvents}>
-                <Ionicons name="calendar-outline" size={32} color="#ccc" />
+                <Ionicons name="calendar-outline" size={32} color={Colors.neutral.coolMist} />
                 <Text style={styles.noEventsText}>No upcoming events</Text>
                 {isCreator && (
                   <Text style={styles.noEventsSubtext}>Create the first event for this bubble!</Text>
@@ -291,14 +291,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                     <View style={styles.eventInfo}>
                       <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
                       <View style={styles.eventMeta}>
-                        <Ionicons name="time-outline" size={12} color="#666" />
+                        <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
                         <Text style={styles.eventMetaText}>
                           {formatTime(event.startTime)}
                         </Text>
                       </View>
                       {event.locationName && (
                         <View style={styles.eventMeta}>
-                          <Ionicons name="location-outline" size={12} color="#666" />
+                          <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
                           <Text style={styles.eventMetaText} numberOfLines={1}>
                             {event.locationName}
                           </Text>
@@ -306,14 +306,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                       )}
                       {event.attendeeLimit && (
                         <View style={styles.eventMeta}>
-                          <Ionicons name="people-outline" size={12} color="#666" />
+                          <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
                           <Text style={styles.eventMetaText}>
                             Max {event.attendeeLimit}
                           </Text>
                         </View>
                       )}
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#ccc" style={styles.eventChevron} />
+                    <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} style={styles.eventChevron} />
                   </TouchableOpacity>
                 ))}
                 {events.length > 2 && (
@@ -322,7 +322,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                     onPress={() => navigation.navigate('BubbleEvents' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
                   >
                     <Text style={styles.viewAllText}>Show all {events.length} events</Text>
-                    <Ionicons name="arrow-forward" size={16} color="hsl(210, 95%, 55%)" />
+                    <Ionicons name="arrow-forward" size={16} color={Colors.brand.bubbleBlue} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -335,14 +335,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               {canManage && (
                 <TouchableOpacity style={styles.showAllLink} onPress={handleViewMembers}>
                   <Text style={styles.showAllLinkText}>Show all</Text>
-                  <Ionicons name="arrow-forward" size={14} color="hsl(210, 95%, 55%)" />
+                  <Ionicons name="arrow-forward" size={14} color={Colors.brand.bubbleBlue} />
                 </TouchableOpacity>
               )}
             </View>
             <View style={styles.adminsList}>
               <View style={styles.adminRow}>
                 <View style={styles.adminAvatar}>
-                  <Ionicons name="person" size={20} color="#fff" />
+                  <Ionicons name="person" size={20} color={Colors.brand.skyWhite} />
                 </View>
                 <View style={styles.adminInfo}>
                   <Text style={styles.adminName}>Bubble Creator</Text>
@@ -370,13 +370,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         disabled={isJoining}
       >
         {isJoining ? (
-          <ActivityIndicator color="#fff" size="small" />
+          <ActivityIndicator color={Colors.brand.skyWhite} size="small" />
         ) : (
           <>
             <Ionicons 
               name={isMember ? "exit-outline" : "add"} 
               size={22} 
-              color="#fff" 
+              color={Colors.brand.skyWhite} 
             />
             <Text style={styles.fabText}>
               {isMember ? 'Leave' : 'Join'}
@@ -398,7 +398,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   coverImage: {
     width: '100%',
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   section: {
@@ -461,31 +461,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   createEventButton: {
     padding: 4,
   },
   description: {
     fontSize: 15,
-    color: '#444',
+    color: Colors.neutral.charcoal,
     marginBottom: 24,
     lineHeight: 24,
   },
   noEvents: {
     alignItems: 'center',
     paddingVertical: 24,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 12,
   },
   noEventsText: {
     fontSize: 14,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     marginTop: 8,
   },
   noEventsSubtext: {
     fontSize: 12,
-    color: '#bbb',
+    color: Colors.neutral.coolMist,
     marginTop: 4,
   },
   eventsList: {
@@ -494,20 +494,20 @@ const styles = StyleSheet.create({
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 12,
     overflow: 'hidden',
   },
   eventDateBox: {
     width: 50,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     paddingVertical: 10,
     alignItems: 'center',
   },
   eventDateDay: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: Colors.brand.skyWhite,
   },
   eventDateMonth: {
     fontSize: 10,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 4,
   },
   eventMeta: {
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   },
   eventMetaText: {
     fontSize: 11,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   eventChevron: {
     marginRight: 12,
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   viewAllText: {
     fontSize: 14,
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
   rules: {
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
   },
   rule: {
     fontSize: 14,
-    color: '#555',
+    color: Colors.neutral.charcoal,
     lineHeight: 22,
   },
   showAllLink: {
@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   },
   showAllLinkText: {
     fontSize: 14,
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '500',
   },
   adminsList: {
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   adminRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.neutral.cloudGrey,
     padding: 12,
     borderRadius: 12,
   },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -596,35 +596,35 @@ const styles = StyleSheet.create({
   adminName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   adminRole: {
     fontSize: 12,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 20,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: 28,
     paddingHorizontal: 20,
     paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 6,
   },
   fabLeave: {
-    backgroundColor: '#dc2626',
+    backgroundColor: Colors.state.error,
   },
   fabText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },

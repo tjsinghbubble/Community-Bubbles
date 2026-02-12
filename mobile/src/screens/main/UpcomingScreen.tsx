@@ -15,6 +15,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type UpcomingEvent = {
   id: string;
@@ -130,7 +131,7 @@ export default function UpcomingScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -141,13 +142,13 @@ export default function UpcomingScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton}>
-          <Ionicons name="notifications-outline" size={24} color="#333" />
+          <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
       </View>
 
       {events.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="calendar-outline" size={64} color="#ccc" />
+          <Ionicons name="calendar-outline" size={64} color={Colors.neutral.coolMist} />
           <Text style={styles.emptyTitle}>No upcoming events</Text>
           <Text style={styles.emptySubtitle}>
             Events from your bubbles will appear here
@@ -216,7 +217,7 @@ export default function UpcomingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loading: {
@@ -235,7 +236,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   bellButton: {
     width: 40,
@@ -254,11 +255,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
   },
   scrollContent: {
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '400',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginTop: 16,
     marginBottom: 16,
   },
@@ -281,25 +282,25 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 1,
     height: 20,
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.neutral.coolMist,
     alignSelf: 'center',
   },
   timelineSeparatorText: {
     fontSize: 18,
     fontWeight: '400',
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   eventCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 16,
     marginBottom: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e8e8e8',
+    borderColor: Colors.neutral.coolMist,
   },
   bubbleName: {
     fontSize: 12,
-    color: '#999',
+    color: Colors.neutral.coolMist,
     textAlign: 'right',
     marginBottom: 4,
   },
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 10,
-    backgroundColor: '#eee',
+    backgroundColor: Colors.neutral.coolMist,
   },
   eventInfo: {
     flex: 1,
@@ -321,15 +322,15 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   eventDateTime: {
     fontSize: 13,
-    color: '#555',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: '#555',
+    color: Colors.neutral.coolMist,
   },
 });

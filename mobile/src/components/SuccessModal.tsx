@@ -7,6 +7,7 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors, Spacing, Radius, Typography } from '../styles/theme';
 
 type SuccessModalProps = {
   visible: boolean;
@@ -25,7 +26,7 @@ export default function SuccessModal({
   buttonText = 'Done',
   onClose,
   icon = 'checkmark-circle',
-  iconColor = 'hsl(142, 71%, 45%)',
+  iconColor = Colors.state.success,
 }: SuccessModalProps) {
   return (
     <Modal
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   content: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
@@ -74,25 +75,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
   },
   button: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 25,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     paddingVertical: 14,
     paddingHorizontal: 48,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -10,6 +10,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -98,7 +99,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   header: {
     padding: 24,
@@ -107,18 +108,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginBottom: 16,
   },
   counter: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
   },
   scroll: {
     flex: 1,
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
   card: {
     width: '30%',
     aspectRatio: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.neutral.cloudGrey,
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     backgroundColor: 'hsl(210, 95%, 95%)',
-    borderColor: 'hsl(210, 95%, 55%)',
+    borderColor: Colors.brand.bubbleBlue,
   },
   emoji: {
     fontSize: 32,
@@ -151,19 +152,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
   },
   labelSelected: {
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
   },
   footer: {
     padding: 24,
     paddingBottom: 32,
   },
   button: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 12,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
   },
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },

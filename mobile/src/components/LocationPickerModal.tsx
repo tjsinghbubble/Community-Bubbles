@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { Ionicons } from '@expo/vector-icons';
+import { Colors, Spacing, Radius, Typography } from '../styles/theme';
 
 type LocationData = {
   name: string;
@@ -53,7 +54,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Ionicons name="close" size={24} color="#000" />
+            <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Search Location</Text>
           <View style={styles.placeholder} />
@@ -74,22 +75,22 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
                 flex: 0,
               },
               textInputContainer: {
-                backgroundColor: '#f5f5f5',
+                backgroundColor: Colors.neutral.cloudGrey,
                 borderRadius: 12,
                 paddingHorizontal: 12,
               },
               textInput: {
                 height: 48,
-                color: '#333',
+                color: Colors.neutral.charcoal,
                 fontSize: 16,
                 backgroundColor: 'transparent',
               },
               listView: {
-                backgroundColor: '#fff',
+                backgroundColor: Colors.brand.skyWhite,
                 marginTop: 8,
                 borderRadius: 12,
                 elevation: 3,
-                shadowColor: '#000',
+                shadowColor: Colors.neutral.charcoal,
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
                 shadowRadius: 8,
@@ -97,11 +98,11 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
               row: {
                 padding: 16,
                 borderBottomWidth: 1,
-                borderBottomColor: '#f0f0f0',
+                borderBottomColor: Colors.neutral.cloudGrey,
               },
               description: {
                 fontSize: 15,
-                color: '#333',
+                color: Colors.neutral.charcoal,
               },
               poweredContainer: {
                 display: 'none',
@@ -111,7 +112,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
               },
             }}
             textInputProps={{
-              placeholderTextColor: '#999',
+              placeholderTextColor: Colors.neutral.coolMist,
               autoFocus: true,
             }}
             enablePoweredByContainer={false}
@@ -120,12 +121,12 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
             nearbyPlacesAPI="GooglePlacesSearch"
             renderLeftButton={() => (
               <View style={styles.searchIcon}>
-                <Ionicons name="search" size={20} color="#999" />
+                <Ionicons name="search" size={20} color={Colors.neutral.coolMist} />
               </View>
             )}
             renderRow={(data) => (
               <View style={styles.rowContent}>
-                <Ionicons name="location" size={20} color="hsl(210, 95%, 55%)" />
+                <Ionicons name="location" size={20} color={Colors.brand.bubbleBlue} />
                 <View style={styles.rowText}>
                   <Text style={styles.mainText} numberOfLines={1}>
                     {data.structured_formatting?.main_text || data.description}
@@ -142,7 +143,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
         </View>
 
         <View style={styles.tipContainer}>
-          <Ionicons name="information-circle-outline" size={20} color="#666" />
+          <Ionicons name="information-circle-outline" size={20} color={Colors.neutral.coolMist} />
           <Text style={styles.tipText}>
             Search for venues, addresses, or landmarks
           </Text>
@@ -155,7 +156,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -165,7 +166,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: Colors.neutral.cloudGrey,
   },
   closeButton: {
     width: 40,
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   placeholder: {
     width: 40,
@@ -202,11 +203,11 @@ const styles = StyleSheet.create({
   mainText: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   secondaryText: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     marginTop: 2,
   },
   tipContainer: {
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
   },
   tipText: {
     fontSize: 13,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     flex: 1,
   },
 });

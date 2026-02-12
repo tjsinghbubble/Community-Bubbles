@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import cometChatService from '../../services/cometchat.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Conversation = {
   conversationId: string;
@@ -98,7 +99,7 @@ export default function MessagesScreen({ navigation }: Props) {
           <Text style={styles.headerTitle}>Messages</Text>
         </View>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
       </SafeAreaView>
     );
@@ -181,19 +182,19 @@ export default function MessagesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
     padding: 20,
     paddingTop: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.neutral.coolMist,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
   },
   loading: {
     flex: 1,
@@ -209,12 +210,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -231,13 +232,13 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   avatarText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 20,
     fontWeight: '600',
   },
@@ -253,13 +254,13 @@ const styles = StyleSheet.create({
   groupName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     flex: 1,
     marginRight: 8,
   },
   time: {
     fontSize: 12,
-    color: '#888',
+    color: Colors.neutral.coolMist,
   },
   conversationFooter: {
     flexDirection: 'row',
@@ -268,12 +269,12 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
     flex: 1,
     marginRight: 8,
   },
   unreadBadge: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
+    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   unreadText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 12,
     fontWeight: '600',
   },

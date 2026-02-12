@@ -14,6 +14,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -57,7 +58,7 @@ export default function LoginScreen({ navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder="Enter your email"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -71,7 +72,7 @@ export default function LoginScreen({ navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder="Enter your password"
-              placeholderTextColor="#999"
+              placeholderTextColor={Colors.neutral.coolMist}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -87,7 +88,7 @@ export default function LoginScreen({ navigation }: Props) {
             disabled={!email || !password || isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -108,7 +109,7 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.brand.skyWhite,
   },
   content: {
     flex: 1,
@@ -121,12 +122,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#000',
+    color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   form: {
     gap: 20,
@@ -137,20 +138,20 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.neutral.charcoal,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
     padding: 16,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
-    color: '#000',
+    backgroundColor: Colors.neutral.cloudGrey,
+    color: Colors.neutral.charcoal,
   },
   button: {
-    backgroundColor: 'hsl(210, 95%, 55%)',
-    borderRadius: 12,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: Radius.full,
     padding: 16,
     alignItems: 'center',
     marginTop: 12,
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.brand.skyWhite,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -170,11 +171,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.neutral.coolMist,
   },
   footerLink: {
     fontSize: 14,
-    color: 'hsl(210, 95%, 55%)',
+    color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
 });
