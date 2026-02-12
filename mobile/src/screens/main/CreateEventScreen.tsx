@@ -125,6 +125,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const [selectedStartTime, setSelectedStartTime] = useState<Date>(new Date());
   const [selectedEndTime, setSelectedEndTime] = useState<Date>(new Date());
   const [selectedRsvpDate, setSelectedRsvpDate] = useState<Date>(new Date());
+  const [reviewAreaHeight, setReviewAreaHeight] = useState(0);
 
   useEffect(() => {
     fetchMyBubbles();
@@ -339,40 +340,27 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   );
 
   const renderEventCard = () => (
-    <View style={styles.reviewCard}>
+    <View style={styles.successEventCard}>
       {images.length > 0 ? (
-        <Image source={{ uri: images[0] }} style={styles.reviewCardImage} />
+        <Image source={{ uri: images[0] }} style={styles.successEventCardImage} />
       ) : (
-        <View style={styles.reviewCardImagePlaceholder}>
-          <Ionicons name="image-outline" size={48} color={Colors.neutral.coolMist} />
+        <View style={styles.successEventCardImagePlaceholder}>
+          <Ionicons name="image-outline" size={36} color={Colors.neutral.coolMist} />
         </View>
       )}
-      <View style={styles.reviewCardBody}>
-        <Text style={styles.reviewCardTitle}>{title}</Text>
-        {description ? <Text style={styles.reviewCardDescription}>{description}</Text> : null}
-        <View style={styles.reviewInfoRow}>
-          <Text style={styles.reviewInfoIcon}>📅</Text>
-          <Text style={styles.reviewInfoText}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
+      <View style={styles.successEventCardBody}>
+        <Text style={styles.reviewTitle} numberOfLines={1}>{title}</Text>
+        <View style={styles.reviewDetailRow}>
+          <Ionicons name="calendar-outline" size={16} color={Colors.brand.bubbleBlue} />
+          <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
         </View>
-        <View style={styles.reviewInfoRow}>
-          <Text style={styles.reviewInfoIcon}>⏰</Text>
-          <Text style={styles.reviewInfoText}>
+        <View style={styles.reviewDetailRow}>
+          <Ionicons name="time-outline" size={16} color={Colors.brand.bubbleBlue} />
+          <Text style={styles.reviewDetailValue}>
             {startTime ? formatTimeForDisplay(startTime) : '--:--'}
             {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
           </Text>
         </View>
-        {(locationTbd || locationAddress) ? (
-          <View style={styles.reviewInfoRow}>
-            <Text style={styles.reviewInfoIcon}>📍</Text>
-            <Text style={styles.reviewInfoText}>{locationTbd ? 'TBD' : locationAddress}</Text>
-          </View>
-        ) : null}
-        {attendeeLimit ? (
-          <View style={styles.reviewInfoRow}>
-            <Text style={styles.reviewInfoIcon}>👥</Text>
-            <Text style={styles.reviewInfoText}>Limit: {attendeeLimit} people</Text>
-          </View>
-        ) : null}
       </View>
     </View>
   );
@@ -733,10 +721,91 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
+  const SEPARATOR_HEIGHT = 1;
+  const usableHeight = reviewAreaHeight > 0 ? reviewAreaHeight - (SEPARATOR_HEIGHT * 2) : 0;
+
   const renderStep4 = () => (
-    <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
-      {renderEventCard()}
-    </ScrollView>
+    <View
+      style={styles.flex1}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0 && h !== reviewAreaHeight) setReviewAreaHeight(h);
+      }}
+    >
+      {usableHeight > 0 ? (
+        <View style={styles.flex1}>
+          <View style={{ height: usableHeight * 0.5 }}>
+            {images.length > 0 ? (
+              <Image source={{ uri: images[0] }} style={styles.reviewCoverImage} />
+            ) : (
+              <View style={styles.reviewCoverPlaceholder}>
+                <Ionicons name="image-outline" size={56} color={Colors.neutral.coolMist} />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.reviewSeparator} />
+
+          <View style={{ height: usableHeight * 0.2, paddingHorizontal: 20, justifyContent: 'center' }}>
+            <Text style={styles.reviewTitle} numberOfLines={1}>{title}</Text>
+            {description ? (
+              <Text style={styles.reviewDescription} numberOfLines={3}>{description}</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.reviewSeparator} />
+
+          <View style={{ height: usableHeight * 0.3, paddingHorizontal: 20, justifyContent: 'center' }}>
+            <View style={styles.reviewDetailRow}>
+              <View style={styles.reviewDetailIconContainer}>
+                <Ionicons name="calendar-outline" size={20} color={Colors.brand.bubbleBlue} />
+              </View>
+              <View style={styles.reviewDetailTextContainer}>
+                <Text style={styles.reviewDetailLabel}>Date</Text>
+                <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.reviewDetailRow}>
+              <View style={styles.reviewDetailIconContainer}>
+                <Ionicons name="time-outline" size={20} color={Colors.brand.bubbleBlue} />
+              </View>
+              <View style={styles.reviewDetailTextContainer}>
+                <Text style={styles.reviewDetailLabel}>Time</Text>
+                <Text style={styles.reviewDetailValue}>
+                  {startTime ? formatTimeForDisplay(startTime) : '--:--'}
+                  {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
+                </Text>
+              </View>
+            </View>
+
+            {(locationTbd || locationAddress) ? (
+              <View style={styles.reviewDetailRow}>
+                <View style={styles.reviewDetailIconContainer}>
+                  <Ionicons name="location-outline" size={20} color={Colors.brand.bubbleBlue} />
+                </View>
+                <View style={styles.reviewDetailTextContainer}>
+                  <Text style={styles.reviewDetailLabel}>Location</Text>
+                  <Text style={styles.reviewDetailValue} numberOfLines={1}>{locationTbd ? 'TBD' : locationAddress}</Text>
+                </View>
+              </View>
+            ) : null}
+
+            {attendeeLimit ? (
+              <View style={styles.reviewDetailRow}>
+                <View style={styles.reviewDetailIconContainer}>
+                  <Ionicons name="people-outline" size={20} color={Colors.brand.bubbleBlue} />
+                </View>
+                <View style={styles.reviewDetailTextContainer}>
+                  <Text style={styles.reviewDetailLabel}>Limit</Text>
+                  <Text style={styles.reviewDetailValue}>{attendeeLimit} people</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 
   const renderSuccessScreen = () => (
@@ -1180,55 +1249,83 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.brand.skyWhite,
   },
-  reviewCard: {
+  successEventCard: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.neutral.coolMist,
     overflow: 'hidden',
     backgroundColor: Colors.brand.skyWhite,
   },
-  reviewCardImage: {
+  successEventCardImage: {
     width: '100%',
-    height: 180,
+    height: 120,
     backgroundColor: Colors.neutral.cloudGrey,
   },
-  reviewCardImagePlaceholder: {
+  successEventCardImagePlaceholder: {
     width: '100%',
-    height: 180,
+    height: 120,
     backgroundColor: Colors.neutral.cloudGrey,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  reviewCardBody: {
-    padding: 16,
+  successEventCardBody: {
+    padding: 12,
   },
-  reviewCardTitle: {
-    fontSize: 20,
+  reviewCoverImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  reviewCoverPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.neutral.cloudGrey,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reviewSeparator: {
+    height: 1,
+    backgroundColor: Colors.neutral.coolMist,
+    marginHorizontal: 20,
+  },
+  reviewTitle: {
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
-  reviewCardDescription: {
-    fontSize: 14,
+  reviewDescription: {
+    fontSize: 15,
     color: Colors.neutral.coolMist,
-    marginBottom: 12,
-    lineHeight: 20,
+    lineHeight: 22,
   },
-  reviewInfoRow: {
+  reviewDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    marginBottom: 16,
   },
-  reviewInfoIcon: {
-    fontSize: 16,
-    width: 24,
-    textAlign: 'center',
+  reviewDetailIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.neutral.cloudGrey,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  reviewInfoText: {
-    fontSize: 15,
-    color: Colors.neutral.charcoal,
+  reviewDetailTextContainer: {
     flex: 1,
+  },
+  reviewDetailLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.neutral.coolMist,
+    marginBottom: 2,
+  },
+  reviewDetailValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.neutral.charcoal,
   },
   stepIndicatorBar: {
     flexDirection: 'row',
