@@ -315,19 +315,18 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </Text>
           </View>
 
-          {event.locationName && (
-            <TouchableOpacity
-              style={styles.detailRow}
-              onPress={() => openInMaps(event.locationName!, event.locationAddress)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
-              <Text style={styles.detailText} numberOfLines={2}>
-                {event.locationName}
-                {event.locationAddress ? `, ${event.locationAddress}` : ''}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.detailRow}
+            onPress={() => event.locationName ? openInMaps(event.locationName, event.locationAddress) : null}
+            activeOpacity={event.locationName ? 0.7 : 1}
+          >
+            <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+            <Text style={styles.detailText} numberOfLines={2}>
+              {event.locationName
+                ? `${event.locationName}${event.locationAddress ? `, ${event.locationAddress}` : ''}`
+                : 'TBD'}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.detailRow}>
             <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
@@ -478,7 +477,7 @@ const styles = StyleSheet.create({
   },
   detailRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
     marginBottom: 14,
   },

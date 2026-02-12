@@ -956,12 +956,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            {(locationTbd || locationAddress) ? (
-              <View style={styles.reviewDetailRow}>
-                <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
-                <Text style={styles.reviewDetailValue} numberOfLines={2}>{locationTbd ? 'TBD' : locationAddress}</Text>
-              </View>
-            ) : null}
+            <View style={styles.reviewDetailRow}>
+              <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+              <Text style={styles.reviewDetailValue} numberOfLines={2}>{locationTbd ? 'TBD' : (locationAddress || 'TBD')}</Text>
+            </View>
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
@@ -1383,7 +1381,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: Platform.OS === 'ios' ? 8 : 20,
     borderTopWidth: 1,
-    borderTopColor: Colors.neutral.coolMist,
+    borderTopColor: Colors.neutral.cloudGrey,
   },
   primaryButton: {
     borderRadius: Radius.full,
@@ -1471,7 +1469,7 @@ const styles = StyleSheet.create({
   },
   reviewDetailRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
     marginBottom: 12,
   },
