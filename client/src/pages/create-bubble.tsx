@@ -1,15 +1,17 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
-  Camera,
   Check,
   ImagePlus,
   Loader2,
+  Lock,
   MapPin,
   Minus,
   Plus,
+  Trash2,
   X,
+  Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,627 +20,1009 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import successIllustration from "@/assets/images/bubble-submit-success.png";
+import interestRunning from "@/assets/images/interest-running.jpg";
+import interestCooking from "@/assets/images/interest-cooking.jpg";
+import interestCoffee from "@/assets/images/interest-coffee.jpg";
+import interestGardening from "@/assets/images/interest-gardening.jpg";
+import interestHiking from "@/assets/images/interest-hiking.jpg";
+import interestTennis from "@/assets/images/interest-tennis.jpg";
+import interestBiking from "@/assets/images/interest-biking.jpg";
+import interestPets from "@/assets/images/interest-pets.jpg";
+import interestCrafts from "@/assets/images/interest-crafts.jpg";
+import exploreMeetup from "@/assets/images/explore-meetup.jpg";
+import exploreFood from "@/assets/images/explore-food.jpg";
+import exploreWellness from "@/assets/images/explore-wellness.jpg";
 
-type Privacy = "public" | "request" | "private";
+const DS = {
+  color: {
+    text: { primary: "#1E1F26", secondary: "#4D4D4D", tertiary: "#969696", disabled: "#C7C7CC" },
+    bg: { primary: "#FFFFFF", secondary: "#FAFAFA", surface: "#F5F6F8", card: "#FFFFFF" },
+    border: { default: "#E2E2E2", light: "#F0F0F0", focus: "#35A8F7" },
+    status: { error: "#FF3B30" },
+    brand: { primary: "#35A8F7", primaryLight: "#5AB9EA" },
+    neutral: { black: "#000000" },
+  },
+  font: { xxs: 9, xs: 10, sm: 11, base: 14, md: 16, lg: 18, xl: 20, xxl: 24, xxxl: 28 },
+  lh: { sm: 15, base: 19, md: 22, lg: 25, xl: 27 },
+  ls: { tight: -0.5 },
+  space: { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32, xxxxl: 40, huge: 48 },
+  radius: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, full: 100, round: 9999 },
+  button: { height: 56 },
+  modal: { overlayOpacity: 0.4 },
+  slider: { trackH: 4, thumbSize: 16 },
+} as const;
+
+const CATEGORIES = [
+  { label: "Running", image: interestRunning },
+  { label: "Cooking", image: interestCooking },
+  { label: "Coffee Meets", image: interestCoffee },
+  { label: "Professional", image: exploreMeetup },
+  { label: "Hiking", image: interestHiking },
+  { label: "Tennis", image: interestTennis },
+  { label: "Biking", image: interestBiking },
+  { label: "Pets", image: interestPets },
+  { label: "Arts & Crafts", image: interestCrafts },
+  { label: "Gardening", image: interestGardening },
+  { label: "Food & Drink", image: exploreFood },
+  { label: "Wellness", image: exploreWellness },
+];
+
+const MANDATORY_RULES = [
+  "Be Respectful. Treat all members with kindness and courtesy.",
+  "Stay On Topic. Keep posts relevant to the bubble's purpose.",
+];
+const DEFAULT_OPTIONAL_RULE = "Have fun and be yourself!";
+
+const PRIVACY_OPTIONS = [
+  { value: "Public", label: "Public", desc: "Anyone can discover and join" },
+  { value: "Request", label: "Request to Join", desc: "Admin approval required before joining" },
+  { value: "Private", label: "Private", desc: "Invite-only event" },
+];
+
+const STEP_LABELS = ["Pick Category", "Bubble Details", "Rules", "Privacy & Settings", "Preview"];
+
+type Step = 0 | 1 | 2 | 3 | 4;
 
 type Draft = {
+  category: string;
   title: string;
   tagline: string;
   description: string;
   location: string;
   radiusMiles: number;
-  coverPreviewUrl?: string;
-  privacy: Privacy;
+  coverFile: File | null;
+  coverPreview: string;
+  customRules: string[];
+  privacy: string;
   memberLimit: string;
 };
 
-const defaultDraft: Draft = {
+const blank: Draft = {
+  category: "",
   title: "",
   tagline: "",
   description: "",
   location: "",
   radiusMiles: 15,
-  privacy: "public",
+  coverFile: null,
+  coverPreview: "",
+  customRules: [],
+  privacy: "Public",
   memberLimit: "",
 };
 
-function TopRow({ title, onBack, onCancel }: { title: string; onBack: () => void; onCancel: () => void }) {
+function getToken(): string | null {
+  return localStorage.getItem("bubble_token");
+}
+
+async function apiFetch(url: string, opts: RequestInit = {}) {
+  const token = getToken();
+  const headers: Record<string, string> = { ...(opts.headers as Record<string, string> || {}) };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (opts.body && typeof opts.body === "string") headers["Content-Type"] = "application/json";
+  return fetch(url, { ...opts, headers });
+}
+
+function ProgressBar({ step }: { step: Step }) {
   return (
-    <div className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl">
-      <div className="flex items-center justify-between px-5 py-4">
-        <button
-          onClick={onBack}
-          className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
-          data-testid="button-create-back"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="text-[15px] font-semibold tracking-tight" data-testid="text-create-title">
-          {title}
-        </div>
-        <button
-          onClick={onCancel}
-          className="rounded-full px-3 py-2 text-[13px] font-semibold text-red-500"
-          data-testid="button-create-cancel"
-        >
-          Cancel
-        </button>
-      </div>
-      <div className="h-[3px] w-full bg-black/5">
+    <div className="flex gap-1 px-5 py-3" data-testid="progress-bar">
+      {[0, 1, 2, 3, 4].map((i) => (
         <div
-          className="h-full w-1/3"
-          style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
-          data-testid="progress-create"
+          key={i}
+          className="h-1 flex-1 rounded-full transition-colors duration-300"
+          style={{
+            backgroundColor: i <= step ? DS.color.brand.primary : DS.color.border.light,
+            borderRadius: DS.radius.full,
+          }}
+          data-testid={`progress-segment-${i}`}
         />
-      </div>
+      ))}
+    </div>
+  );
+}
+
+function Header({ title, onBack, onCancel }: { title: string; onBack: () => void; onCancel: () => void }) {
+  return (
+    <div
+      className="sticky top-0 z-20 flex items-center justify-between px-4 py-3"
+      style={{ backgroundColor: DS.color.bg.primary, borderBottom: `1px solid ${DS.color.border.light}` }}
+    >
+      <button onClick={onBack} className="flex h-10 w-10 items-center justify-center rounded-full" data-testid="button-back">
+        <ArrowLeft className="h-5 w-5" style={{ color: DS.color.text.primary }} />
+      </button>
+      <span
+        className="font-bold"
+        style={{ fontSize: DS.font.md, color: DS.color.text.primary, lineHeight: `${DS.lh.md}px` }}
+        data-testid="text-step-title"
+      >
+        {title}
+      </span>
+      <button
+        onClick={onCancel}
+        className="rounded-full px-3 py-2"
+        style={{ fontSize: DS.font.base, color: DS.color.text.tertiary }}
+        data-testid="button-cancel"
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+function PrimaryBtn({ label, disabled, onClick, testId }: { label: string; disabled?: boolean; onClick: () => void; testId: string }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      className="w-full font-semibold text-white transition-opacity"
+      style={{
+        height: DS.button.height,
+        borderRadius: DS.radius.full,
+        backgroundColor: DS.color.brand.primary,
+        fontSize: DS.font.md,
+        letterSpacing: DS.ls.tight,
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+      data-testid={testId}
+    >
+      {label}
+    </button>
+  );
+}
+
+function BottomBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-20 px-5 pb-6 pt-4"
+      style={{ backgroundColor: DS.color.bg.primary, borderTop: `1px solid ${DS.color.border.light}` }}
+    >
+      <div className="mx-auto w-full max-w-[420px]">{children}</div>
     </div>
   );
 }
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <div className="mb-2 text-[13px] font-semibold text-foreground" data-testid="text-field-label">
-      {children} {required ? <span className="text-red-500">*</span> : null}
+    <div
+      className="mb-2 font-medium"
+      style={{ fontSize: DS.font.base, color: DS.color.text.primary }}
+    >
+      {children}
+      {required && <span style={{ color: DS.color.status.error }}> *</span>}
     </div>
   );
 }
 
-function Slider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const trackRef = useRef<HTMLDivElement | null>(null);
+function CharCount({ current, max }: { current: number; max: number }) {
+  return (
+    <div className="mt-1 text-right" style={{ fontSize: DS.font.xs, color: DS.color.text.tertiary }}>
+      {current}/{max}
+    </div>
+  );
+}
 
-  const pct = useMemo(() => {
-    const min = 1;
-    const max = 50;
-    return ((value - min) / (max - min)) * 100;
-  }, [value]);
+function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const pct = ((value - 1) / 49) * 100;
+  const ticks = [1, 10, 20, 30, 40, 50];
 
-  const setFromClientX = (clientX: number) => {
+  const setFromX = (clientX: number) => {
     const el = trackRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
-    const min = 1;
-    const max = 50;
-    const next = Math.round(min + (x / rect.width) * (max - min));
-    onChange(next);
+    onChange(Math.round(1 + (x / rect.width) * 49));
   };
 
   return (
-    <div className="mt-3" data-testid="slider-radius">
+    <div data-testid="slider-radius">
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-medium" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>
+          Radius
+        </span>
+        <span className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.brand.primary }}>
+          {value} miles
+        </span>
+      </div>
       <div
         ref={trackRef}
-        className="relative h-2 rounded-full bg-black/10"
+        className="relative cursor-pointer"
+        style={{ height: DS.slider.trackH, backgroundColor: DS.color.border.light, borderRadius: DS.radius.full }}
         onPointerDown={(e) => {
           (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-          setFromClientX(e.clientX);
+          setFromX(e.clientX);
         }}
         onPointerMove={(e) => {
           if ((e.buttons ?? 0) === 0) return;
-          setFromClientX(e.clientX);
+          setFromX(e.clientX);
         }}
         data-testid="slider-track"
       >
         <div
-          className="absolute left-0 top-0 h-2 rounded-full"
-          style={{ width: `${pct}%`, background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+          className="absolute left-0 top-0 h-full"
+          style={{ width: `${pct}%`, backgroundColor: DS.color.brand.primary, borderRadius: DS.radius.full }}
           data-testid="slider-fill"
         />
         <div
-          className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-white shadow-[0_10px_30px_hsl(var(--foreground)/0.22)] ring-1 ring-black/10"
-          style={{ left: `calc(${pct}% - 10px)` }}
+          className="absolute top-1/2 -translate-y-1/2 rounded-full border-2 shadow-sm"
+          style={{
+            width: DS.slider.thumbSize,
+            height: DS.slider.thumbSize,
+            left: `calc(${pct}% - ${DS.slider.thumbSize / 2}px)`,
+            backgroundColor: DS.color.bg.primary,
+            borderColor: DS.color.border.focus,
+            borderRadius: DS.radius.full,
+          }}
           data-testid="slider-thumb"
         />
       </div>
-
-      <div className="mt-3 text-center text-[13px] text-muted-foreground" data-testid="text-radius-value">
-        {value} miles
+      <div className="mt-2 flex justify-between">
+        {ticks.map((t) => (
+          <button
+            key={t}
+            onClick={() => onChange(t)}
+            className="px-0.5"
+            style={{
+              fontSize: DS.font.xs,
+              color: value === t ? DS.color.brand.primary : DS.color.text.tertiary,
+              fontWeight: value === t ? 600 : 400,
+            }}
+            data-testid={`tick-${t}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <div className="mt-2 flex justify-between">
+        <button
+          onClick={() => onChange(Math.max(1, value - 1))}
+          className="flex h-7 w-7 items-center justify-center rounded-full border"
+          style={{ backgroundColor: DS.color.bg.surface, borderColor: DS.color.border.default }}
+          data-testid="button-radius-minus"
+        >
+          <Minus className="h-3.5 w-3.5" style={{ color: DS.color.text.secondary }} />
+        </button>
+        <button
+          onClick={() => onChange(Math.min(50, value + 1))}
+          className="flex h-7 w-7 items-center justify-center rounded-full border"
+          style={{ backgroundColor: DS.color.bg.surface, borderColor: DS.color.border.default }}
+          data-testid="button-radius-plus"
+        >
+          <Plus className="h-3.5 w-3.5" style={{ color: DS.color.text.secondary }} />
+        </button>
       </div>
     </div>
   );
 }
 
-function OptionRow({
-  title,
-  description,
-  selected,
-  onSelect,
-}: {
-  title: string;
-  description: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
+function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "w-full rounded-2xl border bg-white/55 p-4 text-left shadow-sm ring-1 ring-black/5 transition",
-        selected ? "border-[hsl(var(--primary))]" : "border-transparent",
-      )}
-      data-testid={`option-privacy-${title.toLowerCase().replace(/\s+/g, "-")}`}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            "mt-0.5 grid h-5 w-5 place-items-center rounded-full border",
-            selected ? "border-[hsl(var(--primary))] bg-[hsl(var(--primary))]" : "border-black/20 bg-white",
-          )}
-          data-testid="radio"
-        >
-          {selected ? <div className="h-2 w-2 rounded-full bg-white" /> : null}
-        </div>
-        <div className="min-w-0">
-          <div className="text-[13px] font-semibold" data-testid="text-option-title">
-            {title}
-          </div>
-          <div className="mt-1 text-[12px] leading-snug text-muted-foreground" data-testid="text-option-description">
-            {description}
-          </div>
-        </div>
+    <div className="space-y-5 px-5 pb-32 pt-5">
+      <div
+        className="font-semibold"
+        style={{ fontSize: DS.font.lg, color: DS.color.text.primary, lineHeight: `${DS.lh.lg}px` }}
+        data-testid="text-category-prompt"
+      >
+        What category will your bubble be in?
       </div>
-    </button>
+      <div className="grid grid-cols-3 gap-3" data-testid="category-grid">
+        {CATEGORIES.map((cat) => {
+          const sel = draft.category === cat.label;
+          return (
+            <button
+              key={cat.label}
+              className="relative overflow-hidden text-center"
+              style={{
+                borderRadius: DS.radius.md,
+                backgroundColor: DS.color.bg.surface,
+                border: `2px solid ${sel ? DS.color.brand.primary : "transparent"}`,
+              }}
+              onClick={() => setDraft({ ...draft, category: sel ? "" : cat.label })}
+              data-testid={`category-${cat.label.toLowerCase().replace(/[&\s]+/g, "-")}`}
+            >
+              <img src={cat.image} alt={cat.label} className="aspect-[4/3] w-full object-cover" />
+              {sel && (
+                <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full" style={{ backgroundColor: DS.color.brand.primary }}>
+                  <Check className="h-3 w-3 text-white" />
+                </div>
+              )}
+              <div
+                className="py-2 px-1"
+                style={{
+                  fontSize: DS.font.sm,
+                  fontWeight: sel ? 600 : 500,
+                  color: sel ? DS.color.brand.primary : DS.color.text.secondary,
+                }}
+              >
+                {cat.label}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-function CoverUploader({
-  previewUrl,
-  onPick,
-}: {
-  previewUrl?: string;
-  onPick: (file: File) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
+function StepDetails({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  const coverRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="mt-4">
-      <div className="text-[13px] font-semibold" data-testid="text-cover-title">
-        Add a Cover Photo <span className="font-medium text-muted-foreground">(Strongly Recommended)</span>
+    <div className="space-y-5 px-5 pb-32 pt-5">
+      <div>
+        <FieldLabel required>Bubble Title</FieldLabel>
+        <Input
+          value={draft.title}
+          onChange={(e) => setDraft({ ...draft, title: e.target.value.slice(0, 60) })}
+          placeholder="Ex: Corgi Fam"
+          maxLength={60}
+          className="h-12"
+          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+          data-testid="input-title"
+        />
+        <CharCount current={draft.title.length} max={60} />
       </div>
 
-      <div className="mt-3">
+      <div>
+        <FieldLabel>
+          Bubble Tagline <span style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary, fontWeight: 400 }}>(optional)</span>
+        </FieldLabel>
+        <Input
+          value={draft.tagline}
+          onChange={(e) => setDraft({ ...draft, tagline: e.target.value.slice(0, 100) })}
+          placeholder="Meetup with other Corgi Parents near you"
+          maxLength={100}
+          className="h-12"
+          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+          data-testid="input-tagline"
+        />
+        <CharCount current={draft.tagline.length} max={100} />
+      </div>
+
+      <div>
+        <FieldLabel required>Bubble Description</FieldLabel>
+        <Textarea
+          value={draft.description}
+          onChange={(e) => setDraft({ ...draft, description: e.target.value.slice(0, 500) })}
+          placeholder="Tell people what this bubble is about..."
+          maxLength={500}
+          className="min-h-[120px]"
+          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+          data-testid="input-description"
+        />
+        <CharCount current={draft.description.length} max={500} />
+      </div>
+
+      <div>
+        <FieldLabel>Location</FieldLabel>
+        <div className="flex gap-2">
+          <Input
+            value={draft.location}
+            onChange={(e) => setDraft({ ...draft, location: e.target.value })}
+            placeholder="Search location or enter address"
+            className="h-12 flex-1"
+            style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+            data-testid="input-location"
+          />
+          <button
+            className="flex h-12 w-12 items-center justify-center border"
+            style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.primary }}
+            data-testid="button-map-pin"
+          >
+            <MapPin className="h-5 w-5" style={{ color: DS.color.brand.primary }} />
+          </button>
+        </div>
+      </div>
+
+      <RadiusSlider value={draft.radiusMiles} onChange={(v) => setDraft({ ...draft, radiusMiles: v })} />
+
+      <div>
+        <FieldLabel>
+          Cover Photo <span style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary, fontWeight: 400 }}>(optional)</span>
+        </FieldLabel>
         <button
-          onClick={() => inputRef.current?.click()}
-          className={cn(
-            "group relative w-full overflow-hidden rounded-2xl border border-dashed border-black/20 bg-white/45 px-4 py-5 text-sm text-muted-foreground transition",
-            "hover:border-[hsl(var(--primary))]/50 hover:bg-white/55",
-          )}
-          data-testid="button-add-cover"
+          onClick={() => coverRef.current?.click()}
+          className="group relative w-full overflow-hidden border border-dashed transition hover:border-[#35A8F7]"
+          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.surface }}
+          data-testid="button-cover-upload"
         >
-          {previewUrl ? (
-            <img
-              src={previewUrl}
-              alt=""
-              className="h-36 w-full rounded-xl object-cover"
-              data-testid="img-cover-preview"
-            />
+          {draft.coverPreview ? (
+            <img src={draft.coverPreview} alt="" className="h-40 w-full object-cover" style={{ aspectRatio: "16/9" }} data-testid="img-cover-preview" />
           ) : (
-            <div className="flex h-36 flex-col items-center justify-center gap-2">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]">
-                <ImagePlus className="h-5 w-5" />
+            <div className="flex h-40 flex-col items-center justify-center gap-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${DS.color.brand.primary}18` }}>
+                <ImagePlus className="h-5 w-5" style={{ color: DS.color.brand.primary }} />
               </div>
-              <div className="text-[13px] font-semibold text-foreground">+ Add</div>
+              <span className="font-semibold" style={{ fontSize: DS.font.sm, color: DS.color.text.primary }}>+ Add</span>
             </div>
           )}
         </button>
-
         <input
-          ref={inputRef}
+          ref={coverRef}
           type="file"
           accept="image/*"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
             if (!f) return;
-            onPick(f);
+            setDraft({ ...draft, coverFile: f, coverPreview: URL.createObjectURL(f) });
           }}
           data-testid="input-cover-file"
         />
+      </div>
+    </div>
+  );
+}
 
-        <button
-          className="mt-3 w-full rounded-2xl border border-black/10 bg-white/55 py-4 text-[13px] font-semibold text-[hsl(var(--primary))] shadow-sm"
-          data-testid="button-add-attachments"
+function StepRules({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  const [showModal, setShowModal] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [ruleText, setRuleText] = useState("");
+
+  const openAdd = () => { setEditIdx(null); setRuleText(""); setShowModal(true); };
+  const openEdit = (i: number) => { setEditIdx(i); setRuleText(draft.customRules[i]); setShowModal(true); };
+
+  const saveRule = () => {
+    const trimmed = ruleText.trim();
+    if (!trimmed) return;
+    const updated = [...draft.customRules];
+    if (editIdx !== null) updated[editIdx] = trimmed;
+    else updated.push(trimmed);
+    setDraft({ ...draft, customRules: updated });
+    setShowModal(false);
+  };
+
+  const deleteRule = (i: number) => {
+    setDraft({ ...draft, customRules: draft.customRules.filter((_, idx) => idx !== i) });
+  };
+
+  return (
+    <div className="space-y-4 px-5 pb-32 pt-5">
+      {MANDATORY_RULES.map((rule, i) => (
+        <div
+          key={`m-${i}`}
+          className="flex items-start gap-3 border p-4"
+          style={{ borderRadius: DS.radius.lg, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+          data-testid={`rule-mandatory-${i}`}
         >
-          Add Attachments
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PrimaryCTA({ label, disabled, onClick, testId }: { label: string; disabled?: boolean; onClick: () => void; testId: string }) {
-  return (
-    <Button
-      disabled={disabled}
-      onClick={onClick}
-      className="h-12 w-full rounded-full text-[14px] font-semibold shadow-[0_18px_55px_hsl(var(--primary)/0.30)]"
-      style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
-      data-testid={testId}
-    >
-      {label}
-    </Button>
-  );
-}
-
-function BubbleDetails({
-  draft,
-  setDraft,
-  onNext,
-  onBack,
-  onCancel,
-}: {
-  draft: Draft;
-  setDraft: (d: Draft) => void;
-  onNext: () => void;
-  onBack: () => void;
-  onCancel: () => void;
-}) {
-  const requiredOk = draft.title.trim().length > 0 && draft.description.trim().length > 0 && draft.location.trim().length > 0;
-
-  return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <TopRow title="Bubble Details" onBack={onBack} onCancel={onCancel} />
-
-      <div className="mx-auto w-full max-w-[420px] px-5 pb-28 pt-5">
-        <div className="space-y-5">
-          <div>
-            <FieldLabel required>Bubble Title</FieldLabel>
-            <Input
-              value={draft.title}
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              placeholder="Ex: Corgi Fam"
-              className="h-12 rounded-2xl bg-white/55"
-              data-testid="input-bubble-title"
-            />
-          </div>
-
-          <div>
-            <FieldLabel>Bubble Tagline (optional)</FieldLabel>
-            <Input
-              value={draft.tagline}
-              onChange={(e) => setDraft({ ...draft, tagline: e.target.value })}
-              placeholder="Meetup with other Corgi Parents near you"
-              className="h-12 rounded-2xl bg-white/55"
-              data-testid="input-bubble-tagline"
-            />
-          </div>
-
-          <div>
-            <FieldLabel required>Bubble Description</FieldLabel>
-            <Textarea
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="Fluffy but fierce. We’re a pack of corgi lovers who meet up for park hangs, group walks, and the occasional costume parade.\n\nEvents, tips, memes, and good vibes only."
-              className="min-h-[140px] rounded-2xl bg-white/55"
-              data-testid="input-bubble-description"
-            />
-          </div>
-
-          <div>
-            <FieldLabel required>Location</FieldLabel>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={draft.location}
-                onChange={(e) => setDraft({ ...draft, location: e.target.value })}
-                placeholder="Search location or enter address"
-                className="h-12 rounded-2xl bg-white/55 pl-11"
-                data-testid="input-bubble-location"
-              />
-            </div>
-
-            <Slider value={draft.radiusMiles} onChange={(v) => setDraft({ ...draft, radiusMiles: v })} />
-          </div>
-
-          <CoverUploader
-            previewUrl={draft.coverPreviewUrl}
-            onPick={(file) => {
-              const url = URL.createObjectURL(file);
-              setDraft({ ...draft, coverPreviewUrl: url });
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-background via-background/85 to-transparent px-4 pb-5 pt-3">
-        <div className="w-full max-w-[420px]">
-          <PrimaryCTA label="Next" disabled={!requiredOk} onClick={onNext} testId="button-details-next" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PrivacySettings({
-  draft,
-  setDraft,
-  onNext,
-  onBack,
-  onCancel,
-}: {
-  draft: Draft;
-  setDraft: (d: Draft) => void;
-  onNext: () => void;
-  onBack: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <TopRow title="Privacy & Settings" onBack={onBack} onCancel={onCancel} />
-
-      <div className="mx-auto w-full max-w-[420px] px-5 pb-28 pt-5">
-        <div className="text-[13px] font-semibold" data-testid="text-privacy-title">
-          Who Can See This Bubble?
-        </div>
-
-        <div className="mt-3 space-y-3">
-          <OptionRow
-            title="Public"
-            description="Anyone can discover and join"
-            selected={draft.privacy === "public"}
-            onSelect={() => setDraft({ ...draft, privacy: "public" })}
-          />
-          <OptionRow
-            title="Request to Join"
-            description="Host approval required before attending"
-            selected={draft.privacy === "request"}
-            onSelect={() => setDraft({ ...draft, privacy: "request" })}
-          />
-          <OptionRow
-            title="Private"
-            description="Invite-only event"
-            selected={draft.privacy === "private"}
-            onSelect={() => setDraft({ ...draft, privacy: "private" })}
-          />
-        </div>
-
-        <div className="mt-6">
-          <div className="mb-2 text-[13px] font-semibold" data-testid="text-memberlimit-title">
-            Member Limit
-          </div>
-          <Input
-            value={draft.memberLimit}
-            onChange={(e) => setDraft({ ...draft, memberLimit: e.target.value })}
-            placeholder="Ex: 20"
-            inputMode="numeric"
-            className="h-12 rounded-2xl bg-white/55"
-            data-testid="input-member-limit"
-          />
-          <div className="mt-2 text-[11px] text-muted-foreground" data-testid="text-memberlimit-hint">
-            Leave empty for unlimited
-          </div>
-        </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-background via-background/85 to-transparent px-4 pb-5 pt-3">
-        <div className="w-full max-w-[420px]">
-          <PrimaryCTA label="Next" onClick={onNext} testId="button-privacy-next" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PreviewSubmit({
-  draft,
-  onSubmit,
-  onBack,
-  onCancel,
-}: {
-  draft: Draft;
-  onSubmit: () => void;
-  onBack: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <TopRow title={draft.title.trim() ? draft.title.trim() : "Bubble Preview"} onBack={onBack} onCancel={onCancel} />
-
-      <div className="mx-auto w-full max-w-[420px] px-5 pb-28 pt-5">
-        <Card className="overflow-hidden rounded-[26px] border-0 bg-white/55 shadow-sm ring-1 ring-black/5">
-          <div className="relative aspect-[4/3]">
-            {draft.coverPreviewUrl ? (
-              <img
-                src={draft.coverPreviewUrl}
-                alt=""
-                className="h-full w-full object-cover"
-                data-testid="img-preview-cover"
-              />
-            ) : (
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(135deg, hsl(var(--primary) / .14), hsl(var(--brand-2) / .10)), radial-gradient(800px circle at 30% 20%, hsl(var(--primary) / .12), transparent 55%)",
-                }}
-                data-testid="img-preview-fallback"
-              />
-            )}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
-          </div>
-
-          <div className="px-5 pb-5 pt-4">
-            {draft.tagline.trim() ? (
-              <div className="text-center text-[13px] font-semibold text-muted-foreground" data-testid="text-preview-tagline">
-                {draft.tagline.trim()}
-              </div>
-            ) : null}
-
-            <div className="mt-2 text-center text-[11px] text-muted-foreground" data-testid="text-preview-meta">
-              {draft.memberLimit.trim() ? `${draft.memberLimit.trim()} members allowed` : "Unlimited members"}
-            </div>
-
-            <div className="mt-5">
-              <div className="text-[13px] font-semibold" data-testid="text-preview-about-title">
-                About
-              </div>
-              <div className="mt-2 text-[12px] leading-relaxed text-muted-foreground" data-testid="text-preview-about">
-                {draft.description.trim() || "—"}
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="text-[13px] font-semibold" data-testid="text-preview-location-title">
-                Location
-              </div>
-              <div className="mt-2 text-[12px] text-muted-foreground" data-testid="text-preview-location">
-                {draft.location.trim() || "—"} • Radius: {draft.radiusMiles} miles
-              </div>
-
-              <div className="mt-3 overflow-hidden rounded-2xl bg-black/5" data-testid="map-preview">
-                <div
-                  className="h-36 w-full"
-                  style={{
-                    background:
-                      "radial-gradient(700px circle at 40% 30%, rgba(0,0,0,.10), transparent 55%), linear-gradient(135deg, rgba(0,0,0,.06), rgba(0,0,0,.02))",
-                  }}
-                />
-                <div className="px-4 py-3 text-[11px] text-muted-foreground">
-                  This is a mock map preview.
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5">
-              <div className="text-[13px] font-semibold" data-testid="text-preview-rules-title">
-                Bubble Rules
-              </div>
-              <div className="mt-2 text-[12px] text-muted-foreground" data-testid="text-preview-rules">
-                No hate. Be kind. Keep it local.
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center bg-gradient-to-t from-background via-background/85 to-transparent px-4 pb-5 pt-3">
-        <div className="w-full max-w-[420px]">
-          <PrimaryCTA label="Submit for review" onClick={onSubmit} testId="button-submit-review" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Submitting({ onDone }: { onDone: () => void }) {
-  return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-[420px] flex-col items-center justify-center px-6 py-10">
-        <div className="relative grid h-44 w-44 place-items-center" data-testid="loading-wrapper">
-          <div className="absolute inset-0 rounded-full border-[10px] border-black/10" />
           <div
-            className="absolute inset-0 rounded-full border-[10px] border-transparent"
-            style={{
-              borderTopColor: "hsl(var(--primary))",
-              borderRightColor: "hsl(var(--brand-2))",
-              borderBottomColor: "rgba(0,0,0,.06)",
-              borderLeftColor: "rgba(0,0,0,.06)",
-              animation: "spin 1.1s linear infinite",
-            }}
-          />
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full font-semibold"
+            style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xs, color: DS.color.text.secondary }}
+          >
+            {i + 1}
+          </div>
+          <div className="flex-1">
+            <div style={{ fontSize: DS.font.base, color: DS.color.text.primary, lineHeight: `${DS.lh.base}px` }}>{rule}</div>
+            <div
+              className="mt-1 inline-flex items-center gap-1 rounded px-2 py-0.5"
+              style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xxs, color: DS.color.text.tertiary }}
+            >
+              <Lock className="h-2.5 w-2.5" /> Required
+            </div>
+          </div>
         </div>
-        <div className="mt-6 text-[15px] font-semibold" data-testid="text-loading">
-          Loading...
+      ))}
+
+      <div
+        className="flex items-start gap-3 border p-4"
+        style={{ borderRadius: DS.radius.lg, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+        data-testid="rule-default"
+      >
+        <div
+          className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full font-semibold"
+          style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xs, color: DS.color.text.secondary }}
+        >
+          {MANDATORY_RULES.length + 1}
+        </div>
+        <div className="flex-1">
+          <div style={{ fontSize: DS.font.base, color: DS.color.text.primary, lineHeight: `${DS.lh.base}px` }}>{DEFAULT_OPTIONAL_RULE}</div>
+          <div
+            className="mt-1 inline-flex items-center gap-1 rounded px-2 py-0.5"
+            style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xxs, color: DS.color.text.tertiary }}
+          >
+            Default
+          </div>
+        </div>
+      </div>
+
+      {draft.customRules.map((rule, i) => (
+        <div
+          key={`c-${i}`}
+          className="flex items-start gap-3 border p-4"
+          style={{ borderRadius: DS.radius.lg, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+          data-testid={`rule-custom-${i}`}
+        >
+          <div
+            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full font-semibold"
+            style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xs, color: DS.color.text.secondary }}
+          >
+            {MANDATORY_RULES.length + 1 + i + 1}
+          </div>
+          <button onClick={() => openEdit(i)} className="flex-1 text-left" data-testid={`button-edit-rule-${i}`}>
+            <div style={{ fontSize: DS.font.base, color: DS.color.text.primary, lineHeight: `${DS.lh.base}px` }}>{rule}</div>
+          </button>
+          <button onClick={() => deleteRule(i)} className="flex-shrink-0 p-1" data-testid={`button-delete-rule-${i}`}>
+            <X className="h-4 w-4" style={{ color: DS.color.text.tertiary }} />
+          </button>
+        </div>
+      ))}
+
+      <button
+        onClick={openAdd}
+        className="flex w-full items-center justify-center gap-2 border-2 border-dashed py-4 font-semibold"
+        style={{
+          borderRadius: DS.radius.md,
+          borderColor: DS.color.brand.primary,
+          fontSize: DS.font.base,
+          color: DS.color.brand.primary,
+        }}
+        data-testid="button-add-rule"
+      >
+        <Plus className="h-5 w-5" /> Add Rule
+      </button>
+
+      {showModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ backgroundColor: `rgba(0,0,0,${DS.modal.overlayOpacity})` }}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="w-full max-w-[480px]"
+            style={{
+              backgroundColor: DS.color.bg.card,
+              borderTopLeftRadius: DS.radius.xl,
+              borderTopRightRadius: DS.radius.xl,
+              padding: DS.space.lg,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="pb-2 text-center font-bold"
+              style={{ fontSize: DS.font.md, color: DS.color.text.primary, lineHeight: `${DS.lh.md}px` }}
+            >
+              {editIdx !== null ? "Edit Rule" : "Add Rule"}
+            </div>
+            <Textarea
+              value={ruleText}
+              onChange={(e) => setRuleText(e.target.value)}
+              placeholder="Enter your rule..."
+              autoFocus
+              className="my-4 min-h-[100px]"
+              style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+              data-testid="input-rule-text"
+            />
+            <div className="flex gap-3" style={{ gap: DS.space.md }}>
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex-1 border font-semibold"
+                style={{
+                  height: DS.button.height,
+                  borderRadius: DS.radius.full,
+                  borderColor: DS.color.border.default,
+                  backgroundColor: DS.color.bg.primary,
+                  fontSize: DS.font.md,
+                  color: DS.color.text.secondary,
+                }}
+                data-testid="button-rule-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveRule}
+                disabled={!ruleText.trim()}
+                className="flex-1 font-semibold text-white"
+                style={{
+                  height: DS.button.height,
+                  borderRadius: DS.radius.full,
+                  backgroundColor: DS.color.brand.primary,
+                  fontSize: DS.font.md,
+                  opacity: ruleText.trim() ? 1 : 0.5,
+                }}
+                data-testid="button-rule-save"
+              >
+                {editIdx !== null ? "Save" : "Add Rule"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepPrivacy({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  return (
+    <div className="space-y-6 px-5 pb-32 pt-5">
+      <div>
+        <FieldLabel required>Who Can See This Bubble?</FieldLabel>
+        <div className="mt-2 space-y-3">
+          {PRIVACY_OPTIONS.map((opt) => {
+            const sel = draft.privacy === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setDraft({ ...draft, privacy: opt.value })}
+                className="flex w-full items-center gap-3 border p-4 text-left"
+                style={{
+                  borderRadius: DS.radius.lg,
+                  borderColor: sel ? DS.color.brand.primary : DS.color.border.default,
+                  backgroundColor: sel ? DS.color.bg.surface : DS.color.bg.card,
+                }}
+                data-testid={`option-privacy-${opt.value.toLowerCase()}`}
+              >
+                <div
+                  className="flex h-[22px] w-[22px] flex-shrink-0 items-center justify-center rounded-full border-2"
+                  style={{ borderColor: sel ? DS.color.brand.primary : DS.color.border.default }}
+                >
+                  {sel && <div className="h-3 w-3 rounded-full" style={{ backgroundColor: DS.color.brand.primary }} />}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>{opt.label}</div>
+                  <div style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>{opt.desc}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <FieldLabel>Member Limit</FieldLabel>
+        <Input
+          value={draft.memberLimit}
+          onChange={(e) => setDraft({ ...draft, memberLimit: e.target.value.replace(/[^0-9]/g, "").slice(0, 5) })}
+          placeholder="Ex: 20"
+          inputMode="numeric"
+          maxLength={5}
+          className="h-12"
+          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
+          data-testid="input-member-limit"
+        />
+        <div className="mt-1" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+          Leave empty for unlimited
         </div>
       </div>
     </div>
   );
 }
 
-function Submitted({ onBackToBubbles }: { onBackToBubbles: () => void }) {
+function StepPreview({ draft }: { draft: Draft }) {
+  const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...draft.customRules];
+  const privacyLabel = PRIVACY_OPTIONS.find((p) => p.value === draft.privacy)?.label || draft.privacy;
+
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-[420px] flex-col items-center px-6 pb-10 pt-14">
+    <div className="px-5 pb-32 pt-5">
+      <div
+        className="overflow-hidden border"
+        style={{ borderRadius: DS.radius.lg, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+        data-testid="preview-card"
+      >
+        {draft.coverPreview ? (
+          <img src={draft.coverPreview} alt="" className="h-44 w-full object-cover" data-testid="preview-cover" />
+        ) : (
+          <div className="flex h-44 items-center justify-center" style={{ backgroundColor: DS.color.bg.surface }}>
+            <ImagePlus className="h-10 w-10" style={{ color: DS.color.text.tertiary }} />
+          </div>
+        )}
+
+        <div className="p-4 space-y-2" style={{ gap: DS.space.sm }}>
+          <div
+            className="inline-block rounded-full px-3 py-1"
+            style={{ backgroundColor: DS.color.bg.surface, fontSize: DS.font.xs, fontWeight: 600, color: DS.color.text.secondary }}
+            data-testid="preview-category"
+          >
+            {draft.category}
+          </div>
+          <div className="font-bold" style={{ fontSize: DS.font.xl, color: DS.color.text.primary }} data-testid="preview-title">
+            {draft.title}
+          </div>
+          {draft.tagline && (
+            <div style={{ fontSize: DS.font.base, color: DS.color.text.tertiary }} data-testid="preview-tagline">
+              {draft.tagline}
+            </div>
+          )}
+          <div className="flex items-center gap-2" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+            <span>👥</span> <span data-testid="preview-members">0 members</span>
+          </div>
+        </div>
+
+        <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
+
+        <div className="p-4 space-y-2">
+          <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Description</div>
+          <div style={{ fontSize: DS.font.base, color: DS.color.text.secondary, lineHeight: `${DS.lh.base}px` }} data-testid="preview-description">
+            {draft.description}
+          </div>
+        </div>
+
+        {draft.location && (
+          <>
+            <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
+            <div className="p-4 space-y-2">
+              <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Location</div>
+              <div className="flex items-center gap-2" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+                <MapPin className="h-4 w-4" /> {draft.location} · {draft.radiusMiles} mi radius
+              </div>
+            </div>
+          </>
+        )}
+
+        <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
+
+        <div className="p-4 space-y-2">
+          <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>
+            Rules ({allRules.length})
+          </div>
+          {allRules.map((r, i) => (
+            <div key={i} style={{ fontSize: DS.font.base, color: DS.color.text.secondary, lineHeight: `${DS.lh.base}px`, paddingBottom: DS.space.xs }} data-testid={`preview-rule-${i}`}>
+              {i + 1}. {r}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
+
+        <div className="p-4 space-y-2">
+          <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Privacy</div>
+          <div className="flex items-center gap-2" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+            <Lock className="h-4 w-4" /> {privacyLabel}
+          </div>
+          {draft.memberLimit && (
+            <div className="flex items-center gap-2" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+              👥 {draft.memberLimit} member limit
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginGate({ onLoggedIn }: { onLoggedIn: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Login failed");
+        setLoading(false);
+        return;
+      }
+      localStorage.setItem("bubble_token", data.token);
+      localStorage.setItem("bubble_user", JSON.stringify(data.user));
+      onLoggedIn();
+    } catch {
+      setError("Network error");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center px-6" style={{ backgroundColor: DS.color.bg.secondary }}>
+      <div
+        className="w-full max-w-[380px] space-y-5 border p-6"
+        style={{ borderRadius: DS.radius.xl, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+      >
         <div className="text-center">
-          <div className="text-[15px] font-semibold" data-testid="text-submitted-title">
-            Thanks for submitting your bubble
+          <div className="font-bold" style={{ fontSize: DS.font.xl, color: DS.color.text.primary }}>Sign in to Bubble</div>
+          <div className="mt-1" style={{ fontSize: DS.font.base, color: DS.color.text.tertiary }}>Create bubbles after signing in</div>
+        </div>
+        {error && (
+          <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFF2F0", fontSize: DS.font.sm, color: DS.color.status.error }} data-testid="text-login-error">
+            {error}
           </div>
-          <div className="mt-2 text-[12px] leading-relaxed text-muted-foreground" data-testid="text-submitted-subtitle">
-            We’ll look over the details and let you know when your bubble is live.
-          </div>
+        )}
+        <div>
+          <div className="mb-1 font-medium" style={{ fontSize: DS.font.sm, color: DS.color.text.primary }}>Email</div>
+          <Input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            type="email"
+            className="h-12"
+            style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default }}
+            data-testid="input-login-email"
+          />
         </div>
-
-        <div className="mt-8 grid place-items-center" data-testid="img-submitted-illustration">
-          <img src={successIllustration} alt="" className="h-48 w-48 object-contain" />
+        <div>
+          <div className="mb-1 font-medium" style={{ fontSize: DS.font.sm, color: DS.color.text.primary }}>Password</div>
+          <Input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            type="password"
+            className="h-12"
+            style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default }}
+            data-testid="input-login-password"
+            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+          />
         </div>
-
-        <div className="mt-10 w-full">
-          <PrimaryCTA label="Back to Bubbles" onClick={onBackToBubbles} testId="button-back-to-bubbles" />
-        </div>
+        <PrimaryBtn
+          label={loading ? "Signing in..." : "Sign In"}
+          disabled={loading || !email || !password}
+          onClick={handleLogin}
+          testId="button-login-submit"
+        />
       </div>
     </div>
   );
 }
 
 export default function CreateBubble() {
-  const [step, setStep] = useState<"details" | "privacy" | "preview" | "submitting" | "submitted">("details");
-  const [draft, setDraft] = useState<Draft>(defaultDraft);
+  const [authed, setAuthed] = useState(!!getToken());
+  const [step, setStep] = useState<Step>(0);
+  const [draft, setDraft] = useState<Draft>({ ...blank });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const canNext = useMemo(() => {
+    switch (step) {
+      case 0: return !!draft.category;
+      case 1: return !!draft.title.trim() && !!draft.description.trim();
+      case 2: return true;
+      case 3: return !!draft.privacy;
+      case 4: return true;
+    }
+  }, [step, draft]);
 
   const goBack = () => {
-    setStep((s) => {
-      if (s === "privacy") return "details";
-      if (s === "preview") return "privacy";
-      return s;
-    });
+    if (step > 0) setStep((s) => (s - 1) as Step);
+    else window.history.back();
+  };
+
+  const goNext = () => {
+    if (step < 4) setStep((s) => (s + 1) as Step);
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...draft.customRules];
+      const memberLimitNum = draft.memberLimit && !isNaN(parseInt(draft.memberLimit)) ? parseInt(draft.memberLimit) : null;
+
+      const res = await apiFetch("/api/bubbles", {
+        method: "POST",
+        body: JSON.stringify({
+          title: draft.title.trim(),
+          tagline: draft.tagline.trim() || draft.title.trim(),
+          category: draft.category,
+          description: draft.description.trim(),
+          rules: allRules,
+          privacy: draft.privacy,
+          coverImage: null,
+          images: [],
+          attachments: [],
+          memberLimit: memberLimitNum,
+          locationName: draft.location.trim() || null,
+          locationAddress: null,
+          locationLat: null,
+          locationLng: null,
+          radiusMiles: draft.radiusMiles,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setSubmitError(data.error || "Failed to create bubble");
+        setSubmitting(false);
+        return;
+      }
+
+      setSubmitting(false);
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Network error. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  if (!authed) {
+    return <LoginGate onLoggedIn={() => setAuthed(true)} />;
+  }
+
+  if (submitting) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center" style={{ backgroundColor: DS.color.bg.primary }}>
+        <Loader2 className="h-12 w-12 animate-spin" style={{ color: DS.color.brand.primary }} />
+        <div className="mt-4 font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.tertiary }}>
+          Submitting your bubble...
+        </div>
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-8" style={{ backgroundColor: DS.color.bg.primary }}>
+        <div className="text-5xl mb-4" data-testid="celebration-emoji">🎉</div>
+        <div className="text-center font-bold" style={{ fontSize: DS.font.xxl, color: DS.color.text.primary }} data-testid="text-success-title">
+          Thanks for submitting{"\n"}your bubble
+        </div>
+        <div className="mt-3 text-center" style={{ fontSize: DS.font.base, color: DS.color.text.tertiary, lineHeight: `${DS.lh.base}px` }} data-testid="text-success-subtitle">
+          We'll look over the details and let you know when your bubble is live
+        </div>
+        <div className="mt-10 w-full max-w-[320px]">
+          <PrimaryBtn label="Back to Bubbles" onClick={() => { window.location.href = "/explore"; }} testId="button-back-to-bubbles" />
+        </div>
+      </div>
+    );
+  }
+
+  const renderStep = () => {
+    switch (step) {
+      case 0: return <StepCategory draft={draft} setDraft={setDraft} />;
+      case 1: return <StepDetails draft={draft} setDraft={setDraft} />;
+      case 2: return <StepRules draft={draft} setDraft={setDraft} />;
+      case 3: return <StepPrivacy draft={draft} setDraft={setDraft} />;
+      case 4: return <StepPreview draft={draft} />;
+    }
   };
 
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh" style={{ backgroundColor: DS.color.bg.primary }}>
+      <Header title={STEP_LABELS[step]} onBack={goBack} onCancel={() => window.history.back()} />
+      <ProgressBar step={step} />
+
+      {submitError && (
+        <div className="mx-5 mt-2 rounded-lg p-3 text-center" style={{ backgroundColor: "#FFF2F0", fontSize: DS.font.sm, color: DS.color.status.error }} data-testid="text-submit-error">
+          {submitError}
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
-        {step === "details" ? (
-          <motion.div key="details" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
-            <BubbleDetails
-              draft={draft}
-              setDraft={setDraft}
-              onBack={() => history.back()}
-              onCancel={() => history.back()}
-              onNext={() => setStep("privacy")}
-            />
-          </motion.div>
-        ) : null}
-
-        {step === "privacy" ? (
-          <motion.div key="privacy" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
-            <PrivacySettings
-              draft={draft}
-              setDraft={setDraft}
-              onBack={goBack}
-              onCancel={() => history.back()}
-              onNext={() => setStep("preview")}
-            />
-          </motion.div>
-        ) : null}
-
-        {step === "preview" ? (
-          <motion.div key="preview" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
-            <PreviewSubmit
-              draft={draft}
-              onBack={goBack}
-              onCancel={() => history.back()}
-              onSubmit={() => {
-                setStep("submitting");
-                window.setTimeout(() => setStep("submitted"), 1300);
-              }}
-            />
-          </motion.div>
-        ) : null}
-
-        {step === "submitting" ? (
-          <motion.div key="submitting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}>
-            <Submitting onDone={() => setStep("submitted")} />
-          </motion.div>
-        ) : null}
-
-        {step === "submitted" ? (
-          <motion.div key="submitted" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-            <Submitted
-              onBackToBubbles={() => {
-                window.location.href = "/explore";
-              }}
-            />
-          </motion.div>
-        ) : null}
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -16 }}
+          transition={{ duration: 0.2 }}
+        >
+          {renderStep()}
+        </motion.div>
       </AnimatePresence>
+
+      <BottomBar>
+        <PrimaryBtn
+          label={step === 4 ? "Submit for review" : "Next"}
+          disabled={!canNext}
+          onClick={step === 4 ? handleSubmit : goNext}
+          testId={step === 4 ? "button-submit-review" : "button-next"}
+        />
+      </BottomBar>
     </div>
   );
 }
