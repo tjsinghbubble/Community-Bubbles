@@ -23,17 +23,17 @@ import { cn } from "@/lib/utils";
 import interestPets from "@/assets/images/interest-pets.jpg";
 import exploreMeetup from "@/assets/images/explore-meetup.jpg";
 import exploreFood from "@/assets/images/explore-food.jpg";
-import catArtsCrafts from "@assets/arts-crafts_1770882675717.jpg";
-import catBiking from "@assets/biking_1770882837069.jpg";
-import catCoffee from "@assets/coffee-meets_1770882809578.jpg";
-import catCommunity from "@assets/community_1770882809579.jpg";
-import catCooking from "@assets/cooking_1770882837070.jpg";
-import catGardening from "@assets/gardening_1770882837070.jpg";
-import catHiking from "@assets/hiking_1770882809582.jpg";
-import catRunning from "@assets/running_1770882837071.jpg";
-import catTennis from "@assets/tennis_1770882837071.jpg";
-import catWellness from "@assets/wellness_1770882837072.jpg";
-import catYoga from "@assets/yoga_1770882837072.jpg";
+import catArtsCrafts from "@/assets/images/interest-crafts.jpg";
+import catBiking from "@/assets/images/interest-biking.jpg";
+import catCoffee from "@/assets/images/interest-coffee.jpg";
+import catCommunity from "@/assets/images/explore-meetup.jpg";
+import catCooking from "@/assets/images/interest-cooking.jpg";
+import catGardening from "@/assets/images/interest-gardening.jpg";
+import catHiking from "@/assets/images/interest-hiking.jpg";
+import catRunning from "@/assets/images/interest-running.jpg";
+import catTennis from "@/assets/images/interest-tennis.jpg";
+import catWellness from "@/assets/images/explore-wellness.jpg";
+import catYoga from "@/assets/images/explore-wellness.jpg";
 
 const DS = {
   color: {
