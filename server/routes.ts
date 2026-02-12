@@ -144,6 +144,7 @@ export async function registerRoutes(
           name: user.name,
           email: user.email,
           interests: user.interests,
+          profilePhoto: user.profilePhoto,
         },
         token,
       });
@@ -190,6 +191,7 @@ export async function registerRoutes(
           campusVerified: user.campusVerified,
           dismissedCampusPrompt: user.dismissedCampusPrompt,
           isSuperAdmin: user.isSuperAdmin,
+          profilePhoto: user.profilePhoto,
         },
         token,
       });
@@ -216,6 +218,7 @@ export async function registerRoutes(
         campusVerified: user.campusVerified,
         dismissedCampusPrompt: user.dismissedCampusPrompt,
         isSuperAdmin: user.isSuperAdmin,
+        profilePhoto: user.profilePhoto,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -495,6 +498,7 @@ export async function registerRoutes(
           id: m.user.id,
           name: m.user.name,
           email: m.user.email,
+          profilePhoto: m.user.profilePhoto,
         }
       })));
     } catch (error: any) {
