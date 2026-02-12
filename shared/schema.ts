@@ -109,12 +109,16 @@ export const events = pgTable("events", {
   locationAddress: text("location_address"),
   locationLat: text("location_lat"),
   locationLng: text("location_lng"),
+  locationTbd: boolean("location_tbd").notNull().default(false),
   visibility: text("visibility").notNull().default('public'), // public, request, private
   petFriendly: boolean("pet_friendly").notNull().default(false),
   smokeFree: boolean("smoke_free").notNull().default(false),
   wheelchairAccessible: boolean("wheelchair_accessible").notNull().default(false),
   attendeeLimit: integer("attendee_limit"), // null means unlimited
-  rsvpDeadline: text("rsvp_deadline"), // YYYY-MM-DD format, null means no deadline
+  rsvpDeadline: text("rsvp_deadline"), // ISO datetime string, null means no deadline
+  recurrenceType: text("recurrence_type").notNull().default('never'), // never, daily, weekly, biweekly, monthly, yearly, custom
+  recurrenceCustomFrequency: text("recurrence_custom_frequency"), // daily, weekly, monthly, yearly
+  recurrenceCustomInterval: integer("recurrence_custom_interval"), // 1-999
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
