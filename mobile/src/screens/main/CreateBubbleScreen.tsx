@@ -88,6 +88,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [locationLng, setLocationLng] = useState('');
   const [radiusMiles, setRadiusMiles] = useState(15);
   const [images, setImages] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<string[]>([]);
   const [customRules, setCustomRules] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
@@ -107,11 +108,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...customRules];
 
-  const handleLocationSelect = (location: { name: string; address: string; lat: number; lng: number }) => {
+  const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number; placeId?: string }) => {
     setLocationName(location.name);
     setLocationAddress(location.address);
-    setLocationLat(String(location.lat));
-    setLocationLng(String(location.lng));
+    if (location.latitude != null) setLocationLat(String(location.latitude));
+    if (location.longitude != null) setLocationLng(String(location.longitude));
     setShowLocationPicker(false);
   };
 
@@ -190,7 +191,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           privacy,
           coverImage: images.length > 0 ? images[0] : null,
           images,
-          attachments: [],
+          attachments,
           memberLimit: memberLimit && !isNaN(parseInt(memberLimit)) ? parseInt(memberLimit) : null,
           locationName: locationName || null,
           locationAddress: locationAddress || null,
@@ -437,11 +438,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Add Attachments</Text>
-        <TouchableOpacity style={styles.attachmentsButton}>
-          <Ionicons name="add" size={18} color={Colors.text.tertiary} />
-          <Text style={styles.attachmentsButtonText}>Add Attachments</Text>
-        </TouchableOpacity>
+        <Text style={styles.fieldLabel}>Add Attachments <Text style={styles.optional}>(optional)</Text></Text>
+        <MultiImagePicker
+          images={attachments}
+          onImagesChange={setAttachments}
+          maxImages={5}
+        />
       </View>
 
       {isCampusVerified && (
