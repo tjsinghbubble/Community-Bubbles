@@ -20,20 +20,20 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import interestRunning from "@/assets/images/interest-running.jpg";
-import interestCooking from "@/assets/images/interest-cooking.jpg";
-import interestCoffee from "@/assets/images/interest-coffee.jpg";
-import interestGardening from "@/assets/images/interest-gardening.jpg";
-import interestHiking from "@/assets/images/interest-hiking.jpg";
-import interestTennis from "@/assets/images/interest-tennis.jpg";
-import interestBiking from "@/assets/images/interest-biking.jpg";
 import interestPets from "@/assets/images/interest-pets.jpg";
-import interestCrafts from "@/assets/images/interest-crafts.jpg";
 import exploreMeetup from "@/assets/images/explore-meetup.jpg";
 import exploreFood from "@/assets/images/explore-food.jpg";
-import exploreWellness from "@/assets/images/explore-wellness.jpg";
 import catArtsCrafts from "@assets/arts-crafts_1770882675717.jpg";
-import catCommunity from "@assets/community_1770882700040.jpg";
+import catBiking from "@assets/biking_1770882837069.jpg";
+import catCoffee from "@assets/coffee-meets_1770882809578.jpg";
+import catCommunity from "@assets/community_1770882809579.jpg";
+import catCooking from "@assets/cooking_1770882837070.jpg";
+import catGardening from "@assets/gardening_1770882837070.jpg";
+import catHiking from "@assets/hiking_1770882809582.jpg";
+import catRunning from "@assets/running_1770882837071.jpg";
+import catTennis from "@assets/tennis_1770882837071.jpg";
+import catWellness from "@assets/wellness_1770882837072.jpg";
+import catYoga from "@assets/yoga_1770882837072.jpg";
 
 const DS = {
   color: {
@@ -55,19 +55,20 @@ const DS = {
 } as const;
 
 const CATEGORIES = [
-  { label: "Running", image: interestRunning },
-  { label: "Cooking", image: interestCooking },
-  { label: "Coffee Meets", image: interestCoffee },
+  { label: "Running", image: catRunning },
+  { label: "Cooking", image: catCooking },
+  { label: "Coffee Meets", image: catCoffee },
   { label: "Professional", image: exploreMeetup },
-  { label: "Hiking", image: interestHiking },
-  { label: "Tennis", image: interestTennis },
-  { label: "Biking", image: interestBiking },
+  { label: "Hiking", image: catHiking },
+  { label: "Tennis", image: catTennis },
+  { label: "Biking", image: catBiking },
   { label: "Pets", image: interestPets },
   { label: "Arts & Crafts", image: catArtsCrafts },
   { label: "Community", image: catCommunity },
-  { label: "Gardening", image: interestGardening },
+  { label: "Gardening", image: catGardening },
   { label: "Food & Drink", image: exploreFood },
-  { label: "Wellness", image: exploreWellness },
+  { label: "Wellness", image: catWellness },
+  { label: "Yoga", image: catYoga },
 ];
 
 const MANDATORY_RULES = [
