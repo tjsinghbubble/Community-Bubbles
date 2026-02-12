@@ -20,7 +20,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ClockIcon, LimitIcon } from '../../components/CustomIcons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
@@ -449,13 +448,14 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               {startTime ? formatTimeForDisplay(startTime) : '00:00'}
             </Text>
           </TouchableOpacity>
-          {showStartTimePicker && (
+          {showStartTimePicker && Platform.OS === 'android' && (
             <DateTimePicker
               value={selectedStartTime}
               mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="default"
               onChange={onStartTimeChange}
               is24Hour={false}
+              minuteInterval={15}
             />
           )}
         </View>
@@ -466,17 +466,102 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               {endTime ? formatTimeForDisplay(endTime) : '00:00'}
             </Text>
           </TouchableOpacity>
-          {showEndTimePicker && (
+          {showEndTimePicker && Platform.OS === 'android' && (
             <DateTimePicker
               value={selectedEndTime}
               mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              display="default"
               onChange={onEndTimeChange}
               is24Hour={false}
+              minuteInterval={15}
             />
           )}
         </View>
       </View>
+
+      {Platform.OS === 'ios' && showStartTimePicker && (
+        <Modal transparent animationType="fade" visible={showStartTimePicker}>
+          <View style={styles.timePickerOverlay}>
+            <View style={styles.timePickerModal}>
+              <Text style={styles.timePickerTitle}>Select Start Time</Text>
+              <DateTimePicker
+                value={selectedStartTime}
+                mode="time"
+                display="spinner"
+                onChange={(e, val) => {
+                  if (val) {
+                    setSelectedStartTime(val);
+                  }
+                }}
+                is24Hour={false}
+                minuteInterval={15}
+                style={{ height: 200, width: '100%' }}
+              />
+              <View style={styles.timePickerActions}>
+                <TouchableOpacity
+                  style={styles.timePickerCancelBtn}
+                  onPress={() => setShowStartTimePicker(false)}
+                >
+                  <Text style={styles.timePickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.timePickerConfirmBtn}
+                  onPress={() => {
+                    const hours = String(selectedStartTime.getHours()).padStart(2, '0');
+                    const minutes = String(selectedStartTime.getMinutes()).padStart(2, '0');
+                    setStartTime(`${hours}:${minutes}`);
+                    setShowStartTimePicker(false);
+                  }}
+                >
+                  <Text style={styles.timePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {Platform.OS === 'ios' && showEndTimePicker && (
+        <Modal transparent animationType="fade" visible={showEndTimePicker}>
+          <View style={styles.timePickerOverlay}>
+            <View style={styles.timePickerModal}>
+              <Text style={styles.timePickerTitle}>Select End Time</Text>
+              <DateTimePicker
+                value={selectedEndTime}
+                mode="time"
+                display="spinner"
+                onChange={(e, val) => {
+                  if (val) {
+                    setSelectedEndTime(val);
+                  }
+                }}
+                is24Hour={false}
+                minuteInterval={15}
+                style={{ height: 200, width: '100%' }}
+              />
+              <View style={styles.timePickerActions}>
+                <TouchableOpacity
+                  style={styles.timePickerCancelBtn}
+                  onPress={() => setShowEndTimePicker(false)}
+                >
+                  <Text style={styles.timePickerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.timePickerConfirmBtn}
+                  onPress={() => {
+                    const hours = String(selectedEndTime.getHours()).padStart(2, '0');
+                    const minutes = String(selectedEndTime.getMinutes()).padStart(2, '0');
+                    setEndTime(`${hours}:${minutes}`);
+                    setShowEndTimePicker(false);
+                  }}
+                >
+                  <Text style={styles.timePickerConfirmText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       <View style={styles.divider} />
 
@@ -708,6 +793,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={onRsvpDateChange}
             minimumDate={new Date()}
+            minuteInterval={15}
           />
         )}
         {showRsvpTimePicker && Platform.OS === 'android' && (
@@ -716,6 +802,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             mode="time"
             display="default"
             onChange={onRsvpTimeChange}
+            minuteInterval={15}
           />
         )}
       </View>
@@ -724,6 +811,17 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   const SEPARATOR_HEIGHT = 1;
   const usableHeight = reviewAreaHeight > 0 ? reviewAreaHeight - (SEPARATOR_HEIGHT * 2) : 0;
+
+  const handleViewEventNavigation = () => {
+    setShowSuccess(false);
+    setTimeout(() => {
+      if (createdEvent?.id) {
+        navigation.navigate('EventDetails', { eventId: createdEvent.id });
+      } else {
+        navigation.goBack();
+      }
+    }, 300);
+  };
 
   const renderStep4 = () => (
     <View
@@ -763,7 +861,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <ClockIcon size={18} tintColor={Colors.neutral.charcoal} />
+              <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>
                 {startTime ? formatTimeForDisplay(startTime) : '--:--'}
                 {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -779,7 +877,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
-                <LimitIcon size={18} tintColor={Colors.neutral.charcoal} />
+                <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
                 <Text style={styles.reviewDetailValue}>Limit: {attendeeLimit} people</Text>
               </View>
             ) : null}
@@ -819,13 +917,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <Text style={styles.successTitle}>Event Created!</Text>
             <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
             <TouchableOpacity
-              onPress={() => {
-                if (createdEvent?.id) {
-                  navigation.navigate('EventDetails', { eventId: createdEvent.id });
-                } else {
-                  navigation.goBack();
-                }
-              }}
+              onPress={handleViewEventNavigation}
               style={{ width: '100%' }}
             >
               <LinearGradient
@@ -1273,8 +1365,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reviewSeparator: {
-    height: 2,
-    backgroundColor: Colors.neutral.coolMist,
+    height: 1,
+    backgroundColor: Colors.neutral.cloudGrey,
     marginHorizontal: 20,
   },
   reviewTitle: {
@@ -1471,5 +1563,56 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  timePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  timePickerModal: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 16,
+    width: '85%',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  timePickerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    marginBottom: 12,
+  },
+  timePickerActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+    width: '100%',
+  },
+  timePickerCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.neutral.coolMist,
+    alignItems: 'center',
+  },
+  timePickerCancelText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.neutral.charcoal,
+  },
+  timePickerConfirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.brand.bubbleBlue,
+    alignItems: 'center',
+  },
+  timePickerConfirmText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
   },
 });

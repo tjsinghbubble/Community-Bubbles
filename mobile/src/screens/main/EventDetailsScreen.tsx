@@ -21,7 +21,6 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { ClockIcon, LimitIcon } from '../../components/CustomIcons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
@@ -306,7 +305,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.detailRow}>
-            <ClockIcon size={18} tintColor={Colors.neutral.charcoal} />
+            <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
             <Text style={styles.detailText}>
               {formatTime(event.startTime)}
               {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
@@ -328,7 +327,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           )}
 
           <View style={styles.detailRow}>
-            <LimitIcon size={18} tintColor={Colors.neutral.charcoal} />
+            <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
             <Text style={styles.detailText}>
               {goingCount}{event.attendeeLimit ? `/${event.attendeeLimit}` : ''}
             </Text>
