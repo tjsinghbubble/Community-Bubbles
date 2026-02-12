@@ -169,8 +169,17 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   };
 
   const isAdmin = myRole === 'admin';
-  const admins = members.filter(m => m.role === 'admin');
-  const regularMembers = members.filter(m => m.role === 'member');
+  const uniqueMembers = members.reduce<Member[]>((acc, m) => {
+    const existing = acc.find(x => x.userId === m.userId);
+    if (!existing) {
+      acc.push(m);
+    } else if (m.role === 'admin' && existing.role !== 'admin') {
+      acc[acc.indexOf(existing)] = m;
+    }
+    return acc;
+  }, []);
+  const admins = uniqueMembers.filter(m => m.role === 'admin');
+  const regularMembers = uniqueMembers.filter(m => m.role === 'member');
 
   const renderMember = ({ item }: { item: Member }) => {
     const isMe = item.userId === user?.id;

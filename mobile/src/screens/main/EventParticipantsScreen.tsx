@@ -93,8 +93,13 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     return member?.role || 'member';
   };
 
-  const admins = attendees.filter(a => getBubbleRole(a.userId) === 'admin');
-  const participants = attendees.filter(a => getBubbleRole(a.userId) !== 'admin');
+  const uniqueAttendees = attendees.reduce<Attendee[]>((acc, a) => {
+    if (!acc.find(x => x.userId === a.userId)) acc.push(a);
+    return acc;
+  }, []);
+  const adminUserIds = new Set(uniqueAttendees.filter(a => getBubbleRole(a.userId) === 'admin').map(a => a.userId));
+  const admins = uniqueAttendees.filter(a => adminUserIds.has(a.userId));
+  const participants = uniqueAttendees.filter(a => !adminUserIds.has(a.userId));
 
   const getInitials = (name: string) => {
     if (!name) return '?';
