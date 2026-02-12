@@ -565,6 +565,33 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/bubbles/:bubbleId/members/:userId", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const requesterIsSuperAdmin = (await storage.getUser(req.userId!))?.isSuperAdmin;
+      
+      if (requesterRole !== 'admin' && !requesterIsSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can remove members" });
+      }
+      
+      if (userId === req.userId) {
+        return res.status(400).json({ error: "Cannot remove yourself. Use the leave endpoint instead." });
+      }
+      
+      const targetIsMember = await storage.isMember(userId, bubbleId);
+      if (!targetIsMember) {
+        return res.status(404).json({ error: "User is not a member of this bubble" });
+      }
+      
+      await storage.deleteMembership(userId, bubbleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Events API
   app.get("/api/events", async (req, res) => {
     try {
@@ -891,8 +918,19 @@ export async function registerRoutes(
         }
       }
       
-      const attendees = await storage.getEventAttendees(req.params.id);
-      res.json(attendees);
+      const attendees = await storage.getEventAttendeesWithUsers(req.params.id);
+      res.json(attendees.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        eventId: a.eventId,
+        status: a.status,
+        joinedAt: a.joinedAt,
+        user: {
+          id: a.user.id,
+          name: a.user.name,
+          email: a.user.email,
+        }
+      })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

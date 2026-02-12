@@ -76,6 +76,7 @@ export interface IStorage {
 
   // Event Attendees
   getEventAttendees(eventId: string): Promise<EventAttendee[]>;
+  getEventAttendeesWithUsers(eventId: string): Promise<(EventAttendee & { user: User })[]>;
   isEventAttendee(userId: string, eventId: string): Promise<boolean>;
   createEventAttendee(attendee: InsertEventAttendee): Promise<EventAttendee>;
   deleteEventAttendee(userId: string, eventId: string): Promise<void>;
@@ -460,6 +461,18 @@ export class DatabaseStorage implements IStorage {
   // Event Attendees
   async getEventAttendees(eventId: string): Promise<EventAttendee[]> {
     return db.select().from(eventAttendees).where(eq(eventAttendees.eventId, eventId));
+  }
+
+  async getEventAttendeesWithUsers(eventId: string): Promise<(EventAttendee & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(eventAttendees)
+      .innerJoin(users, eq(eventAttendees.userId, users.id))
+      .where(eq(eventAttendees.eventId, eventId));
+    return result.map(r => ({
+      ...r.event_attendees,
+      user: r.users,
+    }));
   }
 
   async isEventAttendee(userId: string, eventId: string): Promise<boolean> {

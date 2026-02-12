@@ -20,6 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ClockIcon, LimitIcon } from '../../components/CustomIcons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
@@ -762,7 +763,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
+              <ClockIcon size={18} tintColor={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>
                 {startTime ? formatTimeForDisplay(startTime) : '--:--'}
                 {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -778,7 +779,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
-                <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
+                <LimitIcon size={18} tintColor={Colors.neutral.charcoal} />
                 <Text style={styles.reviewDetailValue}>Limit: {attendeeLimit} people</Text>
               </View>
             ) : null}
@@ -1272,8 +1273,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reviewSeparator: {
-    height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    height: 2,
+    backgroundColor: Colors.neutral.coolMist,
     marginHorizontal: 20,
   },
   reviewTitle: {

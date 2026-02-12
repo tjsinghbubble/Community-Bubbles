@@ -172,6 +172,12 @@ class ApiService {
     );
   }
 
+  async removeMember(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members/${userId}`, {
+      method: "DELETE",
+    });
+  }
+
   async getMyCreatedBubbles() {
     return this.request("/api/bubbles/created/my", {
       method: "GET",

@@ -128,6 +128,22 @@ class CometChatService {
     }
   }
 
+  async sendDirectMessage(uid: string, text: string) {
+    try {
+      const textMessage = new CometChat.TextMessage(
+        uid,
+        text,
+        CometChat.RECEIVER_TYPE.USER
+      );
+      const message = await CometChat.sendMessage(textMessage);
+      console.log('Direct message sent successfully:', message);
+      return message;
+    } catch (error) {
+      console.error('Direct message sending failed:', error);
+      throw error;
+    }
+  }
+
   getMessageListener(listenerID: string, onNewMessage: (message: any) => void) {
     return new CometChat.MessageListener({
       onTextMessageReceived: (message: any) => {

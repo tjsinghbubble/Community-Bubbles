@@ -11,16 +11,18 @@ import {
   ActivityIndicator,
   Platform,
   Linking,
+  Share,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import ImageCarousel from '../../components/ImageCarousel';
-import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import { ClockIcon, LimitIcon } from '../../components/CustomIcons';
+import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -53,10 +55,16 @@ type Attendee = {
   userId: string;
   eventId: string;
   status: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 };
 
 type Bubble = {
   id: string;
+  title: string;
   creatorId: string;
 };
 
@@ -177,12 +185,52 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     );
   };
 
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out this event: ${event?.title}`,
+      });
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  };
+
+  const handleViewParticipants = () => {
+    navigation.navigate('EventParticipants' as any, {
+      eventId,
+      eventTitle: event?.title || '',
+      bubbleId: event?.bubbleId || '',
+      bubbleTitle: bubble?.title || '',
+    });
+  };
+
+  const openInMaps = (locationName: string, locationAddress: string | null) => {
+    const address = locationAddress || locationName;
+    const encodedAddress = encodeURIComponent(address);
+    const url = Platform.select({
+      ios: `maps:0,0?q=${encodedAddress}`,
+      android: `geo:0,0?q=${encodedAddress}`,
+    });
+    if (url) {
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            return Linking.openURL(url);
+          } else {
+            return Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
+          }
+        })
+        .catch((err) => {
+          console.error('Error opening maps:', err);
+        });
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       year: 'numeric',
     });
   };
@@ -193,32 +241,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     const ampm = h >= 12 ? 'PM' : 'AM';
     const hour12 = h % 12 || 12;
     return `${hour12}:${minutes} ${ampm}`;
-  };
-
-  const openInMaps = (locationName: string, locationAddress: string | null) => {
-    const address = locationAddress || locationName;
-    const encodedAddress = encodeURIComponent(address);
-    
-    const url = Platform.select({
-      ios: `maps:0,0?q=${encodedAddress}`,
-      android: `geo:0,0?q=${encodedAddress}`,
-    });
-
-    if (url) {
-      Linking.canOpenURL(url)
-        .then((supported) => {
-          if (supported) {
-            return Linking.openURL(url);
-          } else {
-            const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-            return Linking.openURL(webUrl);
-          }
-        })
-        .catch((err) => {
-          console.error('Error opening maps:', err);
-          Alert.alert('Error', 'Could not open maps application');
-        });
-    }
   };
 
   if (isLoading || !event) {
@@ -236,141 +258,108 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
-  const isFull = event.attendeeLimit && goingCount >= event.attendeeLimit;
+  const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
+
+  const coverImage = event.coverImage || (event.images && event.images.length > 0 ? event.images[0] : null);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <ImageCarousel
-          images={event.images || (event.coverImage ? [event.coverImage] : [])}
-          height={200}
-          fallbackImage="https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800"
-        />
-
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
-
+        <Text style={styles.headerTitle} numberOfLines={1}>{bubble?.title || ''}</Text>
+        <TouchableOpacity onPress={handleShare} style={styles.headerShareButton}>
+          <Ionicons name="paper-plane-outline" size={22} color={Colors.neutral.charcoal} />
+        </TouchableOpacity>
         {canManage && (
-          <TouchableOpacity 
-            style={styles.optionsButton}
-            onPress={showAdminOptions}
-          >
-            <Ionicons name="ellipsis-horizontal" size={24} color={Colors.neutral.charcoal} />
+          <TouchableOpacity onPress={showAdminOptions} style={styles.headerMenuButton}>
+            <Ionicons name="ellipsis-vertical" size={22} color={Colors.neutral.charcoal} />
           </TouchableOpacity>
         )}
+      </View>
 
-        <View style={styles.content}>
-          <View style={styles.visibilityBadge}>
-            <Text style={styles.visibilityText}>
-              {event.visibility === 'public' ? 'Public' : event.visibility === 'private' ? 'Private' : 'Request to Join'}
+      <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 100 }}>
+        {coverImage ? (
+          <Image source={{ uri: coverImage }} style={styles.coverImage} />
+        ) : (
+          <View style={styles.coverPlaceholder}>
+            <Ionicons name="image-outline" size={48} color={Colors.neutral.coolMist} />
+          </View>
+        )}
+
+        <Text style={styles.eventTitle}>{event.title}</Text>
+
+        {event.description && (
+          <View style={styles.aboutSection}>
+            <Text style={styles.aboutLabel}>About</Text>
+            <Text style={styles.aboutText}>{event.description}</Text>
+          </View>
+        )}
+
+        <View style={styles.separator} />
+
+        <View style={styles.detailsSection}>
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar-outline" size={18} color={Colors.neutral.charcoal} />
+            <Text style={styles.detailText}>{formatDate(event.date)}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <ClockIcon size={18} tintColor={Colors.neutral.charcoal} />
+            <Text style={styles.detailText}>
+              {formatTime(event.startTime)}
+              {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
             </Text>
           </View>
 
-          <Text style={styles.title}>{event.title}</Text>
-
-          <View style={styles.dateTimeSection}>
-            <View style={styles.dateBox}>
-              <Text style={styles.dateDay}>
-                {new Date(event.date + 'T00:00:00').getDate()}
-              </Text>
-              <Text style={styles.dateMonth}>
-                {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.dateTimeInfo}>
-              <Text style={styles.fullDate}>{formatDate(event.date)}</Text>
-              <Text style={styles.timeText}>
-                {formatTime(event.startTime)}
-                {event.endTime && ` - ${formatTime(event.endTime)}`}
-              </Text>
-            </View>
-          </View>
-
           {event.locationName && (
-            <TouchableOpacity 
-              style={styles.locationSection}
+            <TouchableOpacity
+              style={styles.detailRow}
               onPress={() => openInMaps(event.locationName!, event.locationAddress)}
               activeOpacity={0.7}
             >
-              <Ionicons name="location" size={20} color={Colors.brand.bubbleBlue} />
-              <View style={styles.locationInfo}>
-                <Text style={styles.locationName}>{event.locationName}</Text>
-                {event.locationAddress && (
-                  <Text style={styles.locationAddress}>{event.locationAddress}</Text>
-                )}
-              </View>
-              <Ionicons name="open-outline" size={18} color={Colors.neutral.coolMist} />
+              <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+              <Text style={styles.detailText} numberOfLines={2}>
+                {event.locationName}
+                {event.locationAddress ? `, ${event.locationAddress}` : ''}
+              </Text>
             </TouchableOpacity>
           )}
 
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Ionicons name="people" size={20} color={Colors.neutral.coolMist} />
-              <Text style={styles.statText}>
-                {goingCount} {goingCount === 1 ? 'person' : 'people'} going
-              </Text>
-            </View>
-            {event.attendeeLimit && (
-              <View style={styles.statItem}>
-                <Ionicons name="warning-outline" size={20} color={isFull ? Colors.state.error : Colors.neutral.coolMist} />
-                <Text style={[styles.statText, isFull && styles.fullText]}>
-                  {isFull ? 'Event Full' : `${event.attendeeLimit - goingCount} spots left`}
-                </Text>
-              </View>
-            )}
+          <View style={styles.detailRow}>
+            <LimitIcon size={18} tintColor={Colors.neutral.charcoal} />
+            <Text style={styles.detailText}>
+              {goingCount}{event.attendeeLimit ? `/${event.attendeeLimit}` : ''}
+            </Text>
+            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
+              <Text style={styles.viewLinkText}>view</Text>
+              <Ionicons name="chevron-forward" size={14} color={Colors.brand.bubbleBlue} />
+            </TouchableOpacity>
           </View>
-
-          {event.description && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About</Text>
-              <Text style={styles.description}>{event.description}</Text>
-            </View>
-          )}
-
-          {(event.petFriendly || event.smokeFree || event.wheelchairAccessible) && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Environment</Text>
-              <View style={styles.environmentTags}>
-                {event.petFriendly && (
-                  <View style={styles.envTag}>
-                    <Ionicons name="paw" size={16} color={Colors.brand.bubbleBlue} />
-                    <Text style={styles.envTagText}>Pet Friendly</Text>
-                  </View>
-                )}
-                {event.smokeFree && (
-                  <View style={styles.envTag}>
-                    <Ionicons name="ban" size={16} color={Colors.brand.bubbleBlue} />
-                    <Text style={styles.envTagText}>Smoke Free</Text>
-                  </View>
-                )}
-                {event.wheelchairAccessible && (
-                  <View style={styles.envTag}>
-                    <Ionicons name="accessibility" size={16} color={Colors.brand.bubbleBlue} />
-                    <Text style={styles.envTagText}>Wheelchair Accessible</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          {event.rsvpDeadline && (
-            <View style={styles.deadlineWarning}>
-              <Ionicons name="time-outline" size={18} color="#e67e22" />
-              <Text style={styles.deadlineText}>
-                RSVP by {formatDate(event.rsvpDeadline)}
-              </Text>
-            </View>
-          )}
         </View>
       </ScrollView>
 
-      {!isEventCreator && (
-        <View style={styles.footer}>
+      <View style={styles.footer}>
+        {canManage ? (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={handleEdit}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.editButtonText}>Edit Event</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             style={[
               styles.rsvpButton,
-              isRsvpd && styles.cancelButton,
+              isRsvpd && styles.cancelRsvpButton,
               isFull && !isRsvpd && styles.disabledButton,
             ]}
             onPress={handleRsvp}
@@ -379,20 +368,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             {isRsvping ? (
               <ActivityIndicator color={Colors.brand.skyWhite} />
             ) : (
-              <>
-                <Ionicons
-                  name={isRsvpd ? 'close-circle' : 'checkmark-circle'}
-                  size={20}
-                  color={Colors.brand.skyWhite}
-                />
-                <Text style={styles.rsvpButtonText}>
-                  {isRsvpd ? 'Cancel RSVP' : isFull ? 'Event Full' : 'RSVP - Going'}
-                </Text>
-              </>
+              <Text style={styles.rsvpButtonText}>
+                {isRsvpd ? 'Cancel RSVP' : isFull ? 'Event Full' : 'RSVP - Going'}
+              </Text>
             )}
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+      </View>
 
       <SuccessModal
         visible={showSuccessModal}
@@ -419,181 +401,99 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.cloudGrey,
+  },
+  headerBackButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    marginHorizontal: 12,
+  },
+  headerShareButton: {
+    padding: 4,
+  },
+  headerMenuButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
+  scrollContent: {
+    flex: 1,
+  },
   coverImage: {
     width: '100%',
-    height: 250,
+    aspectRatio: 16 / 10,
+    resizeMode: 'cover',
   },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
-    alignItems: 'center',
+  coverPlaceholder: {
+    width: '100%',
+    aspectRatio: 16 / 10,
+    backgroundColor: Colors.neutral.cloudGrey,
     justifyContent: 'center',
-  },
-  optionsButton: {
-    position: 'absolute',
-    top: 50,
-    right: 16,
-    width: 40,
-    height: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 20,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  content: {
-    padding: 20,
-    paddingBottom: 120,
-  },
-  visibilityBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  visibilityText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'hsl(210, 95%, 45%)',
-  },
-  title: {
-    fontSize: 28,
+  eventTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  dateTimeSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: 12,
+  aboutSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  dateBox: {
-    width: 60,
-    backgroundColor: Colors.brand.bubbleBlue,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  dateDay: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.brand.skyWhite,
-  },
-  dateMonth: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
-  },
-  dateTimeInfo: {
-    flex: 1,
-  },
-  fullDate: {
+  aboutLabel: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.neutral.charcoal,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  timeText: {
+  aboutText: {
     fontSize: 14,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
+    lineHeight: 20,
   },
-  locationSection: {
+  separator: {
+    height: 1,
+    backgroundColor: Colors.neutral.cloudGrey,
+    marginHorizontal: 20,
+  },
+  detailsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  detailRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: 12,
+    marginBottom: 14,
   },
-  locationInfo: {
+  detailText: {
     flex: 1,
-  },
-  locationName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 2,
-  },
-  locationAddress: {
-    fontSize: 13,
-    color: Colors.neutral.coolMist,
-    lineHeight: 18,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
-    marginBottom: 20,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statText: {
     fontSize: 14,
-    color: Colors.neutral.coolMist,
-    fontWeight: '500',
-  },
-  fullText: {
-    color: Colors.state.error,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
     color: Colors.neutral.charcoal,
-    marginBottom: 12,
+    lineHeight: 20,
   },
-  description: {
-    fontSize: 15,
-    color: Colors.neutral.charcoal,
-    lineHeight: 24,
-  },
-  environmentTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  envTag: {
+  viewLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    gap: 2,
   },
-  envTagText: {
-    fontSize: 13,
-    color: 'hsl(210, 95%, 45%)',
-    fontWeight: '500',
-  },
-  deadlineWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fef3cd',
-    padding: 12,
-    borderRadius: 10,
-  },
-  deadlineText: {
-    fontSize: 13,
-    color: '#856404',
+  viewLinkText: {
+    fontSize: 14,
+    color: Colors.brand.bubbleBlue,
     fontWeight: '500',
   },
   footer: {
@@ -602,21 +502,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
     backgroundColor: Colors.brand.skyWhite,
-    borderTopWidth: 1,
-    borderTopColor: Colors.neutral.coolMist,
+  },
+  editButton: {
+    borderRadius: Radius.full,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  editButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
   },
   rsvpButton: {
     backgroundColor: Colors.state.success,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    borderRadius: Radius.full,
+    paddingVertical: 16,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  cancelButton: {
+  cancelRsvpButton: {
     backgroundColor: Colors.state.error,
   },
   disabledButton: {
@@ -624,7 +532,7 @@ const styles = StyleSheet.create({
   },
   rsvpButtonText: {
     color: Colors.brand.skyWhite,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
   },
 });
