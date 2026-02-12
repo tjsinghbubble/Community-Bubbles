@@ -101,6 +101,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const [recurrenceCustomFrequency, setRecurrenceCustomFrequency] = useState('weekly');
   const [recurrenceCustomInterval, setRecurrenceCustomInterval] = useState('1');
   const [showCustomFrequencyPicker, setShowCustomFrequencyPicker] = useState(false);
+  const [recurrenceEndType, setRecurrenceEndType] = useState<'never' | 'on_date'>('never');
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [selectedRecurrenceEndDate, setSelectedRecurrenceEndDate] = useState(new Date());
+  const [showRecurrenceEndDatePicker, setShowRecurrenceEndDatePicker] = useState(false);
 
   const [locationName, setLocationName] = useState('');
   const [locationAddress, setLocationAddress] = useState('');
@@ -314,6 +318,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         recurrenceType: recurringEnabled ? recurrenceType : 'never',
         recurrenceCustomFrequency: recurrenceType === 'custom' ? recurrenceCustomFrequency : null,
         recurrenceCustomInterval: recurrenceType === 'custom' ? parseInt(recurrenceCustomInterval) || 1 : null,
+        recurrenceEndDate: recurringEnabled && recurrenceEndType === 'on_date' && recurrenceEndDate ? recurrenceEndDate : null,
         campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? user?.campusId : null),
       };
 
@@ -455,7 +460,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               display="default"
               onChange={onStartTimeChange}
               is24Hour={false}
-              minuteInterval={15}
+              minuteInterval={5}
             />
           )}
         </View>
@@ -473,7 +478,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               display="default"
               onChange={onEndTimeChange}
               is24Hour={false}
-              minuteInterval={15}
+              minuteInterval={5}
             />
           )}
         </View>
@@ -494,7 +499,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   }
                 }}
                 is24Hour={false}
-                minuteInterval={15}
+                minuteInterval={5}
                 style={{ height: 200, width: '100%' }}
               />
               <View style={styles.timePickerActions}>
@@ -536,7 +541,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   }
                 }}
                 is24Hour={false}
-                minuteInterval={15}
+                minuteInterval={5}
                 style={{ height: 200, width: '100%' }}
               />
               <View style={styles.timePickerActions}>
@@ -571,7 +576,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           value={recurringEnabled}
           onValueChange={(val) => {
             setRecurringEnabled(val);
-            if (!val) setRecurrenceType('never');
+            if (!val) {
+              setRecurrenceType('never');
+              setRecurrenceEndType('never');
+              setRecurrenceEndDate('');
+            }
           }}
           trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
           thumbColor={recurringEnabled ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
@@ -651,6 +660,73 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 />
               </View>
             </View>
+          )}
+
+          <View style={styles.recurrenceDivider} />
+
+          <Text style={[styles.fieldLabel, { marginBottom: 8, marginTop: 4 }]}>Ends</Text>
+          <TouchableOpacity
+            style={styles.recurrenceOption}
+            onPress={() => {
+              setRecurrenceEndType('never');
+              setRecurrenceEndDate('');
+            }}
+          >
+            <Text style={styles.recurrenceOptionText}>Never</Text>
+            {recurrenceEndType === 'never' && (
+              <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
+            )}
+          </TouchableOpacity>
+          <View style={styles.recurrenceDivider} />
+          <TouchableOpacity
+            style={styles.recurrenceOption}
+            onPress={() => {
+              setRecurrenceEndType('on_date');
+              if (!recurrenceEndDate) {
+                setShowRecurrenceEndDatePicker(true);
+              }
+            }}
+          >
+            <Text style={styles.recurrenceOptionText}>
+              {recurrenceEndType === 'on_date' && recurrenceEndDate
+                ? `Ends on ${formatDateForDisplay(recurrenceEndDate)}`
+                : 'On a specific date'}
+            </Text>
+            {recurrenceEndType === 'on_date' && (
+              <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
+            )}
+          </TouchableOpacity>
+          {recurrenceEndType === 'on_date' && (
+            <TouchableOpacity
+              style={[styles.fieldInput, { marginTop: 8 }]}
+              onPress={() => setShowRecurrenceEndDatePicker(true)}
+            >
+              <Text style={recurrenceEndDate ? styles.fieldValue : styles.fieldPlaceholder}>
+                {recurrenceEndDate ? formatDateForDisplay(recurrenceEndDate) : 'Select end date'}
+              </Text>
+              <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+            </TouchableOpacity>
+          )}
+          {showRecurrenceEndDatePicker && (
+            <DateTimePicker
+              value={selectedRecurrenceEndDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDateValue) => {
+                if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+                  setShowRecurrenceEndDatePicker(false);
+                }
+                if (event.type === 'set' && selectedDateValue) {
+                  setSelectedRecurrenceEndDate(selectedDateValue);
+                  const year = selectedDateValue.getFullYear();
+                  const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
+                  const day = String(selectedDateValue.getDate()).padStart(2, '0');
+                  setRecurrenceEndDate(`${year}-${month}-${day}`);
+                  setRecurrenceEndType('on_date');
+                }
+              }}
+              minimumDate={new Date()}
+            />
           )}
         </View>
       )}
@@ -793,7 +869,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={onRsvpDateChange}
             minimumDate={new Date()}
-            minuteInterval={15}
+            minuteInterval={5}
           />
         )}
         {showRsvpTimePicker && Platform.OS === 'android' && (
@@ -802,7 +878,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             mode="time"
             display="default"
             onChange={onRsvpTimeChange}
-            minuteInterval={15}
+            minuteInterval={5}
           />
         )}
       </View>
