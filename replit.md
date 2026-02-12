@@ -98,6 +98,7 @@ Core tables managed by Drizzle ORM:
 - Separate package in `/mobile` directory with its own dependencies
 - Designed to connect to the same backend API
 - Authentication flow mirrors web with signup → interests → guidelines progression
+- Create Bubble is a 5-step wizard: Pick Category → Bubble Details (title, tagline, description, location, radius, cover photo, attachments) → Rules (add/edit/delete) → Privacy & Settings (Public/Request/Private, member limit) → Review & Submit
 - When creating a bubble, a CometChat group is automatically created for real-time messaging
 - ExploreScreen fetches real bubbles from API (refreshes on focus for newly created bubbles)
 - BubblesNavigator stack wraps MyBubbles list and CreateBubble screens

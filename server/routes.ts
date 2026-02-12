@@ -311,7 +311,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to edit this bubble" });
       }
 
-      const { title, tagline, category, description, rules, privacy, coverImage } = req.body;
+      const { title, tagline, category, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = req.body;
       const updateData: any = {};
       
       if (title !== undefined) updateData.title = title;
@@ -321,6 +321,14 @@ export async function registerRoutes(
       if (rules !== undefined) updateData.rules = rules;
       if (privacy !== undefined) updateData.privacy = privacy;
       if (coverImage !== undefined) updateData.coverImage = coverImage;
+      if (images !== undefined) updateData.images = images;
+      if (attachments !== undefined) updateData.attachments = attachments;
+      if (memberLimit !== undefined) updateData.memberLimit = memberLimit;
+      if (locationName !== undefined) updateData.locationName = locationName;
+      if (locationAddress !== undefined) updateData.locationAddress = locationAddress;
+      if (locationLat !== undefined) updateData.locationLat = locationLat;
+      if (locationLng !== undefined) updateData.locationLng = locationLng;
+      if (radiusMiles !== undefined) updateData.radiusMiles = radiusMiles;
 
       const updatedBubble = await storage.updateBubble(bubbleId, updateData);
       res.json(updatedBubble);
