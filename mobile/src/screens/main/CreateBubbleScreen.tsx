@@ -235,12 +235,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centeredContainer}>
-          <Image
-            source={require('../../assets/images/bubble-loading-ring.png')}
-            style={styles.loadingImage}
-            resizeMode="contain"
-          />
-          <ActivityIndicator size="large" color={Colors.brand.primary} style={{ marginTop: Spacing.xxl }} />
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
           <Text style={styles.loadingText}>Submitting your bubble...</Text>
         </View>
       </SafeAreaView>
@@ -252,11 +247,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       <SafeAreaView style={styles.container}>
         <View style={styles.centeredContainer}>
           <Text style={styles.celebrationEmoji}>🎉</Text>
-          <Image
-            source={require('../../assets/images/bubble-submit-success.png')}
-            style={styles.successImage}
-            resizeMode="contain"
-          />
           <Text style={styles.successTitle}>Thanks for submitting{'\n'}your bubble</Text>
           <Text style={styles.successSubtitle}>
             We'll look over the details and let you know when your bubble is live
