@@ -1,0 +1,139 @@
+{
+  "id": "create-bubble-category",
+  "pattern": "SelectionGridWithStickyCTA",
+
+  "behavior": {
+    "scrollable": true,
+    "safeArea": true,
+    "selection": {
+      "type": "single",
+      "required": true
+    }
+  },
+
+  "layout": {
+    "structure": [
+      "TopBar",
+      "Divider",
+      "ScrollContent",
+      "StickyFooter"
+    ]
+  },
+
+  "topBar": {
+    "height": 56,
+    "left": {
+      "type": "IconButton",
+      "icon": "chevron-left",
+      "action": "goBack"
+    },
+    "center": {
+      "type": "Text",
+      "text": "Create a Bubble",
+      "typography": "headingSm"
+    },
+    "right": {
+      "type": "TextButton",
+      "text": "Cancel",
+      "variant": "destructiveUnderline",
+      "action": "cancelFlow"
+    }
+  },
+
+  "content": {
+    "header": {
+      "type": "Text",
+      "text": "What category will your bubble be in?",
+      "typography": "bodyMdMedium",
+      "color": "text.secondary",
+      "margin": {
+        "top": "lg",
+        "bottom": "xl"
+      }
+    },
+
+    "grid": {
+      "type": "SelectionGrid",
+      "columns": 3,
+      "columnGap": "md",
+      "rowGap": "lg",
+      "paddingHorizontal": "lg",
+      "itemComponent": "SelectableImageCard"
+    }
+  },
+
+  "footer": {
+    "type": "StickyFooter",
+    "background": "background.primary",
+    "padding": "lg",
+    "content": {
+      "type": "Button",
+      "variant": "primaryGradient",
+      "text": "Next",
+      "disabledUntilSelection": true
+    }
+  }
+}
+
+{
+  "id": "SelectableImageCard",
+
+  "layout": {
+    "aspectRatio": "1:1.1",
+    "borderRadius": "lg",
+    "overflow": "hidden"
+  },
+
+  "image": {
+    "resizeMode": "cover"
+  },
+
+  "label": {
+    "typography": "captionMdMedium",
+    "color": "text.primary",
+    "marginTop": "xs",
+    "textAlign": "center"
+  },
+
+  "states": {
+    "default": {
+      "borderWidth": 0
+    },
+    "selected": {
+      "borderWidth": 2,
+      "borderColor": "brand.primary"
+    }
+  }
+}
+export const ScreenPatterns = {
+  SelectionGridWithStickyCTA: {
+    intent: "Selection-driven flow with primary action",
+
+    guarantees: [
+      "Sticky CTA always visible",
+      "Scrollable content",
+      "Safe-area compliant",
+      "Deterministic grid layout"
+    ],
+
+    structure: [
+      "TopBar",
+      "Divider",
+      "ScrollContent",
+      "StickyFooter"
+    ],
+
+    allowedComponents: {
+      TopBar: ["IconButton", "Text", "TextButton"],
+      ScrollContent: ["Text", "SelectionGrid"],
+      StickyFooter: ["Button"]
+    },
+
+    forbidden: [
+      "Absolute positioning in content",
+      "Dynamic column counts without breakpoint rules",
+      "Inline styling",
+      "Shadow-based selection states"
+    ]
+  }
+};
