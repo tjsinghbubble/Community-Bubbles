@@ -621,21 +621,14 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.gradientButtonContainer, disabled && styles.buttonDisabled]}
+          style={[styles.primaryButton, disabled && styles.buttonDisabled]}
           onPress={isReview ? handleSubmit : goNext}
           disabled={disabled}
           activeOpacity={0.8}
         >
-          <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.gradientButton}
-          >
-            <Text style={styles.primaryButtonText}>
-              {isReview ? 'Submit for review' : 'Next'}
-            </Text>
-          </LinearGradient>
+          <Text style={styles.primaryButtonText}>
+            {isReview ? 'Submit for review' : 'Next'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -644,7 +637,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      {renderProgressBar()}
+      {step > 0 && renderProgressBar()}
       <View style={styles.headerDivider} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -655,7 +648,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: Spacing.xl }}
+          contentContainerStyle={{ paddingBottom: 100 }}
         >
           {renderStepContent()}
         </ScrollView>
@@ -1136,20 +1129,13 @@ const styles = StyleSheet.create({
   },
 
   bottomBar: {
-    paddingHorizontal: Spacing.lg,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: Spacing.xxxl,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.xl,
     paddingTop: Spacing.lg,
-    backgroundColor: Colors.background.primary,
-  },
-  gradientButtonContainer: {
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  gradientButton: {
-    height: 48,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   primaryButton: {
     height: 48,
