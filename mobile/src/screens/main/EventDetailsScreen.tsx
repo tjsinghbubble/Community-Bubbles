@@ -385,21 +385,29 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>📅</Text>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="calendar-outline" size={18} color={Colors.text.tertiary} />
+            </View>
             <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>🕐</Text>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="time-outline" size={18} color={Colors.text.tertiary} />
+            </View>
             <Text style={styles.infoText}>{getTimeRange()}</Text>
           </View>
           {event.locationName && (
             <View style={styles.infoRow}>
-              <Text style={styles.infoIcon}>📍</Text>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="location-outline" size={18} color={Colors.text.tertiary} />
+              </View>
               <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
             </View>
           )}
           <View style={styles.infoRow}>
-            <Text style={styles.infoIcon}>👥</Text>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="people-outline" size={18} color={Colors.text.tertiary} />
+            </View>
             <Text style={styles.infoText}>
               {event.attendeeLimit ? `${goingCount}/${event.attendeeLimit}` : goingCount}
             </Text>
@@ -684,10 +692,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  infoIcon: {
-    fontSize: 18,
+  infoIconContainer: {
     width: 24,
-    textAlign: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoText: {
     fontSize: 14,
