@@ -25,7 +25,11 @@ import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -243,14 +247,17 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
-      <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>
-        <Ionicons name="ellipsis-vertical" size={22} color={Colors.text.primary} />
-      </TouchableOpacity>
+    <View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
+        <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>
+          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.headerSeparator} />
     </View>
   );
 
@@ -288,20 +295,39 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const renderTabs = () => (
     <View style={styles.tabBar}>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'Details' && styles.tabActive]}
-        onPress={() => setActiveTab('Details')}
-      >
-        <Text style={[styles.tabText, activeTab === 'Details' && styles.tabTextActive]}>Details</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.tab, activeTab === 'Events' && styles.tabActive]}
-        onPress={() => setActiveTab('Events')}
-      >
-        <Text style={[styles.tabText, activeTab === 'Events' && styles.tabTextActive]}>Events</Text>
-      </TouchableOpacity>
+      <View style={styles.tabsInner}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'Details' && styles.tabActive]}
+          onPress={() => setActiveTab('Details')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Details' && styles.tabTextActive]}>Details</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'Events' && styles.tabActive]}
+          onPress={() => setActiveTab('Events')}
+        >
+          <Text style={[styles.tabText, activeTab === 'Events' && styles.tabTextActive]}>Events</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
+
+  const handleCameraPress = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library to add images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]?.uri) {
+      Alert.alert('Photo Selected', 'Image upload will be available soon.');
+    }
+  };
 
   const renderCoverPhoto = () => (
     <View>
@@ -309,10 +335,12 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         <ImageCarousel
           images={bubbleDetails?.images || (bubble.image ? [bubble.image] : [])}
           height={220}
+          width={COVER_IMAGE_WIDTH}
           fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
+          borderRadius={Radius.md}
         />
-        <TouchableOpacity style={styles.cameraButton}>
-          <Ionicons name="camera" size={18} color={Colors.background.primary} />
+        <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
+          <Ionicons name="camera" size={20} color={Colors.brand.primary} />
         </TouchableOpacity>
       </View>
       <Text style={styles.tagline}>
@@ -579,6 +607,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
+  headerSeparator: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+  },
   headerButton: {
     width: 40,
     height: 40,
@@ -593,12 +625,15 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   tabBar: {
-    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  tabsInner: {
+    flexDirection: 'row',
+    gap: Spacing.xxxl,
   },
   tab: {
-    flex: 1,
     alignItems: 'center',
     paddingBottom: Spacing.sm,
     borderBottomWidth: 2,
@@ -623,17 +658,25 @@ const styles = StyleSheet.create({
   },
   coverPhotoContainer: {
     position: 'relative',
+    marginHorizontal: Spacing.xl,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
   },
   cameraButton: {
     position: 'absolute',
     top: Spacing.md,
     right: Spacing.md,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.brand.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.background.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   tagline: {
     textAlign: 'center',
