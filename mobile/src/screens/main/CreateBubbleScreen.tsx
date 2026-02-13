@@ -271,7 +271,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity style={styles.headerBack} onPress={goBack}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+        <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{step === 4 ? title : STEP_TITLES[step]}</Text>
       <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
@@ -295,13 +295,14 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepCategory = () => {
-    const sectionPadding = Spacing.xl;
-    const gap = Spacing.sm;
-    const colWidth = (SCREEN_WIDTH - (sectionPadding * 2) - (gap * 2)) / 3;
+    const gridPadding = Spacing.lg;
+    const colGap = Spacing.md;
+    const colWidth = (SCREEN_WIDTH - (gridPadding * 2) - (colGap * 2)) / 3;
+    const imageHeight = colWidth * 1.1;
     return (
-      <View style={styles.formSection}>
+      <View style={[styles.formSection, { paddingHorizontal: gridPadding }]}>
         <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
-        <View style={[styles.categoryGrid, { paddingHorizontal: 0 }]}>
+        <View style={styles.categoryGrid}>
           {CATEGORIES.map((cat) => {
             const selected = category === cat.label;
             return (
@@ -311,16 +312,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 onPress={() => setCategory(selected ? '' : cat.label)}
                 activeOpacity={0.8}
               >
-                <View style={{ position: 'relative' }}>
-                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: colWidth, height: colWidth }]} />
-                  {selected && (
-                    <View style={styles.categoryCheckOverlay}>
-                      <View style={styles.categoryCheck}>
-                        <Ionicons name="checkmark" size={14} color={Colors.background.primary} />
-                      </View>
-                    </View>
-                  )}
-                  {selected && <View style={styles.categoryImageSelectedBorder} />}
+                <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
+                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: '100%', height: imageHeight }]} />
                 </View>
                 <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
               </TouchableOpacity>
@@ -628,16 +621,21 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[disabled && styles.buttonDisabled]}
+          style={[styles.gradientButtonContainer, disabled && styles.buttonDisabled]}
           onPress={isReview ? handleSubmit : goNext}
           disabled={disabled}
           activeOpacity={0.8}
         >
-          <View style={styles.primaryButton}>
+          <LinearGradient
+            colors={Gradients.button.colors as unknown as string[]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={styles.gradientButton}
+          >
             <Text style={styles.primaryButtonText}>
               {isReview ? 'Submit for review' : 'Next'}
             </Text>
-          </View>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     );
@@ -647,6 +645,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       {renderHeader()}
       {renderProgressBar()}
+      <View style={styles.headerDivider} />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -656,7 +655,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: Spacing.xl }}
         >
           {renderStepContent()}
         </ScrollView>
@@ -749,6 +748,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
     color: Colors.status.error,
+    textDecorationLine: 'underline',
   },
 
   progressContainer: {
@@ -765,6 +765,11 @@ const styles = StyleSheet.create({
   },
   progressSegmentActive: {
     backgroundColor: Colors.brand.primary,
+  },
+
+  headerDivider: {
+    height: 1,
+    backgroundColor: Colors.border.light,
   },
 
   content: {
@@ -817,52 +822,38 @@ const styles = StyleSheet.create({
   },
 
   stepPrompt: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
-    lineHeight: Typography.lineHeight.lg,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.base,
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
+    columnGap: Spacing.md,
+    rowGap: Spacing.lg,
   },
   categoryCard: {
     alignItems: 'center',
   },
-  categoryImage: {
-    borderRadius: Radius.md,
+  categoryImageWrapper: {
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  categoryImageSelectedBorder: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: Radius.md,
-    borderWidth: 2.5,
+  categoryImageWrapperSelected: {
     borderColor: Colors.brand.primary,
   },
-  categoryCheckOverlay: {
-    position: 'absolute',
-    top: Spacing.xs,
-    right: Spacing.xs,
-  },
-  categoryCheck: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.brand.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  categoryImage: {
+    borderRadius: Radius.lg,
   },
   categoryLabel: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.medium,
-    color: Colors.text.secondary,
+    color: Colors.text.primary,
     textAlign: 'center',
     marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
   },
   categoryLabelSelected: {
     color: Colors.brand.primary,
@@ -1145,13 +1136,20 @@ const styles = StyleSheet.create({
   },
 
   bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Spacing.xxxl,
+    paddingHorizontal: Spacing.lg,
     paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl : Spacing.xl,
     paddingTop: Spacing.lg,
+    backgroundColor: Colors.background.primary,
+  },
+  gradientButtonContainer: {
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  gradientButton: {
+    height: 48,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButton: {
     height: 48,
