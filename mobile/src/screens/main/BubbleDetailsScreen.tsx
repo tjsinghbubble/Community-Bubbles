@@ -69,15 +69,18 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
+  const [memberCount, setMemberCount] = useState<number>(bubble.members || 0);
 
   useEffect(() => {
     checkMembership();
     fetchBubbleDetails();
+    fetchMemberCount();
   }, [bubble.id]);
 
   useFocusEffect(
     useCallback(() => {
       fetchEvents();
+      fetchMemberCount();
     }, [bubble.id])
   );
 
@@ -88,6 +91,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       apiService.trackBubbleVisit(bubble.id).catch(() => {});
     } catch (error) {
       console.error('Failed to fetch bubble details:', error);
+    }
+  };
+
+  const fetchMemberCount = async () => {
+    try {
+      const members = await apiService.getBubbleMembers(bubble.id) as any[];
+      setMemberCount(members.length);
+    } catch (error) {
+      console.error('Failed to fetch member count:', error);
     }
   };
 
@@ -125,6 +137,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           console.log('CometChat leave error (may not be in group):', e);
         }
         setIsMember(false);
+        setMemberCount(prev => Math.max(0, prev - 1));
         setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
         setShowSuccessModal(true);
       } else {
@@ -140,6 +153,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           console.log('CometChat join error (may already be member):', e);
         }
         setIsMember(true);
+        setMemberCount(prev => prev + 1);
         setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
         setShowSuccessModal(true);
       }
@@ -426,7 +440,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <View style={styles.sectionHeaderRow}>
         <View style={styles.membersLeft}>
           <Ionicons name="people-outline" size={20} color={Colors.text.primary} />
-          <Text style={styles.membersCount}>{bubble.members || 0}</Text>
+          <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>
         <TouchableOpacity onPress={handleViewMembers}>
