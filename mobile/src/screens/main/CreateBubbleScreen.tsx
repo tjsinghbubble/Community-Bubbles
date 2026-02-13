@@ -312,8 +312,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 onPress={() => setCategory(selected ? '' : cat.label)}
                 activeOpacity={0.8}
               >
-                <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
-                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: '100%', height: imageHeight }]} />
+                <View style={[styles.categoryImageWrapper, { width: colWidth }, selected && styles.categoryImageWrapperSelected]}>
+                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: colWidth, height: imageHeight }]} />
                 </View>
                 <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
               </TouchableOpacity>
