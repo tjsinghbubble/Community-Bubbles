@@ -22,9 +22,12 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CONTENT_PADDING = Spacing.xl;
+const IMAGE_WIDTH = SCREEN_WIDTH - CONTENT_PADDING * 2;
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -244,6 +247,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     }
   };
 
+  const formatDateShort = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  };
+
   const formatDateFull = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
     const today = new Date();
@@ -293,6 +301,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
   const creatorName = creatorAttendee?.user?.name || 'Event Creator';
 
+  const eventImages = event.images?.length > 0
+    ? event.images
+    : event.coverImage
+      ? [event.coverImage]
+      : [];
+
+  const hasImages = eventImages.length > 0;
+  const locationDisplay = event.locationAddress || event.locationName || '';
+
   const mapImageUrl = event.locationName
     ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=14&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${process.env.GOOGLE_PLACES_API_KEY || ''}`
     : null;
@@ -312,6 +329,21 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {hasImages && (
+          <View style={styles.coverImageContainer}>
+            {eventImages.length === 1 ? (
+              <Image source={{ uri: eventImages[0] }} style={styles.coverImage} resizeMode="cover" />
+            ) : (
+              <ImageCarousel
+                images={eventImages}
+                width={IMAGE_WIDTH}
+                height={200}
+                borderRadius={Radius.md}
+              />
+            )}
+          </View>
+        )}
+
         <Text style={styles.eventName}>{event.title}</Text>
 
         {isRsvpd ? (
@@ -325,15 +357,50 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <Text style={styles.dateText}>{formatDateFull(event.date)}</Text>
         <Text style={styles.timeText}>{getTimeRange()}</Text>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
-            <Ionicons name="share-outline" size={20} color={Colors.text.tertiary} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleViewParticipants} style={styles.headerActionButton}>
-            <Ionicons name="people-outline" size={20} color={Colors.text.tertiary} />
-            <Text style={styles.headerActionCount}>{goingCount}</Text>
-          </TouchableOpacity>
+        {event.description && (
+          <View style={styles.aboutSection}>
+            <Text style={styles.aboutTitle}>About</Text>
+            <Text style={styles.aboutText} numberOfLines={3}>{event.description}</Text>
+          </View>
+        )}
+
+        <View style={styles.infoRows}>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>📅</Text>
+            <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>🕐</Text>
+            <Text style={styles.infoText}>{getTimeRange()}</Text>
+          </View>
+          {event.locationName && (
+            <View style={styles.infoRow}>
+              <Text style={styles.infoIcon}>📍</Text>
+              <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
+            </View>
+          )}
+          <View style={styles.infoRow}>
+            <Text style={styles.infoIcon}>👥</Text>
+            <Text style={styles.infoText}>
+              {event.attendeeLimit ? `${goingCount}/${event.attendeeLimit}` : goingCount}
+            </Text>
+            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
+              <Text style={styles.viewLinkText}>view {'>'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {canManage && (
+          <TouchableOpacity style={styles.editEventButton} onPress={handleEdit}>
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.editEventText}>Edit Event</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.separator} />
 
@@ -406,18 +473,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           )}
 
-          {canManage && (
-            <TouchableOpacity style={styles.editEventButton} onPress={handleEdit}>
-              <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
-                start={Gradients.button.start}
-                end={Gradients.button.end}
-                style={StyleSheet.absoluteFillObject}
-              />
-              <Text style={styles.rsvpButtonText}>Edit Event</Text>
-            </TouchableOpacity>
-          )}
-
           {MOCK_BULLETIN.map((item) => (
             <View key={item.id} style={styles.bulletinCard}>
               <View style={styles.bulletinIconRow}>
@@ -475,7 +530,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingTop: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: CONTENT_PADDING,
     position: 'relative',
   },
   dragHandle: {
@@ -487,7 +542,7 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     position: 'absolute',
-    right: Spacing.xl,
+    right: CONTENT_PADDING,
     top: Spacing.sm,
     width: 36,
     height: 36,
@@ -496,34 +551,29 @@ const styles = StyleSheet.create({
   },
   adminButton: {
     position: 'absolute',
-    left: Spacing.xl,
+    left: CONTENT_PADDING,
     top: Spacing.sm,
     width: 36,
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.xl,
-    marginTop: Spacing.sm,
-  },
-  headerActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  headerActionCount: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: CONTENT_PADDING,
     paddingBottom: Spacing.xxxl + 20,
+  },
+  coverImageContainer: {
+    marginTop: Spacing.md,
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  coverImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: Radius.md,
   },
   eventName: {
     fontSize: 24,
@@ -538,7 +588,6 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     textAlign: 'center',
     marginTop: Spacing.xs,
-    letterSpacing: 0.28,
   },
   goingText: {
     fontSize: 14,
@@ -546,7 +595,6 @@ const styles = StyleSheet.create({
     color: Colors.status.success,
     textAlign: 'center',
     marginTop: Spacing.xs,
-    letterSpacing: 0.28,
   },
   dateText: {
     fontSize: 14,
@@ -554,7 +602,6 @@ const styles = StyleSheet.create({
     color: '#4D4D4D',
     textAlign: 'center',
     marginTop: Spacing.sm,
-    letterSpacing: 0.28,
   },
   timeText: {
     fontSize: 14,
@@ -562,8 +609,62 @@ const styles = StyleSheet.create({
     color: '#4D4D4D',
     textAlign: 'center',
     marginTop: 2,
-    letterSpacing: 0.28,
-    marginBottom: Spacing.lg,
+  },
+  aboutSection: {
+    marginTop: Spacing.lg,
+  },
+  aboutTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E1F26',
+    marginBottom: Spacing.sm,
+  },
+  aboutText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#4D4D4D',
+    lineHeight: 20,
+  },
+  infoRows: {
+    marginTop: Spacing.lg,
+    gap: Spacing.md,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  infoIcon: {
+    fontSize: 18,
+    width: 24,
+    textAlign: 'center',
+  },
+  infoText: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#4D4D4D',
+    flex: 1,
+  },
+  viewLink: {
+    marginLeft: Spacing.sm,
+  },
+  viewLinkText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.brand.primary,
+  },
+  editEventButton: {
+    borderRadius: Radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginTop: Spacing.lg,
+  },
+  editEventText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
   },
   separator: {
     height: 1,
@@ -591,7 +692,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     color: '#1E1F26',
-    letterSpacing: 0.24,
   },
   creatorName: {
     fontWeight: '600',
@@ -622,7 +722,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#1E1F26',
-    letterSpacing: 0.24,
   },
   locationAddress: {
     fontSize: 12,
@@ -667,8 +766,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   directionsText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.brand.primary,
   },
   bulletinSection: {
@@ -682,17 +781,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: Spacing.lg,
   },
-  editEventButton: {
-    borderRadius: Radius.full,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: Spacing.lg,
-  },
   rsvpButtonText: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.text.primary,
   },
   bulletinCard: {
@@ -703,7 +794,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-    gap: Spacing.md,
+    position: 'relative',
   },
   bulletinIconRow: {
     width: 32,
@@ -712,28 +803,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF4FE',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: Spacing.md,
   },
   bulletinEmoji: {
     fontSize: 16,
   },
   bulletinContent: {
     flex: 1,
+    paddingRight: 50,
   },
   bulletinTitle: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold,
+    fontSize: 14,
+    fontWeight: '700',
     color: Colors.text.primary,
     marginBottom: Spacing.xs,
   },
   bulletinBody: {
-    fontSize: Typography.sizes.sm,
+    fontSize: 12,
     color: Colors.text.tertiary,
     lineHeight: 18,
   },
   bulletinTime: {
-    fontSize: Typography.sizes.xs,
+    fontSize: 11,
     color: Colors.text.tertiary,
-    alignSelf: 'flex-end',
     position: 'absolute',
     top: Spacing.lg,
     right: Spacing.lg,
@@ -748,8 +840,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   addButtonText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+    fontSize: 14,
+    fontWeight: '500',
     color: Colors.brand.primary,
   },
   notGoingButton: {
@@ -762,8 +854,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   notGoingText: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.status.error,
   },
 });
