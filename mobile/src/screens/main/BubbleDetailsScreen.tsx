@@ -494,72 +494,109 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     </View>
   );
 
-  const renderEventsTab = () => (
-    <View style={styles.section}>
-      {canCreateEvent && (
-        <TouchableOpacity
-          style={styles.createEventRow}
-          onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={Colors.brand.primary} />
-          <Text style={styles.createEventText}>Create Event</Text>
-        </TouchableOpacity>
-      )}
-      {eventsLoading ? (
-        <ActivityIndicator size="small" color={Colors.brand.primary} style={{ marginTop: Spacing.xl }} />
-      ) : events.length === 0 ? (
-        <View style={styles.noEvents}>
-          <Ionicons name="calendar-outline" size={32} color={Colors.text.tertiary} />
-          <Text style={styles.noEventsText}>No upcoming events</Text>
-        </View>
-      ) : (
-        <View style={styles.eventsList}>
-          {events.map((event) => (
-            <TouchableOpacity
-              key={event.id}
-              style={styles.eventCard}
-              onPress={() => handleEventPress(event)}
-            >
-              <View style={styles.eventDateBox}>
-                <Text style={styles.eventDateDay}>
-                  {new Date(event.date + 'T00:00:00').getDate()}
-                </Text>
-                <Text style={styles.eventDateMonth}>
-                  {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
-                </Text>
-              </View>
-              <Image
-                source={{
-                  uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
-                }}
-                style={styles.eventImage}
-              />
-              <View style={styles.eventInfo}>
-                <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-                <View style={styles.eventMeta}>
-                  <Ionicons name="time-outline" size={12} color={Colors.text.tertiary} />
-                  <Text style={styles.eventMetaText}>{formatTime(event.startTime)}</Text>
-                </View>
-                {event.locationName && (
-                  <View style={styles.eventMeta}>
-                    <Ionicons name="location-outline" size={12} color={Colors.text.tertiary} />
-                    <Text style={styles.eventMetaText} numberOfLines={1}>{event.locationName}</Text>
-                  </View>
-                )}
-                {event.attendeeLimit && (
-                  <View style={styles.eventMeta}>
-                    <Ionicons name="people-outline" size={12} color={Colors.text.tertiary} />
-                    <Text style={styles.eventMetaText}>Max {event.attendeeLimit}</Text>
-                  </View>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} style={{ marginRight: Spacing.md }} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
+  const getEventDayLabel = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (d.getTime() === today.getTime()) return 'Today';
+    if (d.getTime() === tomorrow.getTime()) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'long' });
+  };
+
+  const getEventFullDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${getEventDayLabel(dateStr)}, ${d.toLocaleDateString('en-US', { month: 'long' })} ${d.getDate()}`;
+  };
+
+  const getEventTimeRange = (start: string, end: string | null) => {
+    const fmt = (t: string) => {
+      const [h, m] = t.split(':');
+      const hr = parseInt(h);
+      const ap = hr >= 12 ? 'PM' : 'AM';
+      return `${hr % 12 || 12}:${m} ${ap}`;
+    };
+    return end ? `${fmt(start)} - ${fmt(end)}` : fmt(start);
+  };
+
+  const getSpotsLabel = (event: Event) => {
+    if (!event.attendeeLimit) return null;
+    return `${event.attendeeLimit} spots`;
+  };
+
+  const groupEventsByMonth = (evts: Event[]) => {
+    const groups: { [key: string]: Event[] } = {};
+    evts.forEach((e) => {
+      const d = new Date(e.date + 'T00:00:00');
+      const key = d.toLocaleDateString('en-US', { month: 'long' });
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(e);
+    });
+    return Object.entries(groups);
+  };
+
+  const renderEventCard = (event: Event) => (
+    <TouchableOpacity
+      key={event.id}
+      style={styles.eventCard}
+      onPress={() => handleEventPress(event)}
+    >
+      <Image
+        source={{
+          uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+        }}
+        style={styles.eventImage}
+      />
+      <View style={styles.eventInfo}>
+        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+        <Text style={styles.eventDateText}>{getEventFullDate(event.date)}</Text>
+        <Text style={styles.eventTimeText}>{getEventTimeRange(event.startTime, event.endTime)}</Text>
+        {getSpotsLabel(event) !== null && (
+          <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
+        )}
+      </View>
+      <View style={styles.eventHeartContainer}>
+        <Ionicons name="heart-outline" size={22} color={Colors.text.tertiary} />
+      </View>
+    </TouchableOpacity>
   );
+
+  const renderEventsTab = () => {
+    const grouped = groupEventsByMonth(events);
+
+    return (
+      <View style={styles.section}>
+        {eventsLoading ? (
+          <ActivityIndicator size="small" color={Colors.brand.primary} style={{ marginTop: Spacing.xl }} />
+        ) : events.length === 0 ? (
+          <View style={styles.noEvents}>
+            <Ionicons name="calendar-outline" size={32} color={Colors.text.tertiary} />
+            <Text style={styles.noEventsText}>No upcoming events</Text>
+          </View>
+        ) : (
+          <View>
+            {grouped.map(([month, monthEvents]) => (
+              <View key={month}>
+                <Text style={styles.monthHeader}>{month}</Text>
+                <View style={styles.eventsList}>
+                  {monthEvents.map(renderEventCard)}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+        {canCreateEvent && (
+          <TouchableOpacity
+            style={styles.createEventButton}
+            onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          >
+            <Text style={styles.createEventButtonText}>+ Create Event</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -850,16 +887,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#D9D9D9',
     marginHorizontal: Spacing.lg,
   },
-  createEventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  createEventText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.brand.primary,
-    fontWeight: Typography.weights.medium,
+  monthHeader: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   noEvents: {
     alignItems: 'center',
@@ -876,49 +909,58 @@ const styles = StyleSheet.create({
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.background.surface,
+    backgroundColor: Colors.background.primary,
     borderRadius: Radius.md,
-    overflow: 'hidden',
-  },
-  eventDateBox: {
-    width: 50,
-    backgroundColor: Colors.brand.primary,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  eventDateDay: {
-    fontSize: 20,
-    fontWeight: Typography.weights.bold,
-    color: Colors.background.primary,
-  },
-  eventDateMonth: {
-    fontSize: 10,
-    fontWeight: Typography.weights.semiBold,
-    color: 'rgba(255,255,255,0.9)',
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    padding: Spacing.md,
   },
   eventImage: {
-    width: 60,
+    width: 70,
     height: 70,
+    borderRadius: Radius.sm,
   },
   eventInfo: {
     flex: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
   },
   eventTitle: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
-  eventMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  eventMetaText: {
-    fontSize: Typography.sizes.xs,
+  eventDateText: {
+    fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
+    marginBottom: 1,
+  },
+  eventTimeText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginBottom: 2,
+  },
+  eventSpotsText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.status.error,
+  },
+  eventHeartContainer: {
+    paddingHorizontal: Spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createEventButton: {
+    borderWidth: 1,
+    borderColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  createEventButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.brand.primary,
   },
 });

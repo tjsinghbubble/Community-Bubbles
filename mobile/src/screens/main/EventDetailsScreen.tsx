@@ -12,6 +12,7 @@ import {
   Platform,
   Linking,
   Share,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -22,6 +23,8 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'EventDetails'>;
@@ -66,6 +69,23 @@ type Bubble = {
   title: string;
   creatorId: string;
 };
+
+const MOCK_BULLETIN = [
+  {
+    id: '1',
+    title: 'Volunteers Needed ASAP',
+    body: "We're looking for 2 people to help with setup a few hours before we start the event! Please DM us if you're down!",
+    time: '4 hrs ago',
+    icon: '⚡',
+  },
+  {
+    id: '2',
+    title: 'Does anyone have equipment?',
+    body: "Hey guys! We might need some stuff for tomorrow's event! Balls, paddles, and court tape. If anyone has any extra it would be a huge help 🙏",
+    time: '1 day ago',
+    icon: '💬',
+  },
+];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent } = route.params;
@@ -206,8 +226,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     });
   };
 
-  const openInMaps = (locationName: string, locationAddress: string | null) => {
-    const address = locationAddress || locationName;
+  const openDirections = () => {
+    if (!event?.locationName) return;
+    const address = event.locationAddress || event.locationName;
     const encodedAddress = encodeURIComponent(address);
     const url = Platform.select({
       ios: `maps:0,0?q=${encodedAddress}`,
@@ -216,25 +237,24 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     if (url) {
       Linking.canOpenURL(url)
         .then((supported) => {
-          if (supported) {
-            return Linking.openURL(url);
-          } else {
-            return Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
-          }
+          if (supported) return Linking.openURL(url);
+          return Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`);
         })
-        .catch((err) => {
-          console.error('Error opening maps:', err);
-        });
+        .catch((err) => console.error('Error opening maps:', err));
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDateFull = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-    });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    let dayLabel: string;
+    if (d.getTime() === today.getTime()) dayLabel = 'Today';
+    else if (d.getTime() === tomorrow.getTime()) dayLabel = 'Tomorrow';
+    else dayLabel = d.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${dayLabel}, ${d.toLocaleDateString('en-US', { month: 'long' })} ${d.getDate()}`;
   };
 
   const formatTime = (time: string) => {
@@ -245,11 +265,18 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
+  const getTimeRange = () => {
+    if (!event) return '';
+    const start = formatTime(event.startTime);
+    const end = event.endTime ? formatTime(event.endTime) : null;
+    return end ? `${start} - ${end}` : start;
+  };
+
   if (isLoading || !event) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
         </View>
       </SafeAreaView>
     );
@@ -260,122 +287,165 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
+  const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const coverImage = event.coverImage || (event.images && event.images.length > 0 ? event.images[0] : null);
+  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
+  const creatorName = creatorAttendee?.user?.name || 'Event Creator';
+
+  const mapImageUrl = event.locationName
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=14&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${process.env.GOOGLE_PLACES_API_KEY || ''}`
+    : null;
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{bubble?.title || ''}</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.headerShareButton}>
-          <Ionicons name="paper-plane-outline" size={22} color={Colors.neutral.charcoal} />
+        <View style={styles.dragHandle} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         {canManage && (
-          <TouchableOpacity onPress={showAdminOptions} style={styles.headerMenuButton}>
-            <Ionicons name="ellipsis-vertical" size={22} color={Colors.neutral.charcoal} />
+          <TouchableOpacity onPress={showAdminOptions} style={styles.adminButton}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
           </TouchableOpacity>
         )}
       </View>
 
-      <ScrollView style={styles.scrollContent} contentContainerStyle={{ paddingBottom: 100 }}>
-        {coverImage ? (
-          <Image source={{ uri: coverImage }} style={styles.coverImage} />
-        ) : (
-          <View style={styles.coverPlaceholder}>
-            <Ionicons name="image-outline" size={48} color={Colors.neutral.coolMist} />
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.eventName}>{event.title}</Text>
+
+        {isRsvpd ? (
+          <Text style={styles.goingText}>Going</Text>
+        ) : spotsLeft !== null && spotsLeft > 0 ? (
+          <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
+        ) : isFull ? (
+          <Text style={styles.spotsText}>Event Full</Text>
+        ) : null}
+
+        <Text style={styles.dateText}>{formatDateFull(event.date)}</Text>
+        <Text style={styles.timeText}>{getTimeRange()}</Text>
+
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleShare} style={styles.headerActionButton}>
+            <Ionicons name="share-outline" size={20} color={Colors.text.tertiary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleViewParticipants} style={styles.headerActionButton}>
+            <Ionicons name="people-outline" size={20} color={Colors.text.tertiary} />
+            <Text style={styles.headerActionCount}>{goingCount}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.separator} />
+
+        <View style={styles.creatorRow}>
+          <View style={styles.creatorAvatar}>
+            <Ionicons name="person" size={20} color={Colors.background.primary} />
           </View>
-        )}
+          <View style={styles.creatorInfo}>
+            <Text style={styles.creatorLabel}>
+              Created by <Text style={styles.creatorName}>{creatorName}</Text>
+            </Text>
+            <Text style={styles.creatorCity}>
+              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+            </Text>
+          </View>
+        </View>
 
-        <Text style={styles.eventTitle}>{event.title}</Text>
-
-        {event.description && (
-          <View style={styles.aboutSection}>
-            <Text style={styles.aboutLabel}>About</Text>
-            <Text style={styles.aboutText}>{event.description}</Text>
+        {event.locationName && (
+          <View style={styles.locationRow}>
+            <View style={styles.locationIconContainer}>
+              <Ionicons name="location" size={20} color={Colors.brand.primary} />
+            </View>
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationLandmark}>{event.locationName}</Text>
+              {event.locationAddress && (
+                <Text style={styles.locationAddress}>{event.locationAddress}</Text>
+              )}
+            </View>
           </View>
         )}
 
         <View style={styles.separator} />
 
-        <View style={styles.detailsSection}>
-          <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={18} color={Colors.neutral.charcoal} />
-            <Text style={styles.detailText}>{formatDate(event.date)}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
-            <Text style={styles.detailText}>
-              {formatTime(event.startTime)}
-              {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.detailRow}
-            onPress={() => event.locationName ? openInMaps(event.locationName, event.locationAddress) : null}
-            activeOpacity={event.locationName ? 0.7 : 1}
-          >
-            <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
-            <Text style={styles.detailText} numberOfLines={2}>
-              {event.locationName
-                ? `${event.locationName}${event.locationAddress ? `, ${event.locationAddress}` : ''}`
-                : 'TBD'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
-            <Text style={styles.detailText}>
-              {goingCount}{event.attendeeLimit ? `/${event.attendeeLimit}` : ''}
-            </Text>
-            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
-              <Text style={styles.viewLinkText}>view</Text>
-              <Ionicons name="chevron-forward" size={14} color={Colors.brand.bubbleBlue} />
+        {event.locationName && (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>Location</Text>
+            <View style={styles.mapContainer}>
+              {mapImageUrl ? (
+                <Image source={{ uri: mapImageUrl }} style={styles.mapImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map-outline" size={48} color={Colors.text.tertiary} />
+                </View>
+              )}
+            </View>
+            <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
+              <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
+              <Text style={styles.directionsText}>Directions</Text>
             </TouchableOpacity>
+            <View style={styles.separator} />
           </View>
-        </View>
-      </ScrollView>
+        )}
 
-      <View style={styles.footer}>
-        {canManage ? (
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={handleEdit}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <Text style={styles.editButtonText}>Edit Event</Text>
+        <View style={styles.bulletinSection}>
+          <Text style={styles.sectionTitle}>Bulletin Board</Text>
+
+          {!isRsvpd && !canManage && (
+            <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={StyleSheet.absoluteFillObject}
+              />
+              {isRsvping ? (
+                <ActivityIndicator color={Colors.text.primary} size="small" />
+              ) : (
+                <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {canManage && (
+            <TouchableOpacity style={styles.editEventButton} onPress={handleEdit}>
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <Text style={styles.rsvpButtonText}>Edit Event</Text>
+            </TouchableOpacity>
+          )}
+
+          {MOCK_BULLETIN.map((item) => (
+            <View key={item.id} style={styles.bulletinCard}>
+              <View style={styles.bulletinIconRow}>
+                <Text style={styles.bulletinEmoji}>{item.icon}</Text>
+              </View>
+              <View style={styles.bulletinContent}>
+                <Text style={styles.bulletinTitle}>{item.title}</Text>
+                <Text style={styles.bulletinBody}>{item.body}</Text>
+              </View>
+              <Text style={styles.bulletinTime}>{item.time}</Text>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addButton}>
+            <Text style={styles.addButtonText}>+ Add</Text>
           </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[
-              styles.rsvpButton,
-              isRsvpd && styles.cancelRsvpButton,
-              isFull && !isRsvpd && styles.disabledButton,
-            ]}
-            onPress={handleRsvp}
-            disabled={isRsvping || (isFull && !isRsvpd)}
-          >
+        </View>
+
+        {isRsvpd && (
+          <TouchableOpacity style={styles.notGoingButton} onPress={handleRsvp} disabled={isRsvping}>
             {isRsvping ? (
-              <ActivityIndicator color={Colors.brand.skyWhite} />
+              <ActivityIndicator color={Colors.status.error} size="small" />
             ) : (
-              <Text style={styles.rsvpButtonText}>
-                {isRsvpd ? 'Cancel RSVP' : isFull ? 'Event Full' : 'RSVP - Going'}
-              </Text>
+              <Text style={styles.notGoingText}>Not Going</Text>
             )}
           </TouchableOpacity>
         )}
-      </View>
+      </ScrollView>
 
       <SuccessModal
         visible={showSuccessModal}
@@ -395,7 +465,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
   },
   loading: {
     flex: 1,
@@ -403,137 +473,297 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    position: 'relative',
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#C4C4C4',
+    marginBottom: Spacing.sm,
+  },
+  closeButton: {
+    position: 'absolute',
+    right: Spacing.xl,
+    top: Spacing.sm,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminButton: {
+    position: 'absolute',
+    left: Spacing.xl,
+    top: Spacing.sm,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.xl,
+    marginTop: Spacing.sm,
+  },
+  headerActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.cloudGrey,
+    gap: Spacing.xs,
   },
-  headerBackButton: {
-    padding: 4,
+  headerActionCount: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
   },
-  headerTitle: {
+  scrollView: {
     flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    textAlign: 'center',
-    marginHorizontal: 12,
-  },
-  headerShareButton: {
-    padding: 4,
-  },
-  headerMenuButton: {
-    padding: 4,
-    marginLeft: 4,
   },
   scrollContent: {
-    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xxxl + 20,
   },
-  coverImage: {
-    width: '100%',
-    aspectRatio: 16 / 10,
-    resizeMode: 'cover',
-  },
-  coverPlaceholder: {
-    width: '100%',
-    aspectRatio: 16 / 10,
-    backgroundColor: Colors.neutral.cloudGrey,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eventTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.neutral.charcoal,
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  aboutSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  aboutLabel: {
-    fontSize: 15,
+  eventName: {
+    fontSize: 24,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 6,
+    color: '#1E1F26',
+    textAlign: 'center',
+    marginTop: Spacing.lg,
   },
-  aboutText: {
+  spotsText: {
     fontSize: 14,
-    color: Colors.neutral.charcoal,
-    lineHeight: 20,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    letterSpacing: 0.28,
+  },
+  goingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.status.success,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    letterSpacing: 0.28,
+  },
+  dateText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4D4D4D',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    letterSpacing: 0.28,
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4D4D4D',
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: 0.28,
+    marginBottom: Spacing.lg,
   },
   separator: {
     height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
-    marginHorizontal: 20,
+    backgroundColor: '#D9D9D9',
+    marginVertical: Spacing.lg,
   },
-  detailsSection: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-  },
-  detailRow: {
+  creatorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 14,
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  detailText: {
+  creatorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.text.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creatorInfo: {
     flex: 1,
-    fontSize: 14,
-    color: Colors.neutral.charcoal,
-    lineHeight: 20,
   },
-  viewLink: {
+  creatorLabel: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#1E1F26',
+    letterSpacing: 0.24,
+  },
+  creatorName: {
+    fontWeight: '600',
+  },
+  creatorCity: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#4D4D4D',
+    marginTop: 1,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  },
+  locationIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EAF4FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationLandmark: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E1F26',
+    letterSpacing: 0.24,
+  },
+  locationAddress: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#4D4D4D',
+    marginTop: 1,
+  },
+  mapSection: {
+    marginBottom: 0,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E1F26',
+    marginBottom: Spacing.md,
+  },
+  mapContainer: {
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+    height: 180,
+    backgroundColor: '#F0F0F0',
+  },
+  mapImage: {
+    width: '100%',
+    height: '100%',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8E8E8',
+  },
+  directionsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-  },
-  viewLinkText: {
-    fontSize: 14,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '500',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 20,
-    backgroundColor: Colors.brand.skyWhite,
-  },
-  editButton: {
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.brand.primary,
     borderRadius: Radius.full,
-    paddingVertical: 16,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  directionsText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.brand.primary,
+  },
+  bulletinSection: {
+    marginBottom: Spacing.lg,
+  },
+  rsvpButton: {
+    borderRadius: Radius.full,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    marginBottom: Spacing.lg,
   },
-  editButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
-  rsvpButton: {
-    backgroundColor: Colors.state.success,
+  editEventButton: {
     borderRadius: Radius.full,
-    paddingVertical: 16,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: Spacing.lg,
+  },
+  rsvpButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  bulletinCard: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background.primary,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    gap: Spacing.md,
+  },
+  bulletinIconRow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EAF4FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelRsvpButton: {
-    backgroundColor: Colors.state.error,
+  bulletinEmoji: {
+    fontSize: 16,
   },
-  disabledButton: {
-    backgroundColor: Colors.neutral.coolMist,
+  bulletinContent: {
+    flex: 1,
   },
-  rsvpButtonText: {
-    color: Colors.brand.skyWhite,
-    fontSize: 17,
-    fontWeight: '600',
+  bulletinTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.xs,
+  },
+  bulletinBody: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    lineHeight: 18,
+  },
+  bulletinTime: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    alignSelf: 'flex-end',
+    position: 'absolute',
+    top: Spacing.lg,
+    right: Spacing.lg,
+  },
+  addButton: {
+    borderWidth: 1,
+    borderColor: Colors.brand.primary,
+    borderStyle: 'dashed',
+    borderRadius: Radius.full,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  addButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.brand.primary,
+  },
+  notGoingButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.status.error,
+    borderRadius: Radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.md,
+  },
+  notGoingText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.error,
   },
 });
