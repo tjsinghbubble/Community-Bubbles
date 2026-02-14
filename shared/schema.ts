@@ -7,6 +7,7 @@ export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   icon: text("icon"),
+  image: text("image"),
   parentId: integer("parent_id"),
 });
 

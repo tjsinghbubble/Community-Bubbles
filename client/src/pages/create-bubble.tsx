@@ -22,20 +22,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import bubbleSubmittedImg from "@/assets/images/bubble-submitted.png";
-import interestPets from "@/assets/images/interest-pets.jpg";
-import exploreMeetup from "@/assets/images/explore-meetup.jpg";
-import exploreFood from "@/assets/images/explore-food.jpg";
-import catArtsCrafts from "@/assets/images/interest-crafts.jpg";
-import catBiking from "@/assets/images/interest-biking.jpg";
-import catCoffee from "@/assets/images/interest-coffee.jpg";
-import catCommunity from "@/assets/images/explore-meetup.jpg";
-import catCooking from "@/assets/images/interest-cooking.jpg";
-import catGardening from "@/assets/images/interest-gardening.jpg";
-import catHiking from "@/assets/images/interest-hiking.jpg";
-import catRunning from "@/assets/images/interest-running.jpg";
-import catTennis from "@/assets/images/interest-tennis.jpg";
-import catWellness from "@/assets/images/explore-wellness.jpg";
-import catYoga from "@/assets/images/explore-wellness.jpg";
 
 const DS = {
   color: {
@@ -306,15 +292,7 @@ function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-type ApiCategory = { id: number; name: string; icon: string | null; parentId: number | null };
-
-const CATEGORY_IMAGES: Record<string, string> = {
-  "Running": catRunning, "Cooking": catCooking, "Coffee Meets": catCoffee,
-  "Professional": exploreMeetup, "Hiking": catHiking, "Tennis": catTennis,
-  "Biking": catBiking, "Pets": interestPets, "Arts & Crafts": catArtsCrafts,
-  "Community": catCommunity, "Gardening": catGardening, "Food & Drink": exploreFood,
-  "Wellness": catWellness, "Yoga": catYoga,
-};
+type ApiCategory = { id: number; name: string; icon: string | null; image: string | null; parentId: number | null };
 
 function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
@@ -338,7 +316,6 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
       <div className="grid grid-cols-3 gap-3" data-testid="category-grid">
         {apiCategories.map((cat) => {
           const sel = draft.category === cat.name;
-          const img = CATEGORY_IMAGES[cat.name] || catCommunity;
           return (
             <button
               key={cat.id}
@@ -353,7 +330,8 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
                   border: `2px solid ${sel ? DS.color.brand.primary : "transparent"}`,
                 }}
               >
-                <img src={img} alt={cat.name} className="aspect-square w-full object-cover" />
+                {cat.image && <img src={cat.image} alt={cat.name} className="aspect-square w-full object-cover" />}
+                {!cat.image && <div className="aspect-square w-full" style={{ backgroundColor: DS.color.bg.surface }} />}
                 {sel && (
                   <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full" style={{ backgroundColor: DS.color.brand.primary }}>
                     <Check className="h-3 w-3 text-white" />
