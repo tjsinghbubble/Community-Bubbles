@@ -229,12 +229,12 @@ export default function ExploreScreen() {
 
   const tabPaddingVertical = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [12, 6],
+    outputRange: [6, 4],
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 58 + 60;
-  const HEADER_COLLAPSED = 58 + 30;
+  const HEADER_EXPANDED = 52 + 56;
+  const HEADER_COLLAPSED = 52 + 28;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
@@ -400,7 +400,7 @@ export default function ExploreScreen() {
         {event.locationName && (
           <View style={styles.cardMeta}>
             <Ionicons name="location-outline" size={12} color="#4D4D4D" />
-            <Text style={styles.metaText} numberOfLines={1}>{event.locationName}</Text>
+            <Text style={[styles.metaText, { maxWidth: 60 }]} numberOfLines={1}>{event.locationName.slice(0, 6)}</Text>
           </View>
         )}
       </View>
@@ -452,7 +452,7 @@ export default function ExploreScreen() {
 
       {isEmpty ? (
         <Animated.ScrollView
-          contentContainerStyle={[styles.empty, { paddingTop: HEADER_EXPANDED + 20 }]}
+          contentContainerStyle={[styles.empty, { paddingTop: HEADER_EXPANDED + 8 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -479,7 +479,7 @@ export default function ExploreScreen() {
         </Animated.ScrollView>
       ) : (
         <Animated.ScrollView 
-          contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED + 16 }]}
+          contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED + 4 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -573,13 +573,14 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: Colors.neutral.cloudGrey,
+    overflow: 'hidden',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 12,
   },
   iconButton: {
