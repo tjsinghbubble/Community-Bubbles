@@ -503,9 +503,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
             <Text style={styles.ruleText}>{rule}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => deleteRule(index)} style={{ padding: Spacing.xs }}>
-            <Ionicons name="close-circle" size={18} color={Colors.text.tertiary} />
-          </TouchableOpacity>
           <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
         </View>
       ))}
@@ -649,8 +646,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      {step > 0 && renderProgressBar()}
-      <View style={styles.headerDivider} />
+      {renderProgressBar()}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -683,20 +679,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             onPress={() => setShowRuleModal(false)}
           >
             <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>
-                  {editingRuleIndex !== null ? 'Edit Rule' : 'Add Rule'}
-                </Text>
-              </View>
               <TextInput
-                style={[styles.fieldInput, styles.textArea, { marginVertical: Spacing.lg }]}
+                style={[styles.fieldInput, styles.ruleModalInput]}
                 placeholder="Enter your rule..."
                 placeholderTextColor={Colors.text.tertiary}
                 value={ruleText}
                 onChangeText={setRuleText}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
                 autoFocus
               />
               <View style={styles.modalFooter}>
@@ -711,9 +699,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                   onPress={saveRule}
                   disabled={!ruleText.trim()}
                 >
-                  <Text style={styles.primaryButtonText}>
-                    {editingRuleIndex !== null ? 'Save' : 'Add Rule'}
-                  </Text>
+                  <Text style={styles.primaryButtonText}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -775,11 +761,6 @@ const styles = StyleSheet.create({
   },
   progressSegmentActive: {
     backgroundColor: Colors.brand.primary,
-  },
-
-  headerDivider: {
-    height: 1,
-    backgroundColor: Colors.border.light,
   },
 
   content: {
@@ -1014,8 +995,7 @@ const styles = StyleSheet.create({
   addRuleButton: {
     borderWidth: 1.5,
     borderColor: Colors.brand.primary,
-    borderStyle: 'dashed',
-    borderRadius: Radius.md,
+    borderRadius: Radius.full,
     paddingVertical: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1176,15 +1156,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: Radius.xl,
     padding: Spacing.lg,
   },
-  modalHeader: {
-    alignItems: 'center',
-    paddingBottom: Spacing.sm,
-  },
-  modalTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    lineHeight: Typography.lineHeight.md,
+  ruleModalInput: {
+    marginBottom: Spacing.lg,
   },
   modalFooter: {
     flexDirection: 'row',
