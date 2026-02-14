@@ -226,6 +226,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       eventTitle: event?.title || '',
       bubbleId: event?.bubbleId || '',
       bubbleTitle: bubbleDisplayTitle || bubble?.title || '',
+      bubblePrivacy: bubble?.privacy || 'Public',
+      eventCreatorId: event?.creatorId || '',
     });
   };
 

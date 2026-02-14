@@ -59,6 +59,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
+  const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [events, setEvents] = useState<Event[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
@@ -107,6 +109,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const result = await apiService.checkMembership(bubble.id);
       setIsMember(result.isMember);
+      setMembershipStatus(result.membershipStatus || null);
+      setMyBubbleRole(result.role || null);
     } catch (error) {
       console.error('Failed to check membership:', error);
     } finally {
@@ -137,25 +141,39 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           console.log('CometChat leave error (may not be in group):', e);
         }
         setIsMember(false);
+        setMembershipStatus(null);
         setMemberCount(prev => Math.max(0, prev - 1));
         setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
         setShowSuccessModal(true);
-      } else {
-        await apiService.joinBubble(bubble.id);
-        try {
-          await cometChatService.createGroup(bubble.id, bubble.title);
-        } catch (e) {
-          console.log('Group may already exist:', e);
-        }
-        try {
-          await cometChatService.joinGroup(bubble.id);
-        } catch (e) {
-          console.log('CometChat join error (may already be member):', e);
-        }
-        setIsMember(true);
-        setMemberCount(prev => prev + 1);
-        setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+      } else if (membershipStatus === 'pending') {
+        await apiService.leaveBubble(bubble.id);
+        setMembershipStatus(null);
+        setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
         setShowSuccessModal(true);
+      } else {
+        const result = await apiService.joinBubble(bubble.id);
+        const privacy = bubbleDetails?.privacy || bubble.privacy;
+        if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Private') {
+          setMembershipStatus('pending');
+          setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
+          setShowSuccessModal(true);
+        } else {
+          try {
+            await cometChatService.createGroup(bubble.id, bubble.title);
+          } catch (e) {
+            console.log('Group may already exist:', e);
+          }
+          try {
+            await cometChatService.joinGroup(bubble.id);
+          } catch (e) {
+            console.log('CometChat join error (may already be member):', e);
+          }
+          setIsMember(true);
+          setMembershipStatus('approved');
+          setMemberCount(prev => prev + 1);
+          setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+          setShowSuccessModal(true);
+        }
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -184,7 +202,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const isCreator = bubbleDetails?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = bubbleDetails && (isCreator || isSuperAdmin);
-  const canCreateEvent = !!user;
+  const privacy = bubbleDetails?.privacy || bubble.privacy;
+  const canCreateEvent = (() => {
+    if (!user || !isMember) return false;
+    if (isSuperAdmin) return true;
+    if (privacy === 'Public') {
+      return myBubbleRole === 'admin';
+    }
+    return true;
+  })();
 
   const handleViewMembers = () => {
     navigation.navigate('BubbleMembers' as any, {
@@ -469,6 +495,25 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       );
     }
 
+    if (membershipStatus === 'pending') {
+      return (
+        <TouchableOpacity
+          style={styles.pendingButton}
+          onPress={handleJoinLeave}
+          disabled={isJoining}
+        >
+          {isJoining ? (
+            <ActivityIndicator color={Colors.neutral.coolMist} size="small" />
+          ) : (
+            <Text style={styles.pendingButtonText}>Request Pending</Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+
+    const privacy = bubbleDetails?.privacy || bubble.privacy;
+    const buttonLabel = (privacy === 'Request to Join' || privacy === 'Private') ? 'Request to Join' : 'Join Bubble';
+
     return (
       <TouchableOpacity
         style={styles.joinButton}
@@ -484,7 +529,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         {isJoining ? (
           <ActivityIndicator color={Colors.text.primary} size="small" />
         ) : (
-          <Text style={styles.joinButtonText}>Join Bubble</Text>
+          <Text style={styles.joinButtonText}>{buttonLabel}</Text>
         )}
       </TouchableOpacity>
     );
@@ -853,6 +898,21 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: Colors.status.error,
+  },
+  pendingButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.full,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.neutral.cloudGrey,
+  },
+  pendingButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.neutral.coolMist,
   },
   joinButton: {
     borderRadius: Radius.full,

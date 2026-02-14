@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, gte, or, isNull } from "drizzle-orm";
+import { eq, and, desc, lt, gte, or, isNull, ne } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -48,10 +48,16 @@ export interface IStorage {
   getUserMemberships(userId: string): Promise<(Membership & { bubble: Bubble })[]>;
   getBubbleMemberships(bubbleId: string): Promise<Membership[]>;
   getBubbleMembersWithUsers(bubbleId: string): Promise<(Membership & { user: User })[]>;
+  getPendingJoinRequests(bubbleId: string): Promise<(Membership & { user: User })[]>;
   createMembership(membership: InsertMembership): Promise<Membership>;
   createMembershipWithRole(membership: InsertMembership, role: string): Promise<Membership>;
+  createMembershipWithStatus(membership: InsertMembership, status: string): Promise<Membership>;
+  approveMembership(userId: string, bubbleId: string): Promise<Membership | undefined>;
+  rejectMembership(userId: string, bubbleId: string): Promise<void>;
+  getMembershipStatus(userId: string, bubbleId: string): Promise<string | null>;
   deleteMembership(userId: string, bubbleId: string): Promise<void>;
   isMember(userId: string, bubbleId: string): Promise<boolean>;
+  hasAnyMembership(userId: string, bubbleId: string): Promise<boolean>;
   getMemberRole(userId: string, bubbleId: string): Promise<string | null>;
   updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void>;
 
@@ -214,7 +220,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .innerJoin(bubbles, eq(memberships.bubbleId, bubbles.id))
-      .where(eq(memberships.userId, userId))
+      .where(and(eq(memberships.userId, userId), eq(memberships.membershipStatus, 'approved')))
       .orderBy(desc(memberships.joinedAt));
 
     return result.map((row) => ({
@@ -224,7 +230,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBubbleMemberships(bubbleId: string): Promise<Membership[]> {
-    return db.select().from(memberships).where(eq(memberships.bubbleId, bubbleId));
+    return db.select().from(memberships).where(
+      and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved'))
+    );
   }
 
   async getBubbleMembersWithUsers(bubbleId: string): Promise<(Membership & { user: User })[]> {
@@ -232,7 +240,21 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .innerJoin(users, eq(memberships.userId, users.id))
-      .where(eq(memberships.bubbleId, bubbleId))
+      .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved')))
+      .orderBy(desc(memberships.joinedAt));
+
+    return result.map((row) => ({
+      ...row.memberships,
+      user: row.users,
+    }));
+  }
+
+  async getPendingJoinRequests(bubbleId: string): Promise<(Membership & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .innerJoin(users, eq(memberships.userId, users.id))
+      .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'pending')))
       .orderBy(desc(memberships.joinedAt));
 
     return result.map((row) => ({
@@ -253,14 +275,68 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async deleteMembership(userId: string, bubbleId: string): Promise<void> {
+  async createMembershipWithStatus(insertMembership: InsertMembership, status: string): Promise<Membership> {
+    const result = await db.insert(memberships).values({ ...insertMembership, membershipStatus: status }).returning();
+    if (status === 'approved') {
+      await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
+    }
+    return result[0];
+  }
+
+  async approveMembership(userId: string, bubbleId: string): Promise<Membership | undefined> {
+    const result = await db.update(memberships)
+      .set({ membershipStatus: 'approved' })
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .returning();
+    if (result[0]) {
+      await this.updateBubbleMemberCount(bubbleId, 1);
+    }
+    return result[0];
+  }
+
+  async rejectMembership(userId: string, bubbleId: string): Promise<void> {
     await db.delete(memberships).where(
       and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId))
     );
-    await this.updateBubbleMemberCount(bubbleId, -1);
+  }
+
+  async getMembershipStatus(userId: string, bubbleId: string): Promise<string | null> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .limit(1);
+    return result[0]?.membershipStatus || null;
+  }
+
+  async deleteMembership(userId: string, bubbleId: string): Promise<void> {
+    const existing = await db
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .limit(1);
+    await db.delete(memberships).where(
+      and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId))
+    );
+    if (existing[0]?.membershipStatus === 'approved') {
+      await this.updateBubbleMemberCount(bubbleId, -1);
+    }
   }
 
   async isMember(userId: string, bubbleId: string): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .where(and(
+        eq(memberships.userId, userId),
+        eq(memberships.bubbleId, bubbleId),
+        eq(memberships.membershipStatus, 'approved')
+      ))
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async hasAnyMembership(userId: string, bubbleId: string): Promise<boolean> {
     const result = await db
       .select()
       .from(memberships)
@@ -273,7 +349,11 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(memberships)
-      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .where(and(
+        eq(memberships.userId, userId),
+        eq(memberships.bubbleId, bubbleId),
+        eq(memberships.membershipStatus, 'approved')
+      ))
       .limit(1);
     return result[0]?.role || null;
   }
@@ -534,7 +614,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicBubbles(): Promise<Bubble[]> {
     return db.select().from(bubbles)
-      .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved')))
+      .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved'), ne(bubbles.privacy, 'Private')))
       .orderBy(desc(bubbles.createdAt));
   }
 
@@ -554,6 +634,7 @@ export class DatabaseStorage implements IStorage {
         isNull(events.campusId),
         eq(events.visibility, 'public'),
         eq(events.status, 'approved'),
+        ne(bubbles.privacy, 'Private'),
         gte(events.date, today)
       ))
       .orderBy(events.date, events.startTime);
@@ -574,6 +655,7 @@ export class DatabaseStorage implements IStorage {
         isNull(events.campusId),
         eq(events.visibility, 'public'),
         eq(events.status, 'approved'),
+        ne(bubbles.privacy, 'Private'),
         gte(events.date, today)
       ))
       .orderBy(events.date, events.startTime);

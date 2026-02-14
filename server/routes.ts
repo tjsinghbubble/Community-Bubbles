@@ -422,7 +422,6 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Bubble not found" });
       }
       
-      // Check if campus bubble requires campus verification
       if (bubble.campusId) {
         const user = await storage.getUser(req.userId!);
         if (!user?.campusVerified || user.campusId !== bubble.campusId) {
@@ -430,17 +429,30 @@ export async function registerRoutes(
         }
       }
 
-      const isMember = await storage.isMember(req.userId!, bubbleId);
-      if (isMember) {
-        return res.status(400).json({ error: "Already a member" });
+      const hasExisting = await storage.hasAnyMembership(req.userId!, bubbleId);
+      if (hasExisting) {
+        const status = await storage.getMembershipStatus(req.userId!, bubbleId);
+        if (status === 'approved') {
+          return res.status(400).json({ error: "Already a member" });
+        }
+        if (status === 'pending') {
+          return res.status(400).json({ error: "Join request already pending" });
+        }
       }
 
-      await storage.createMembership({
-        userId: req.userId!,
-        bubbleId,
-      });
-
-      res.json({ success: true });
+      if (bubble.privacy === 'Request to Join' || bubble.privacy === 'Private') {
+        await storage.createMembershipWithStatus({
+          userId: req.userId!,
+          bubbleId,
+        }, 'pending');
+        res.json({ success: true, status: 'pending' });
+      } else {
+        await storage.createMembership({
+          userId: req.userId!,
+          bubbleId,
+        });
+        res.json({ success: true, status: 'approved' });
+      }
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -510,7 +522,8 @@ export async function registerRoutes(
     try {
       const isMember = await storage.isMember(req.userId!, req.params.id);
       const role = await storage.getMemberRole(req.userId!, req.params.id);
-      res.json({ isMember, role });
+      const membershipStatus = await storage.getMembershipStatus(req.userId!, req.params.id);
+      res.json({ isMember, role, membershipStatus });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -598,6 +611,74 @@ export async function registerRoutes(
       }
       
       await storage.deleteMembership(userId, bubbleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/:bubbleId/join-requests", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const bubble = await storage.getBubble(bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const user = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can view join requests" });
+      }
+
+      const requests = await storage.getPendingJoinRequests(bubbleId);
+      res.json(requests.map(r => ({
+        id: r.id,
+        userId: r.userId,
+        bubbleId: r.bubbleId,
+        membershipStatus: r.membershipStatus,
+        joinedAt: r.joinedAt,
+        user: {
+          id: r.user.id,
+          name: r.user.name,
+          email: r.user.email,
+          profilePhoto: r.user.profilePhoto,
+        }
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/join-requests/:userId/approve", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const user = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can approve join requests" });
+      }
+
+      const membership = await storage.approveMembership(userId, bubbleId);
+      if (!membership) {
+        return res.status(404).json({ error: "Join request not found" });
+      }
+      res.json({ success: true, membership });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/join-requests/:userId/reject", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const user = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can reject join requests" });
+      }
+
+      await storage.rejectMembership(userId, bubbleId);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -720,9 +801,28 @@ export async function registerRoutes(
         creatorId: req.userId,
       });
 
+      const bubble = await storage.getBubble(data.bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isSuperAdmin = user?.isSuperAdmin === true;
+
+      if (bubble.privacy === 'Public') {
+        const memberRole = await storage.getMemberRole(req.userId!, data.bubbleId);
+        if (memberRole !== 'admin' && !isSuperAdmin) {
+          return res.status(403).json({ error: "Only admins can create events in public bubbles" });
+        }
+      } else {
+        const isMember = await storage.isMember(req.userId!, data.bubbleId);
+        if (!isMember && !isSuperAdmin) {
+          return res.status(403).json({ error: "You must be a member to create events" });
+        }
+      }
+
       const event = await storage.createEvent(data);
 
-      // Auto-RSVP the creator
       await storage.createEventAttendee({
         eventId: event.id,
         userId: req.userId!,

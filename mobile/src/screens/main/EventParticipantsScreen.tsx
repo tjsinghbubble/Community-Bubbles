@@ -26,6 +26,8 @@ type ParticipantsParamList = {
     eventTitle: string;
     bubbleId: string;
     bubbleTitle: string;
+    bubblePrivacy?: string;
+    eventCreatorId?: string;
   };
 };
 
@@ -53,7 +55,7 @@ type Member = {
 };
 
 export default function EventParticipantsScreen({ navigation, route }: Props) {
-  const { eventId, eventTitle, bubbleId, bubbleTitle } = route.params;
+  const { eventId, eventTitle, bubbleId, bubbleTitle, bubblePrivacy, eventCreatorId } = route.params;
   const { user } = useAuth();
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [bubbleMembers, setBubbleMembers] = useState<Member[]>([]);
@@ -63,6 +65,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
   const [removeModalVisible, setRemoveModalVisible] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Attendee | null>(null);
+  const [privacy, setPrivacy] = useState<string>(bubblePrivacy || 'Public');
 
   useEffect(() => {
     fetchData();
@@ -79,6 +82,15 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 
       const myMembership = membersData.find((m: any) => m.userId === user?.id);
       setMyBubbleRole(myMembership?.role || null);
+
+      if (!bubblePrivacy) {
+        try {
+          const bubbleData = await apiService.getBubble(bubbleId) as any;
+          setPrivacy(bubbleData?.privacy || 'Public');
+        } catch (e) {
+          console.log('Failed to fetch bubble privacy:', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch participants:', error);
     } finally {
@@ -87,6 +99,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
   };
 
   const isAdmin = myBubbleRole === 'admin' || user?.isSuperAdmin === true;
+  const isPublicBubble = privacy === 'Public';
 
   const getBubbleRole = (userId: string): string => {
     const member = bubbleMembers.find(m => m.userId === userId);
@@ -97,9 +110,21 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     if (!acc.find(x => x.userId === a.userId)) acc.push(a);
     return acc;
   }, []);
+
   const adminUserIds = new Set(uniqueAttendees.filter(a => getBubbleRole(a.userId) === 'admin').map(a => a.userId));
   const admins = uniqueAttendees.filter(a => adminUserIds.has(a.userId));
   const participants = uniqueAttendees.filter(a => !adminUserIds.has(a.userId));
+
+  const mixedList = (() => {
+    if (isPublicBubble) return [];
+    const sorted = [...uniqueAttendees];
+    sorted.sort((a, b) => {
+      if (a.userId === eventCreatorId) return -1;
+      if (b.userId === eventCreatorId) return 1;
+      return 0;
+    });
+    return sorted;
+  })();
 
   const getInitials = (name: string) => {
     if (!name) return '?';
@@ -199,8 +224,9 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     );
   };
 
-  const renderAttendeeRow = (attendee: Attendee) => {
+  const renderAttendeeRow = (attendee: Attendee, showOrganizer?: boolean) => {
     const isMe = attendee.userId === user?.id;
+    const isOrganizer = showOrganizer && attendee.userId === eventCreatorId;
     const displayName = isMe ? 'You' : attendee.user.name;
 
     return (
@@ -212,7 +238,14 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
             <Text style={styles.avatarText}>{getInitials(attendee.user.name)}</Text>
           </View>
         )}
-        <Text style={styles.attendeeName} numberOfLines={1}>{displayName}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.attendeeName} numberOfLines={1}>
+            {displayName}{isOrganizer ? '' : ''}
+          </Text>
+          {isOrganizer && (
+            <Text style={styles.organizerLabel}>(Organizer)</Text>
+          )}
+        </View>
         {!isMe && (
           <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(attendee)}>
             <Ionicons name="ellipsis-horizontal" size={20} color={Colors.neutral.coolMist} />
@@ -242,21 +275,34 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
           renderItem={() => null}
           ListHeaderComponent={
             <>
-              {admins.length > 0 && (
+              {isPublicBubble ? (
                 <>
-                  <Text style={styles.sectionLabel}>Admins</Text>
-                  {admins.map(a => renderAttendeeRow(a))}
+                  {admins.length > 0 && (
+                    <>
+                      <Text style={styles.sectionLabel}>Admins</Text>
+                      {admins.map(a => renderAttendeeRow(a))}
+                    </>
+                  )}
+
+                  {admins.length > 0 && participants.length > 0 && (
+                    <View style={styles.sectionSeparator} />
+                  )}
+
+                  {participants.length > 0 && (
+                    <>
+                      <Text style={styles.sectionLabel}>Participants</Text>
+                      {participants.map(a => renderAttendeeRow(a))}
+                    </>
+                  )}
                 </>
-              )}
-
-              {admins.length > 0 && participants.length > 0 && (
-                <View style={styles.sectionSeparator} />
-              )}
-
-              {participants.length > 0 && (
+              ) : (
                 <>
-                  <Text style={styles.sectionLabel}>Participants</Text>
-                  {participants.map(a => renderAttendeeRow(a))}
+                  {mixedList.length > 0 && (
+                    <>
+                      <Text style={styles.sectionLabel}>Participants</Text>
+                      {mixedList.map(a => renderAttendeeRow(a, true))}
+                    </>
+                  )}
                 </>
               )}
 
@@ -401,9 +447,13 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
   },
   attendeeName: {
-    flex: 1,
     fontSize: 15,
     color: Colors.neutral.charcoal,
+  },
+  organizerLabel: {
+    fontSize: 12,
+    color: Colors.neutral.coolMist,
+    marginTop: 2,
   },
   kebabButton: {
     padding: 8,

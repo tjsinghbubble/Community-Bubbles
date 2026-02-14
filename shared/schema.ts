@@ -56,6 +56,7 @@ export const memberships = pgTable("memberships", {
   userId: varchar("user_id").notNull().references(() => users.id),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   role: text("role").notNull().default('member'),
+  membershipStatus: text("membership_status").notNull().default('approved'),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 });
 
@@ -130,7 +131,7 @@ export const events = pgTable("events", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
-  status: text("status").notNull().default('pending'),
+  status: text("status").notNull().default('approved'),
   rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

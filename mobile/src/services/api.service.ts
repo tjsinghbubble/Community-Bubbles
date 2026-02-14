@@ -124,7 +124,7 @@ class ApiService {
     });
   }
 
-  async joinBubble(id: string) {
+  async joinBubble(id: string): Promise<{ success: boolean; status: string }> {
     return this.request(`/api/bubbles/${id}/join`, {
       method: "POST",
     });
@@ -144,7 +144,7 @@ class ApiService {
 
   async checkMembership(
     bubbleId: string,
-  ): Promise<{ isMember: boolean; role: string | null }> {
+  ): Promise<{ isMember: boolean; role: string | null; membershipStatus: string | null }> {
     return this.request(`/api/bubbles/${bubbleId}/membership`, {
       method: "GET",
     });
@@ -175,6 +175,24 @@ class ApiService {
   async removeMember(bubbleId: string, userId: string) {
     return this.request(`/api/bubbles/${bubbleId}/members/${userId}`, {
       method: "DELETE",
+    });
+  }
+
+  async getJoinRequests(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests`, {
+      method: "GET",
+    });
+  }
+
+  async approveJoinRequest(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests/${userId}/approve`, {
+      method: "POST",
+    });
+  }
+
+  async rejectJoinRequest(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests/${userId}/reject`, {
+      method: "POST",
     });
   }
 
