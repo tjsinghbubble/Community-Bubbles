@@ -233,14 +233,8 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const tabTextOpacity = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [0.1, 0.7],
-    extrapolate: 'clamp',
-  });
-
-  const HEADER_EXPANDED = 60 + 56;
-  const HEADER_COLLAPSED = 60 + 28;
+  const HEADER_EXPANDED = 66 + 56;
+  const HEADER_COLLAPSED = 66 + 28;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
@@ -315,13 +309,12 @@ export default function ExploreScreen() {
             color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
         </Animated.View>
-        <Animated.Text style={[
+        <Text style={[
           styles.tabText,
           activeTab === 'bubbles' && styles.activeTabText,
-          { opacity: tabTextOpacity },
         ]}>
           Bubbles
-        </Animated.Text>
+        </Text>
         <Animated.View style={[
           styles.tabUnderline,
           {
@@ -342,13 +335,12 @@ export default function ExploreScreen() {
             color={activeTab === 'events' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
         </Animated.View>
-        <Animated.Text style={[
+        <Text style={[
           styles.tabText,
           activeTab === 'events' && styles.activeTabText,
-          { opacity: tabTextOpacity },
         ]}>
           Events
-        </Animated.Text>
+        </Text>
         <Animated.View style={[
           styles.tabUnderline,
           {
@@ -587,7 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 16,
+    paddingTop: 22,
     paddingBottom: 4,
     gap: 12,
   },
