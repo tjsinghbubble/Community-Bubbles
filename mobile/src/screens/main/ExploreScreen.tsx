@@ -233,8 +233,8 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 56 + 60;
-  const HEADER_COLLAPSED = 56 + 30;
+  const HEADER_EXPANDED = 58 + 60;
+  const HEADER_COLLAPSED = 58 + 30;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
@@ -362,16 +362,16 @@ export default function ExploreScreen() {
       style={styles.card}
       onPress={() => handleBubblePress(bubble)}
     >
-      <Image source={{ uri: bubble.image }} style={styles.image} />
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{bubble.category}</Text>
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
-        <View style={styles.cardMeta}>
-          <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
-          <Text style={styles.metaText}>{bubble.members} members</Text>
+      <View style={styles.imageContainer}>
+        <Image source={{ uri: bubble.image }} style={styles.image} />
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{bubble.category}</Text>
         </View>
+      </View>
+      <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
+      <View style={styles.cardMeta}>
+        <Ionicons name="people-outline" size={12} color="#4D4D4D" />
+        <Text style={styles.metaText}>{bubble.members} members</Text>
       </View>
     </TouchableOpacity>
   );
@@ -382,22 +382,24 @@ export default function ExploreScreen() {
       style={styles.card}
       onPress={() => handleEventPress(event)}
     >
-      <Image 
-        source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400' }} 
-        style={styles.image} 
-      />
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{event.bubble.category}</Text>
+      <View style={styles.imageContainer}>
+        <Image 
+          source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400' }} 
+          style={styles.image} 
+        />
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{event.bubble.category}</Text>
+        </View>
       </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
+      <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
+      <View style={styles.cardMetaRow}>
         <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
+          <Ionicons name="time-outline" size={12} color="#4D4D4D" />
           <Text style={styles.metaText}>{formatTime(event.startTime)}</Text>
         </View>
         {event.locationName && (
           <View style={styles.cardMeta}>
-            <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
+            <Ionicons name="location-outline" size={12} color="#4D4D4D" />
             <Text style={styles.metaText} numberOfLines={1}>{event.locationName}</Text>
           </View>
         )}
@@ -575,8 +577,9 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 10,
     gap: 12,
   },
   iconButton: {
@@ -664,61 +667,65 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   grid: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 12,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
   card: {
-    width: '48%',
-    backgroundColor: Colors.brand.skyWhite,
+    width: '47.5%',
+    marginBottom: 20,
+  },
+  imageContainer: {
+    width: '100%',
+    height: 160,
     borderRadius: 16,
-    marginBottom: 16,
     overflow: 'hidden',
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: '#E8E8E8',
+    marginBottom: 8,
   },
   image: {
     width: '100%',
-    height: 120,
-    backgroundColor: Colors.neutral.coolMist,
+    height: '100%',
   },
   badge: {
     position: 'absolute',
     top: 8,
     left: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 10,
+    backgroundColor: 'rgba(245, 246, 248, 0.75)',
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 8,
     fontWeight: '600',
-    color: Colors.brand.bubbleBlue,
-  },
-  cardContent: {
-    padding: 12,
+    color: '#1E1F26',
+    textAlign: 'center',
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 6,
+    color: '#1E1F26',
+    letterSpacing: 0.24,
+    marginBottom: 2,
+  },
+  cardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 2,
   },
   metaText: {
     fontSize: 12,
-    color: Colors.neutral.coolMist,
-    flex: 1,
+    color: '#4D4D4D',
   },
   studentPromptCard: {
     width: '100%',
