@@ -1,7 +1,14 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+export const categories = pgTable("categories", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  icon: text("icon"),
+  parentId: integer("parent_id"),
+});
 
 export const campuses = pgTable("campuses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -203,3 +210,10 @@ export const insertBubbleVisitSchema = createInsertSchema(bubbleVisits).omit({
 
 export type InsertBubbleVisit = z.infer<typeof insertBubbleVisitSchema>;
 export type BubbleVisit = typeof bubbleVisits.$inferSelect;
+
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+});
+
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type Category = typeof categories.$inferSelect;
