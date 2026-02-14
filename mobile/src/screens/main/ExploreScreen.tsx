@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,9 @@ import {
   Alert,
   Modal,
   Pressable,
+  Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,9 +46,12 @@ type EventData = {
   };
 };
 
+const SCROLL_THRESHOLD = 60;
+
 export default function ExploreScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, token, refreshUser } = useAuth();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [events, setEvents] = useState<EventData[]>([]);
@@ -60,6 +64,8 @@ export default function ExploreScreen() {
   const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
   const [showCampusContent, setShowCampusContent] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
@@ -74,7 +80,6 @@ export default function ExploreScreen() {
       const bubblesData = await bubblesResponse.json();
       const eventsData = await eventsResponse.json();
       
-      // Transform bubbles - filter out campus-only bubbles (they have campusId)
       const publicBubbles = bubblesData.filter((b: any) => !b.campusId);
       const transformedBubbles: BubbleData[] = publicBubbles.map((bubble: any) => ({
         id: bubble.id,
@@ -87,13 +92,11 @@ export default function ExploreScreen() {
         distance: '~',
       }));
       
-      // Filter out campus-only events
       const publicEvents = eventsData.filter((e: any) => !e.campusId);
       
       setBubbles(transformedBubbles);
       setEvents(publicEvents || []);
       
-      // Fetch campus data if user is verified
       if (isCampusVerified && token) {
         apiService.setToken(token);
         try {
@@ -185,11 +188,9 @@ export default function ExploreScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  // Get the correct data based on campus toggle
   const displayBubbles = showCampusContent ? campusBubbles : bubbles;
   const displayEvents = showCampusContent ? campusEvents : events;
 
-  // Filter bubbles and events based on search query (using display data which respects campus toggle)
   const filteredBubbles = displayBubbles.filter((bubble) => {
     const query = searchQuery.toLowerCase();
     return (
@@ -206,6 +207,39 @@ export default function ExploreScreen() {
       event.bubble.category.toLowerCase().includes(query) ||
       (event.description && event.description.toLowerCase().includes(query))
     );
+  });
+
+  const iconOpacity = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const iconHeight = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [32, 0],
+    extrapolate: 'clamp',
+  });
+
+  const underlineOpacity = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [0, 1],
+    extrapolate: 'clamp',
+  });
+
+  const tabPaddingVertical = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [12, 6],
+    extrapolate: 'clamp',
+  });
+
+  const HEADER_EXPANDED = 56 + 60;
+  const HEADER_COLLAPSED = 56 + 30;
+
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, SCROLL_THRESHOLD],
+    outputRange: [HEADER_EXPANDED, HEADER_COLLAPSED],
+    extrapolate: 'clamp',
   });
 
   const renderSearchHeader = () => (
@@ -247,7 +281,7 @@ export default function ExploreScreen() {
         </Text>
         <TouchableOpacity onPress={handleJoinCampus}>
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={styles.joinCampusButton}
@@ -263,42 +297,61 @@ export default function ExploreScreen() {
   };
 
   const renderTabs = () => (
-    <View style={styles.tabsContainer}>
+    <Animated.View style={[styles.tabsContainer, { paddingVertical: tabPaddingVertical }]}>
       <TouchableOpacity
-        style={[styles.tab, activeTab === 'bubbles' && styles.activeTab]}
+        style={[styles.tab]}
         onPress={() => setActiveTab('bubbles')}
       >
-        <View style={styles.tabIconContainer}>
+        <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <Ionicons 
             name="chatbubbles-outline" 
             size={28} 
             color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
-        </View>
-        <Text style={[styles.tabText, activeTab === 'bubbles' && styles.activeTabText]}>
+        </Animated.View>
+        <Text style={[
+          styles.tabText,
+          activeTab === 'bubbles' && styles.activeTabText,
+        ]}>
           Bubbles
         </Text>
+        <Animated.View style={[
+          styles.tabUnderline,
+          {
+            opacity: underlineOpacity,
+            backgroundColor: activeTab === 'bubbles' ? Colors.brand.bubbleBlue : 'transparent',
+          },
+        ]} />
       </TouchableOpacity>
       
       <TouchableOpacity
-        style={[styles.tab, activeTab === 'events' && styles.activeTab]}
+        style={[styles.tab]}
         onPress={() => setActiveTab('events')}
       >
-        <View style={styles.tabIconContainer}>
+        <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <Ionicons 
             name="calendar-outline" 
             size={28} 
             color={activeTab === 'events' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
-        </View>
-        <Text style={[styles.tabText, activeTab === 'events' && styles.activeTabText]}>
+        </Animated.View>
+        <Text style={[
+          styles.tabText,
+          activeTab === 'events' && styles.activeTabText,
+        ]}>
           Events
         </Text>
+        <Animated.View style={[
+          styles.tabUnderline,
+          {
+            opacity: underlineOpacity,
+            backgroundColor: activeTab === 'events' ? Colors.brand.bubbleBlue : 'transparent',
+          },
+        ]} />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 
-  // Toggle between campus and public content
   const handleCampusToggle = () => {
     setShowCampusContent(!showCampusContent);
   };
@@ -352,23 +405,24 @@ export default function ExploreScreen() {
     </TouchableOpacity>
   );
 
+
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        {renderSearchHeader()}
-        {renderTabs()}
-        <View style={styles.loading}>
+      <View style={[styles.outerContainer, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
+        <View style={[styles.overlayHeader, { height: HEADER_EXPANDED }]}>
+          {renderSearchHeader()}
+          {renderTabs()}
+        </View>
+        <View style={[styles.loading, { paddingTop: HEADER_EXPANDED }]}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // Determine if content is empty
   const currentData = activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
   const isEmpty = currentData.length === 0;
 
-  // Get empty state message based on context
   const getEmptyMessage = () => {
     if (searchQuery) {
       return { title: `No ${activeTab} found`, subtitle: 'Try a different search term' };
@@ -388,24 +442,30 @@ export default function ExploreScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {renderSearchHeader()}
-      {renderTabs()}
-      
-      {showCampusContent && campusInfo && (
-        <View style={styles.campusBanner}>
-          <Text style={{ fontSize: 16 }}>🎓</Text>
-          <Text style={styles.campusBannerText}>{campusInfo.name}</Text>
-        </View>
-      )}
-      
+    <View style={[styles.outerContainer, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
+      <Animated.View style={[styles.overlayHeader, { height: headerHeight }]}>
+        {renderSearchHeader()}
+        {renderTabs()}
+      </Animated.View>
+
       {isEmpty ? (
-        <ScrollView
-          contentContainerStyle={styles.empty}
+        <Animated.ScrollView
+          contentContainerStyle={[styles.empty, { paddingTop: HEADER_EXPANDED + 20 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
         >
+          {showCampusContent && campusInfo && (
+            <View style={styles.campusBannerInline}>
+              <Text style={{ fontSize: 16 }}>🎓</Text>
+              <Text style={styles.campusBannerText}>{campusInfo.name}</Text>
+            </View>
+          )}
           {!showCampusContent && renderStudentPromptCard()}
           <Ionicons 
             name={activeTab === 'bubbles' ? 'chatbubbles-outline' : 'calendar-outline'} 
@@ -414,20 +474,31 @@ export default function ExploreScreen() {
           />
           <Text style={styles.emptyTitle}>{getEmptyMessage().title}</Text>
           <Text style={styles.emptySubtitle}>{getEmptyMessage().subtitle}</Text>
-        </ScrollView>
+        </Animated.ScrollView>
       ) : (
-        <ScrollView 
-          contentContainerStyle={styles.grid}
+        <Animated.ScrollView 
+          contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED + 16 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
         >
+          {showCampusContent && campusInfo && (
+            <View style={styles.campusBannerInline}>
+              <Text style={{ fontSize: 16 }}>🎓</Text>
+              <Text style={styles.campusBannerText}>{campusInfo.name}</Text>
+            </View>
+          )}
           {!showCampusContent && renderStudentPromptCard()}
           {activeTab === 'bubbles' 
             ? filteredBubbles.map(renderBubbleCard)
             : filteredEvents.map(renderEventCard)
           }
-        </ScrollView>
+        </Animated.ScrollView>
       )}
       
       {isCampusVerified && (
@@ -479,21 +550,33 @@ export default function ExploreScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    flex: 1,
+    backgroundColor: Colors.neutral.cloudGrey,
+  },
   container: {
     flex: 1,
     backgroundColor: Colors.neutral.cloudGrey,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
+  overlayHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: Colors.neutral.cloudGrey,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     gap: 12,
   },
   iconButton: {
@@ -526,18 +609,20 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingVertical: 16,
     gap: 40,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E0E0E0',
   },
   tab: {
     alignItems: 'center',
-    opacity: 0.6,
   },
   activeTab: {
     opacity: 1,
   },
   tabIconContainer: {
-    marginBottom: 4,
+    marginBottom: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabText: {
     fontSize: 14,
@@ -548,13 +633,19 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
     fontWeight: '600',
   },
+  tabUnderline: {
+    height: 2,
+    width: '100%',
+    marginTop: 4,
+    borderRadius: 1,
+  },
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   empty: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -804,6 +895,18 @@ const styles = StyleSheet.create({
     gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: 'hsl(210, 95%, 85%)',
+  },
+  campusBannerInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'hsl(210, 95%, 95%)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderRadius: 12,
+    width: '100%',
+    marginBottom: 12,
   },
   campusBannerText: {
     fontSize: 14,
