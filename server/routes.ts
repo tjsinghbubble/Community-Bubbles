@@ -918,6 +918,46 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/pending-count", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      let count = 0;
+
+      if (user.isSuperAdmin) {
+        const pendingBubbles = await storage.getPendingBubbles();
+        count += pendingBubbles.length;
+      }
+
+      const pendingEvents: any[] = [];
+      if (user.isSuperAdmin) {
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events);
+        }
+        const allPending = await storage.getPendingBubbles();
+        for (const bubble of allPending) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events);
+        }
+      } else {
+        const userMemberships = await storage.getUserMemberships(req.userId!);
+        const adminBubbles = userMemberships.filter(m => m.role === 'admin');
+        for (const membership of adminBubbles) {
+          const events = await storage.getPendingEventsForBubble(membership.bubbleId);
+          pendingEvents.push(...events);
+        }
+      }
+      count += pendingEvents.length;
+
+      res.json({ count });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Approve event (super admin only)
   app.post("/api/admin/events/:id/approve", authMiddleware, async (req, res) => {
     try {

@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
 import ProfileNavigator from './ProfileNavigator';
 import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
+import apiService from '../services/api.service';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -24,9 +26,28 @@ export default function MainNavigator() {
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20);
   const { user } = useAuth();
+  const [adminCount, setAdminCount] = useState(0);
   
   const isAdmin = user?.isSuperAdmin === true;
-  
+
+  const fetchAdminCount = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { count } = await apiService.getAdminPendingCount();
+      setAdminCount(count);
+    } catch {
+      setAdminCount(0);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchAdminCount();
+      const interval = setInterval(fetchAdminCount, 30000);
+      return () => clearInterval(interval);
+    }, [fetchAdminCount])
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -94,7 +115,14 @@ export default function MainNavigator() {
         options={{
           title: isAdmin ? 'Admin' : 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name={isAdmin ? "shield-outline" : "person-outline"} size={size} color={color} />
+            <View>
+              <Ionicons name={isAdmin ? "shield-outline" : "person-outline"} size={size} color={color} />
+              {adminCount > 0 && (
+                <View style={badgeStyles.badge}>
+                  <Text style={badgeStyles.badgeText}>{adminCount > 99 ? '99+' : adminCount}</Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />
@@ -102,3 +130,22 @@ export default function MainNavigator() {
   );
 }
 
+const badgeStyles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    backgroundColor: '#FF3B30',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});

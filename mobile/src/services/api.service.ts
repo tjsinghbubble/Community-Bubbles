@@ -343,6 +343,10 @@ class ApiService {
     });
   }
 
+  async getAdminPendingCount(): Promise<{ count: number }> {
+    return this.request<{ count: number }>("/api/admin/pending-count");
+  }
+
   // Admin - Pending reviews
   async getPendingBubbles() {
     return this.request<any[]>("/api/admin/pending-bubbles");
