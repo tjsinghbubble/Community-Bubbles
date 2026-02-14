@@ -366,9 +366,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[
                 styles.rsvpDropdownButton,
-                rsvpStatus === 'going' && styles.rsvpDropdownGoing,
+                (rsvpStatus === 'going' || (isEventCreator && !rsvpStatus)) && styles.rsvpDropdownGoing,
                 rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
-                !rsvpStatus && styles.rsvpDropdownDefault,
+                (!rsvpStatus && !isEventCreator) && styles.rsvpDropdownDefault,
               ]}
               onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
               disabled={isRsvping}
@@ -378,7 +378,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               ) : (
                 <>
                   <Text style={styles.rsvpDropdownButtonText}>
-                    {rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP'}
+                    {isEventCreator
+                      ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
+                      : (rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
                   </Text>
                   <Ionicons
                     name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
@@ -390,21 +392,27 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             {showRsvpDropdown && (
               <View style={styles.rsvpDropdownMenu}>
-                <TouchableOpacity
-                  style={styles.rsvpDropdownItem}
-                  onPress={() => handleRsvpSelect('going')}
-                >
-                  <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
-                  <Text style={styles.rsvpDropdownItemText}>Going</Text>
-                </TouchableOpacity>
-                <View style={styles.rsvpDropdownDivider} />
-                <TouchableOpacity
-                  style={styles.rsvpDropdownItem}
-                  onPress={() => handleRsvpSelect('not_going')}
-                >
-                  <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
-                  <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
-                </TouchableOpacity>
+                {(!isEventCreator || rsvpStatus === 'not_going') && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.rsvpDropdownItem}
+                      onPress={() => handleRsvpSelect('going')}
+                    >
+                      <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
+                      <Text style={styles.rsvpDropdownItemText}>Going</Text>
+                    </TouchableOpacity>
+                    {!isEventCreator && <View style={styles.rsvpDropdownDivider} />}
+                  </>
+                )}
+                {(!isEventCreator || rsvpStatus !== 'not_going') && (
+                  <TouchableOpacity
+                    style={styles.rsvpDropdownItem}
+                    onPress={() => handleRsvpSelect('not_going')}
+                  >
+                    <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
+                    <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -615,15 +623,16 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     marginBottom: Spacing.xs,
     zIndex: 100,
+    position: 'relative',
   },
   spotsRedText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF3B30',
-    marginRight: 40,
   },
   rsvpDropdownWrapper: {
-    position: 'relative',
+    position: 'absolute',
+    right: 0,
   },
   rsvpDropdownButton: {
     flexDirection: 'row',
