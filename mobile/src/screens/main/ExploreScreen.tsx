@@ -229,12 +229,12 @@ export default function ExploreScreen() {
 
   const tabPaddingVertical = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [6, 4],
+    outputRange: [10, 4],
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 72 + 56;
-  const HEADER_COLLAPSED = 72 + 36;
+  const HEADER_EXPANDED = 78 + 60;
+  const HEADER_COLLAPSED = 78 + 36;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
@@ -452,7 +452,7 @@ export default function ExploreScreen() {
 
       {isEmpty ? (
         <Animated.ScrollView
-          contentContainerStyle={[styles.empty, { paddingTop: HEADER_EXPANDED + 8 }]}
+          contentContainerStyle={[styles.empty, { paddingTop: HEADER_EXPANDED + 4 }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -479,7 +479,7 @@ export default function ExploreScreen() {
         </Animated.ScrollView>
       ) : (
         <Animated.ScrollView 
-          contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED + 4 }]}
+          contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 28,
+    paddingTop: 34,
     paddingBottom: 4,
     gap: 12,
   },
