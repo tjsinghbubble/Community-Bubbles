@@ -90,7 +90,7 @@ const MOCK_BULLETIN = [
 ];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, bubbleId: routeBubbleId } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -309,6 +309,20 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const fromBubble = !!routeBubbleTitle;
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
+  const handleBackPress = () => {
+    if (source === 'createEvent') {
+      const bId = routeBubbleId || event?.bubbleId;
+      const bTitle = routeBubbleTitle || bubble?.title || '';
+      if (bId) {
+        navigation.replace('BubbleEvents', { bubbleId: bId, bubbleTitle: bTitle });
+      } else {
+        navigation.navigate('ExploreList' as any);
+      }
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const eventImages = event.images?.length > 0
     ? event.images
     : event.coverImage
@@ -326,7 +340,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       {fromBubble ? (
         <View style={styles.navHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.navBackButton}>
             <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.navTitle} numberOfLines={1}>{bubbleDisplayTitle}</Text>
@@ -337,7 +351,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       ) : (
         <View style={styles.header}>
           <View style={styles.dragHandle} />
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.closeButton}>
             <Ionicons name="close" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           {canManage && (

@@ -904,7 +904,12 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     setShowSuccess(false);
     setTimeout(() => {
       if (createdEvent?.id) {
-        navigation.navigate('EventDetails', { eventId: createdEvent.id });
+        navigation.replace('EventDetails', {
+          eventId: createdEvent.id,
+          source: 'createEvent',
+          bubbleId: selectedBubble?.id,
+          bubbleTitle: selectedBubble?.title,
+        });
       } else {
         navigation.goBack();
       }
