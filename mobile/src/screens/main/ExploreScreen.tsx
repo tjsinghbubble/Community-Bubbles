@@ -638,10 +638,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   tabUnderline: {
-    height: 2,
+    height: 3,
     width: '100%',
-    marginTop: 4,
-    borderRadius: 1,
+    marginTop: 6,
+    borderRadius: 1.5,
   },
   loading: {
     flex: 1,
