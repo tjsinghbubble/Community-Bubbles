@@ -301,7 +301,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
   const creatorName = creatorAttendee?.user?.name || 'Event Creator';
 
-  const fromBubble = !!routeBubbleTitle;
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
   const eventImages = event.images?.length > 0
@@ -319,29 +318,22 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {fromBubble ? (
-        <View style={styles.navHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
-            <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.navTitle} numberOfLines={1}>{bubbleDisplayTitle}</Text>
+      <View style={styles.navHeader}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
+        <View style={styles.navRightActions}>
+          {canManage && (
+            <TouchableOpacity onPress={showAdminOptions} style={styles.navShareButton}>
+              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity onPress={handleShare} style={styles.navShareButton}>
             <Ionicons name="paper-plane-outline" size={22} color={Colors.text.primary} />
           </TouchableOpacity>
         </View>
-      ) : (
-        <View style={styles.header}>
-          <View style={styles.dragHandle} />
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={Colors.text.primary} />
-          </TouchableOpacity>
-          {canManage && (
-            <TouchableOpacity onPress={showAdminOptions} style={styles.adminButton}>
-              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
+      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {hasImages && (
@@ -361,20 +353,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <Text style={styles.eventName}>{event.title}</Text>
 
-        {!fromBubble && (
-          <>
-            {isRsvpd ? (
-              <Text style={styles.goingText}>Going</Text>
-            ) : spotsLeft !== null && spotsLeft > 0 ? (
-              <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
-            ) : isFull ? (
-              <Text style={styles.spotsText}>Event Full</Text>
-            ) : null}
+        {isRsvpd ? (
+          <Text style={styles.goingText}>Going</Text>
+        ) : spotsLeft !== null && spotsLeft > 0 ? (
+          <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
+        ) : isFull ? (
+          <Text style={styles.spotsText}>Event Full</Text>
+        ) : null}
 
-            <Text style={styles.dateText}>{formatDateFull(event.date)}</Text>
-            <Text style={styles.timeText}>{getTimeRange()}</Text>
-          </>
-        )}
+        <Text style={styles.dateText}>{formatDateFull(event.date)}</Text>
+        <Text style={styles.timeText}>{getTimeRange()}</Text>
 
         {event.description && (
           <View style={styles.aboutSection}>
@@ -429,107 +417,103 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         )}
 
-        {!fromBubble && (
-          <>
-            <View style={styles.separator} />
+        <View style={styles.separator} />
 
-            <View style={styles.creatorRow}>
-              <View style={styles.creatorAvatar}>
-                <Ionicons name="person" size={20} color={Colors.background.primary} />
-              </View>
-              <View style={styles.creatorInfo}>
-                <Text style={styles.creatorLabel}>
-                  Created by <Text style={styles.creatorName}>{creatorName}</Text>
-                </Text>
-                <Text style={styles.creatorCity}>
-                  {event.locationName ? event.locationName.split(',')[0] : 'Local'}
-                </Text>
-              </View>
+        <View style={styles.creatorRow}>
+          <View style={styles.creatorAvatar}>
+            <Ionicons name="person" size={20} color={Colors.background.primary} />
+          </View>
+          <View style={styles.creatorInfo}>
+            <Text style={styles.creatorLabel}>
+              Created by <Text style={styles.creatorName}>{creatorName}</Text>
+            </Text>
+            <Text style={styles.creatorCity}>
+              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+            </Text>
+          </View>
+        </View>
+
+        {event.locationName && (
+          <View style={styles.locationRow}>
+            <View style={styles.locationIconContainer}>
+              <Ionicons name="location" size={20} color={Colors.brand.primary} />
             </View>
-
-            {event.locationName && (
-              <View style={styles.locationRow}>
-                <View style={styles.locationIconContainer}>
-                  <Ionicons name="location" size={20} color={Colors.brand.primary} />
-                </View>
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationLandmark}>{event.locationName}</Text>
-                  {event.locationAddress && (
-                    <Text style={styles.locationAddress}>{event.locationAddress}</Text>
-                  )}
-                </View>
-              </View>
-            )}
-
-            <View style={styles.separator} />
-
-            {event.locationName && (
-              <View style={styles.mapSection}>
-                <Text style={styles.sectionTitle}>Location</Text>
-                <View style={styles.mapContainer}>
-                  {mapImageUrl ? (
-                    <Image source={{ uri: mapImageUrl }} style={styles.mapImage} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.mapPlaceholder}>
-                      <Ionicons name="map-outline" size={48} color={Colors.text.tertiary} />
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
-                  <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
-                  <Text style={styles.directionsText}>Directions</Text>
-                </TouchableOpacity>
-                <View style={styles.separator} />
-              </View>
-            )}
-
-            <View style={styles.bulletinSection}>
-              <Text style={styles.sectionTitle}>Bulletin Board</Text>
-
-              {!isRsvpd && !canManage && (
-                <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
-                  <LinearGradient
-                    colors={Gradients.button.colors as unknown as string[]}
-                    start={Gradients.button.start}
-                    end={Gradients.button.end}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  {isRsvping ? (
-                    <ActivityIndicator color={Colors.text.primary} size="small" />
-                  ) : (
-                    <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
-                  )}
-                </TouchableOpacity>
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationLandmark}>{event.locationName}</Text>
+              {event.locationAddress && (
+                <Text style={styles.locationAddress}>{event.locationAddress}</Text>
               )}
-
-              {MOCK_BULLETIN.map((item) => (
-                <View key={item.id} style={styles.bulletinCard}>
-                  <View style={styles.bulletinIconRow}>
-                    <Text style={styles.bulletinEmoji}>{item.icon}</Text>
-                  </View>
-                  <View style={styles.bulletinContent}>
-                    <Text style={styles.bulletinTitle}>{item.title}</Text>
-                    <Text style={styles.bulletinBody}>{item.body}</Text>
-                  </View>
-                  <Text style={styles.bulletinTime}>{item.time}</Text>
-                </View>
-              ))}
-
-              <TouchableOpacity style={styles.addButton}>
-                <Text style={styles.addButtonText}>+ Add</Text>
-              </TouchableOpacity>
             </View>
+          </View>
+        )}
 
-            {isRsvpd && (
-              <TouchableOpacity style={styles.notGoingButton} onPress={handleRsvp} disabled={isRsvping}>
-                {isRsvping ? (
-                  <ActivityIndicator color={Colors.status.error} size="small" />
-                ) : (
-                  <Text style={styles.notGoingText}>Not Going</Text>
-                )}
-              </TouchableOpacity>
+        <View style={styles.separator} />
+
+        {event.locationName && (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>Location</Text>
+            <View style={styles.mapContainer}>
+              {mapImageUrl ? (
+                <Image source={{ uri: mapImageUrl }} style={styles.mapImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map-outline" size={48} color={Colors.text.tertiary} />
+                </View>
+              )}
+            </View>
+            <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
+              <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
+              <Text style={styles.directionsText}>Directions</Text>
+            </TouchableOpacity>
+            <View style={styles.separator} />
+          </View>
+        )}
+
+        <View style={styles.bulletinSection}>
+          <Text style={styles.sectionTitle}>Bulletin Board</Text>
+
+          {!isRsvpd && !canManage && (
+            <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
+              <LinearGradient
+                colors={Gradients.button.colors as unknown as string[]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={StyleSheet.absoluteFillObject}
+              />
+              {isRsvping ? (
+                <ActivityIndicator color={Colors.text.primary} size="small" />
+              ) : (
+                <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {MOCK_BULLETIN.map((item) => (
+            <View key={item.id} style={styles.bulletinCard}>
+              <View style={styles.bulletinIconRow}>
+                <Text style={styles.bulletinEmoji}>{item.icon}</Text>
+              </View>
+              <View style={styles.bulletinContent}>
+                <Text style={styles.bulletinTitle}>{item.title}</Text>
+                <Text style={styles.bulletinBody}>{item.body}</Text>
+              </View>
+              <Text style={styles.bulletinTime}>{item.time}</Text>
+            </View>
+          ))}
+
+          <TouchableOpacity style={styles.addButton}>
+            <Text style={styles.addButtonText}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {isRsvpd && (
+          <TouchableOpacity style={styles.notGoingButton} onPress={handleRsvp} disabled={isRsvping}>
+            {isRsvping ? (
+              <ActivityIndicator color={Colors.status.error} size="small" />
+            ) : (
+              <Text style={styles.notGoingText}>Not Going</Text>
             )}
-          </>
+          </TouchableOpacity>
         )}
       </ScrollView>
 
@@ -558,37 +542,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    alignItems: 'center',
-    paddingTop: Spacing.sm,
-    paddingHorizontal: CONTENT_PADDING,
-    position: 'relative',
-  },
-  dragHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#C4C4C4',
-    marginBottom: Spacing.sm,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: CONTENT_PADDING,
-    top: Spacing.sm,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adminButton: {
-    position: 'absolute',
-    left: CONTENT_PADDING,
-    top: Spacing.sm,
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   navHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -609,6 +562,11 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     marginHorizontal: Spacing.sm,
+  },
+  navRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   navShareButton: {
     width: 36,
