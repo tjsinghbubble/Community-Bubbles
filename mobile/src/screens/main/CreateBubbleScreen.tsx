@@ -105,6 +105,29 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [expandAttachments, setExpandAttachments] = useState(false);
   const [expandRules, setExpandRules] = useState(false);
 
+  const sliderWidth = useRef(0);
+
+  const handleSliderLayout = (e: LayoutChangeEvent) => {
+    sliderWidth.current = e.nativeEvent.layout.width;
+  };
+
+  const handleSliderTouch = (e: GestureResponderEvent) => {
+    if (sliderWidth.current <= 0) return;
+    const x = e.nativeEvent.locationX;
+    const ratio = Math.max(0, Math.min(1, x / sliderWidth.current));
+    const val = Math.round(1 + ratio * 49);
+    setRadiusMiles(val);
+  };
+
+  const sliderPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => handleSliderTouch(e),
+      onPanResponderMove: (e) => handleSliderTouch(e),
+    })
+  ).current;
+
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
   const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...customRules];
@@ -324,29 +347,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       </View>
     );
   };
-
-  const sliderWidth = useRef(0);
-
-  const handleSliderLayout = (e: LayoutChangeEvent) => {
-    sliderWidth.current = e.nativeEvent.layout.width;
-  };
-
-  const handleSliderTouch = (e: GestureResponderEvent) => {
-    if (sliderWidth.current <= 0) return;
-    const x = e.nativeEvent.locationX;
-    const ratio = Math.max(0, Math.min(1, x / sliderWidth.current));
-    const val = Math.round(1 + ratio * 49);
-    setRadiusMiles(val);
-  };
-
-  const sliderPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => handleSliderTouch(e),
-      onPanResponderMove: (e) => handleSliderTouch(e),
-    })
-  ).current;
 
   const renderStepDetails = () => (
     <View style={styles.formSection}>
