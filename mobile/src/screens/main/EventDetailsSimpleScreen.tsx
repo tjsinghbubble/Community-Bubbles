@@ -305,6 +305,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
   const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
+  const creatorProfilePhoto = (event as any).creatorProfilePhoto || null;
 
   const fromBubble = !!routeBubbleTitle;
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
@@ -380,7 +381,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.spotsRsvpRow}>
           {spotsLeft !== null && (
-            <Text style={styles.spotsRedText}>
+            <Text style={[styles.spotsRedText, { marginRight: 5 }]}>
               {isFull ? 'Event Full' : `${spotsLeft} spots left`}
             </Text>
           )}
@@ -492,9 +493,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <View style={styles.separator} />
 
             <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
-              <View style={styles.creatorAvatar}>
-                <Ionicons name="person" size={20} color={Colors.background.primary} />
-              </View>
+              {creatorProfilePhoto ? (
+                <Image source={{ uri: creatorProfilePhoto }} style={styles.creatorAvatarImage} />
+              ) : (
+                <View style={styles.creatorAvatar}>
+                  <Ionicons name="person" size={20} color={Colors.background.primary} />
+                </View>
+              )}
               <View style={styles.creatorInfo}>
                 <Text style={styles.creatorLabel}>
                   Created by <Text style={styles.creatorName}>{creatorName}</Text>
@@ -508,20 +513,20 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </>
         )}
 
-        {event.locationName && (
-          <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => setLocationExpanded(!locationExpanded)}>
-            <View style={styles.locationIconContainer}>
-              <Ionicons name="location" size={20} color={Colors.brand.primary} />
-            </View>
-            <View style={styles.locationInfo}>
-              <Text style={styles.locationLandmark}>{event.locationName}</Text>
-              {event.locationAddress && (
-                <Text style={styles.locationAddress}>{event.locationAddress}</Text>
-              )}
-            </View>
+        <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
+          <View style={styles.locationIconContainer}>
+            <Ionicons name="location" size={20} color={Colors.brand.primary} />
+          </View>
+          <View style={styles.locationInfo}>
+            <Text style={styles.locationLandmark}>{event.locationName || 'TBD'}</Text>
+            {event.locationAddress && (
+              <Text style={styles.locationAddress}>{event.locationAddress}</Text>
+            )}
+          </View>
+          {event.locationName && (
             <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
-          </TouchableOpacity>
-        )}
+          )}
+        </TouchableOpacity>
 
         <View style={styles.separator} />
 
@@ -793,6 +798,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.text.tertiary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  creatorAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   creatorInfo: {
     flex: 1,
