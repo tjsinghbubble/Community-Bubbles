@@ -9,6 +9,9 @@ export const categories = pgTable("categories", {
   icon: text("icon"),
   image: text("image"),
   parentId: integer("parent_id"),
+  placeholderName: text("placeholder_name"),
+  placeholderTagline: text("placeholder_tagline"),
+  placeholderDescription: text("placeholder_description"),
 });
 
 export const campuses = pgTable("campuses", {
