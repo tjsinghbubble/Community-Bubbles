@@ -46,7 +46,9 @@ The project comprises a monorepo structure with distinct frontend (web and mobil
 
 ### Feature Specifications
 
-**Database Schema**: Core entities include `users`, `campuses`, `bubbles`, `memberships`, `events`, `event_attendees`, and `verification_codes`, managed by Drizzle ORM.
+**Database Schema**: Core entities include `users`, `campuses`, `bubbles`, `memberships`, `events`, `event_attendees`, `verification_codes`, and `categories`, managed by Drizzle ORM.
+
+**Categories**: Hierarchical category system with parent-child relationships. The `categories` table has `id` (serial PK), `name`, `icon`, and `parentId` (nullable integer, null = top-level). Categories are seeded on startup from `server/seed-categories.ts`. The `bubbles.category` field stores the category name as text for backward compatibility. API endpoints: GET `/api/categories` (nested tree), GET `/api/categories/flat`, POST/PUT/DELETE `/api/categories/:id` (super admin only).
 
 **Campus Mode**: Allows verified university students to access campus-exclusive bubbles and events. Features include a verification flow via .edu emails, a toggle for campus-specific content, and options to create campus-only bubbles/events. Campus content is private and restricted to verified users of that institution.
 
