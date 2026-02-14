@@ -373,12 +373,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <View style={styles.aboutSection}>
-          {event.description && (
-            <Text style={styles.aboutText} numberOfLines={3}>{event.description}</Text>
-          )}
-        </View>
-
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -412,6 +406,19 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               <Text style={styles.viewLinkText}>view {'>'}</Text>
             </TouchableOpacity>
           </View>
+          {event.description && (
+            <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => Alert.alert(event.title, event.description || '')}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="document-text-outline" size={18} color={Colors.text.tertiary} />
+              </View>
+              <Text style={styles.infoText} numberOfLines={1}>
+                {event.description.length > 30 ? event.description.substring(0, 30) + '...' : event.description}
+              </Text>
+              <View style={styles.viewLink}>
+                <Text style={styles.viewLinkText}>more {'>'}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.separator} />
@@ -603,15 +610,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.status.error,
-  },
-  aboutSection: {
-    marginTop: Spacing.lg,
-  },
-  aboutText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#4D4D4D',
-    lineHeight: 20,
   },
   infoRows: {
     marginTop: Spacing.lg,
