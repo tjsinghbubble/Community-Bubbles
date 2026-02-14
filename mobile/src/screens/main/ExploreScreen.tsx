@@ -233,8 +233,8 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 66 + 56;
-  const HEADER_COLLAPSED = 66 + 28;
+  const HEADER_EXPANDED = 72 + 56;
+  const HEADER_COLLAPSED = 72 + 28;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 22,
+    paddingTop: 28,
     paddingBottom: 4,
     gap: 12,
   },
