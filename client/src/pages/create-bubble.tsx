@@ -292,17 +292,9 @@ function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-type ApiCategory = { id: number; name: string; icon: string | null; image: string | null; parentId: number | null };
+type ApiCategory = { id: number; name: string; icon: string | null; image: string | null; parentId: number | null; placeholderName: string | null; placeholderTagline: string | null; placeholderDescription: string | null };
 
-function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
-  const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
-
-  useEffect(() => {
-    fetch("/api/categories/flat")
-      .then(r => r.json())
-      .then((data: ApiCategory[]) => setApiCategories(data))
-      .catch(() => {});
-  }, []);
+function StepCategory({ draft, setDraft, apiCategories }: { draft: Draft; setDraft: (d: Draft) => void; apiCategories: ApiCategory[] }) {
 
   return (
     <div className="space-y-5 px-5 pb-32 pt-5">
@@ -356,7 +348,7 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
   );
 }
 
-function StepDetails({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+function StepDetails({ draft, setDraft, selectedCategory }: { draft: Draft; setDraft: (d: Draft) => void; selectedCategory?: ApiCategory }) {
   const coverRef = useRef<HTMLInputElement>(null);
   return (
     <div className="space-y-5 px-5 pb-32 pt-5">
@@ -365,7 +357,7 @@ function StepDetails({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
         <Input
           value={draft.title}
           onChange={(e) => setDraft({ ...draft, title: e.target.value.slice(0, 60) })}
-          placeholder="Ex: Corgi Fam"
+          placeholder={selectedCategory?.placeholderName || "Ex: Corgi Fam"}
           maxLength={60}
           className="h-12"
           style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
@@ -381,7 +373,7 @@ function StepDetails({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
         <Input
           value={draft.tagline}
           onChange={(e) => setDraft({ ...draft, tagline: e.target.value.slice(0, 100) })}
-          placeholder="Meetup with other Corgi Parents near you"
+          placeholder={selectedCategory?.placeholderTagline || "Meetup with other Corgi Parents near you"}
           maxLength={100}
           className="h-12"
           style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
@@ -395,7 +387,7 @@ function StepDetails({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
         <Textarea
           value={draft.description}
           onChange={(e) => setDraft({ ...draft, description: e.target.value.slice(0, 500) })}
-          placeholder="Tell people what this bubble is about..."
+          placeholder={selectedCategory?.placeholderDescription || "Tell people what this bubble is about..."}
           maxLength={500}
           className="min-h-[120px]"
           style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, fontSize: DS.font.base, color: DS.color.text.primary }}
@@ -943,6 +935,16 @@ export default function CreateBubble() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
+
+  useEffect(() => {
+    fetch("/api/categories/flat")
+      .then(r => r.json())
+      .then((data: ApiCategory[]) => setApiCategories(data))
+      .catch(() => {});
+  }, []);
+
+  const selectedCategory = apiCategories.find(c => c.name === draft.category);
 
   const canNext = useMemo(() => {
     switch (step) {
@@ -1049,8 +1051,8 @@ export default function CreateBubble() {
 
   const renderStep = () => {
     switch (step) {
-      case 0: return <StepCategory draft={draft} setDraft={setDraft} />;
-      case 1: return <StepDetails draft={draft} setDraft={setDraft} />;
+      case 0: return <StepCategory draft={draft} setDraft={setDraft} apiCategories={apiCategories} />;
+      case 1: return <StepDetails draft={draft} setDraft={setDraft} selectedCategory={selectedCategory} />;
       case 2: return <StepRules draft={draft} setDraft={setDraft} />;
       case 3: return <StepPrivacy draft={draft} setDraft={setDraft} />;
       case 4: return <StepPreview draft={draft} />;
