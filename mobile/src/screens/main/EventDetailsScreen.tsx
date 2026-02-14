@@ -356,6 +356,60 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        <View style={styles.spotsRsvpRow}>
+          {spotsLeft !== null && (
+            <Text style={styles.spotsRedText}>
+              {isFull ? 'Event Full' : `${spotsLeft} spots left`}
+            </Text>
+          )}
+          <View style={styles.rsvpDropdownWrapper}>
+            <TouchableOpacity
+              style={[
+                styles.rsvpDropdownButton,
+                rsvpStatus === 'going' && styles.rsvpDropdownGoing,
+                rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
+                !rsvpStatus && styles.rsvpDropdownDefault,
+              ]}
+              onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
+              disabled={isRsvping}
+            >
+              {isRsvping ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.rsvpDropdownButtonText}>
+                    {rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP'}
+                  </Text>
+                  <Ionicons
+                    name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color="#FFFFFF"
+                  />
+                </>
+              )}
+            </TouchableOpacity>
+            {showRsvpDropdown && (
+              <View style={styles.rsvpDropdownMenu}>
+                <TouchableOpacity
+                  style={styles.rsvpDropdownItem}
+                  onPress={() => handleRsvpSelect('going')}
+                >
+                  <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
+                  <Text style={styles.rsvpDropdownItemText}>Going</Text>
+                </TouchableOpacity>
+                <View style={styles.rsvpDropdownDivider} />
+                <TouchableOpacity
+                  style={styles.rsvpDropdownItem}
+                  onPress={() => handleRsvpSelect('not_going')}
+                >
+                  <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
+                  <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -387,63 +441,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
               <Text style={styles.viewLinkText}>view {'>'}</Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconContainer}>
-              <Ionicons name="ticket-outline" size={18} color={Colors.text.tertiary} />
-            </View>
-            <Text style={styles.infoText}>
-              {isFull ? 'Event Full' : spotsLeft !== null ? `${spotsLeft} spots left` : 'Unlimited spots'}
-            </Text>
-            <View style={styles.rsvpDropdownWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.rsvpDropdownButton,
-                  rsvpStatus === 'going' && styles.rsvpDropdownGoing,
-                  rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
-                  !rsvpStatus && styles.rsvpDropdownDefault,
-                ]}
-                onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
-                disabled={isRsvping}
-              >
-                {isRsvping ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <Text style={[
-                      styles.rsvpDropdownButtonText,
-                      (rsvpStatus === 'going' || rsvpStatus === 'not_going') && { color: '#FFFFFF' },
-                    ]}>
-                      {rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP'}
-                    </Text>
-                    <Ionicons
-                      name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
-                      size={14}
-                      color={(rsvpStatus === 'going' || rsvpStatus === 'not_going') ? '#FFFFFF' : Colors.text.primary}
-                    />
-                  </>
-                )}
-              </TouchableOpacity>
-              {showRsvpDropdown && (
-                <View style={styles.rsvpDropdownMenu}>
-                  <TouchableOpacity
-                    style={styles.rsvpDropdownItem}
-                    onPress={() => handleRsvpSelect('going')}
-                  >
-                    <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
-                    <Text style={styles.rsvpDropdownItemText}>Going</Text>
-                  </TouchableOpacity>
-                  <View style={styles.rsvpDropdownDivider} />
-                  <TouchableOpacity
-                    style={styles.rsvpDropdownItem}
-                    onPress={() => handleRsvpSelect('not_going')}
-                  >
-                    <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
-                    <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
           </View>
           {event.description && (
             <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => Alert.alert(event.title, event.description || '')}>
@@ -611,17 +608,30 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: Radius.md,
   },
+  spotsRsvpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    zIndex: 100,
+  },
+  spotsRedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF3B30',
+    marginRight: 40,
+  },
   rsvpDropdownWrapper: {
     position: 'relative',
-    zIndex: 100,
   },
   rsvpDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 18,
+    gap: 6,
   },
   rsvpDropdownDefault: {
     backgroundColor: Colors.brand.primary,
@@ -633,7 +643,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
   },
   rsvpDropdownButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
