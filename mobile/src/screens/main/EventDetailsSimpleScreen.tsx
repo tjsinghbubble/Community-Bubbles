@@ -787,6 +787,7 @@ const styles = StyleSheet.create({
   },
   bulletinSection: {
     marginBottom: Spacing.lg,
+    paddingTop: 30,
   },
   rsvpButton: {
     borderRadius: Radius.full,
