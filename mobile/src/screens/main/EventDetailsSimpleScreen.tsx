@@ -102,6 +102,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
+  const [locationExpanded, setLocationExpanded] = useState(false);
 
   useEffect(() => {
     if (!event) {
@@ -400,12 +401,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.infoText}>{getTimeRange()}</Text>
           </View>
           {event.locationName && (
-            <View style={styles.infoRow}>
+            <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => setLocationExpanded(!locationExpanded)}>
               <View style={styles.infoIconContainer}>
                 <Ionicons name="location-outline" size={18} color={Colors.text.tertiary} />
               </View>
               <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
-            </View>
+              <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={14} color={Colors.text.tertiary} />
+            </TouchableOpacity>
           )}
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -424,7 +426,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <>
             <View style={styles.separator} />
 
-            <View style={styles.creatorRow}>
+            <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
               <View style={styles.creatorAvatar}>
                 <Ionicons name="person" size={20} color={Colors.background.primary} />
               </View>
@@ -436,44 +438,50 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   {event.locationName ? event.locationName.split(',')[0] : 'Local'}
                 </Text>
               </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+            </TouchableOpacity>
+          </>
+        )}
+
+        {event.locationName && (
+          <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => setLocationExpanded(!locationExpanded)}>
+            <View style={styles.locationIconContainer}>
+              <Ionicons name="location" size={20} color={Colors.brand.primary} />
             </View>
+            <View style={styles.locationInfo}>
+              <Text style={styles.locationLandmark}>{event.locationName}</Text>
+              {event.locationAddress && (
+                <Text style={styles.locationAddress}>{event.locationAddress}</Text>
+              )}
+            </View>
+            <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
+          </TouchableOpacity>
+        )}
 
-            {event.locationName && (
-              <View style={styles.locationRow}>
-                <View style={styles.locationIconContainer}>
-                  <Ionicons name="location" size={20} color={Colors.brand.primary} />
-                </View>
-                <View style={styles.locationInfo}>
-                  <Text style={styles.locationLandmark}>{event.locationName}</Text>
-                  {event.locationAddress && (
-                    <Text style={styles.locationAddress}>{event.locationAddress}</Text>
-                  )}
-                </View>
-              </View>
-            )}
+        <View style={styles.separator} />
 
+        {event.locationName && locationExpanded && (
+          <View style={styles.mapSection}>
+            <Text style={styles.sectionTitle}>Location</Text>
+            <View style={styles.mapContainer}>
+              {mapImageUrl ? (
+                <Image source={{ uri: mapImageUrl }} style={styles.mapImage} resizeMode="cover" />
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map-outline" size={48} color={Colors.text.tertiary} />
+                </View>
+              )}
+            </View>
+            <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
+              <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
+              <Text style={styles.directionsText}>Open in Maps</Text>
+            </TouchableOpacity>
             <View style={styles.separator} />
+          </View>
+        )}
 
-            {event.locationName && (
-              <View style={styles.mapSection}>
-                <Text style={styles.sectionTitle}>Location</Text>
-                <View style={styles.mapContainer}>
-                  {mapImageUrl ? (
-                    <Image source={{ uri: mapImageUrl }} style={styles.mapImage} resizeMode="cover" />
-                  ) : (
-                    <View style={styles.mapPlaceholder}>
-                      <Ionicons name="map-outline" size={48} color={Colors.text.tertiary} />
-                    </View>
-                  )}
-                </View>
-                <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
-                  <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
-                  <Text style={styles.directionsText}>Directions</Text>
-                </TouchableOpacity>
-                <View style={styles.separator} />
-              </View>
-            )}
-
+        {!fromBubble && (
+          <>
             <View style={styles.bulletinSection}>
               <Text style={styles.sectionTitle}>Bulletin Board</Text>
 
@@ -713,7 +721,7 @@ const styles = StyleSheet.create({
   },
   locationRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.md,
   },
   locationIconContainer: {
