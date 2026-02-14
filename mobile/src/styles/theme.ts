@@ -54,8 +54,8 @@ export const Colors = {
   },
 
   gradient: {
-    gradient2Start: '#35A8F7',
-    gradient2End: '#FFFFFF',
+    gradient2Start: '#5FC3F8',
+    gradient2End: '#35A8F7',
   },
 };
 

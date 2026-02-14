@@ -10,6 +10,7 @@ import {
   Minus,
   Plus,
   Trash2,
+  Users,
   X,
   Pencil,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+import bubbleSubmittedImg from "@/assets/images/bubble-submitted.png";
 import interestPets from "@/assets/images/interest-pets.jpg";
 import exploreMeetup from "@/assets/images/explore-meetup.jpg";
 import exploreFood from "@/assets/images/explore-food.jpg";
@@ -182,10 +184,10 @@ function PrimaryBtn({ label, disabled, onClick, testId }: { label: string; disab
       style={{
         height: DS.button.height,
         borderRadius: DS.radius.full,
-        background: `linear-gradient(135deg, ${DS.color.brand.primary}, #FFFFFF)`,
+        background: `linear-gradient(135deg, #5FC3F8, ${DS.color.brand.primary})`,
         fontSize: DS.font.md,
         letterSpacing: DS.ls.tight,
-        color: DS.color.text.primary,
+        color: "#FFFFFF",
         opacity: disabled ? 0.5 : 1,
         cursor: disabled ? "not-allowed" : "pointer",
       }}
@@ -716,9 +718,54 @@ function StepPrivacy({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) =
   );
 }
 
+function MembersModal({ open, onClose, userName }: { open: boolean; onClose: () => void; userName: string }) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{ backgroundColor: DS.color.bg.primary }}
+      data-testid="members-modal"
+    >
+      <div className="flex items-center px-4" style={{ height: 56, borderBottom: `1px solid ${DS.color.border.light}` }}>
+        <button onClick={onClose} className="p-2" data-testid="button-members-back">
+          <ArrowLeft className="h-6 w-6" style={{ color: DS.color.text.primary }} />
+        </button>
+        <div className="flex-1 text-center font-bold" style={{ fontSize: DS.font.lg, color: DS.color.text.primary }}>
+          Members
+        </div>
+        <div className="w-10" />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pt-4">
+        <div className="font-semibold mb-3" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Admins</div>
+        <div className="flex items-center gap-3 py-3" data-testid="member-row-admin">
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{ width: 44, height: 44, backgroundColor: DS.color.bg.surface }}
+          >
+            <Users className="h-5 w-5" style={{ color: DS.color.text.tertiary }} />
+          </div>
+          <div className="flex-1 font-medium" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>
+            {userName || "You"}
+          </div>
+        </div>
+
+        <div style={{ height: 1, backgroundColor: DS.color.border.light, marginTop: DS.space.sm, marginBottom: DS.space.lg }} />
+
+        <div className="font-semibold mb-3" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Participants</div>
+        <div className="py-6 text-center" style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+          No other members yet
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StepPreview({ draft }: { draft: Draft }) {
   const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...draft.customRules];
   const privacyLabel = PRIVACY_OPTIONS.find((p) => p.value === draft.privacy)?.label || draft.privacy;
+  const [showMembers, setShowMembers] = useState(false);
+  const userName = (() => { try { const t = localStorage.getItem("token"); if (t) { const p = JSON.parse(atob(t.split(".")[1])); return p.name || "You"; } } catch {} return "You"; })();
 
   return (
     <div className="px-5 pb-32 pt-5">
@@ -779,6 +826,24 @@ function StepPreview({ draft }: { draft: Draft }) {
 
         <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
 
+        <div
+          className="flex items-center justify-between p-4 cursor-pointer"
+          onClick={() => setShowMembers(true)}
+          data-testid="preview-members-row"
+        >
+          <div className="flex items-center gap-2">
+            <Users className="h-[18px] w-[18px]" style={{ color: DS.color.text.primary }} />
+            <span className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>
+              {draft.memberLimit || "0"} Members
+            </span>
+          </div>
+          <span style={{ fontSize: DS.font.sm, color: DS.color.brand.primary, fontWeight: 500 }} data-testid="link-view-members">
+            view &gt;
+          </span>
+        </div>
+
+        <div style={{ height: 1, backgroundColor: DS.color.border.light, marginLeft: DS.space.lg, marginRight: DS.space.lg }} />
+
         <div className="p-4 space-y-2">
           <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>
             Rules ({allRules.length})
@@ -804,6 +869,7 @@ function StepPreview({ draft }: { draft: Draft }) {
           )}
         </div>
       </div>
+      <MembersModal open={showMembers} onClose={() => setShowMembers(false)} userName={userName} />
     </div>
   );
 }
@@ -976,16 +1042,25 @@ export default function CreateBubble() {
 
   if (submitted) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center px-8" style={{ backgroundColor: DS.color.bg.primary }}>
-        <div className="text-5xl mb-4" data-testid="celebration-emoji">🎉</div>
-        <div className="text-center font-bold" style={{ fontSize: DS.font.xxl, color: DS.color.text.primary }} data-testid="text-success-title">
-          Thanks for submitting{"\n"}your bubble
+      <div className="flex min-h-dvh flex-col items-center justify-between" style={{ backgroundColor: DS.color.bg.primary }}>
+        <div className="text-center pt-16 px-8" data-testid="success-top">
+          <div className="font-bold" style={{ fontSize: DS.font.xxl, color: DS.color.text.primary, lineHeight: "32px" }} data-testid="text-success-title">
+            Thanks for submitting{"\n"}your bubble
+          </div>
+          <div className="mt-3" style={{ fontSize: DS.font.base, color: DS.color.text.tertiary, lineHeight: `${DS.lh.base}px` }} data-testid="text-success-subtitle">
+            We'll look over the details and let you know when your bubble is live.
+          </div>
         </div>
-        <div className="mt-3 text-center" style={{ fontSize: DS.font.base, color: DS.color.text.tertiary, lineHeight: `${DS.lh.base}px` }} data-testid="text-success-subtitle">
-          We'll look over the details and let you know when your bubble is live
+        <div className="flex-1 flex items-center justify-center" data-testid="success-image-container">
+          <img
+            src={bubbleSubmittedImg}
+            alt="Bubble submitted"
+            className="max-w-[75%] h-auto"
+            data-testid="img-success-illustration"
+          />
         </div>
-        <div className="mt-10 w-full max-w-[320px]">
-          <PrimaryBtn label="Back to Bubbles" onClick={() => { window.location.href = "/explore"; }} testId="button-back-to-bubbles" />
+        <div className="w-full px-8 pb-10" data-testid="success-bottom">
+          <PrimaryBtn label="Finish" onClick={() => { window.location.href = "/explore"; }} testId="button-finish" />
         </div>
       </div>
     );
