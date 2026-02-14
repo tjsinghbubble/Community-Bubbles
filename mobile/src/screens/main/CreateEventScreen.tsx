@@ -1608,8 +1608,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bubbleRowDivider: {
-    height: 1,
-    backgroundColor: Colors.neutral.coolMist,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E8E8E8',
   },
   emptyBubblesText: {
     fontSize: 14,
