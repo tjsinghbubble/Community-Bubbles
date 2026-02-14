@@ -297,7 +297,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const creatorName = (event as any).creatorName || 'Event Creator';
+  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
+  const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
 
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
