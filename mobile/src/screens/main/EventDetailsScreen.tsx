@@ -354,7 +354,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.aboutSection}>
-          <Text style={styles.aboutTitle}>About</Text>
           {isRsvpd ? (
             <Text style={styles.goingText}>Going</Text>
           ) : spotsLeft !== null && spotsLeft > 0 ? (
