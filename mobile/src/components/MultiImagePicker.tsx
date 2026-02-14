@@ -19,6 +19,7 @@ interface MultiImagePickerProps {
   onImagesChange: (images: string[]) => void;
   maxImages?: number;
   disabled?: boolean;
+  addLabel?: string;
 }
 
 export default function MultiImagePicker({
@@ -26,6 +27,7 @@ export default function MultiImagePicker({
   onImagesChange,
   maxImages = 5,
   disabled = false,
+  addLabel,
 }: MultiImagePickerProps) {
   const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
@@ -110,48 +112,45 @@ export default function MultiImagePicker({
     onImagesChange(newImages);
   };
 
+  const label = addLabel || (maxImages === 1 ? '+ Add' : '+ Add Attachments');
+
   return (
     <View style={styles.container}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {images.map((uri, index) => (
-          <View key={index} style={styles.imageContainer}>
-            <Image source={{ uri }} style={styles.image} />
-            {!disabled && (
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => removeImage(index)}
-              >
-                <Ionicons name="close-circle" size={24} color="#ff4444" />
-              </TouchableOpacity>
-            )}
-          </View>
-        ))}
-        
-        {!disabled && images.length < maxImages && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={pickImage}
-            disabled={uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator color="#666" />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={32} color="#666" />
-                <Text style={styles.addButtonText}>Add Photo</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+      {images.length > 0 && (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {images.map((uri, index) => (
+            <View key={index} style={styles.imageContainer}>
+              <Image source={{ uri }} style={styles.image} />
+              {!disabled && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={() => removeImage(index)}
+                >
+                  <Ionicons name="close-circle" size={24} color="#ff4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      )}
       
-      <Text style={styles.helperText}>
-        {images.length}/{maxImages} photos added
-      </Text>
+      {!disabled && images.length < maxImages && (
+        <TouchableOpacity
+          style={styles.addButtonFull}
+          onPress={pickImage}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator color="#999" />
+          ) : (
+            <Text style={styles.addButtonLabel}>{label}</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -180,24 +179,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
   },
-  addButton: {
-    width: 120,
-    height: 80,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ddd',
+  addButtonFull: {
+    width: '100%',
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#FFFFFF',
   },
-  addButtonText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  helperText: {
-    fontSize: 12,
-    color: '#666',
+  addButtonLabel: {
+    fontSize: 14,
+    color: '#969696',
   },
 });

@@ -16,6 +16,9 @@ import {
   Dimensions,
   KeyboardAvoidingView,
   Switch,
+  PanResponder,
+  GestureResponderEvent,
+  LayoutChangeEvent,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,17 +27,14 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   Colors,
   Spacing,
   Radius,
   Typography,
   RadioStyles,
-  Gradients,
   SwitchColors,
   ModalStyles,
-  SliderStyles,
 } from '../../styles/theme';
 
 type Props = {
@@ -324,6 +324,29 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     );
   };
 
+  const sliderWidth = useRef(0);
+
+  const handleSliderLayout = (e: LayoutChangeEvent) => {
+    sliderWidth.current = e.nativeEvent.layout.width;
+  };
+
+  const handleSliderTouch = (e: GestureResponderEvent) => {
+    if (sliderWidth.current <= 0) return;
+    const x = e.nativeEvent.locationX;
+    const ratio = Math.max(0, Math.min(1, x / sliderWidth.current));
+    const val = Math.round(1 + ratio * 49);
+    setRadiusMiles(val);
+  };
+
+  const sliderPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => handleSliderTouch(e),
+      onPanResponderMove: (e) => handleSliderTouch(e),
+    })
+  ).current;
+
   const renderStepDetails = () => (
     <View style={styles.formSection}>
       <View style={styles.fieldGroup}>
@@ -336,7 +359,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           onChangeText={(t) => setTitle(t.slice(0, 60))}
           maxLength={60}
         />
-        <Text style={styles.charCount}>{title.length}/60</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -349,75 +371,63 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           onChangeText={(t) => setTagline(t.slice(0, 100))}
           maxLength={100}
         />
-        <Text style={styles.charCount}>{tagline.length}/100</Text>
       </View>
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Bubble Description <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={[styles.fieldInput, styles.textArea]}
-          placeholder='Tell people what this bubble is about...'
+          placeholder="Fluffy but fierce. We're a pack of corgi lovers who meet up for park hangs, group walks, and the occasional costume parade. Whether your corg zooms, loafs, or herds strangers at the dog park – this is your crew. Events, tips, memes, and good vibes only."
           placeholderTextColor={Colors.text.tertiary}
           value={description}
           onChangeText={(t) => setDescription(t.slice(0, 500))}
           multiline
-          numberOfLines={4}
+          numberOfLines={6}
           textAlignVertical="top"
           maxLength={500}
         />
-        <Text style={styles.charCount}>{description.length}/500</Text>
       </View>
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
-        <TouchableOpacity
-          style={styles.locationFieldButton}
-          onPress={() => setShowLocationPicker(true)}
-        >
-          <Ionicons name="search-outline" size={18} color={Colors.text.tertiary} />
-          <Text style={locationName ? styles.locationFieldText : styles.locationFieldPlaceholder}>
-            {locationName || 'Search location or enter address'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.locationInputRow}>
+          <TextInput
+            style={[styles.fieldInput, { flex: 1, paddingRight: 48 }]}
+            placeholder='Search location or enter  address'
+            placeholderTextColor={Colors.text.tertiary}
+            value={locationName}
+            onChangeText={setLocationName}
+          />
+          <TouchableOpacity
+            style={styles.locationPinOverlay}
+            onPress={() => setShowLocationPicker(true)}
+          >
+            <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
+          </TouchableOpacity>
+        </View>
         {locationAddress ? (
           <Text style={styles.locationSubtext}>{locationAddress}</Text>
         ) : null}
       </View>
 
-      <View style={styles.fieldGroup}>
-        <View style={styles.radiusHeader}>
-          <Text style={styles.fieldLabel}>Radius</Text>
-          <Text style={styles.radiusValueText}>{radiusMiles} miles</Text>
-        </View>
-        <View style={styles.sliderContainer}>
+      <View style={styles.sliderSeparator} />
+
+      <View style={styles.sliderSection}>
+        <Text style={styles.sliderValueCentered}>{radiusMiles} miles</Text>
+        <View
+          style={styles.sliderTrackWrapper}
+          onLayout={handleSliderLayout}
+          {...sliderPanResponder.panHandlers}
+        >
           <View style={styles.sliderTrack}>
             <View style={[styles.sliderFill, { width: `${((radiusMiles - 1) / 49) * 100}%` }]} />
           </View>
-          <View style={styles.sliderTicksRow}>
-            {[1, 10, 20, 30, 40, 50].map((val) => (
-              <TouchableOpacity
-                key={val}
-                onPress={() => setRadiusMiles(val)}
-                style={styles.sliderTick}
-              >
-                <Text style={[styles.sliderTickText, radiusMiles === val && styles.sliderTickActive]}>{val}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.sliderStepRow}>
-            <TouchableOpacity
-              style={styles.sliderStepBtn}
-              onPress={() => setRadiusMiles(Math.max(1, radiusMiles - 1))}
-            >
-              <Ionicons name="remove" size={16} color={Colors.text.secondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.sliderStepBtn}
-              onPress={() => setRadiusMiles(Math.min(50, radiusMiles + 1))}
-            >
-              <Ionicons name="add" size={16} color={Colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
+          <View
+            style={[
+              styles.sliderThumb,
+              { left: `${((radiusMiles - 1) / 49) * 100}%` },
+            ]}
+          />
         </View>
       </View>
 
@@ -427,11 +437,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           images={images}
           onImagesChange={setImages}
           maxImages={1}
+          addLabel="+ Add"
         />
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Add Attachments <Text style={styles.optional}>(optional)</Text></Text>
+        <Text style={styles.fieldLabel}>Add Attachments</Text>
         <MultiImagePicker
           images={attachments}
           onImagesChange={setAttachments}
@@ -804,11 +815,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.lg,
     textAlignVertical: 'top',
   },
-  charCount: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-    textAlign: 'right',
-  },
   helperText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
@@ -856,17 +862,16 @@ const styles = StyleSheet.create({
   locationInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    position: 'relative',
   },
-  mapPinButton: {
+  locationPinOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
     width: 48,
-    height: 48,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.background.primary,
   },
   locationSubtext: {
     fontSize: Typography.sizes.sm,
@@ -874,58 +879,51 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
   },
 
-  radiusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  sliderSeparator: {
+    height: 1,
+    backgroundColor: Colors.border.light,
+    marginVertical: Spacing.xs,
+  },
+  sliderSection: {
     alignItems: 'center',
+    gap: Spacing.md,
   },
-  radiusValueText: {
+  sliderValueCentered: {
     fontSize: Typography.sizes.base,
-    color: Colors.brand.primary,
-    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    fontWeight: Typography.weights.medium,
   },
-  sliderContainer: {
-    gap: Spacing.sm,
+  sliderTrackWrapper: {
+    width: '100%',
+    height: 30,
+    justifyContent: 'center',
+    position: 'relative',
   },
   sliderTrack: {
-    height: SliderStyles.track.height,
+    height: 3,
     backgroundColor: Colors.border.light,
     borderRadius: Radius.full,
     overflow: 'hidden',
   },
   sliderFill: {
     height: '100%',
-    backgroundColor: Colors.brand.primary,
+    backgroundColor: Colors.text.secondary,
     borderRadius: Radius.full,
   },
-  sliderTicksRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  sliderThumb: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.text.secondary,
+    marginLeft: -10,
+    top: 5,
   },
-  sliderTick: {
-    paddingVertical: Spacing.xxs,
-  },
-  sliderTickText: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-  },
-  sliderTickActive: {
-    color: Colors.brand.primary,
-    fontWeight: Typography.weights.semiBold,
-  },
-  sliderStepRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sliderStepBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  coverPhotoPreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: Radius.md,
     backgroundColor: Colors.background.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border.default,
   },
 
   toggleRow: {
@@ -1022,43 +1020,6 @@ const styles = StyleSheet.create({
     color: Colors.brand.primary,
   },
 
-  locationFieldButton: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.background.primary,
-  },
-  locationFieldText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.primary,
-    flex: 1,
-  },
-  locationFieldPlaceholder: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
-    flex: 1,
-  },
-  attachmentsButton: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
-    borderStyle: 'dashed',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.background.primary,
-  },
-  attachmentsButtonText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
-  },
 
   reviewCoverPlaceholder: {
     alignItems: 'center',
