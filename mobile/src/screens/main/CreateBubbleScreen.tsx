@@ -22,6 +22,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
@@ -499,12 +500,26 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       ))}
 
       {customRules.map((rule, index) => (
-        <View key={`custom-${index}`} style={styles.ruleItem}>
-          <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
-            <Text style={styles.ruleText}>{rule}</Text>
-          </TouchableOpacity>
-          <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
-        </View>
+        <Swipeable
+          key={`custom-${index}`}
+          renderRightActions={() => (
+            <TouchableOpacity
+              style={styles.swipeDeleteAction}
+              onPress={() => deleteRule(index)}
+            >
+              <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
+              <Text style={styles.swipeDeleteText}>Delete</Text>
+            </TouchableOpacity>
+          )}
+          overshootRight={false}
+        >
+          <View style={styles.ruleItem}>
+            <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
+              <Text style={styles.ruleText}>{rule}</Text>
+            </TouchableOpacity>
+            <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+          </View>
+        </Swipeable>
       ))}
     </View>
   );
@@ -989,8 +1004,19 @@ const styles = StyleSheet.create({
     color: Colors.text.tertiary,
     fontWeight: Typography.weights.medium,
   },
-  ruleDeleteBtn: {
-    padding: Spacing.xs,
+  swipeDeleteAction: {
+    backgroundColor: Colors.status.error,
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginLeft: Spacing.sm,
+    gap: Spacing.xxs,
+  },
+  swipeDeleteText: {
+    color: Colors.background.primary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
   },
   addRuleButton: {
     borderWidth: 1.5,
