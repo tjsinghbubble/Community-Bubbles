@@ -17,13 +17,12 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
@@ -98,6 +97,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(!routeEvent);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isRsvpd, setIsRsvpd] = useState(false);
+  const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
+  const [showRsvpDropdown, setShowRsvpDropdown] = useState(false);
   const [isRsvping, setIsRsvping] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
@@ -135,24 +136,29 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getEventAttendees(eventId) as Attendee[];
       setAttendees(data);
-      setIsRsvpd(data.some(a => a.userId === user?.id));
+      const myAttendance = data.find(a => a.userId === user?.id);
+      setIsRsvpd(!!myAttendance);
+      setRsvpStatus(myAttendance?.status || null);
     } catch (error) {
       console.error('Failed to fetch attendees:', error);
     }
   };
 
-  const handleRsvp = async () => {
+  const handleRsvpSelect = async (status: 'going' | 'not_going') => {
     setIsRsvping(true);
+    setShowRsvpDropdown(false);
     try {
-      if (isRsvpd) {
+      if (status === 'not_going' && isRsvpd) {
         await apiService.cancelRsvp(eventId);
         setIsRsvpd(false);
+        setRsvpStatus('not_going');
         setAttendees(attendees.filter(a => a.userId !== user?.id));
-        setSuccessModalConfig({ title: 'RSVP Cancelled', subtitle: 'You are no longer attending this event' });
+        setSuccessModalConfig({ title: 'RSVP Updated', subtitle: 'You are not attending this event' });
         setShowSuccessModal(true);
-      } else {
+      } else if (status === 'going') {
         await apiService.rsvpEvent(eventId, 'going');
         setIsRsvpd(true);
+        setRsvpStatus('going');
         fetchAttendees();
         setSuccessModalConfig({ title: 'RSVP Confirmed!', subtitle: 'You are attending this event' });
         setShowSuccessModal(true);
@@ -350,25 +356,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {(spotsLeft !== null && spotsLeft > 0) ? (
-          <Text style={styles.spotsTextCentered}>{spotsLeft} spots left</Text>
-        ) : isFull ? (
-          <Text style={styles.spotsTextCentered}>Event Full</Text>
-        ) : null}
-
-        {isRsvpd && (
-          <View style={styles.rsvpStatusRow}>
-            <Text style={styles.goingText}>Going</Text>
-            <TouchableOpacity onPress={handleRsvp} disabled={isRsvping}>
-              {isRsvping ? (
-                <ActivityIndicator color={Colors.status.error} size="small" />
-              ) : (
-                <Text style={styles.notGoingInlineText}>Not Going</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -383,13 +370,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.infoText}>{getTimeRange()}</Text>
           </View>
           {event.locationName && (
-            <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => setLocationExpanded(!locationExpanded)}>
+            <View style={styles.infoRow}>
               <View style={styles.infoIconContainer}>
                 <Ionicons name="location-outline" size={18} color={Colors.text.tertiary} />
               </View>
               <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
-              <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={14} color={Colors.text.tertiary} />
-            </TouchableOpacity>
+            </View>
           )}
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -401,6 +387,63 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
               <Text style={styles.viewLinkText}>view {'>'}</Text>
             </TouchableOpacity>
+          </View>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="ticket-outline" size={18} color={Colors.text.tertiary} />
+            </View>
+            <Text style={styles.infoText}>
+              {isFull ? 'Event Full' : spotsLeft !== null ? `${spotsLeft} spots left` : 'Unlimited spots'}
+            </Text>
+            <View style={styles.rsvpDropdownWrapper}>
+              <TouchableOpacity
+                style={[
+                  styles.rsvpDropdownButton,
+                  rsvpStatus === 'going' && styles.rsvpDropdownGoing,
+                  rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
+                  !rsvpStatus && styles.rsvpDropdownDefault,
+                ]}
+                onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
+                disabled={isRsvping}
+              >
+                {isRsvping ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={[
+                      styles.rsvpDropdownButtonText,
+                      (rsvpStatus === 'going' || rsvpStatus === 'not_going') && { color: '#FFFFFF' },
+                    ]}>
+                      {rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP'}
+                    </Text>
+                    <Ionicons
+                      name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
+                      size={14}
+                      color={(rsvpStatus === 'going' || rsvpStatus === 'not_going') ? '#FFFFFF' : Colors.text.primary}
+                    />
+                  </>
+                )}
+              </TouchableOpacity>
+              {showRsvpDropdown && (
+                <View style={styles.rsvpDropdownMenu}>
+                  <TouchableOpacity
+                    style={styles.rsvpDropdownItem}
+                    onPress={() => handleRsvpSelect('going')}
+                  >
+                    <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
+                    <Text style={styles.rsvpDropdownItemText}>Going</Text>
+                  </TouchableOpacity>
+                  <View style={styles.rsvpDropdownDivider} />
+                  <TouchableOpacity
+                    style={styles.rsvpDropdownItem}
+                    onPress={() => handleRsvpSelect('not_going')}
+                  >
+                    <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
+                    <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           </View>
           {event.description && (
             <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => Alert.alert(event.title, event.description || '')}>
@@ -469,22 +512,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
             <View style={styles.separator} />
           </View>
-        )}
-
-        {!isRsvpd && !isEventCreator && (
-          <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
-            <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={StyleSheet.absoluteFillObject}
-            />
-            {isRsvping ? (
-              <ActivityIndicator color={Colors.text.primary} size="small" />
-            ) : (
-              <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
-            )}
-          </TouchableOpacity>
         )}
 
         <View style={styles.bulletinSection}>
@@ -584,28 +611,66 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: Radius.md,
   },
-  spotsTextCentered: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF3B30',
-    textAlign: 'center',
-    marginTop: Spacing.md,
+  rsvpDropdownWrapper: {
+    position: 'relative',
+    zIndex: 100,
   },
-  rsvpStatusRow: {
+  rsvpDropdownButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.md,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
   },
-  goingText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.status.success,
+  rsvpDropdownDefault: {
+    backgroundColor: Colors.brand.primary,
   },
-  notGoingInlineText: {
-    fontSize: 14,
+  rsvpDropdownGoing: {
+    backgroundColor: '#34C759',
+  },
+  rsvpDropdownNotGoing: {
+    backgroundColor: '#FF3B30',
+  },
+  rsvpDropdownButtonText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.status.error,
+    color: '#FFFFFF',
+  },
+  rsvpDropdownMenu: {
+    position: 'absolute',
+    top: 36,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    minWidth: 140,
+    overflow: 'hidden',
+  },
+  rsvpDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  rsvpStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  rsvpDropdownItemText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1E1F26',
+  },
+  rsvpDropdownDivider: {
+    height: 1,
+    backgroundColor: '#E8E8E8',
   },
   infoRows: {
     marginTop: Spacing.lg,
@@ -743,19 +808,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     paddingTop: 30,
   },
-  rsvpButton: {
-    borderRadius: Radius.full,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: -26,
-    zIndex: 10,
-  },
-  rsvpButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
+  rsvpButtonLegacy: {
+    display: 'none',
   },
   bulletinCard: {
     flexDirection: 'row',
