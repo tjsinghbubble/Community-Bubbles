@@ -475,24 +475,24 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        {!isRsvpd && !isEventCreator && (
+          <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
+            <LinearGradient
+              colors={Gradients.button.colors as unknown as string[]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={StyleSheet.absoluteFillObject}
+            />
+            {isRsvping ? (
+              <ActivityIndicator color={Colors.text.primary} size="small" />
+            ) : (
+              <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
         <View style={styles.bulletinSection}>
           <Text style={styles.sectionTitle}>Bulletin Board</Text>
-
-          {!isRsvpd && !isEventCreator && (
-            <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
-              <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
-                start={Gradients.button.start}
-                end={Gradients.button.end}
-                style={StyleSheet.absoluteFillObject}
-              />
-              {isRsvping ? (
-                <ActivityIndicator color={Colors.text.primary} size="small" />
-              ) : (
-                <Text style={styles.rsvpButtonText}>{isFull ? 'Event Full' : 'RSVP'}</Text>
-              )}
-            </TouchableOpacity>
-          )}
 
           {MOCK_BULLETIN.map((item) => (
             <View key={item.id} style={styles.bulletinCard}>
@@ -752,7 +752,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: Spacing.lg,
+    marginBottom: -26,
+    zIndex: 10,
   },
   rsvpButtonText: {
     fontSize: 16,
