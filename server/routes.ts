@@ -1310,13 +1310,21 @@ export async function registerRoutes(
   });
 
   // Categories API
+  function withAbsoluteImageUrl(req: any, cat: any) {
+    if (!cat.image) return cat;
+    if (cat.image.startsWith("http")) return cat;
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const host = req.headers["x-forwarded-host"] || req.get("host");
+    return { ...cat, image: `${protocol}://${host}${cat.image}` };
+  }
+
   app.get("/api/categories", async (req, res) => {
     try {
       const allCategories = await storage.getCategories();
       const topLevel = allCategories.filter(c => c.parentId === null);
       const nested = topLevel.map(parent => ({
-        ...parent,
-        children: allCategories.filter(c => c.parentId === parent.id),
+        ...withAbsoluteImageUrl(req, parent),
+        children: allCategories.filter(c => c.parentId === parent.id).map(c => withAbsoluteImageUrl(req, c)),
       }));
       res.json(nested);
     } catch (error: any) {
@@ -1327,7 +1335,7 @@ export async function registerRoutes(
   app.get("/api/categories/flat", async (req, res) => {
     try {
       const allCategories = await storage.getCategories();
-      res.json(allCategories);
+      res.json(allCategories.map(c => withAbsoluteImageUrl(req, c)));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
