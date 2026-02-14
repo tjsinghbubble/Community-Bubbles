@@ -789,7 +789,8 @@ export async function registerRoutes(
         }
       }
       
-      res.json(event);
+      const creator = await storage.getUser(event.creatorId);
+      res.json({ ...event, creatorName: creator?.name || 'Event Creator' });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

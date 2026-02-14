@@ -105,11 +105,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [locationExpanded, setLocationExpanded] = useState(false);
 
   useEffect(() => {
-    if (!event) {
-      fetchEvent();
-    } else {
-      fetchBubble(event.bubbleId);
-    }
+    fetchEvent();
     fetchAttendees();
   }, [eventId]);
 
@@ -301,8 +297,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
-  const creatorName = creatorAttendee?.user?.name || 'Event Creator';
+  const creatorName = (event as any).creatorName || 'Event Creator';
 
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
