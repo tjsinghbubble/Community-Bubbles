@@ -37,21 +37,25 @@ export default function ProfileScreen() {
   const checkAdminItems = async () => {
     if (!user) return;
     
+    if (!isSuperAdmin) {
+      setHasAdminItems(false);
+      setPendingCount(0);
+      return;
+    }
+
     try {
       let count = 0;
       
-      if (isSuperAdmin) {
-        const pendingBubbles = await apiService.getPendingBubbles();
-        count += pendingBubbles.length;
-      }
+      const pendingBubbles = await apiService.getPendingBubbles();
+      count += pendingBubbles.length;
       
       const pendingEvents = await apiService.getPendingEvents();
       count += pendingEvents.length;
       
       setPendingCount(count);
-      setHasAdminItems(count > 0 || isSuperAdmin);
+      setHasAdminItems(true);
     } catch (error) {
-      setHasAdminItems(isSuperAdmin);
+      setHasAdminItems(true);
     }
   };
 
