@@ -269,8 +269,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShareBubble = async () => {
     setShowKebabMenu(false);
     try {
+      const bubbleName = encodeURIComponent(bubble.title || 'bubble');
+      const deepLink = `https://community-bubbles.replit.app/${bubbleName}/${bubble.id}`;
       await Share.share({
-        message: `Check out "${bubble.title}" on Bubble!`,
+        message: `Check out "${bubble.title}" on Bubble!\n${deepLink}`,
       });
     } catch (error) {
       console.error('Share error:', error);
