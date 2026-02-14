@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +21,7 @@ interface MultiImagePickerProps {
   maxImages?: number;
   disabled?: boolean;
   addLabel?: string;
+  acceptAllFiles?: boolean;
 }
 
 export default function MultiImagePicker({
@@ -28,11 +30,36 @@ export default function MultiImagePicker({
   maxImages = 5,
   disabled = false,
   addLabel,
+  acceptAllFiles = false,
 }: MultiImagePickerProps) {
   const { token } = useAuth();
   const [uploading, setUploading] = useState(false);
 
+  const pickFile = async () => {
+    if (images.length >= maxImages) {
+      Alert.alert('Limit Reached', `You can only add up to ${maxImages} files`);
+      return;
+    }
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri, result.assets[0].name, result.assets[0].mimeType);
+      }
+    } catch (error) {
+      console.error('Document picker error:', error);
+    }
+  };
+
   const pickImage = async () => {
+    if (acceptAllFiles) {
+      return pickFile();
+    }
+
     if (images.length >= maxImages) {
       Alert.alert('Limit Reached', `You can only add up to ${maxImages} images`);
       return;
@@ -56,14 +83,14 @@ export default function MultiImagePicker({
     }
   };
 
-  const uploadImage = async (uri: string) => {
+  const uploadImage = async (uri: string, fileName?: string, mimeType?: string) => {
     setUploading(true);
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
       
-      const fileName = uri.split('/').pop() || 'image.jpg';
-      const contentType = blob.type || 'image/jpeg';
+      const name = fileName || uri.split('/').pop() || 'image.jpg';
+      const contentType = mimeType || blob.type || 'image/jpeg';
       
       const uploadUrlResponse = await fetch(`${API_URL}/api/uploads/request-url`, {
         method: 'POST',
@@ -72,7 +99,7 @@ export default function MultiImagePicker({
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          name: fileName,
+          name,
           size: blob.size,
           contentType,
         }),
@@ -114,6 +141,17 @@ export default function MultiImagePicker({
 
   const label = addLabel || (maxImages === 1 ? '+ Add' : '+ Add Attachments');
 
+  const isImageUrl = (url: string) => {
+    const ext = url.split('.').pop()?.toLowerCase() || '';
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext) ||
+      url.includes('/image') || !acceptAllFiles;
+  };
+
+  const getFileName = (url: string) => {
+    const parts = url.split('/');
+    return parts[parts.length - 1] || 'File';
+  };
+
   return (
     <View style={styles.container}>
       {images.length > 0 && (
@@ -124,7 +162,14 @@ export default function MultiImagePicker({
         >
           {images.map((uri, index) => (
             <View key={index} style={styles.imageContainer}>
-              <Image source={{ uri }} style={styles.image} />
+              {isImageUrl(uri) ? (
+                <Image source={{ uri }} style={styles.image} />
+              ) : (
+                <View style={[styles.image, styles.fileContainer]}>
+                  <Ionicons name="document-outline" size={28} color="#969696" />
+                  <Text style={styles.fileName} numberOfLines={1}>{getFileName(uri)}</Text>
+                </View>
+              )}
               {!disabled && (
                 <TouchableOpacity
                   style={styles.removeButton}
@@ -171,6 +216,19 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 12,
     backgroundColor: '#f0f0f0',
+  },
+  fileContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
+    gap: 4,
+  },
+  fileName: {
+    fontSize: 10,
+    color: '#969696',
+    maxWidth: 100,
+    textAlign: 'center',
   },
   removeButton: {
     position: 'absolute',

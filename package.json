@@ -61,6 +61,7 @@
     "drizzle-orm": "^0.39.3",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
+    "expo-document-picker": "^14.0.8",
     "expo-image-picker": "^17.0.10",
     "express": "^5.0.1",
     "express-session": "^1.18.1",

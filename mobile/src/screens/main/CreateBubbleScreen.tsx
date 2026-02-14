@@ -391,19 +391,19 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
         <View style={styles.locationInputRow}>
-          <TextInput
-            style={[styles.fieldInput, { flex: 1, paddingRight: 48 }]}
-            placeholder='Search location or enter  address'
-            placeholderTextColor={Colors.text.tertiary}
-            value={locationName}
-            onChangeText={setLocationName}
-          />
           <TouchableOpacity
             style={styles.locationPinOverlay}
             onPress={() => setShowLocationPicker(true)}
           >
             <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
           </TouchableOpacity>
+          <TextInput
+            style={[styles.fieldInput, { flex: 1, paddingLeft: 48 }]}
+            placeholder='Search location or enter address'
+            placeholderTextColor={Colors.text.tertiary}
+            value={locationName}
+            onChangeText={setLocationName}
+          />
         </View>
         {locationAddress ? (
           <Text style={styles.locationSubtext}>{locationAddress}</Text>
@@ -447,6 +447,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           images={attachments}
           onImagesChange={setAttachments}
           maxImages={5}
+          acceptAllFiles
         />
       </View>
 
@@ -672,47 +673,52 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         animationType="slide"
         onRequestClose={() => setShowRuleModal(false)}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowRuleModal(false)}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingRuleIndex !== null ? 'Edit Rule' : 'Add Rule'}
-              </Text>
-            </View>
-            <TextInput
-              style={[styles.fieldInput, styles.textArea, { marginVertical: Spacing.lg }]}
-              placeholder="Enter your rule..."
-              placeholderTextColor={Colors.text.tertiary}
-              value={ruleText}
-              onChangeText={setRuleText}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-              autoFocus
-            />
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.modalSecondaryBtn}
-                onPress={() => setShowRuleModal(false)}
-              >
-                <Text style={styles.modalSecondaryText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.primaryButton, { flex: 1 }, !ruleText.trim() && { opacity: 0.5 }]}
-                onPress={saveRule}
-                disabled={!ruleText.trim()}
-              >
-                <Text style={styles.primaryButtonText}>
-                  {editingRuleIndex !== null ? 'Save' : 'Add Rule'}
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowRuleModal(false)}
+          >
+            <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editingRuleIndex !== null ? 'Edit Rule' : 'Add Rule'}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              <TextInput
+                style={[styles.fieldInput, styles.textArea, { marginVertical: Spacing.lg }]}
+                placeholder="Enter your rule..."
+                placeholderTextColor={Colors.text.tertiary}
+                value={ruleText}
+                onChangeText={setRuleText}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                autoFocus
+              />
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={styles.modalSecondaryBtn}
+                  onPress={() => setShowRuleModal(false)}
+                >
+                  <Text style={styles.modalSecondaryText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.primaryButton, { flex: 1 }, !ruleText.trim() && { opacity: 0.5 }]}
+                  onPress={saveRule}
+                  disabled={!ruleText.trim()}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {editingRuleIndex !== null ? 'Save' : 'Add Rule'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -763,7 +769,7 @@ const styles = StyleSheet.create({
   },
   progressSegment: {
     flex: 1,
-    height: 2,
+    height: 1.5,
     borderRadius: Radius.full,
     backgroundColor: Colors.border.light,
   },
@@ -825,6 +831,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.text.secondary,
     lineHeight: Typography.lineHeight.base,
+    textAlign: 'center',
   },
   categoryGrid: {
     flexDirection: 'row',
@@ -866,12 +873,13 @@ const styles = StyleSheet.create({
   },
   locationPinOverlay: {
     position: 'absolute',
-    right: 0,
+    left: 0,
     top: 0,
     bottom: 0,
     width: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   locationSubtext: {
     fontSize: Typography.sizes.sm,
