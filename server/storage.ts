@@ -10,6 +10,7 @@ import {
   campuses,
   userSessions,
   bubbleVisits,
+  categories,
   type User,
   type InsertUser,
   type Bubble,
@@ -26,6 +27,8 @@ import {
   type InsertCampus,
   type UserSession,
   type BubbleVisit,
+  type Category,
+  type InsertCategory,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -112,6 +115,13 @@ export interface IStorage {
   // Bubble visits
   trackBubbleVisit(bubbleId: string, userId?: string): Promise<BubbleVisit>;
   getBubbleVisitsMetrics(): Promise<{ topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number; dailyData: { date: string; visits: number }[] }>;
+
+  // Categories
+  getCategories(): Promise<Category[]>;
+  getCategory(id: number): Promise<Category | undefined>;
+  createCategory(data: InsertCategory): Promise<Category>;
+  updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -936,6 +946,30 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { topBubbles, totalVisits, dailyData };
+  }
+
+  async getCategories(): Promise<Category[]> {
+    return db.select().from(categories).orderBy(categories.name);
+  }
+
+  async getCategory(id: number): Promise<Category | undefined> {
+    const result = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createCategory(data: InsertCategory): Promise<Category> {
+    const result = await db.insert(categories).values(data).returning();
+    return result[0];
+  }
+
+  async updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | undefined> {
+    const result = await db.update(categories).set(data).where(eq(categories.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteCategory(id: number): Promise<void> {
+    await db.delete(categories).where(eq(categories.parentId, id));
+    await db.delete(categories).where(eq(categories.id, id));
   }
 }
 

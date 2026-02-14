@@ -3,8 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
+import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 const JWT_SECRET =
@@ -1308,8 +1309,81 @@ export async function registerRoutes(
     }
   });
 
-  // Seed campuses on startup
+  // Categories API
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const allCategories = await storage.getCategories();
+      const topLevel = allCategories.filter(c => c.parentId === null);
+      const nested = topLevel.map(parent => ({
+        ...parent,
+        children: allCategories.filter(c => c.parentId === parent.id),
+      }));
+      res.json(nested);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/categories/flat", async (req, res) => {
+    try {
+      const allCategories = await storage.getCategories();
+      res.json(allCategories);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/categories", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const data = insertCategorySchema.parse(req.body);
+      const category = await storage.createCategory(data);
+      res.json(category);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/categories/:id", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const id = parseInt(req.params.id);
+      const { name, icon, parentId } = req.body;
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (icon !== undefined) updateData.icon = icon;
+      if (parentId !== undefined) updateData.parentId = parentId;
+      const category = await storage.updateCategory(id, updateData);
+      if (!category) return res.status(404).json({ error: "Category not found" });
+      res.json(category);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/categories/:id", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const id = parseInt(req.params.id);
+      await storage.deleteCategory(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Seed campuses and categories on startup
   seedCampuses().catch(console.error);
+  seedCategories().catch(console.error);
 
   return httpServer;
 }
