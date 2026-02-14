@@ -883,28 +883,33 @@ export async function registerRoutes(
     }
   });
 
-  // Get all pending events (super admin only)
+  // Get pending events (super admins see all, bubble admins see their bubbles' events)
   app.get("/api/admin/pending-events", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);
       
-      if (!user?.isSuperAdmin) {
-        return res.status(403).json({ error: "Only super admins can view pending events" });
+      const pendingEvents: any[] = [];
+
+      if (user?.isSuperAdmin) {
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+        const allPending = await storage.getPendingBubbles();
+        for (const bubble of allPending) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+      } else {
+        const userMemberships = await storage.getUserMemberships(req.userId!);
+        const adminBubbles = userMemberships.filter(m => m.role === 'admin');
+        for (const membership of adminBubbles) {
+          const events = await storage.getPendingEventsForBubble(membership.bubbleId);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble: membership.bubble })));
+        }
       }
 
-      // Get all pending events from all bubbles
-      const pendingEvents: any[] = [];
-      const allBubbles = await storage.getBubbles();
-      for (const bubble of allBubbles) {
-        const events = await storage.getPendingEventsForBubble(bubble.id);
-        pendingEvents.push(...events.map(e => ({ ...e, bubble })));
-      }
-      // Also get events for pending bubbles
-      const allPending = await storage.getPendingBubbles();
-      for (const bubble of allPending) {
-        const events = await storage.getPendingEventsForBubble(bubble.id);
-        pendingEvents.push(...events.map(e => ({ ...e, bubble })));
-      }
       res.json(pendingEvents);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
