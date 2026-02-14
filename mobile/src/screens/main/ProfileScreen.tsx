@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
@@ -30,9 +30,11 @@ export default function ProfileScreen() {
 
   const isSuperAdmin = user?.isSuperAdmin === true;
 
-  useEffect(() => {
-    checkAdminItems();
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      checkAdminItems();
+    }, [user])
+  );
 
   const checkAdminItems = async () => {
     if (!user) return;
