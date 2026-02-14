@@ -478,7 +478,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <View style={styles.bulletinSection}>
           <Text style={styles.sectionTitle}>Bulletin Board</Text>
 
-          {!isRsvpd && !canManage && (
+          {!isRsvpd && !isEventCreator && (
             <TouchableOpacity style={styles.rsvpButton} onPress={handleRsvp} disabled={isRsvping || isFull}>
               <LinearGradient
                 colors={Gradients.button.colors as unknown as string[]}
