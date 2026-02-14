@@ -28,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   Colors,
   Spacing,
@@ -36,6 +37,7 @@ import {
   RadioStyles,
   SwitchColors,
   ModalStyles,
+  Gradients,
 } from '../../styles/theme';
 
 type Props = {
@@ -101,7 +103,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [ruleText, setRuleText] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [expandAbout, setExpandAbout] = useState(false);
+  const [expandAbout, setExpandAbout] = useState(true);
   const [expandAttachments, setExpandAttachments] = useState(false);
   const [expandRules, setExpandRules] = useState(false);
 
@@ -283,9 +285,14 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             style={styles.finishButton}
             onPress={() => navigation.goBack()}
           >
-            <View style={styles.primaryButton}>
+            <LinearGradient
+              colors={Gradients.button.colors as [string, string]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.primaryButton}
+            >
               <Text style={styles.primaryButtonText}>Finish</Text>
-            </View>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -645,14 +652,20 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.primaryButton, disabled && styles.buttonDisabled]}
           onPress={isReview ? handleSubmit : goNext}
           disabled={disabled}
           activeOpacity={0.8}
         >
-          <Text style={styles.primaryButtonText}>
-            {isReview ? 'Submit for review' : 'Next'}
-          </Text>
+          <LinearGradient
+            colors={Gradients.button.colors as [string, string]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={[styles.primaryButton, disabled && styles.buttonDisabled]}
+          >
+            <Text style={styles.primaryButtonText}>
+              {isReview ? 'Submit for review' : 'Next'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     );
@@ -710,11 +723,18 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                   <Text style={styles.modalSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.primaryButton, { flex: 1 }, !ruleText.trim() && { opacity: 0.5 }]}
                   onPress={saveRule}
                   disabled={!ruleText.trim()}
+                  style={{ flex: 1 }}
                 >
-                  <Text style={styles.primaryButtonText}>Save</Text>
+                  <LinearGradient
+                    colors={Gradients.button.colors as [string, string]}
+                    start={Gradients.button.start}
+                    end={Gradients.button.end}
+                    style={[styles.primaryButton, !ruleText.trim() && { opacity: 0.5 }]}
+                  >
+                    <Text style={styles.primaryButtonText}>Save</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1115,7 +1135,6 @@ const styles = StyleSheet.create({
   primaryButton: {
     height: 48,
     borderRadius: Radius.full,
-    backgroundColor: Colors.text.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
