@@ -233,8 +233,8 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 84 + 60;
-  const HEADER_COLLAPSED = 84 + 32;
+  const HEADER_EXPANDED = 89 + 60;
+  const HEADER_COLLAPSED = 89 + 32;
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 40,
+    paddingTop: 45,
     paddingBottom: 4,
     gap: 12,
   },
