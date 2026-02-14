@@ -306,40 +306,25 @@ function RadiusSlider({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-type ApiCategory = { id: number; name: string; icon: string | null; parentId: number | null; children?: ApiCategory[] };
+type ApiCategory = { id: number; name: string; icon: string | null; parentId: number | null };
 
 const CATEGORY_IMAGES: Record<string, string> = {
   "Running": catRunning, "Cooking": catCooking, "Coffee Meets": catCoffee,
   "Professional": exploreMeetup, "Hiking": catHiking, "Tennis": catTennis,
-  "Biking": catBiking, "Pets & Animals": interestPets, "Arts & Crafts": catArtsCrafts,
+  "Biking": catBiking, "Pets": interestPets, "Arts & Crafts": catArtsCrafts,
   "Community": catCommunity, "Gardening": catGardening, "Food & Drink": exploreFood,
-  "Wellness": catWellness, "Yoga": catYoga, "Sports & Fitness": catRunning,
-  "Social": catCoffee, "Creative": catArtsCrafts, "Outdoors": catHiking,
+  "Wellness": catWellness, "Yoga": catYoga,
 };
 
 function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
-  const [selectedParent, setSelectedParent] = useState<ApiCategory | null>(null);
 
   useEffect(() => {
-    fetch("/api/categories")
+    fetch("/api/categories/flat")
       .then(r => r.json())
-      .then((data: ApiCategory[]) => {
-        setApiCategories(data);
-        if (draft.category) {
-          const parent = data.find(p => p.children?.some(c => c.name === draft.category));
-          if (parent) setSelectedParent(parent);
-          else {
-            const topMatch = data.find(p => p.name === draft.category);
-            if (topMatch) setSelectedParent(topMatch);
-          }
-        }
-      })
+      .then((data: ApiCategory[]) => setApiCategories(data))
       .catch(() => {});
   }, []);
-
-  const displayCategories = selectedParent?.children?.length ? selectedParent.children : apiCategories;
-  const showingSubcategories = selectedParent && selectedParent.children && selectedParent.children.length > 0;
 
   return (
     <div className="space-y-5 px-5 pb-32 pt-5">
@@ -348,37 +333,17 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
         style={{ fontSize: DS.font.lg, color: DS.color.text.primary, lineHeight: `${DS.lh.lg}px` }}
         data-testid="text-category-prompt"
       >
-        {showingSubcategories ? `Pick a ${selectedParent.name} subcategory` : "What category will your bubble be in?"}
+        What category will your bubble be in?
       </div>
-
-      {showingSubcategories && (
-        <button
-          className="flex items-center gap-1.5"
-          style={{ fontSize: DS.font.base, color: DS.color.brand.primary, fontWeight: 600 }}
-          onClick={() => { setSelectedParent(null); }}
-          data-testid="btn-back-categories"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          All Categories
-        </button>
-      )}
-
       <div className="grid grid-cols-3 gap-3" data-testid="category-grid">
-        {displayCategories.map((cat) => {
-          const isParentWithChildren = !showingSubcategories && cat.children && cat.children.length > 0;
+        {apiCategories.map((cat) => {
           const sel = draft.category === cat.name;
-          const img = CATEGORY_IMAGES[cat.name] || CATEGORY_IMAGES[selectedParent?.name || ""] || catCommunity;
+          const img = CATEGORY_IMAGES[cat.name] || catCommunity;
           return (
             <button
               key={cat.id}
               className="flex flex-col items-center"
-              onClick={() => {
-                if (isParentWithChildren) {
-                  setSelectedParent(cat);
-                } else {
-                  setDraft({ ...draft, category: sel ? "" : cat.name });
-                }
-              }}
+              onClick={() => setDraft({ ...draft, category: sel ? "" : cat.name })}
               data-testid={`category-${cat.name.toLowerCase().replace(/[&\s]+/g, "-")}`}
             >
               <div
@@ -392,11 +357,6 @@ function StepCategory({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) 
                 {sel && (
                   <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full" style={{ backgroundColor: DS.color.brand.primary }}>
                     <Check className="h-3 w-3 text-white" />
-                  </div>
-                )}
-                {isParentWithChildren && (
-                  <div className="absolute bottom-0 left-0 right-0 py-0.5 text-center text-white" style={{ fontSize: DS.font.xxs, backgroundColor: "rgba(0,0,0,0.45)" }}>
-                    {cat.children!.length} subcategories
                   </div>
                 )}
               </div>
