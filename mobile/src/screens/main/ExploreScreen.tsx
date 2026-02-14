@@ -233,14 +233,8 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 78 + 60;
-  const HEADER_COLLAPSED = 78 + 36;
-
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [HEADER_EXPANDED, HEADER_COLLAPSED],
-    extrapolate: 'clamp',
-  });
+  const HEADER_EXPANDED = 84 + 60;
+  const HEADER_COLLAPSED = 84 + 32;
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
@@ -445,10 +439,10 @@ export default function ExploreScreen() {
 
   return (
     <View style={[styles.outerContainer, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
-      <Animated.View style={[styles.overlayHeader, { height: headerHeight }]}>
+      <View style={styles.overlayHeader}>
         {renderSearchHeader()}
         {renderTabs()}
-      </Animated.View>
+      </View>
 
       {isEmpty ? (
         <Animated.ScrollView
@@ -573,13 +567,12 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: Colors.neutral.cloudGrey,
-    overflow: 'hidden',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 34,
+    paddingTop: 40,
     paddingBottom: 4,
     gap: 12,
   },
