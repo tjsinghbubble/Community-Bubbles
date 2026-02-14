@@ -68,7 +68,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [activeTab, setActiveTab] = useState<'Details' | 'Events'>('Details');
   const [showKebabMenu, setShowKebabMenu] = useState(false);
   const [aboutExpanded, setAboutExpanded] = useState(false);
-  const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   const [memberCount, setMemberCount] = useState<number>(bubble.members || 0);
 
   useEffect(() => {
