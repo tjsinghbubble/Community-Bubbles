@@ -275,25 +275,35 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   if (submitSuccess) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centeredContainer}>
-          <Text style={styles.celebrationEmoji}>🎉</Text>
-          <Text style={styles.successTitle}>Thanks for submitting your bubble</Text>
-          <Text style={styles.successSubtitle}>
-            We'll look over the details and let you know when your bubble is live
-          </Text>
-          <TouchableOpacity
-            style={styles.finishButton}
-            onPress={() => navigation.goBack()}
-          >
-            <LinearGradient
-              colors={Gradients.button.colors as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.primaryButton}
+        <View style={styles.successContainer}>
+          <View style={styles.successTopSection}>
+            <Text style={styles.successTitle}>Thanks for submitting{'\n'}your bubble</Text>
+            <Text style={styles.successSubtitle}>
+              We'll look over the details and let you know when your bubble is live.
+            </Text>
+          </View>
+          <View style={styles.successImageContainer}>
+            <Image
+              source={require('../../assets/images/bubble-submitted.png')}
+              style={styles.successImage}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.successBottomSection}>
+            <TouchableOpacity
+              style={styles.finishButton}
+              onPress={() => navigation.goBack()}
             >
-              <Text style={styles.primaryButtonText}>Finish</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={Gradients.button.colors as [string, string]}
+                start={Gradients.button.start}
+                end={Gradients.button.end}
+                style={styles.primaryButton}
+              >
+                <Text style={styles.primaryButtonText}>Finish</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -615,7 +625,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           <Ionicons name="people-outline" size={18} color={Colors.text.primary} />
           <Text style={styles.previewMembersText}>{memberLimit || '0'} Members</Text>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Members', `1 member\n\n• ${user?.name || 'You'} (Creator)`)}>
           <Text style={styles.previewViewLink}>view {'>'}</Text>
         </TouchableOpacity>
       </View>
@@ -1147,47 +1157,56 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
-  finishButton: {
-    width: '80%',
-    marginTop: Spacing.xxxl,
-  },
-
   centeredContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.xxxl,
   },
-  celebrationEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.lg,
-  },
-  loadingImage: {
-    width: 120,
-    height: 120,
-  },
   loadingText: {
     marginTop: Spacing.lg,
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
   },
-  successImage: {
-    width: 200,
-    height: 200,
-    marginBottom: Spacing.xl,
+  successContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  successTopSection: {
+    alignItems: 'center',
+    paddingTop: Spacing.xxxl * 2,
+    paddingHorizontal: Spacing.xxxl,
   },
   successTitle: {
-    fontSize: Typography.sizes.xxl,
+    fontSize: 24,
     fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: Spacing.md,
+    lineHeight: 32,
   },
   successSubtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
     textAlign: 'center',
     lineHeight: Typography.lineHeight.base,
+  },
+  successImageContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successImage: {
+    width: SCREEN_WIDTH * 0.75,
+    height: SCREEN_WIDTH * 0.75,
+  },
+  successBottomSection: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xxxl,
+    paddingBottom: Platform.OS === 'ios' ? Spacing.xxxl * 1.5 : Spacing.xxxl,
+  },
+  finishButton: {
+    width: '100%',
   },
 
   modalOverlay: {
