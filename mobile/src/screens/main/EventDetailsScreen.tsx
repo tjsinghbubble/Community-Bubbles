@@ -353,14 +353,26 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <View style={styles.aboutSection}>
-          {isRsvpd ? (
+        {(spotsLeft !== null && spotsLeft > 0) ? (
+          <Text style={styles.spotsTextCentered}>{spotsLeft} spots left</Text>
+        ) : isFull ? (
+          <Text style={styles.spotsTextCentered}>Event Full</Text>
+        ) : null}
+
+        {isRsvpd && (
+          <View style={styles.rsvpStatusRow}>
             <Text style={styles.goingText}>Going</Text>
-          ) : spotsLeft !== null && spotsLeft > 0 ? (
-            <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
-          ) : isFull ? (
-            <Text style={styles.spotsText}>Event Full</Text>
-          ) : null}
+            <TouchableOpacity onPress={handleRsvp} disabled={isRsvping}>
+              {isRsvping ? (
+                <ActivityIndicator color={Colors.status.error} size="small" />
+              ) : (
+                <Text style={styles.notGoingInlineText}>Not Going</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.aboutSection}>
           {event.description && (
             <Text style={styles.aboutText} numberOfLines={3}>{event.description}</Text>
           )}
@@ -489,15 +501,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
 
-        {isRsvpd && (
-          <TouchableOpacity style={styles.notGoingButton} onPress={handleRsvp} disabled={isRsvping}>
-            {isRsvping ? (
-              <ActivityIndicator color={Colors.status.error} size="small" />
-            ) : (
-              <Text style={styles.notGoingText}>Not Going</Text>
-            )}
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
       <SuccessModal
@@ -574,26 +577,31 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: Radius.md,
   },
-  spotsText: {
+  spotsTextCentered: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF3B30',
-    marginBottom: Spacing.xs,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+  },
+  rsvpStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.md,
   },
   goingText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.status.success,
-    marginBottom: Spacing.xs,
+  },
+  notGoingInlineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.status.error,
   },
   aboutSection: {
     marginTop: Spacing.lg,
-  },
-  aboutTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E1F26',
-    marginBottom: Spacing.sm,
   },
   aboutText: {
     fontSize: 14,
@@ -806,19 +814,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.brand.primary,
-  },
-  notGoingButton: {
-    borderWidth: 1.5,
-    borderColor: Colors.status.error,
-    borderRadius: Radius.full,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: Spacing.md,
-  },
-  notGoingText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.status.error,
   },
 });
