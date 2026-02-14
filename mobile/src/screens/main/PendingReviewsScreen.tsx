@@ -86,7 +86,6 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.approveBubble(bubbleId);
       setPendingBubbles(prev => prev.filter(b => b.id !== bubbleId));
-      Alert.alert('Approved', 'Bubble has been approved and is now visible');
     } catch (error) {
       Alert.alert('Error', 'Failed to approve bubble');
     } finally {
@@ -126,7 +125,6 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.approveEvent(eventId);
       setPendingEvents(prev => prev.filter(e => e.id !== eventId));
-      Alert.alert('Approved', 'Event has been approved and is now visible');
     } catch (error) {
       Alert.alert('Error', 'Failed to approve event');
     } finally {
