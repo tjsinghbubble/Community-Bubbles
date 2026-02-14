@@ -234,7 +234,7 @@ export default function ExploreScreen() {
   });
 
   const HEADER_EXPANDED = 72 + 56;
-  const HEADER_COLLAPSED = 72 + 28;
+  const HEADER_COLLAPSED = 72 + 36;
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, SCROLL_THRESHOLD],
