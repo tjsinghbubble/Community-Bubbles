@@ -353,25 +353,19 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <Text style={styles.eventName}>{event.title}</Text>
-
-        {isRsvpd ? (
-          <Text style={styles.goingText}>Going</Text>
-        ) : spotsLeft !== null && spotsLeft > 0 ? (
-          <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
-        ) : isFull ? (
-          <Text style={styles.spotsText}>Event Full</Text>
-        ) : null}
-
-        <Text style={styles.dateText}>{formatDateFull(event.date)}</Text>
-        <Text style={styles.timeText}>{getTimeRange()}</Text>
-
-        {event.description && (
-          <View style={styles.aboutSection}>
-            <Text style={styles.aboutTitle}>About</Text>
+        <View style={styles.aboutSection}>
+          <Text style={styles.aboutTitle}>About</Text>
+          {isRsvpd ? (
+            <Text style={styles.goingText}>Going</Text>
+          ) : spotsLeft !== null && spotsLeft > 0 ? (
+            <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
+          ) : isFull ? (
+            <Text style={styles.spotsText}>Event Full</Text>
+          ) : null}
+          {event.description && (
             <Text style={styles.aboutText} numberOfLines={3}>{event.description}</Text>
-          </View>
-        )}
+          )}
+        </View>
 
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
@@ -406,18 +400,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </View>
-
-        {canManage && (
-          <TouchableOpacity style={styles.editEventButton} onPress={handleEdit}>
-            <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <Text style={styles.editEventText}>Edit Event</Text>
-          </TouchableOpacity>
-        )}
 
         <View style={styles.separator} />
 
@@ -593,40 +575,17 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: Radius.md,
   },
-  eventName: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1E1F26',
-    textAlign: 'center',
-    marginTop: Spacing.lg,
-  },
   spotsText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF3B30',
-    textAlign: 'center',
-    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
   goingText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.status.success,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-  },
-  dateText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4D4D4D',
-    textAlign: 'center',
-    marginTop: Spacing.sm,
-  },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4D4D4D',
-    textAlign: 'center',
-    marginTop: 2,
+    marginBottom: Spacing.xs,
   },
   aboutSection: {
     marginTop: Spacing.lg,
@@ -670,19 +629,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.brand.primary,
-  },
-  editEventButton: {
-    borderRadius: Radius.full,
-    height: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginTop: Spacing.lg,
-  },
-  editEventText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
   },
   separator: {
     height: 1,
