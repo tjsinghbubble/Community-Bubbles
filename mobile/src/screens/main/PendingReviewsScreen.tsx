@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -42,11 +42,50 @@ type PendingEvent = {
   createdAt: string;
 };
 
+type ReportItem = {
+  id: string;
+  reportType: string;
+  reason: string;
+  freeText?: string;
+  reporterUserId: string;
+  reportedUserId?: string;
+  bubbleId: string;
+  eventId?: string;
+  visibleTo: string;
+  status: string;
+  createdAt: string;
+  reporter: { id: string; name: string; email: string };
+  reportedUser?: { id: string; name: string; email: string };
+  bubble?: { id: string; title: string };
+};
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  individual: 'Person',
+  bubble: 'Bubble',
+  event: 'Event',
+  admin: 'Admin',
+};
+
+const REPORT_TYPE_ICONS: Record<string, string> = {
+  individual: 'person-outline',
+  bubble: 'apps-outline',
+  event: 'calendar-outline',
+  admin: 'shield-outline',
+};
+
+const REPORT_TYPE_COLORS: Record<string, string> = {
+  individual: '#FF9500',
+  bubble: Colors.brand.bubbleBlue,
+  event: '#AF52DE',
+  admin: '#FF3B30',
+};
+
 export default function PendingReviewsScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const [pendingBubbles, setPendingBubbles] = useState<PendingBubble[]>([]);
   const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
+  const [reports, setReports] = useState<ReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -55,17 +94,32 @@ export default function PendingReviewsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadPendingItems();
+      loadAllItems();
     }, [])
   );
 
-  const loadPendingItems = async () => {
+  const loadAllItems = async () => {
     try {
       if (isSuperAdmin) {
-        const bubbles = await apiService.getPendingBubbles();
+        const [bubbles, adminReports] = await Promise.all([
+          apiService.getPendingBubbles(),
+          apiService.getAdminReports(),
+        ]);
         setPendingBubbles(bubbles);
+        setReports(adminReports);
+      } else {
+        const myBubbles = await apiService.getMyBubbles();
+        const adminBubbles = (myBubbles as any[]).filter((b: any) => b.role === 'admin');
+        const allReports: ReportItem[] = [];
+        for (const bubble of adminBubbles) {
+          try {
+            const bubbleReports = await apiService.getBubbleReports(bubble.id);
+            allReports.push(...bubbleReports);
+          } catch {}
+        }
+        setReports(allReports);
       }
-      
+
       const events = await apiService.getPendingEvents();
       setPendingEvents(events);
     } catch (error) {
@@ -78,7 +132,7 @@ export default function PendingReviewsScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadPendingItems();
+    loadAllItems();
   };
 
   const handleApproveBubble = async (bubbleId: string) => {
@@ -159,9 +213,53 @@ export default function PendingReviewsScreen() {
     );
   };
 
+  const handleResolveReport = async (reportId: string) => {
+    setActionLoading(reportId);
+    try {
+      await apiService.updateReportStatus(reportId, 'resolved');
+      setReports(prev => prev.filter(r => r.id !== reportId));
+      Alert.alert('Resolved', 'Report has been marked as resolved');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to resolve report');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDismissReport = async (reportId: string) => {
+    Alert.alert(
+      'Dismiss Report',
+      'Are you sure you want to dismiss this report?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Dismiss',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(reportId);
+            try {
+              await apiService.updateReportStatus(reportId, 'dismissed');
+              setReports(prev => prev.filter(r => r.id !== reportId));
+              Alert.alert('Dismissed', 'Report has been dismissed');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to dismiss report');
+            } finally {
+              setActionLoading(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
   if (loading) {
@@ -174,7 +272,8 @@ export default function PendingReviewsScreen() {
     );
   }
 
-  const hasPendingItems = pendingBubbles.length > 0 || pendingEvents.length > 0;
+  const pendingReports = reports.filter(r => r.status === 'pending');
+  const hasPendingItems = pendingBubbles.length > 0 || pendingEvents.length > 0 || pendingReports.length > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -320,6 +419,110 @@ export default function PendingReviewsScreen() {
                 ))}
               </View>
             )}
+
+            {pendingReports.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Ionicons name="flag" size={16} color={Colors.state.error} />
+                  <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 6 }]}>
+                    Reports ({pendingReports.length})
+                  </Text>
+                </View>
+                {pendingReports.map(report => {
+                  const typeColor = REPORT_TYPE_COLORS[report.reportType] || Colors.neutral.coolMist;
+                  const typeIcon = REPORT_TYPE_ICONS[report.reportType] || 'alert-circle-outline';
+                  const typeLabel = REPORT_TYPE_LABELS[report.reportType] || report.reportType;
+
+                  return (
+                    <View key={report.id} style={styles.card}>
+                      <View style={styles.reportHeader}>
+                        <View style={[styles.reportTypeBadge, { backgroundColor: typeColor + '18' }]}>
+                          <Ionicons name={typeIcon as any} size={14} color={typeColor} />
+                          <Text style={[styles.reportTypeText, { color: typeColor }]}>
+                            {typeLabel} Report
+                          </Text>
+                        </View>
+                        <Text style={styles.reportDate}>
+                          {formatDate(report.createdAt)}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.reportReason}>{report.reason}</Text>
+
+                      {report.freeText && (
+                        <View style={styles.reportFreeTextBox}>
+                          <Ionicons name="chatbubble-ellipses-outline" size={14} color={Colors.neutral.coolMist} />
+                          <Text style={styles.reportFreeText}>"{report.freeText}"</Text>
+                        </View>
+                      )}
+
+                      <View style={styles.reportMeta}>
+                        <View style={styles.reportMetaRow}>
+                          <Ionicons name="person-outline" size={13} color={Colors.neutral.coolMist} />
+                          <Text style={styles.reportMetaText}>
+                            Reported by: {report.reporter?.name || 'Unknown'}
+                          </Text>
+                        </View>
+                        {report.reportedUser && (
+                          <View style={styles.reportMetaRow}>
+                            <Ionicons name="alert-circle-outline" size={13} color={'#FF9500'} />
+                            <Text style={styles.reportMetaText}>
+                              About: {report.reportedUser.name}
+                            </Text>
+                          </View>
+                        )}
+                        {report.bubble && (
+                          <View style={styles.reportMetaRow}>
+                            <Ionicons name="apps-outline" size={13} color={Colors.brand.bubbleBlue} />
+                            <Text style={styles.reportMetaText}>
+                              Bubble: {report.bubble.title}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.reportMetaRow}>
+                          <Ionicons name="eye-outline" size={13} color={Colors.neutral.coolMist} />
+                          <Text style={styles.reportMetaText}>
+                            Routed to: {report.visibleTo === 'superadmin' ? 'Super Admins' : report.visibleTo === 'bubble_admin' ? 'Bubble Admins' : 'Both'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.cardActions}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.dismissButton]}
+                          onPress={() => handleDismissReport(report.id)}
+                          disabled={actionLoading === report.id}
+                        >
+                          {actionLoading === report.id ? (
+                            <ActivityIndicator size="small" color={Colors.neutral.coolMist} />
+                          ) : (
+                            <>
+                              <Ionicons name="close-circle-outline" size={18} color={Colors.neutral.coolMist} />
+                              <Text style={styles.dismissText}>Dismiss</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.resolveButton]}
+                          onPress={() => handleResolveReport(report.id)}
+                          disabled={actionLoading === report.id}
+                        >
+                          {actionLoading === report.id ? (
+                            <ActivityIndicator size="small" color="#34C759" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />
+                              <Text style={styles.resolveText}>Resolve</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -381,6 +584,11 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 14,
@@ -482,5 +690,77 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.neutral.charcoal,
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  reportTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  reportTypeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reportDate: {
+    fontSize: 12,
+    color: Colors.neutral.coolMist,
+  },
+  reportReason: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    marginBottom: 8,
+  },
+  reportFreeTextBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#F5F5F7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  reportFreeText: {
+    fontSize: 13,
+    color: Colors.neutral.charcoal,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+  reportMeta: {
+    gap: 6,
+    marginBottom: 4,
+  },
+  reportMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reportMetaText: {
+    fontSize: 13,
+    color: Colors.neutral.coolMist,
+  },
+  dismissButton: {
+    backgroundColor: '#F5F5F7',
+  },
+  dismissText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.neutral.coolMist,
+  },
+  resolveButton: {
+    backgroundColor: '#E8FAE8',
+  },
+  resolveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34C759',
   },
 });

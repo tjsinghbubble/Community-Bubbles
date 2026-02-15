@@ -423,7 +423,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.spotsRsvpRow}>
           {spotsLeft !== null && (
-            <Text style={[styles.spotsRedText, { marginRight: 5 }]}>
+            <Text style={[styles.spotsGreenText, { marginRight: 5 }]}>
               {isFull ? 'Event Full' : `${spotsLeft} spots left`}
             </Text>
           )}
@@ -772,10 +772,10 @@ const styles = StyleSheet.create({
     zIndex: 100,
     position: 'relative',
   },
-  spotsRedText: {
+  spotsGreenText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: '#34C759',
   },
   rsvpDropdownWrapper: {
     position: 'absolute',

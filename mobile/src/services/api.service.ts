@@ -395,6 +395,25 @@ class ApiService {
       body: JSON.stringify(data),
     });
   }
+
+  async getAdminReports() {
+    return this.request<any[]>("/api/admin/reports", {
+      method: "GET",
+    });
+  }
+
+  async getBubbleReports(bubbleId: string) {
+    return this.request<any[]>(`/api/bubbles/${bubbleId}/reports`, {
+      method: "GET",
+    });
+  }
+
+  async updateReportStatus(reportId: string, status: string) {
+    return this.request<any>(`/api/reports/${reportId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

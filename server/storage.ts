@@ -128,6 +128,7 @@ export interface IStorage {
 
   // Reports
   createReport(report: InsertReport): Promise<Report>;
+  getReport(id: string): Promise<Report | undefined>;
   getReportsForBubble(bubbleId: string): Promise<(Report & { reporter: User; reportedUser?: User })[]>;
   getReportsForSysAdmin(): Promise<(Report & { reporter: User; reportedUser?: User; bubble: Bubble })[]>;
   updateReportStatus(id: string, status: string): Promise<Report | undefined>;
@@ -1005,6 +1006,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getReport(id: string): Promise<Report | undefined> {
+    const result = await db.select().from(reports).where(eq(reports.id, id));
+    return result[0];
+  }
+
   async getReportsForBubble(bubbleId: string): Promise<(Report & { reporter: User; reportedUser?: User })[]> {
     const result = await db.select().from(reports)
       .where(and(
@@ -1019,7 +1025,8 @@ export class DatabaseStorage implements IStorage {
     const enriched = await Promise.all(result.map(async (r) => {
       const reporter = await this.getUser(r.reporterUserId);
       const reportedUser = r.reportedUserId ? await this.getUser(r.reportedUserId) : undefined;
-      return { ...r, reporter: reporter!, reportedUser };
+      const bubble = await this.getBubble(r.bubbleId);
+      return { ...r, reporter: reporter!, reportedUser, bubble: bubble! };
     }));
     return enriched;
   }

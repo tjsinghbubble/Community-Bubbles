@@ -1505,7 +1505,12 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) {
-        return res.status(403).json({ error: "Super admin access required" });
+        const report = await storage.getReport(req.params.id);
+        if (!report) return res.status(404).json({ error: "Report not found" });
+        const role = await storage.getMemberRole(req.userId!, report.bubbleId);
+        if (role !== 'admin') {
+          return res.status(403).json({ error: "Admin access required" });
+        }
       }
       const report = await storage.updateReportStatus(req.params.id, req.body.status);
       if (!report) return res.status(404).json({ error: "Report not found" });
