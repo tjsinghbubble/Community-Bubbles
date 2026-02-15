@@ -10,10 +10,12 @@ import {
   RefreshControl,
   Platform,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import cometChatService from '../../services/cometchat.service';
+import apiService from '../../services/api.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
@@ -44,11 +46,39 @@ export default function MessagesScreen({ navigation }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
+
+  const fetchBubbleImages = async (convs: Conversation[]) => {
+    const imageMap: Record<string, string | null> = {};
+    const fetchPromises = convs.map(async (conv) => {
+      const guid = conv.conversationWith.guid;
+      if (conv.conversationWith.icon) {
+        imageMap[guid] = conv.conversationWith.icon;
+        return;
+      }
+      try {
+        const bubble = await apiService.getBubble(guid) as any;
+        if (bubble?.coverImage) {
+          imageMap[guid] = bubble.coverImage;
+        } else if (bubble?.images?.length > 0) {
+          imageMap[guid] = bubble.images[0];
+        } else {
+          imageMap[guid] = null;
+        }
+      } catch {
+        imageMap[guid] = null;
+      }
+    });
+    await Promise.all(fetchPromises);
+    setBubbleImages(imageMap);
+  };
 
   const fetchConversations = async () => {
     try {
       const data = await cometChatService.getConversations();
-      setConversations(data as unknown as Conversation[]);
+      const convs = data as unknown as Conversation[];
+      setConversations(convs);
+      fetchBubbleImages(convs);
     } catch (error) {
       console.error('Failed to fetch conversations:', error);
     } finally {
@@ -90,6 +120,28 @@ export default function MessagesScreen({ navigation }: Props) {
     } else {
       return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
+  };
+
+  const renderAvatar = (conversation: Conversation) => {
+    const guid = conversation.conversationWith.guid;
+    const imageUrl = bubbleImages[guid] || conversation.conversationWith.icon;
+
+    if (imageUrl) {
+      return (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.avatarImage}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.avatar}>
+        <Text style={styles.avatarText}>
+          {conversation.conversationWith.name.charAt(0).toUpperCase()}
+        </Text>
+      </View>
+    );
   };
 
   if (isLoading) {
@@ -139,11 +191,7 @@ export default function MessagesScreen({ navigation }: Props) {
             style={styles.conversationItem}
             onPress={() => handleConversationPress(conversation)}
           >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {conversation.conversationWith.name.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            {renderAvatar(conversation)}
             
             <View style={styles.conversationContent}>
               <View style={styles.conversationHeader}>
@@ -236,6 +284,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+    backgroundColor: Colors.neutral.coolMist,
   },
   avatarText: {
     color: Colors.brand.skyWhite,
