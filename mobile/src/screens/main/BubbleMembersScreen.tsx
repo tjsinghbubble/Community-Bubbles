@@ -60,7 +60,6 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportFreeText, setReportFreeText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [removeModalVisible, setRemoveModalVisible] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
 
   const REPORT_REASONS = [
@@ -203,36 +202,40 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const handleRemoveFromGroup = () => {
     setMenuVisible(false);
     if (!selectedMember) return;
-    setRemoveTarget(selectedMember);
-    setRemoveModalVisible(true);
-  };
-
-  const confirmRemove = async () => {
-    if (!removeTarget) return;
-    try {
-      await apiService.removeMember(bubbleId, removeTarget.userId);
-      setMembers(prev => prev.filter(m => m.userId !== removeTarget.userId));
-      setRemoveModalVisible(false);
-      setRemoveTarget(null);
-      Alert.alert('Removed', `${removeTarget.user.name} has been removed from ${bubbleTitle}`);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to remove member');
-      setRemoveModalVisible(false);
-      setRemoveTarget(null);
-    }
+    const member = selectedMember;
+    Alert.alert(
+      `Remove '${member.user.name}' from '${bubbleTitle}'?`,
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.removeMember(bubbleId, member.userId);
+              setMembers(prev => prev.filter(m => m.userId !== member.userId));
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to remove member');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleMakeAdmin = () => {
     setMenuVisible(false);
     if (!selectedMember) return;
+    const member = selectedMember;
     Alert.alert(
-      'Make admin',
-      `Make ${selectedMember.user.name} an admin of ${bubbleTitle}?`,
+      `Make '${member.user.name}' Admin for '${bubbleTitle}'?`,
+      undefined,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => updateMemberRole(selectedMember.userId, 'admin'),
+          onPress: () => updateMemberRole(member.userId, 'admin'),
         },
       ]
     );
@@ -438,37 +441,6 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={removeModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRemoveModalVisible(false)}
-      >
-        <View style={styles.removeOverlay}>
-          <View style={styles.removeDialog}>
-            <Text style={styles.removeTitle}>
-              Remove '{removeTarget?.user.name}' from '{bubbleTitle}'?
-            </Text>
-            <Text style={styles.removeSubtitle}>
-              They will no longer be a member of this bubble.
-            </Text>
-            <View style={styles.removeActions}>
-              <TouchableOpacity
-                style={styles.removeCancelButton}
-                onPress={() => { setRemoveModalVisible(false); setRemoveTarget(null); }}
-              >
-                <Text style={styles.removeCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.removeConfirmButton}
-                onPress={confirmRemove}
-              >
-                <Text style={styles.removeConfirmText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       <Modal
         visible={reportModalVisible}
@@ -709,61 +681,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.neutral.cloudGrey,
     marginHorizontal: 20,
-  },
-  removeOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeDialog: {
-    backgroundColor: Colors.brand.skyWhite,
-    borderRadius: 16,
-    padding: 24,
-    marginHorizontal: 32,
-    width: '85%',
-  },
-  removeTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  removeSubtitle: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  removeActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  removeCancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    alignItems: 'center',
-  },
-  removeCancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
-  removeConfirmButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: Colors.status.error,
-    alignItems: 'center',
-  },
-  removeConfirmText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.brand.skyWhite,
   },
   reportOverlay: {
     flex: 1,

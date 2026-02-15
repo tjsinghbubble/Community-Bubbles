@@ -168,41 +168,45 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
   const handleRemoveFromGroup = () => {
     setMenuVisible(false);
     if (!selectedAttendee) return;
-    setRemoveTarget(selectedAttendee);
-    setRemoveModalVisible(true);
+    const attendee = selectedAttendee;
+    Alert.alert(
+      `Remove '${attendee.user.name}' from '${bubbleTitle}'?`,
+      undefined,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.removeMember(bubbleId, attendee.userId);
+              setAttendees(prev => prev.filter(a => a.userId !== attendee.userId));
+              setBubbleMembers(prev => prev.filter(m => m.userId !== attendee.userId));
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to remove member');
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const confirmRemove = async () => {
-    if (!removeTarget) return;
-    try {
-      await apiService.removeMember(bubbleId, removeTarget.userId);
-      setAttendees(prev => prev.filter(a => a.userId !== removeTarget.userId));
-      setBubbleMembers(prev => prev.filter(m => m.userId !== removeTarget.userId));
-      setRemoveModalVisible(false);
-      setRemoveTarget(null);
-      Alert.alert('Removed', `${removeTarget.user.name} has been removed from ${bubbleTitle}`);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to remove member');
-      setRemoveModalVisible(false);
-      setRemoveTarget(null);
-    }
-  };
-
-  const handleMakeAdmin = async () => {
+  const handleMakeAdmin = () => {
     setMenuVisible(false);
     if (!selectedAttendee) return;
+    const attendee = selectedAttendee;
     Alert.alert(
-      'Make admin',
-      `Make ${selectedAttendee.user.name} an admin of ${bubbleTitle}?`,
+      `Make '${attendee.user.name}' Admin for '${bubbleTitle}'?`,
+      undefined,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
           onPress: async () => {
             try {
-              await apiService.updateMemberRole(bubbleId, selectedAttendee.userId, 'admin');
+              await apiService.updateMemberRole(bubbleId, attendee.userId, 'admin');
               setBubbleMembers(prev => prev.map(m =>
-                m.userId === selectedAttendee.userId ? { ...m, role: 'admin' } : m
+                m.userId === attendee.userId ? { ...m, role: 'admin' } : m
               ));
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to update role');
