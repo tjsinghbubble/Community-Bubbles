@@ -1055,7 +1055,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     </View>
                   )}
                   <View style={styles.bubbleRowTextContainer}>
-                    <Text style={styles.bubbleRowName}>{bubble.title}</Text>
+                    <Text style={styles.bubbleRowName} numberOfLines={1}>{bubble.title.length > 25 ? bubble.title.substring(0, 25) + '...' : bubble.title}</Text>
                     <Text style={styles.bubbleRowCategory}>{bubble.category}</Text>
                   </View>
                 </TouchableOpacity>
