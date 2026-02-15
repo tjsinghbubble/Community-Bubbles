@@ -559,7 +559,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               <View style={styles.ruleContent}>
                 <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
               </View>
-              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
+              <View style={styles.ruleDragHandle}>
+                <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -574,7 +576,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               {DEFAULT_OPTIONAL_RULE}
             </Text>
           </View>
-          <Ionicons name={expandedRuleIndex === defaultRuleGlobalIndex ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
+          <View style={styles.ruleDragHandle}>
+            <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+          </View>
         </TouchableOpacity>
 
         {customRules.map((rule, index) => {
