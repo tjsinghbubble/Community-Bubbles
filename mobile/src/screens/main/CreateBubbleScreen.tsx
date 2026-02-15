@@ -541,8 +541,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     return (
       <View style={styles.formSection}>
         <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
-          <Ionicons name="add" size={20} color={Colors.brand.primary} />
-          <Text style={styles.addRuleText}>Add Rule</Text>
+          <View style={styles.addRuleDashedBorder}>
+            <Ionicons name="add" size={20} color={Colors.brand.primary} />
+            <Text style={styles.addRuleText}>Add Rule</Text>
+          </View>
         </TouchableOpacity>
 
         {MANDATORY_RULES.map((rule, index) => {
@@ -1173,10 +1175,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addRuleButton: {
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  addRuleDashedBorder: {
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: Colors.brand.primary,
-    borderRadius: Radius.lg,
+    borderRadius: Platform.OS === 'ios' ? Radius.lg : 0,
     paddingVertical: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
