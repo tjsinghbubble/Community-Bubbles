@@ -26,6 +26,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
@@ -388,8 +389,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const hasImages = eventImages.length > 0;
   const locationDisplay = event.locationAddress || event.locationName || '';
 
-  const mapImageUrl = event.locationName
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=14&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${process.env.GOOGLE_PLACES_API_KEY || ''}`
+  const mapImageUrl = event.locationName && GOOGLE_PLACES_API_KEY
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${GOOGLE_PLACES_API_KEY}`
     : null;
 
   return (
@@ -469,11 +470,21 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.infoRows}>
-          <View style={[styles.infoRow, { zIndex: 100, position: 'relative' }]}>
-            <View style={styles.infoIconContainer}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.text.tertiary} />
+          <View style={[styles.dateTimeRsvpRow, { zIndex: 100 }]}>
+            <View style={styles.dateTimeColumn}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="calendar-outline" size={18} color={Colors.text.tertiary} />
+                </View>
+                <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="time-outline" size={18} color={Colors.text.tertiary} />
+                </View>
+                <Text style={styles.infoText}>{getTimeRange()}</Text>
+              </View>
             </View>
-            <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
             <View style={styles.rsvpDropdownWrapper}>
               <TouchableOpacity
                 style={[
@@ -528,12 +539,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-          </View>
-          <View style={styles.infoRow}>
-            <View style={styles.infoIconContainer}>
-              <Ionicons name="time-outline" size={18} color={Colors.text.tertiary} />
-            </View>
-            <Text style={styles.infoText}>{getTimeRange()}</Text>
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -847,9 +852,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#34C759',
   },
+  dateTimeRsvpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    position: 'relative',
+  },
+  dateTimeColumn: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
   rsvpDropdownWrapper: {
-    marginLeft: 'auto',
-    marginTop: 5,
+    marginLeft: Spacing.md,
+    marginTop: 10,
   },
   rsvpDropdownButton: {
     flexDirection: 'row',
@@ -910,7 +925,7 @@ const styles = StyleSheet.create({
   },
   infoRows: {
     marginTop: Spacing.lg,
-    gap: Spacing.md,
+    gap: Spacing.sm,
     zIndex: 100,
   },
   infoRow: {

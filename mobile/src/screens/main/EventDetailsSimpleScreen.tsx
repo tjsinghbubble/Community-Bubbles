@@ -23,6 +23,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
@@ -333,8 +334,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const hasImages = eventImages.length > 0;
   const locationDisplay = event.locationAddress || event.locationName || '';
 
-  const mapImageUrl = event.locationName
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=14&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${process.env.GOOGLE_PLACES_API_KEY || ''}`
+  const mapImageUrl = event.locationName && GOOGLE_PLACES_API_KEY
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${GOOGLE_PLACES_API_KEY}`
     : null;
 
   return (
