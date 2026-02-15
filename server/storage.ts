@@ -628,16 +628,29 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, userId));
   }
 
+  async getRealMemberCount(bubbleId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(memberships)
+      .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved')));
+    return result[0]?.count || 0;
+  }
+
+  async attachRealMemberCounts(bubbleList: Bubble[]): Promise<Bubble[]> {
+    const counts = await Promise.all(bubbleList.map(b => this.getRealMemberCount(b.id)));
+    return bubbleList.map((b, i) => ({ ...b, members: counts[i] }));
+  }
+
   async getPublicBubbles(): Promise<Bubble[]> {
-    return db.select().from(bubbles)
+    const result = await db.select().from(bubbles)
       .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved'), ne(bubbles.privacy, 'Private')))
       .orderBy(desc(bubbles.createdAt));
+    return this.attachRealMemberCounts(result);
   }
 
   async getCampusBubbles(campusId: string): Promise<Bubble[]> {
-    return db.select().from(bubbles)
+    const result = await db.select().from(bubbles)
       .where(and(eq(bubbles.campusId, campusId), eq(bubbles.status, 'approved')))
       .orderBy(desc(bubbles.createdAt));
+    return this.attachRealMemberCounts(result);
   }
 
   async getPublicEvents(): Promise<(Event & { bubble: Bubble })[]> {

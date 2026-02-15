@@ -238,12 +238,12 @@ export async function registerRoutes(
 
   app.get("/api/bubbles/my", authMiddleware, async (req, res) => {
     try {
-      const memberships = await storage.getUserMemberships(req.userId!);
-      const bubbles = memberships.map((m) => ({
-        ...m.bubble,
-        role: m.role,
+      const membershipList = await storage.getUserMemberships(req.userId!);
+      const bubblesWithCounts = await Promise.all(membershipList.map(async (m) => {
+        const realCount = await storage.getRealMemberCount(m.bubble.id);
+        return { ...m.bubble, members: realCount, role: m.role };
       }));
-      res.json(bubbles);
+      res.json(bubblesWithCounts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -274,7 +274,8 @@ export async function registerRoutes(
         }
       }
       
-      res.json(bubble);
+      const realMemberCount = await storage.getRealMemberCount(bubble.id);
+      res.json({ ...bubble, members: realMemberCount });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
