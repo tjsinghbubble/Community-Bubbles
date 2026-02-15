@@ -106,6 +106,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [expandAbout, setExpandAbout] = useState(true);
   const [expandAttachments, setExpandAttachments] = useState(false);
   const [expandRules, setExpandRules] = useState(false);
+  const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
 
   const sliderWidth = useRef(0);
 
@@ -189,14 +190,48 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       updated[editingRuleIndex] = trimmed;
       setCustomRules(updated);
     } else {
-      setCustomRules([...customRules, trimmed]);
+      setCustomRules([trimmed, ...customRules]);
     }
     setShowRuleModal(false);
     setRuleText('');
   };
 
+  const customGlobalOffset = MANDATORY_RULES.length + 1;
+
   const deleteRule = (index: number) => {
+    const globalIndex = customGlobalOffset + index;
     setCustomRules(customRules.filter((_, i) => i !== index));
+    if (expandedRuleIndex === globalIndex) {
+      setExpandedRuleIndex(null);
+    } else if (expandedRuleIndex !== null && expandedRuleIndex > globalIndex) {
+      setExpandedRuleIndex(expandedRuleIndex - 1);
+    }
+  };
+
+  const moveRuleUp = (index: number) => {
+    if (index <= 0) return;
+    const globalIndex = customGlobalOffset + index;
+    const globalAbove = customGlobalOffset + index - 1;
+    const updated = [...customRules];
+    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    setCustomRules(updated);
+    if (expandedRuleIndex === globalIndex) setExpandedRuleIndex(globalAbove);
+    else if (expandedRuleIndex === globalAbove) setExpandedRuleIndex(globalIndex);
+  };
+
+  const moveRuleDown = (index: number) => {
+    if (index >= customRules.length - 1) return;
+    const globalIndex = customGlobalOffset + index;
+    const globalBelow = customGlobalOffset + index + 1;
+    const updated = [...customRules];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    setCustomRules(updated);
+    if (expandedRuleIndex === globalIndex) setExpandedRuleIndex(globalBelow);
+    else if (expandedRuleIndex === globalBelow) setExpandedRuleIndex(globalIndex);
+  };
+
+  const toggleRuleExpand = (globalIndex: number) => {
+    setExpandedRuleIndex(expandedRuleIndex === globalIndex ? null : globalIndex);
   };
 
   const handleSubmit = async () => {
@@ -500,46 +535,126 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     </View>
   );
 
-  const renderStepRules = () => (
-    <View style={styles.formSection}>
-      <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
-        <Ionicons name="add" size={20} color={Colors.brand.primary} />
-        <Text style={styles.addRuleText}>Add Rule</Text>
-      </TouchableOpacity>
+  const renderStepRules = () => {
+    const mandatoryCount = MANDATORY_RULES.length;
+    const defaultRuleGlobalIndex = mandatoryCount;
+    return (
+      <View style={styles.formSection}>
+        <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
+          <Ionicons name="add" size={20} color={Colors.brand.primary} />
+          <Text style={styles.addRuleText}>Add Rule</Text>
+        </TouchableOpacity>
 
-      {MANDATORY_RULES.map((rule, index) => (
-        <View key={`mandatory-${index}`} style={styles.ruleItem}>
-          <View style={styles.ruleContent}>
-            <Text style={styles.ruleText}>{rule}</Text>
-          </View>
-          <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
-        </View>
-      ))}
-
-      {customRules.map((rule, index) => (
-        <Swipeable
-          key={`custom-${index}`}
-          renderRightActions={() => (
+        {MANDATORY_RULES.map((rule, index) => {
+          const isExpanded = expandedRuleIndex === index;
+          return (
             <TouchableOpacity
-              style={styles.swipeDeleteAction}
-              onPress={() => deleteRule(index)}
+              key={`mandatory-${index}`}
+              style={styles.ruleItem}
+              onPress={() => toggleRuleExpand(index)}
+              activeOpacity={0.7}
             >
-              <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
-              <Text style={styles.swipeDeleteText}>Delete</Text>
+              <View style={styles.ruleNumberBadge}>
+                <Text style={styles.ruleNumberText}>{index + 1}</Text>
+              </View>
+              <View style={styles.ruleContent}>
+                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{rule}</Text>
+                <View style={styles.ruleBadge}>
+                  <Ionicons name="lock-closed" size={10} color={Colors.text.tertiary} />
+                  <Text style={styles.ruleBadgeText}>Required</Text>
+                </View>
+              </View>
+              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
             </TouchableOpacity>
-          )}
-          overshootRight={false}
+          );
+        })}
+
+        <TouchableOpacity
+          style={styles.ruleItem}
+          onPress={() => toggleRuleExpand(defaultRuleGlobalIndex)}
+          activeOpacity={0.7}
         >
-          <View style={styles.ruleItem}>
-            <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
-              <Text style={styles.ruleText}>{rule}</Text>
-            </TouchableOpacity>
-            <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+          <View style={styles.ruleNumberBadge}>
+            <Text style={styles.ruleNumberText}>{mandatoryCount + 1}</Text>
           </View>
-        </Swipeable>
-      ))}
-    </View>
-  );
+          <View style={styles.ruleContent}>
+            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 1}>
+              {DEFAULT_OPTIONAL_RULE}
+            </Text>
+            <View style={styles.ruleBadge}>
+              <Ionicons name="sparkles" size={10} color={Colors.text.tertiary} />
+              <Text style={styles.ruleBadgeText}>Default</Text>
+            </View>
+          </View>
+          <Ionicons name={expandedRuleIndex === defaultRuleGlobalIndex ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
+        </TouchableOpacity>
+
+        {customRules.map((rule, index) => {
+          const globalIndex = mandatoryCount + 1 + index;
+          const isExpanded = expandedRuleIndex === globalIndex;
+          return (
+            <Swipeable
+              key={`custom-${index}`}
+              renderRightActions={() => (
+                <TouchableOpacity
+                  style={styles.swipeDeleteAction}
+                  onPress={() => deleteRule(index)}
+                >
+                  <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
+                  <Text style={styles.swipeDeleteText}>Delete</Text>
+                </TouchableOpacity>
+              )}
+              overshootRight={false}
+            >
+              <TouchableOpacity
+                style={styles.ruleItem}
+                onPress={() => toggleRuleExpand(globalIndex)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.ruleNumberBadge}>
+                  <Text style={styles.ruleNumberText}>{mandatoryCount + 1 + index + 1}</Text>
+                </View>
+                <View style={styles.ruleContent}>
+                  <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{rule}</Text>
+                  {isExpanded && (
+                    <View style={styles.ruleActions}>
+                      <TouchableOpacity
+                        style={[styles.ruleActionButton, index === 0 && styles.ruleActionDisabled]}
+                        onPress={() => moveRuleUp(index)}
+                        disabled={index === 0}
+                      >
+                        <Ionicons name="arrow-up" size={16} color={index === 0 ? Colors.text.tertiary : Colors.brand.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.ruleActionButton, index === customRules.length - 1 && styles.ruleActionDisabled]}
+                        onPress={() => moveRuleDown(index)}
+                        disabled={index === customRules.length - 1}
+                      >
+                        <Ionicons name="arrow-down" size={16} color={index === customRules.length - 1 ? Colors.text.tertiary : Colors.brand.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.ruleActionButton}
+                        onPress={() => openEditRule(index)}
+                      >
+                        <Ionicons name="pencil" size={16} color={Colors.brand.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.ruleActionButton, { borderColor: Colors.status.error }]}
+                        onPress={() => deleteRule(index)}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={Colors.status.error} />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
+              </TouchableOpacity>
+            </Swipeable>
+          );
+        })}
+      </View>
+    );
+  };
 
   const renderStepPrivacy = () => (
     <View style={styles.formSection}>
@@ -1033,6 +1148,24 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xxs,
     color: Colors.text.tertiary,
     fontWeight: Typography.weights.medium,
+  },
+  ruleActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  ruleActionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background.surface,
+  },
+  ruleActionDisabled: {
+    opacity: 0.4,
   },
   swipeDeleteAction: {
     backgroundColor: Colors.status.error,
