@@ -137,7 +137,9 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
+    const user = result[0];
+    await db.update(users).set({ updatedBy: user.id }).where(eq(users.id, user.id));
+    return { ...user, updatedBy: user.id };
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -613,12 +615,16 @@ export class DatabaseStorage implements IStorage {
       campusId,
       campusEmail,
       campusVerified: verified,
+      updatedAt: new Date(),
+      updatedBy: userId,
     }).where(eq(users.id, userId));
   }
 
   async dismissCampusPrompt(userId: string): Promise<void> {
     await db.update(users).set({
       dismissedCampusPrompt: true,
+      updatedAt: new Date(),
+      updatedBy: userId,
     }).where(eq(users.id, userId));
   }
 
