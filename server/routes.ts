@@ -1431,12 +1431,31 @@ export async function registerRoutes(
     }
   });
 
+  const BUBBLE_REPORT_VISIBILITY: Record<string, string> = {
+    'Safety issue (harassment, threats, unsafe environment)': 'superadmin',
+    'Misleading group description': 'both',
+    'Inactive or abandoned group': 'bubble_admin',
+    'Organizer misconduct': 'superadmin',
+    'Exclusionary behavior (discrimination, cliques)': 'both',
+    'Spam or promotional content': 'both',
+    'Other': 'superadmin',
+  };
+
   // Reports
   app.post("/api/reports", authMiddleware, async (req, res) => {
     try {
+      let visibleTo = 'superadmin';
+      if (req.body.reportType === 'bubble') {
+        visibleTo = BUBBLE_REPORT_VISIBILITY[req.body.reason] || 'superadmin';
+      } else if (req.body.reportType === 'individual') {
+        visibleTo = 'bubble_admin';
+      } else if (req.body.reportType === 'admin') {
+        visibleTo = 'superadmin';
+      }
       const parsed = insertReportSchema.parse({
         ...req.body,
         reporterUserId: req.userId,
+        visibleTo,
       });
       const report = await storage.createReport(parsed);
       res.status(201).json(report);

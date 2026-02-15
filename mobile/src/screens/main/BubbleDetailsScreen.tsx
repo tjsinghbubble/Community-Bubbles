@@ -79,6 +79,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportFreeText, setReportFreeText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [bubbleReportModalVisible, setBubbleReportModalVisible] = useState(false);
+  const [bubbleReportReason, setBubbleReportReason] = useState<string | null>(null);
+  const [bubbleReportFreeText, setBubbleReportFreeText] = useState('');
+  const [bubbleReportSubmitting, setBubbleReportSubmitting] = useState(false);
 
   useEffect(() => {
     checkMembership();
@@ -298,11 +302,38 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     'Other',
   ];
 
+  const BUBBLE_REPORT_REASONS = [
+    'Safety issue (harassment, threats, unsafe environment)',
+    'Misleading group description',
+    'Inactive or abandoned group',
+    'Organizer misconduct',
+    'Exclusionary behavior (discrimination, cliques)',
+    'Spam or promotional content',
+    'Other',
+  ];
+
+  const BUBBLE_REPORT_ROUTING: Record<string, string> = {
+    'Safety issue (harassment, threats, unsafe environment)': 'Sent to Superadmins',
+    'Misleading group description': 'Sent to Superadmins & Bubble admins',
+    'Inactive or abandoned group': 'Sent to Bubble admins',
+    'Organizer misconduct': 'Sent to Superadmins',
+    'Exclusionary behavior (discrimination, cliques)': 'Sent to Superadmins & Bubble admins',
+    'Spam or promotional content': 'Sent to Superadmins & Bubble admins',
+    'Other': 'Sent to Superadmins',
+  };
+
   const handleReportConcern = () => {
     setShowKebabMenu(false);
     setReportReason(null);
     setReportFreeText('');
     setReportModalVisible(true);
+  };
+
+  const handleReportBubble = () => {
+    setShowKebabMenu(false);
+    setBubbleReportReason(null);
+    setBubbleReportFreeText('');
+    setBubbleReportModalVisible(true);
   };
 
   const submitReport = async () => {
@@ -321,6 +352,26 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       Alert.alert('Error', error.message || 'Failed to submit report');
     } finally {
       setReportSubmitting(false);
+    }
+  };
+
+  const submitBubbleReport = async () => {
+    if (!bubbleReportReason) return;
+    setBubbleReportSubmitting(true);
+    try {
+      await apiService.submitReport({
+        reportType: 'bubble',
+        reason: bubbleReportReason,
+        freeText: bubbleReportFreeText.trim() || undefined,
+        bubbleId: bubble.id,
+      });
+      setBubbleReportModalVisible(false);
+      const routing = BUBBLE_REPORT_ROUTING[bubbleReportReason] || 'Sent to Superadmins';
+      Alert.alert('Report Submitted', `Your concern about this bubble has been received. ${routing}.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setBubbleReportSubmitting(false);
     }
   };
 
@@ -365,6 +416,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
             <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a concern</Text>
+          </TouchableOpacity>
+          <View style={styles.kebabSeparator} />
+          <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
+            <Ionicons name="alert-circle-outline" size={20} color={Colors.status.error} />
+            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -776,6 +832,75 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               disabled={!reportReason || reportSubmitting}
             >
               {reportSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+      <Modal
+        visible={bubbleReportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBubbleReportModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.reportOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.reportDialog}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportTitle}>Report this Bubble</Text>
+              <TouchableOpacity onPress={() => setBubbleReportModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reportSubtitle}>
+              Report a concern about this bubble/group — private to admins
+            </Text>
+            <ScrollView style={styles.reportReasonsList} nestedScrollEnabled>
+              {BUBBLE_REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reportReasonItem,
+                    bubbleReportReason === reason && styles.reportReasonSelected,
+                  ]}
+                  onPress={() => setBubbleReportReason(reason)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.reportReasonText,
+                      bubbleReportReason === reason && styles.reportReasonTextSelected,
+                    ]}>{reason}</Text>
+                    <Text style={{ fontSize: 11, color: Colors.text.tertiary, marginTop: 2 }}>
+                      {BUBBLE_REPORT_ROUTING[reason]}
+                    </Text>
+                  </View>
+                  {bubbleReportReason === reason && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TextInput
+              style={styles.reportTextInput}
+              placeholder="Additional details (optional)"
+              placeholderTextColor={Colors.text.tertiary}
+              value={bubbleReportFreeText}
+              onChangeText={setBubbleReportFreeText}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.reportSubmitButton, !bubbleReportReason && styles.reportSubmitDisabled]}
+              onPress={submitBubbleReport}
+              disabled={!bubbleReportReason || bubbleReportSubmitting}
+            >
+              {bubbleReportSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.reportSubmitText}>Submit Report</Text>

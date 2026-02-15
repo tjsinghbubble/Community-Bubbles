@@ -234,6 +234,7 @@ export const reports = pgTable("reports", {
   reporterUserId: varchar("reporter_user_id").notNull().references(() => users.id),
   reportedUserId: varchar("reported_user_id").references(() => users.id),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  visibleTo: text("visible_to").notNull().default("superadmin"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
