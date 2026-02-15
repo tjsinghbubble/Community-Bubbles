@@ -554,15 +554,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               onPress={() => toggleRuleExpand(index)}
               activeOpacity={0.7}
             >
-              <View style={styles.ruleNumberBadge}>
-                <Text style={styles.ruleNumberText}>{index + 1}</Text>
-              </View>
               <View style={styles.ruleContent}>
-                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{rule}</Text>
-                <View style={styles.ruleBadge}>
-                  <Ionicons name="lock-closed" size={10} color={Colors.text.tertiary} />
-                  <Text style={styles.ruleBadgeText}>Required</Text>
-                </View>
+                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
               </View>
               <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
             </TouchableOpacity>
@@ -574,17 +567,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           onPress={() => toggleRuleExpand(defaultRuleGlobalIndex)}
           activeOpacity={0.7}
         >
-          <View style={styles.ruleNumberBadge}>
-            <Text style={styles.ruleNumberText}>{mandatoryCount + 1}</Text>
-          </View>
           <View style={styles.ruleContent}>
-            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 1}>
+            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 2}>
               {DEFAULT_OPTIONAL_RULE}
             </Text>
-            <View style={styles.ruleBadge}>
-              <Ionicons name="sparkles" size={10} color={Colors.text.tertiary} />
-              <Text style={styles.ruleBadgeText}>Default</Text>
-            </View>
           </View>
           <Ionicons name={expandedRuleIndex === defaultRuleGlobalIndex ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
         </TouchableOpacity>
@@ -611,11 +597,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 onPress={() => toggleRuleExpand(globalIndex)}
                 activeOpacity={0.7}
               >
-                <View style={styles.ruleNumberBadge}>
-                  <Text style={styles.ruleNumberText}>{mandatoryCount + 1 + index + 1}</Text>
-                </View>
                 <View style={styles.ruleContent}>
-                  <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{rule}</Text>
+                  <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
                   {isExpanded && (
                     <View style={styles.ruleActions}>
                       <TouchableOpacity
@@ -647,7 +630,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                     </View>
                   )}
                 </View>
-                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.text.tertiary} />
+                <View style={styles.ruleDragHandle}>
+                  <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+                </View>
               </TouchableOpacity>
             </Swipeable>
           );
@@ -1181,10 +1166,17 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold,
   },
+  ruleDragHandle: {
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addRuleButton: {
     borderWidth: 1.5,
+    borderStyle: 'dashed',
     borderColor: Colors.brand.primary,
-    borderRadius: Radius.full,
+    borderRadius: Radius.lg,
     paddingVertical: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
