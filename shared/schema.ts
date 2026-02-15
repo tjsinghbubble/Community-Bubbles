@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   profilePhoto: text("profile_photo"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by"),
 });
 
 export const bubbles = pgTable("bubbles", {
@@ -83,6 +85,8 @@ export const verificationCodes = pgTable("verification_codes", {
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export const insertBubbleSchema = createInsertSchema(bubbles).omit({
