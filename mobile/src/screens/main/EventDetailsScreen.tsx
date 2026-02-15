@@ -26,7 +26,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
-import { GOOGLE_PLACES_API_KEY } from '../../config/api';
+import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
@@ -390,11 +390,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const locationDisplay = event.locationAddress || event.locationName || '';
 
   const eventAny = event as any;
-  const mapCenter = eventAny.locationLat && eventAny.locationLng
-    ? `${eventAny.locationLat},${eventAny.locationLng}`
-    : encodeURIComponent(event.locationAddress || event.locationName || '');
-  const mapImageUrl = event.locationName && GOOGLE_PLACES_API_KEY
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${mapCenter}&key=${GOOGLE_PLACES_API_KEY}`
+  const mapImageUrl = event.locationName && (eventAny.locationLat || event.locationAddress)
+    ? `${API_URL}/api/static-map?lat=${eventAny.locationLat || ''}&lng=${eventAny.locationLng || ''}&zoom=15`
     : null;
 
   return (

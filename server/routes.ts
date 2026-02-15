@@ -1527,6 +1527,36 @@ export async function registerRoutes(
   });
 
   // Seed campuses and categories on startup
+  app.get("/api/static-map", async (req, res) => {
+    try {
+      const { lat, lng, zoom = "15" } = req.query;
+      if (!lat || !lng) {
+        return res.status(400).json({ error: "lat and lng required" });
+      }
+      const latNum = parseFloat(lat as string);
+      const lngNum = parseFloat(lng as string);
+      const z = parseInt(zoom as string);
+      const x = Math.floor(((lngNum + 180) / 360) * Math.pow(2, z));
+      const latRad = (latNum * Math.PI) / 180;
+      const y = Math.floor(
+        ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z)
+      );
+      const tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+      const response = await fetch(tileUrl, {
+        headers: { "User-Agent": "BubbleApp/1.0" },
+      });
+      if (!response.ok) {
+        return res.status(502).json({ error: "Failed to fetch map tile" });
+      }
+      res.set("Content-Type", "image/png");
+      res.set("Cache-Control", "public, max-age=86400");
+      const buffer = await response.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate map" });
+    }
+  });
+
   seedCampuses().catch(console.error);
   seedCategories().catch(console.error);
 
