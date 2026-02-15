@@ -321,7 +321,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   const formatDateShort = (dateStr: string) => {
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const monthDay = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${weekday}, ${monthDay}`;
   };
 
   const formatDateFull = (dateStr: string) => {
@@ -502,20 +504,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </View>
             <Text style={styles.infoText}>{getTimeRange()}</Text>
           </View>
-          {event.locationName && (
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="location-outline" size={18} color={Colors.text.tertiary} />
-              </View>
-              <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
-            </View>
-          )}
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
               <Ionicons name="people-outline" size={18} color={Colors.text.tertiary} />
             </View>
             <Text style={styles.infoText}>
-              {event.attendeeLimit ? `${goingCount}/${event.attendeeLimit}` : goingCount}
+              {event.attendeeLimit ? `${goingCount} of ${event.attendeeLimit} spots filled` : `${goingCount} going`}
             </Text>
             <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
               <Text style={styles.viewLinkText}>view {'>'}</Text>
