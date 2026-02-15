@@ -97,7 +97,7 @@ export default function PendingReviewsScreen() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    concerns: true,
+    concerns: false,
     events: false,
     bubbles: false,
   });
