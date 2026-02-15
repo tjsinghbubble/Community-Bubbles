@@ -389,8 +389,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const hasImages = eventImages.length > 0;
   const locationDisplay = event.locationAddress || event.locationName || '';
 
+  const eventAny = event as any;
+  const mapCenter = eventAny.locationLat && eventAny.locationLng
+    ? `${eventAny.locationLat},${eventAny.locationLng}`
+    : encodeURIComponent(event.locationAddress || event.locationName || '');
   const mapImageUrl = event.locationName && GOOGLE_PLACES_API_KEY
-    ? `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(event.locationAddress || event.locationName)}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${encodeURIComponent(event.locationAddress || event.locationName)}&key=${GOOGLE_PLACES_API_KEY}`
+    ? `https://maps.googleapis.com/maps/api/staticmap?center=${mapCenter}&zoom=15&size=600x300&maptype=roadmap&markers=color:red%7C${mapCenter}&key=${GOOGLE_PLACES_API_KEY}`
     : null;
 
   return (
@@ -403,7 +407,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <View style={styles.navRightActions}>
           <View style={{ position: 'relative', zIndex: 200 }}>
             <TouchableOpacity onPress={() => setShowKebabMenu(!showKebabMenu)} style={styles.navShareButton}>
-              <Ionicons name="ellipsis-vertical" size={22} color={Colors.text.primary} />
+              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
             </TouchableOpacity>
             {showKebabMenu && (
               <View style={styles.kebabMenu}>
