@@ -407,7 +407,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
             {isAdmin && (
               <>
                 <TouchableOpacity style={styles.menuItem} onPress={handleDirectMessage}>
-                  <Text style={styles.menuItemText}>Direct Message</Text>
+                  <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                   <Ionicons name="chatbubble-outline" size={18} color={Colors.neutral.charcoal} />
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
@@ -431,7 +431,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
-              <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Report a concern</Text>
+              <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
               <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
             </TouchableOpacity>
           </View>
