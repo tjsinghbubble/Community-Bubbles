@@ -60,7 +60,6 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportFreeText, setReportFreeText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
 
   const REPORT_REASONS = [
     'Harassment or inappropriate behavior',
@@ -95,19 +94,6 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     }
   };
 
-  const handlePromote = (member: Member) => {
-    Alert.alert(
-      'Promote to Admin',
-      `Make ${member.user.name} an admin of this bubble?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Promote',
-          onPress: () => updateMemberRole(member.userId, 'admin'),
-        },
-      ]
-    );
-  };
 
   const handleDemote = (member: Member) => {
     Alert.alert(

@@ -67,8 +67,6 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
   const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
-  const [removeModalVisible, setRemoveModalVisible] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<Attendee | null>(null);
   const [privacy, setPrivacy] = useState<string>(bubblePrivacy || 'Public');
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
@@ -420,28 +418,6 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={removeModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setRemoveModalVisible(false)}
-      >
-        <View style={styles.removeOverlay}>
-          <View style={styles.removeDialog}>
-            <Text style={styles.removeTitle}>
-              Remove '{removeTarget?.user.name}' from '{bubbleTitle}'?
-            </Text>
-            <View style={styles.removeActions}>
-              <TouchableOpacity onPress={() => { setRemoveModalVisible(false); setRemoveTarget(null); }}>
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={confirmRemove}>
-                <Text style={styles.removeText}>Remove</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       <Modal
         visible={reportModalVisible}
@@ -631,40 +607,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.neutral.cloudGrey,
     marginHorizontal: 16,
-  },
-  removeOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removeDialog: {
-    backgroundColor: Colors.brand.skyWhite,
-    borderRadius: 14,
-    padding: 24,
-    width: 280,
-    alignItems: 'center',
-  },
-  removeTitle: {
-    fontSize: 15,
-    color: Colors.neutral.charcoal,
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  removeActions: {
-    flexDirection: 'row',
-    gap: 40,
-  },
-  cancelText: {
-    fontSize: 16,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '500',
-  },
-  removeText: {
-    fontSize: 16,
-    color: Colors.state.error,
-    fontWeight: '500',
   },
   reportOverlay: {
     flex: 1,
