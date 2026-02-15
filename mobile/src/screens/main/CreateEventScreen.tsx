@@ -1012,7 +1012,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               style={{ width: '100%' }}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={[...Gradients.button.colors] as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={styles.successViewButton}
@@ -1118,7 +1118,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               disabled={loading}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={[...Gradients.button.colors] as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={styles.primaryButton}
