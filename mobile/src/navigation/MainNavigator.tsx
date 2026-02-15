@@ -113,10 +113,10 @@ export default function MainNavigator() {
         name="Profile" 
         component={ProfileNavigator}
         options={{
-          title: isAdmin ? 'Admin' : 'Profile',
+          title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name={isAdmin ? "shield-outline" : "person-outline"} size={size} color={color} />
+              <Ionicons name="person-outline" size={size} color={color} />
               {adminCount > 0 && (
                 <View style={badgeStyles.badge}>
                   <Text style={badgeStyles.badgeText}>{adminCount > 99 ? '99+' : adminCount}</Text>

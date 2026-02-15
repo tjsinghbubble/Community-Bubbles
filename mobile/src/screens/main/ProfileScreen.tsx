@@ -127,7 +127,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{isSuperAdmin ? 'Admin' : 'Profile'}</Text>
+        <Text style={styles.headerTitle}>Profile</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -163,7 +163,13 @@ export default function ProfileScreen() {
 
         {hasAdminItems && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Administration</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Administration</Text>
+              <View style={[styles.adminBadge, isSuperAdmin && styles.superAdminBadge]}>
+                <Ionicons name="shield-checkmark" size={14} color={Colors.brand.skyWhite} />
+                <Text style={styles.adminBadgeText}>{isSuperAdmin ? 'Super Admin' : 'Admin'}</Text>
+              </View>
+            </View>
             
             <TouchableOpacity 
               style={styles.menuItem} 
@@ -293,12 +299,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.neutral.coolMist,
-    marginBottom: 12,
     textTransform: 'uppercase',
+  },
+  adminBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.brand.bubbleBlue,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  superAdminBadge: {
+    backgroundColor: '#F59E0B',
+  },
+  adminBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
   },
   interestsContainer: {
     flexDirection: 'row',
