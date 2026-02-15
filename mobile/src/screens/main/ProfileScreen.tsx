@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,22 +36,21 @@ export default function ProfileScreen() {
     }, [user])
   );
 
+  const isBubbleAdmin = useRef(false);
+
   const checkAdminItems = async () => {
     if (!user) return;
     
     try {
-      let count = 0;
-      
-      if (isSuperAdmin) {
-        const pendingBubbles = await apiService.getPendingBubbles();
-        count += pendingBubbles.length;
-      }
-      
-      const pendingEvents = await apiService.getPendingEvents();
-      count += pendingEvents.length;
-      
+      const { count } = await apiService.getAdminPendingCount();
       setPendingCount(count);
-      setHasAdminItems(count > 0 || isSuperAdmin);
+
+      if (!isSuperAdmin) {
+        const myBubbles: any[] = await apiService.getMyBubbles() as any[];
+        isBubbleAdmin.current = myBubbles.some((b: any) => b.role === 'admin');
+      }
+
+      setHasAdminItems(count > 0 || isSuperAdmin || isBubbleAdmin.current);
     } catch (error) {
       setHasAdminItems(isSuperAdmin);
     }
