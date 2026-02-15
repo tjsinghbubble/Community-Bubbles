@@ -213,6 +213,32 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     );
   };
 
+  const handleDemoteAdmin = () => {
+    setMenuVisible(false);
+    if (!selectedAttendee) return;
+    Alert.alert(
+      'Remove Admin Rights',
+      `Remove admin rights from ${selectedAttendee.user.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.updateMemberRole(bubbleId, selectedAttendee.userId, 'member');
+              setBubbleMembers(prev => prev.map(m =>
+                m.userId === selectedAttendee.userId ? { ...m, role: 'member' } : m
+              ));
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to update role');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const REPORT_REASONS = [
     'Harassment or inappropriate behavior',
     'Made me feel unsafe or uncomfortable',
@@ -362,10 +388,17 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
                   <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                  <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
-                  <Ionicons name="star-outline" size={18} color="#16a34a" />
-                </TouchableOpacity>
+                {selectedAttendee && getBubbleRole(selectedAttendee.userId) === 'admin' ? (
+                  <TouchableOpacity style={styles.menuItem} onPress={handleDemoteAdmin}>
+                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Remove as admin</Text>
+                    <Ionicons name="arrow-down" size={18} color="#f59e0b" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
+                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
+                    <Ionicons name="star-outline" size={18} color="#16a34a" />
+                  </TouchableOpacity>
+                )}
                 <View style={styles.menuDivider} />
               </>
             )}

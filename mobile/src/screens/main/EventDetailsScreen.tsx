@@ -111,6 +111,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [eventReportReason, setEventReportReason] = useState<string | null>(null);
   const [eventReportFreeText, setEventReportFreeText] = useState('');
   const [eventReportSubmitting, setEventReportSubmitting] = useState(false);
+  const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
 
   const EVENT_REPORT_REASONS = [
     'Safety issue at this event',
@@ -188,6 +189,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getBubble(bubbleId) as Bubble;
       setBubble(data);
+      try {
+        const membership = await apiService.checkMembership(bubbleId);
+        setMyBubbleRole(membership.role || null);
+      } catch {}
     } catch (error) {
       console.error('Failed to fetch bubble:', error);
     }
@@ -357,7 +362,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   }
 
   const isEventCreator = event.creatorId === user?.id;
-  const isBubbleAdmin = bubble?.creatorId === user?.id;
+  const isBubbleAdmin = myBubbleRole === 'admin';
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
@@ -422,11 +427,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.spotsRsvpRow}>
-          {spotsLeft !== null && (
-            <Text style={[styles.spotsGreenText, { marginRight: 5 }]}>
-              {isFull ? 'Event Full' : `${spotsLeft} spots left`}
-            </Text>
-          )}
+          <Text style={[styles.spotsGreenText, { marginRight: 5 }]}>
+            {spotsLeft !== null
+              ? (isFull ? 'Event Full' : `${spotsLeft} spots left`)
+              : `${goingCount} going`}
+          </Text>
           <View style={styles.rsvpDropdownWrapper}>
             <TouchableOpacity
               style={[
