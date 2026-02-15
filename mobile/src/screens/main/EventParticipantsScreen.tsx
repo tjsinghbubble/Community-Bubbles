@@ -192,7 +192,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     setMenuVisible(false);
     if (!selectedAttendee) return;
     Alert.alert(
-      'Make Admin',
+      'Make admin',
       `Make ${selectedAttendee.user.name} an admin of ${bubbleTitle}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -363,7 +363,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
                 <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                  <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make Admin</Text>
+                  <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
                   <Ionicons name="star-outline" size={18} color="#16a34a" />
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />

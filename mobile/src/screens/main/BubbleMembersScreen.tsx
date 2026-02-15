@@ -226,7 +226,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     setMenuVisible(false);
     if (!selectedMember) return;
     Alert.alert(
-      'Make Admin',
+      'Make admin',
       `Make ${selectedMember.user.name} an admin of ${bubbleTitle}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -417,7 +417,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make Admin</Text>
+                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
                     <Ionicons name="star-outline" size={18} color="#16a34a" />
                   </TouchableOpacity>
                 )}
@@ -672,36 +672,171 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     marginTop: 2,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
+  kebabButton: {
+    padding: 8,
   },
-  promoteButton: {
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  menuContainer: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 32,
+    paddingTop: 8,
+  },
+  menuItem: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
-  promoteText: {
-    fontSize: 12,
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.neutral.charcoal,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: Colors.neutral.cloudGrey,
+    marginHorizontal: 20,
+  },
+  removeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeDialog: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 16,
+    padding: 24,
+    marginHorizontal: 32,
+    width: '85%',
+  },
+  removeTitle: {
+    fontSize: 18,
     fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  removeSubtitle: {
+    fontSize: 14,
+    color: Colors.neutral.coolMist,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  removeActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  removeCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.neutral.coolMist,
+    alignItems: 'center',
+  },
+  removeCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+  },
+  removeConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.status.error,
+    alignItems: 'center',
+  },
+  removeConfirmText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
+  },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  reportDialog: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  reportTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.neutral.charcoal,
+  },
+  reportSubtitle: {
+    fontSize: 13,
+    color: Colors.neutral.coolMist,
+    marginBottom: 16,
+  },
+  reportReasonsList: {
+    maxHeight: 250,
+  },
+  reportReasonItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.neutral.cloudGrey,
+    marginBottom: 8,
+  },
+  reportReasonSelected: {
+    borderColor: Colors.brand.bubbleBlue,
+    backgroundColor: '#eef7ff',
+  },
+  reportReasonText: {
+    fontSize: 14,
+    color: Colors.neutral.charcoal,
+    flex: 1,
+  },
+  reportReasonTextSelected: {
     color: Colors.brand.bubbleBlue,
-  },
-  demoteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  demoteText: {
-    fontSize: 12,
     fontWeight: '600',
-    color: '#dc2626',
+  },
+  reportTextInput: {
+    borderWidth: 1,
+    borderColor: Colors.neutral.cloudGrey,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    fontSize: 14,
+    color: Colors.neutral.charcoal,
+    minHeight: 80,
+  },
+  reportSubmitButton: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  reportSubmitDisabled: {
+    opacity: 0.5,
+  },
+  reportSubmitText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
   },
 });
