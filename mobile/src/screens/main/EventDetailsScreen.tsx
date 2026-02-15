@@ -13,6 +13,9 @@ import {
   Linking,
   Share,
   Dimensions,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -104,6 +107,64 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
   const [shouldNavigateBack, setShouldNavigateBack] = useState(false);
   const [locationExpanded, setLocationExpanded] = useState(false);
+  const [eventReportModalVisible, setEventReportModalVisible] = useState(false);
+  const [eventReportReason, setEventReportReason] = useState<string | null>(null);
+  const [eventReportFreeText, setEventReportFreeText] = useState('');
+  const [eventReportSubmitting, setEventReportSubmitting] = useState(false);
+
+  const EVENT_REPORT_REASONS = [
+    'Safety issue at this event',
+    'Event didn\'t match description',
+    'Organizer no-show or unprepared',
+    'Venue issue (unsafe, inaccessible, closed)',
+    'Report a member',
+    'Other',
+  ];
+
+  const EVENT_REPORT_ROUTING: Record<string, string> = {
+    'Safety issue at this event': 'Sent to Superadmins & Bubble admins',
+    'Event didn\'t match description': 'Sent to Bubble admins',
+    'Organizer no-show or unprepared': 'Sent to Superadmins & Bubble admins',
+    'Venue issue (unsafe, inaccessible, closed)': 'Sent to Superadmins & Bubble admins',
+    'Report a member': 'Opens member report flow',
+    'Other': 'Sent to Superadmins & Bubble admins',
+  };
+
+  const handleReportEvent = () => {
+    setEventReportReason(null);
+    setEventReportFreeText('');
+    setEventReportModalVisible(true);
+  };
+
+  const handleEventReportReasonSelect = (reason: string) => {
+    if (reason === 'Report a member') {
+      setEventReportModalVisible(false);
+      handleViewParticipants();
+      return;
+    }
+    setEventReportReason(reason);
+  };
+
+  const submitEventReport = async () => {
+    if (!eventReportReason || !event) return;
+    setEventReportSubmitting(true);
+    try {
+      await apiService.submitReport({
+        reportType: 'event',
+        reason: eventReportReason,
+        freeText: eventReportFreeText.trim() || undefined,
+        bubbleId: event.bubbleId,
+        eventId: event.id,
+      });
+      setEventReportModalVisible(false);
+      const routing = EVENT_REPORT_ROUTING[eventReportReason] || 'Sent to Superadmins & Bubble admins';
+      Alert.alert('Report Submitted', `Your concern about this event has been received. ${routing}.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setEventReportSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     fetchEvent();
@@ -335,6 +396,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity onPress={handleReportEvent} style={styles.navShareButton}>
+            <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleShare} style={styles.navShareButton}>
             <Ionicons name="paper-plane-outline" size={22} color={Colors.text.primary} />
           </TouchableOpacity>
@@ -558,6 +622,84 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           }
         }}
       />
+      <Modal
+        visible={eventReportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setEventReportModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.eventReportOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.eventReportDialog}>
+            <View style={styles.eventReportHeader}>
+              <Text style={styles.eventReportTitle}>Report this Event</Text>
+              <TouchableOpacity onPress={() => setEventReportModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.eventReportSubtitle}>
+              Report a concern about this event — sent to admins with event details
+            </Text>
+            <ScrollView style={styles.eventReportReasonsList} nestedScrollEnabled>
+              {EVENT_REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.eventReportReasonItem,
+                    eventReportReason === reason && styles.eventReportReasonSelected,
+                    reason === 'Report a member' && styles.eventReportReasonLink,
+                  ]}
+                  onPress={() => handleEventReportReasonSelect(reason)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.eventReportReasonText,
+                      eventReportReason === reason && styles.eventReportReasonTextSelected,
+                      reason === 'Report a member' && { color: Colors.brand.primary },
+                    ]}>{reason === 'Report a member' ? '→ Report a member' : reason}</Text>
+                    {reason !== 'Report a member' && (
+                      <Text style={{ fontSize: 11, color: Colors.text.tertiary, marginTop: 2 }}>
+                        {EVENT_REPORT_ROUTING[reason]}
+                      </Text>
+                    )}
+                  </View>
+                  {eventReportReason === reason && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                  )}
+                  {reason === 'Report a member' && (
+                    <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {eventReportReason && (
+              <TextInput
+                style={styles.eventReportTextInput}
+                placeholder="Additional details (optional)"
+                placeholderTextColor={Colors.text.tertiary}
+                value={eventReportFreeText}
+                onChangeText={setEventReportFreeText}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            )}
+            <TouchableOpacity
+              style={[styles.eventReportSubmitButton, !eventReportReason && styles.eventReportSubmitDisabled]}
+              onPress={submitEventReport}
+              disabled={!eventReportReason || eventReportSubmitting}
+            >
+              {eventReportSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.eventReportSubmitText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -897,5 +1039,92 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: Colors.brand.primary,
+  },
+  eventReportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  eventReportDialog: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  eventReportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  eventReportTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  eventReportSubtitle: {
+    fontSize: 13,
+    color: Colors.text.secondary,
+    marginBottom: 16,
+  },
+  eventReportReasonsList: {
+    maxHeight: 280,
+    marginBottom: 12,
+  },
+  eventReportReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginBottom: 6,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  eventReportReasonSelected: {
+    borderColor: Colors.brand.primary,
+    backgroundColor: '#EBF5FF',
+  },
+  eventReportReasonLink: {
+    backgroundColor: '#F0F8FF',
+    borderColor: Colors.brand.primary,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
+  eventReportReasonText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+    fontWeight: '500',
+  },
+  eventReportReasonTextSelected: {
+    color: Colors.brand.primary,
+  },
+  eventReportTextInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 14,
+    color: Colors.text.primary,
+    minHeight: 70,
+    marginBottom: 12,
+  },
+  eventReportSubmitButton: {
+    backgroundColor: Colors.brand.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 20 : 0,
+  },
+  eventReportSubmitDisabled: {
+    opacity: 0.5,
+  },
+  eventReportSubmitText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

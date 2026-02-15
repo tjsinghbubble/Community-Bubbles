@@ -1431,6 +1431,14 @@ export async function registerRoutes(
     }
   });
 
+  const EVENT_REPORT_VISIBILITY: Record<string, string> = {
+    'Safety issue at this event': 'both',
+    'Event didn\'t match description': 'bubble_admin',
+    'Organizer no-show or unprepared': 'both',
+    'Venue issue (unsafe, inaccessible, closed)': 'both',
+    'Other': 'both',
+  };
+
   const BUBBLE_REPORT_VISIBILITY: Record<string, string> = {
     'Safety issue (harassment, threats, unsafe environment)': 'superadmin',
     'Misleading group description': 'both',
@@ -1447,6 +1455,8 @@ export async function registerRoutes(
       let visibleTo = 'superadmin';
       if (req.body.reportType === 'bubble') {
         visibleTo = BUBBLE_REPORT_VISIBILITY[req.body.reason] || 'superadmin';
+      } else if (req.body.reportType === 'event') {
+        visibleTo = EVENT_REPORT_VISIBILITY[req.body.reason] || 'both';
       } else if (req.body.reportType === 'individual') {
         visibleTo = 'bubble_admin';
       } else if (req.body.reportType === 'admin') {

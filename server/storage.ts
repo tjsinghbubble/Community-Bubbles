@@ -1011,7 +1011,8 @@ export class DatabaseStorage implements IStorage {
         eq(reports.bubbleId, bubbleId),
         or(
           eq(reports.reportType, 'individual'),
-          and(eq(reports.reportType, 'bubble'), or(eq(reports.visibleTo, 'bubble_admin'), eq(reports.visibleTo, 'both')))
+          and(eq(reports.reportType, 'bubble'), or(eq(reports.visibleTo, 'bubble_admin'), eq(reports.visibleTo, 'both'))),
+          and(eq(reports.reportType, 'event'), or(eq(reports.visibleTo, 'bubble_admin'), eq(reports.visibleTo, 'both')))
         )
       ))
       .orderBy(desc(reports.createdAt));

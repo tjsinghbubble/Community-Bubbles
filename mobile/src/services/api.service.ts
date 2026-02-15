@@ -388,6 +388,7 @@ class ApiService {
     freeText?: string;
     reportedUserId?: string;
     bubbleId: string;
+    eventId?: string;
   }) {
     return this.request<any>("/api/reports", {
       method: "POST",
