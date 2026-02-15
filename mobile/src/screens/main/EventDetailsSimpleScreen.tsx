@@ -381,7 +381,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.spotsRsvpRow}>
           {spotsLeft !== null && (
-            <Text style={[styles.spotsRedText, { marginRight: 3 }]}>
+            <Text style={[styles.spotsRedText, { marginRight: 5 }]}>
               {isFull ? 'Event Full' : `${spotsLeft} spots left`}
             </Text>
           )}
