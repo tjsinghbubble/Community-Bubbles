@@ -358,20 +358,20 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
                 <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
-                  <Text style={styles.menuItemText}>Remove from group</Text>
-                  <Ionicons name="person-remove-outline" size={18} color={Colors.neutral.charcoal} />
+                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
+                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
                 <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                  <Text style={styles.menuItemText}>Make admin</Text>
-                  <Ionicons name="star-outline" size={18} color={Colors.neutral.charcoal} />
+                  <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make Admin</Text>
+                  <Ionicons name="star-outline" size={18} color="#16a34a" />
                 </TouchableOpacity>
                 <View style={styles.menuDivider} />
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
-              <Text style={styles.menuItemText}>Report a concern</Text>
-              <Ionicons name="flag-outline" size={18} color={Colors.neutral.charcoal} />
+              <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Report a concern</Text>
+              <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
             </TouchableOpacity>
           </View>
         </Pressable>

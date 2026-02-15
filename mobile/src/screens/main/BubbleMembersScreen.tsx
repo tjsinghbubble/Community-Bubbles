@@ -9,6 +9,12 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
+  Pressable,
+  TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -16,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import cometChatService from '../../services/cometchat.service';
 
 type MembersStackParamList = {
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
@@ -47,6 +54,22 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [myRole, setMyRole] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportFreeText, setReportFreeText] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [removeModalVisible, setRemoveModalVisible] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<Member | null>(null);
+
+  const REPORT_REASONS = [
+    'Harassment or inappropriate behavior',
+    'Made me feel unsafe or uncomfortable',
+    'Fake profile or suspected scammer',
+    'No-show pattern',
+    'Other',
+  ];
 
   useEffect(() => {
     fetchMembers();
@@ -157,6 +180,98 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleKebabPress = (member: Member) => {
+    setSelectedMember(member);
+    setMenuVisible(true);
+  };
+
+  const handleDirectMessage = async () => {
+    setMenuVisible(false);
+    if (!selectedMember) return;
+    try {
+      await cometChatService.createUserIfNotExists(selectedMember.userId, selectedMember.user.name);
+      await cometChatService.sendDirectMessage(selectedMember.userId, `Hi ${selectedMember.user.name}!`);
+      Alert.alert(
+        'Message Sent',
+        `A conversation with ${selectedMember.user.name} has been started. Check your Messages tab to continue chatting.`
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send direct message. Please try again.');
+    }
+  };
+
+  const handleRemoveFromGroup = () => {
+    setMenuVisible(false);
+    if (!selectedMember) return;
+    setRemoveTarget(selectedMember);
+    setRemoveModalVisible(true);
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    try {
+      await apiService.removeMember(bubbleId, removeTarget.userId);
+      setMembers(prev => prev.filter(m => m.userId !== removeTarget.userId));
+      setRemoveModalVisible(false);
+      setRemoveTarget(null);
+      Alert.alert('Removed', `${removeTarget.user.name} has been removed from ${bubbleTitle}`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to remove member');
+      setRemoveModalVisible(false);
+      setRemoveTarget(null);
+    }
+  };
+
+  const handleMakeAdmin = () => {
+    setMenuVisible(false);
+    if (!selectedMember) return;
+    Alert.alert(
+      'Make Admin',
+      `Make ${selectedMember.user.name} an admin of ${bubbleTitle}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: () => updateMemberRole(selectedMember.userId, 'admin'),
+        },
+      ]
+    );
+  };
+
+  const handleDemoteFromMenu = () => {
+    setMenuVisible(false);
+    if (!selectedMember) return;
+    handleDemote(selectedMember);
+  };
+
+  const handleReportConcern = () => {
+    setMenuVisible(false);
+    if (!selectedMember) return;
+    setReportReason(null);
+    setReportFreeText('');
+    setReportModalVisible(true);
+  };
+
+  const submitReport = async () => {
+    if (!reportReason || !selectedMember) return;
+    setReportSubmitting(true);
+    try {
+      await apiService.submitReport({
+        reportType: 'individual',
+        reason: reportReason,
+        freeText: reportFreeText.trim() || undefined,
+        reportedUserId: selectedMember.userId,
+        bubbleId,
+      });
+      setReportModalVisible(false);
+      Alert.alert('Report Submitted', 'Your concern has been sent to the bubble admins for review.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   const getInitials = (name: string) => {
     if (!name) return '?';
     return name
@@ -211,32 +326,10 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
           </Text>
         </View>
 
-        {isAdmin && !isMe && (
-          <View style={styles.actions}>
-            {isUpdating === item.userId ? (
-              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
-            ) : (
-              <>
-                {isItemAdmin ? (
-                  <TouchableOpacity
-                    style={styles.demoteButton}
-                    onPress={() => handleDemote(item)}
-                  >
-                    <Ionicons name="arrow-down" size={16} color="#dc2626" />
-                    <Text style={styles.demoteText}>Demote</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={styles.promoteButton}
-                    onPress={() => handlePromote(item)}
-                  >
-                    <Ionicons name="arrow-up" size={16} color={Colors.brand.bubbleBlue} />
-                    <Text style={styles.promoteText}>Promote</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-          </View>
+        {!isMe && (
+          <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(item)}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.neutral.coolMist} />
+          </TouchableOpacity>
         )}
       </View>
     );
@@ -296,6 +389,145 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.list}
         />
       )}
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuContainer}>
+            {isAdmin && (
+              <>
+                <TouchableOpacity style={styles.menuItem} onPress={handleDirectMessage}>
+                  <Text style={styles.menuItemText}>Direct Message</Text>
+                  <Ionicons name="chatbubble-outline" size={18} color={Colors.neutral.charcoal} />
+                </TouchableOpacity>
+                <View style={styles.menuDivider} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
+                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
+                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
+                </TouchableOpacity>
+                <View style={styles.menuDivider} />
+                {selectedMember?.role === 'admin' ? (
+                  <TouchableOpacity style={styles.menuItem} onPress={handleDemoteFromMenu}>
+                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Demote</Text>
+                    <Ionicons name="arrow-down" size={18} color="#f59e0b" />
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
+                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make Admin</Text>
+                    <Ionicons name="star-outline" size={18} color="#16a34a" />
+                  </TouchableOpacity>
+                )}
+                <View style={styles.menuDivider} />
+              </>
+            )}
+            <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
+              <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Report a concern</Text>
+              <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={removeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRemoveModalVisible(false)}
+      >
+        <View style={styles.removeOverlay}>
+          <View style={styles.removeDialog}>
+            <Text style={styles.removeTitle}>
+              Remove '{removeTarget?.user.name}' from '{bubbleTitle}'?
+            </Text>
+            <Text style={styles.removeSubtitle}>
+              They will no longer be a member of this bubble.
+            </Text>
+            <View style={styles.removeActions}>
+              <TouchableOpacity
+                style={styles.removeCancelButton}
+                onPress={() => { setRemoveModalVisible(false); setRemoveTarget(null); }}
+              >
+                <Text style={styles.removeCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.removeConfirmButton}
+                onPress={confirmRemove}
+              >
+                <Text style={styles.removeConfirmText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.reportOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.reportDialog}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportTitle}>Report a Concern</Text>
+              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reportSubtitle}>
+              About {selectedMember?.user.name} — sent to bubble admins
+            </Text>
+            <ScrollView style={styles.reportReasonsList} nestedScrollEnabled>
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reportReasonItem,
+                    reportReason === reason && styles.reportReasonSelected,
+                  ]}
+                  onPress={() => setReportReason(reason)}
+                >
+                  <Text style={[
+                    styles.reportReasonText,
+                    reportReason === reason && styles.reportReasonTextSelected,
+                  ]}>{reason}</Text>
+                  {reportReason === reason && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TextInput
+              style={styles.reportTextInput}
+              placeholder="Additional details (optional)"
+              placeholderTextColor={Colors.text.tertiary}
+              value={reportFreeText}
+              onChangeText={setReportFreeText}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitDisabled]}
+              onPress={submitReport}
+              disabled={!reportReason || reportSubmitting}
+            >
+              {reportSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
