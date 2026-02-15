@@ -1549,7 +1549,7 @@ export async function registerRoutes(
         return res.status(502).json({ error: "Failed to fetch map tile" });
       }
       res.set("Content-Type", "image/png");
-      res.set("Cache-Control", "public, max-age=86400");
+      res.set("Cache-Control", "public, max-age=3600");
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));
     } catch (error) {
