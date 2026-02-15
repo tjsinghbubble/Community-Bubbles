@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,6 +20,10 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 type PendingBubble = {
   id: string;
@@ -90,6 +96,12 @@ export default function PendingReviewsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    concerns: true,
+    events: false,
+    bubbles: false,
+  });
+
   const isSuperAdmin = user?.isSuperAdmin === true;
 
   useFocusEffect(
@@ -97,6 +109,11 @@ export default function PendingReviewsScreen() {
       loadAllItems();
     }, [])
   );
+
+  const toggleSection = (section: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   const loadAllItems = async () => {
     try {
@@ -273,7 +290,240 @@ export default function PendingReviewsScreen() {
   }
 
   const pendingReports = reports.filter(r => r.status === 'pending');
-  const hasPendingItems = pendingBubbles.length > 0 || pendingEvents.length > 0 || pendingReports.length > 0;
+
+  const renderAccordionHeader = (
+    title: string,
+    count: number,
+    countColor: string,
+    sectionKey: string,
+  ) => {
+    const isExpanded = expandedSections[sectionKey];
+    return (
+      <TouchableOpacity
+        style={styles.accordionHeader}
+        onPress={() => toggleSection(sectionKey)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.accordionHeaderLeft}>
+          <Text style={styles.accordionTitle}>{title}</Text>
+          {count > 0 && (
+            <View style={[styles.countBadge, { backgroundColor: countColor }]}>
+              <Text style={styles.countBadgeText}>{count}</Text>
+            </View>
+          )}
+        </View>
+        <Ionicons
+          name={isExpanded ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={Colors.neutral.coolMist}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderBubbleCard = (bubble: PendingBubble) => (
+    <View key={bubble.id} style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardCategory}>
+          <Text style={styles.categoryText}>{bubble.category}</Text>
+        </View>
+      </View>
+      <Text style={styles.cardTitle}>{bubble.title}</Text>
+      <Text style={styles.cardSubtitle}>{bubble.tagline}</Text>
+      
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton]}
+          onPress={() => handleRejectBubble(bubble.id)}
+          disabled={actionLoading === bubble.id}
+        >
+          {actionLoading === bubble.id ? (
+            <ActivityIndicator size="small" color={Colors.state.error} />
+          ) : (
+            <>
+              <Ionicons name="close" size={18} color={Colors.state.error} />
+              <Text style={styles.rejectText}>Reject</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={() => handleApproveBubble(bubble.id)}
+          disabled={actionLoading === bubble.id}
+        >
+          <LinearGradient
+            colors={Gradients.button.colors as [string, string, ...string[]]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={[styles.actionButton, styles.approveButton]}
+          >
+            {actionLoading === bubble.id ? (
+              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Text style={styles.approveText}>Approve</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderEventCard = (event: PendingEvent) => (
+    <View key={event.id} style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.bubbleTag}>
+          <Ionicons name="apps-outline" size={14} color={Colors.brand.bubbleBlue} />
+          <Text style={styles.bubbleTagText}>{event.bubble?.title || 'Unknown Bubble'}</Text>
+        </View>
+      </View>
+      <Text style={styles.cardTitle}>{event.title}</Text>
+      <View style={styles.eventMeta}>
+        <Ionicons name="calendar-outline" size={14} color={Colors.neutral.coolMist} />
+        <Text style={styles.eventMetaText}>
+          {formatDate(event.date)} at {event.startTime}
+        </Text>
+      </View>
+      
+      <View style={styles.cardActions}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.rejectButton]}
+          onPress={() => handleRejectEvent(event.id)}
+          disabled={actionLoading === event.id}
+        >
+          {actionLoading === event.id ? (
+            <ActivityIndicator size="small" color={Colors.state.error} />
+          ) : (
+            <>
+              <Ionicons name="close" size={18} color={Colors.state.error} />
+              <Text style={styles.rejectText}>Reject</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={{ flex: 1 }}
+          onPress={() => handleApproveEvent(event.id)}
+          disabled={actionLoading === event.id}
+        >
+          <LinearGradient
+            colors={Gradients.button.colors as [string, string, ...string[]]}
+            start={Gradients.button.start}
+            end={Gradients.button.end}
+            style={[styles.actionButton, styles.approveButton]}
+          >
+            {actionLoading === event.id ? (
+              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Text style={styles.approveText}>Approve</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderReportCard = (report: ReportItem) => {
+    const typeColor = REPORT_TYPE_COLORS[report.reportType] || Colors.neutral.coolMist;
+    const typeIcon = REPORT_TYPE_ICONS[report.reportType] || 'alert-circle-outline';
+    const typeLabel = REPORT_TYPE_LABELS[report.reportType] || report.reportType;
+
+    return (
+      <View key={report.id} style={styles.card}>
+        <View style={styles.reportHeader}>
+          <View style={[styles.reportTypeBadge, { backgroundColor: typeColor + '18' }]}>
+            <Ionicons name={typeIcon as any} size={14} color={typeColor} />
+            <Text style={[styles.reportTypeText, { color: typeColor }]}>
+              {typeLabel} Report
+            </Text>
+          </View>
+          <Text style={styles.reportDate}>
+            {formatDate(report.createdAt)}
+          </Text>
+        </View>
+
+        <Text style={styles.reportReason}>{report.reason}</Text>
+
+        {report.freeText && (
+          <View style={styles.reportFreeTextBox}>
+            <Ionicons name="chatbubble-ellipses-outline" size={14} color={Colors.neutral.coolMist} />
+            <Text style={styles.reportFreeText}>"{report.freeText}"</Text>
+          </View>
+        )}
+
+        <View style={styles.reportMeta}>
+          <View style={styles.reportMetaRow}>
+            <Ionicons name="person-outline" size={13} color={Colors.neutral.coolMist} />
+            <Text style={styles.reportMetaText}>
+              Reported by: {report.reporter?.name || 'Unknown'}
+            </Text>
+          </View>
+          {report.reportedUser && (
+            <View style={styles.reportMetaRow}>
+              <Ionicons name="alert-circle-outline" size={13} color={'#FF9500'} />
+              <Text style={styles.reportMetaText}>
+                About: {report.reportedUser.name}
+              </Text>
+            </View>
+          )}
+          {report.bubble && (
+            <View style={styles.reportMetaRow}>
+              <Ionicons name="apps-outline" size={13} color={Colors.brand.bubbleBlue} />
+              <Text style={styles.reportMetaText}>
+                Bubble: {report.bubble.title}
+              </Text>
+            </View>
+          )}
+          <View style={styles.reportMetaRow}>
+            <Ionicons name="eye-outline" size={13} color={Colors.neutral.coolMist} />
+            <Text style={styles.reportMetaText}>
+              Routed to: {report.visibleTo === 'superadmin' ? 'Super Admins' : report.visibleTo === 'bubble_admin' ? 'Bubble Admins' : 'Both'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.dismissButton]}
+            onPress={() => handleDismissReport(report.id)}
+            disabled={actionLoading === report.id}
+          >
+            {actionLoading === report.id ? (
+              <ActivityIndicator size="small" color={Colors.neutral.coolMist} />
+            ) : (
+              <>
+                <Ionicons name="close-circle-outline" size={18} color={Colors.neutral.coolMist} />
+                <Text style={styles.dismissText}>Dismiss</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.actionButton, styles.resolveButton]}
+            onPress={() => handleResolveReport(report.id)}
+            disabled={actionLoading === report.id}
+          >
+            {actionLoading === report.id ? (
+              <ActivityIndicator size="small" color="#34C759" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />
+                <Text style={styles.resolveText}>Resolve</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const totalItems = pendingReports.length + pendingEvents.length + pendingBubbles.length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -284,7 +534,7 @@ export default function PendingReviewsScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Pending Reviews</Text>
+        <Text style={styles.headerTitle}>Needs Attention</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -294,236 +544,51 @@ export default function PendingReviewsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {!hasPendingItems ? (
+        {totalItems === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="checkmark-circle-outline" size={64} color={Colors.neutral.coolMist} />
             <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptyText}>No items pending review</Text>
+            <Text style={styles.emptyText}>No items need attention</Text>
           </View>
         ) : (
-          <>
-            {isSuperAdmin && pendingBubbles.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Pending Bubbles</Text>
-                {pendingBubbles.map(bubble => (
-                  <View key={bubble.id} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardCategory}>
-                        <Text style={styles.categoryText}>{bubble.category}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.cardTitle}>{bubble.title}</Text>
-                    <Text style={styles.cardSubtitle}>{bubble.tagline}</Text>
-                    
-                    <View style={styles.cardActions}>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.rejectButton]}
-                        onPress={() => handleRejectBubble(bubble.id)}
-                        disabled={actionLoading === bubble.id}
-                      >
-                        {actionLoading === bubble.id ? (
-                          <ActivityIndicator size="small" color={Colors.state.error} />
-                        ) : (
-                          <>
-                            <Ionicons name="close" size={18} color={Colors.state.error} />
-                            <Text style={styles.rejectText}>Reject</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={{ flex: 1 }}
-                        onPress={() => handleApproveBubble(bubble.id)}
-                        disabled={actionLoading === bubble.id}
-                      >
-                        <LinearGradient
-                          colors={Gradients.button.colors as unknown as string[]}
-                          start={Gradients.button.start}
-                          end={Gradients.button.end}
-                          style={[styles.actionButton, styles.approveButton]}
-                        >
-                          {actionLoading === bubble.id ? (
-                            <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
-                              <Text style={styles.approveText}>Approve</Text>
-                            </>
-                          )}
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </View>
+          <View style={styles.accordionContainer}>
+            {renderAccordionHeader('Pending Concerns', pendingReports.length, Colors.state.error, 'concerns')}
+            {expandedSections.concerns && (
+              <View style={styles.accordionContent}>
+                {pendingReports.length === 0 ? (
+                  <Text style={styles.emptySection}>No pending concerns</Text>
+                ) : (
+                  pendingReports.map(renderReportCard)
+                )}
+              </View>
+            )}
+
+            {renderAccordionHeader('Pending Event Approval', pendingEvents.length, '#F59E0B', 'events')}
+            {expandedSections.events && (
+              <View style={styles.accordionContent}>
+                {pendingEvents.length === 0 ? (
+                  <Text style={styles.emptySection}>No pending events</Text>
+                ) : (
+                  pendingEvents.map(renderEventCard)
+                )}
+              </View>
+            )}
+
+            {isSuperAdmin && (
+              <>
+                {renderAccordionHeader('Pending Bubble Approval', pendingBubbles.length, Colors.neutral.coolMist, 'bubbles')}
+                {expandedSections.bubbles && (
+                  <View style={styles.accordionContent}>
+                    {pendingBubbles.length === 0 ? (
+                      <Text style={styles.emptySection}>No pending bubbles</Text>
+                    ) : (
+                      pendingBubbles.map(renderBubbleCard)
+                    )}
                   </View>
-                ))}
-              </View>
+                )}
+              </>
             )}
-
-            {pendingEvents.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Pending Events</Text>
-                {pendingEvents.map(event => (
-                  <View key={event.id} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.bubbleTag}>
-                        <Ionicons name="apps-outline" size={14} color={Colors.brand.bubbleBlue} />
-                        <Text style={styles.bubbleTagText}>{event.bubble?.title || 'Unknown Bubble'}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.cardTitle}>{event.title}</Text>
-                    <View style={styles.eventMeta}>
-                      <Ionicons name="calendar-outline" size={14} color={Colors.neutral.coolMist} />
-                      <Text style={styles.eventMetaText}>
-                        {formatDate(event.date)} at {event.startTime}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.cardActions}>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.rejectButton]}
-                        onPress={() => handleRejectEvent(event.id)}
-                        disabled={actionLoading === event.id}
-                      >
-                        {actionLoading === event.id ? (
-                          <ActivityIndicator size="small" color={Colors.state.error} />
-                        ) : (
-                          <>
-                            <Ionicons name="close" size={18} color={Colors.state.error} />
-                            <Text style={styles.rejectText}>Reject</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity
-                        style={{ flex: 1 }}
-                        onPress={() => handleApproveEvent(event.id)}
-                        disabled={actionLoading === event.id}
-                      >
-                        <LinearGradient
-                          colors={Gradients.button.colors as unknown as string[]}
-                          start={Gradients.button.start}
-                          end={Gradients.button.end}
-                          style={[styles.actionButton, styles.approveButton]}
-                        >
-                          {actionLoading === event.id ? (
-                            <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
-                              <Text style={styles.approveText}>Approve</Text>
-                            </>
-                          )}
-                        </LinearGradient>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {pendingReports.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeaderRow}>
-                  <Ionicons name="flag" size={16} color={Colors.state.error} />
-                  <Text style={[styles.sectionTitle, { marginBottom: 0, marginLeft: 6 }]}>
-                    Reports ({pendingReports.length})
-                  </Text>
-                </View>
-                {pendingReports.map(report => {
-                  const typeColor = REPORT_TYPE_COLORS[report.reportType] || Colors.neutral.coolMist;
-                  const typeIcon = REPORT_TYPE_ICONS[report.reportType] || 'alert-circle-outline';
-                  const typeLabel = REPORT_TYPE_LABELS[report.reportType] || report.reportType;
-
-                  return (
-                    <View key={report.id} style={styles.card}>
-                      <View style={styles.reportHeader}>
-                        <View style={[styles.reportTypeBadge, { backgroundColor: typeColor + '18' }]}>
-                          <Ionicons name={typeIcon as any} size={14} color={typeColor} />
-                          <Text style={[styles.reportTypeText, { color: typeColor }]}>
-                            {typeLabel} Report
-                          </Text>
-                        </View>
-                        <Text style={styles.reportDate}>
-                          {formatDate(report.createdAt)}
-                        </Text>
-                      </View>
-
-                      <Text style={styles.reportReason}>{report.reason}</Text>
-
-                      {report.freeText && (
-                        <View style={styles.reportFreeTextBox}>
-                          <Ionicons name="chatbubble-ellipses-outline" size={14} color={Colors.neutral.coolMist} />
-                          <Text style={styles.reportFreeText}>"{report.freeText}"</Text>
-                        </View>
-                      )}
-
-                      <View style={styles.reportMeta}>
-                        <View style={styles.reportMetaRow}>
-                          <Ionicons name="person-outline" size={13} color={Colors.neutral.coolMist} />
-                          <Text style={styles.reportMetaText}>
-                            Reported by: {report.reporter?.name || 'Unknown'}
-                          </Text>
-                        </View>
-                        {report.reportedUser && (
-                          <View style={styles.reportMetaRow}>
-                            <Ionicons name="alert-circle-outline" size={13} color={'#FF9500'} />
-                            <Text style={styles.reportMetaText}>
-                              About: {report.reportedUser.name}
-                            </Text>
-                          </View>
-                        )}
-                        {report.bubble && (
-                          <View style={styles.reportMetaRow}>
-                            <Ionicons name="apps-outline" size={13} color={Colors.brand.bubbleBlue} />
-                            <Text style={styles.reportMetaText}>
-                              Bubble: {report.bubble.title}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={styles.reportMetaRow}>
-                          <Ionicons name="eye-outline" size={13} color={Colors.neutral.coolMist} />
-                          <Text style={styles.reportMetaText}>
-                            Routed to: {report.visibleTo === 'superadmin' ? 'Super Admins' : report.visibleTo === 'bubble_admin' ? 'Bubble Admins' : 'Both'}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.cardActions}>
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.dismissButton]}
-                          onPress={() => handleDismissReport(report.id)}
-                          disabled={actionLoading === report.id}
-                        >
-                          {actionLoading === report.id ? (
-                            <ActivityIndicator size="small" color={Colors.neutral.coolMist} />
-                          ) : (
-                            <>
-                              <Ionicons name="close-circle-outline" size={18} color={Colors.neutral.coolMist} />
-                              <Text style={styles.dismissText}>Dismiss</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity
-                          style={[styles.actionButton, styles.resolveButton]}
-                          onPress={() => handleResolveReport(report.id)}
-                          disabled={actionLoading === report.id}
-                        >
-                          {actionLoading === report.id ? (
-                            <ActivityIndicator size="small" color="#34C759" />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />
-                              <Text style={styles.resolveText}>Resolve</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-          </>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -582,20 +647,56 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     marginTop: 8,
   },
-  section: {
+  accordionContainer: {
     padding: 16,
   },
-  sectionHeaderRow: {
+  accordionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    backgroundColor: Colors.brand.skyWhite,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 2,
+    shadowColor: Colors.neutral.charcoal,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  sectionTitle: {
-    fontSize: 14,
+  accordionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  accordionTitle: {
+    fontSize: 15,
     fontWeight: '600',
+    color: Colors.neutral.charcoal,
+  },
+  countBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  countBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.brand.skyWhite,
+  },
+  accordionContent: {
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  emptySection: {
+    fontSize: 14,
     color: Colors.neutral.coolMist,
-    marginBottom: 12,
-    textTransform: 'uppercase',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   card: {
     backgroundColor: Colors.brand.skyWhite,
@@ -656,51 +757,68 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   eventMetaText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.neutral.coolMist,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: Colors.neutral.coolMist,
+    gap: 10,
+    marginTop: 4,
   },
   actionButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
     paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 6,
   },
   rejectButton: {
-    backgroundColor: '#FFF0F0',
-  },
-  approveButton: {
+    flex: 1,
+    backgroundColor: '#FEE2E2',
   },
   rejectText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.state.error,
   },
+  approveButton: {
+    flex: 1,
+  },
   approveText: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.neutral.charcoal,
   },
+  dismissButton: {
+    flex: 1,
+    backgroundColor: Colors.neutral.cloudGrey,
+  },
+  dismissText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.neutral.coolMist,
+  },
+  resolveButton: {
+    flex: 1,
+    backgroundColor: '#DCFCE7',
+  },
+  resolveText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#34C759',
+  },
   reportHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
   },
   reportTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -715,7 +833,7 @@ const styles = StyleSheet.create({
   },
   reportReason: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '500',
     color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
@@ -723,20 +841,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: '#F5F5F7',
-    padding: 12,
+    backgroundColor: Colors.neutral.cloudGrey,
+    padding: 10,
     borderRadius: 8,
     marginBottom: 10,
   },
   reportFreeText: {
-    fontSize: 13,
-    color: Colors.neutral.charcoal,
     flex: 1,
+    fontSize: 13,
+    color: Colors.neutral.coolMist,
     fontStyle: 'italic',
   },
   reportMeta: {
-    gap: 6,
-    marginBottom: 4,
+    gap: 4,
+    marginBottom: 12,
   },
   reportMetaRow: {
     flexDirection: 'row',
@@ -744,23 +862,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   reportMetaText: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.neutral.coolMist,
-  },
-  dismissButton: {
-    backgroundColor: '#F5F5F7',
-  },
-  dismissText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.coolMist,
-  },
-  resolveButton: {
-    backgroundColor: '#E8FAE8',
-  },
-  resolveText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#34C759',
   },
 });

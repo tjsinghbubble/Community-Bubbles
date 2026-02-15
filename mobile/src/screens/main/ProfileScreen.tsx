@@ -176,7 +176,7 @@ export default function ProfileScreen() {
             >
               <View style={styles.menuItemLeft}>
                 <Ionicons name="time-outline" size={24} color={Colors.neutral.charcoal} />
-                <Text style={styles.menuItemText}>Pending Reviews</Text>
+                <Text style={styles.menuItemText}>Needs Attention</Text>
                 {pendingCount > 0 && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{pendingCount}</Text>
