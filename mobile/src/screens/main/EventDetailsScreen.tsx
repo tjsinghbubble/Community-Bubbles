@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   },
   rsvpDropdownWrapper: {
     marginLeft: Spacing.md,
-    marginTop: 10,
+    alignSelf: 'flex-start',
   },
   rsvpDropdownButton: {
     flexDirection: 'row',
