@@ -52,7 +52,7 @@ export default function ProfileScreen() {
 
       setHasAdminItems(count > 0 || isSuperAdmin || isBubbleAdmin.current);
     } catch (error) {
-      setHasAdminItems(isSuperAdmin);
+      setHasAdminItems(isSuperAdmin || isBubbleAdmin.current);
     }
   };
 
