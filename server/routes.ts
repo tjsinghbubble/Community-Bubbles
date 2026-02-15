@@ -1458,7 +1458,12 @@ export async function registerRoutes(
       } else if (req.body.reportType === 'event') {
         visibleTo = EVENT_REPORT_VISIBILITY[req.body.reason] || 'both';
       } else if (req.body.reportType === 'individual') {
-        visibleTo = 'bubble_admin';
+        if (req.body.reportedUserId) {
+          const reportedRole = await storage.getMemberRole(req.body.reportedUserId, req.body.bubbleId);
+          visibleTo = reportedRole === 'admin' ? 'both' : 'bubble_admin';
+        } else {
+          visibleTo = 'bubble_admin';
+        }
       } else if (req.body.reportType === 'admin') {
         visibleTo = 'superadmin';
       }
@@ -1482,7 +1487,8 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only bubble admins can view reports" });
       }
       const reps = await storage.getReportsForBubble(bubbleId);
-      res.json(reps);
+      const filtered = reps.filter(r => r.reportedUserId !== req.userId);
+      res.json(filtered);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

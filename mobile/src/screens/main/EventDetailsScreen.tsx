@@ -759,7 +759,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxxl + 20,
   },
   coverImageContainer: {
-    marginTop: Spacing.md,
     borderRadius: Radius.md,
     overflow: 'hidden',
   },
@@ -772,7 +771,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.md,
+    marginTop: 8,
     marginBottom: Spacing.xs,
     zIndex: 100,
     position: 'relative',

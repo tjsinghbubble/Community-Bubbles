@@ -264,7 +264,13 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         bubbleId,
       });
       setReportModalVisible(false);
-      Alert.alert('Report Submitted', 'Your concern has been sent to the bubble admins for review.');
+      const isReportedAdmin = selectedMember.role === 'admin';
+      Alert.alert(
+        'Report Submitted',
+        isReportedAdmin
+          ? 'Your concern has been sent to the other admins and super admins for review.'
+          : 'Your concern has been sent to the bubble admins for review.'
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to submit report');
     } finally {
@@ -412,7 +418,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
                 <View style={styles.menuDivider} />
                 {selectedMember?.role === 'admin' ? (
                   <TouchableOpacity style={styles.menuItem} onPress={handleDemoteFromMenu}>
-                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Demote</Text>
+                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Remove as admin</Text>
                     <Ionicons name="arrow-down" size={18} color="#f59e0b" />
                   </TouchableOpacity>
                 ) : (

@@ -267,7 +267,13 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
         bubbleId,
       });
       setReportModalVisible(false);
-      Alert.alert('Report Submitted', 'Your concern has been sent to the bubble admins for review.');
+      const isReportedAdmin = getBubbleRole(selectedAttendee.userId) === 'admin';
+      Alert.alert(
+        'Report Submitted',
+        isReportedAdmin
+          ? 'Your concern has been sent to the other admins and super admins for review.'
+          : 'Your concern has been sent to the bubble admins for review.'
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to submit report');
     } finally {
