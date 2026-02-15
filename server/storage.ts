@@ -1033,11 +1033,6 @@ export class DatabaseStorage implements IStorage {
 
   async getReportsForSysAdmin(): Promise<(Report & { reporter: User; reportedUser?: User; bubble: Bubble })[]> {
     const result = await db.select().from(reports)
-      .where(or(
-        ne(reports.reportType, 'bubble'),
-        eq(reports.visibleTo, 'superadmin'),
-        eq(reports.visibleTo, 'both')
-      ))
       .orderBy(desc(reports.createdAt));
     const enriched = await Promise.all(result.map(async (r) => {
       const reporter = await this.getUser(r.reporterUserId);
