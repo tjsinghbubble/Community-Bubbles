@@ -3,16 +3,27 @@ import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowDown,
   Camera,
   ChevronDown,
   Check,
+  Flag,
   MessageSquare,
   MoreHorizontal,
+  Star,
+  Trash2,
   X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 import avatar1 from "@/assets/images/avatar-1.jpg";
@@ -427,6 +438,61 @@ function JoinBubbleSheet({
   );
 }
 
+function MemberKebabMenu({ member }: { member: Member }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="p-2 text-muted-foreground" data-testid={`button-member-more-${member.id}`}>
+          <MoreHorizontal className="h-5 w-5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          className="gap-2"
+          data-testid={`action-dm-${member.id}`}
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>Direct Message</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="gap-2 text-red-500 focus:text-red-500"
+          data-testid={`action-remove-${member.id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+          <span>Remove from group</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {member.role === "admin" ? (
+          <DropdownMenuItem
+            className="gap-2 text-amber-500 focus:text-amber-500"
+            data-testid={`action-demote-${member.id}`}
+          >
+            <ArrowDown className="h-4 w-4" />
+            <span>Demote</span>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            className="gap-2 text-green-600 focus:text-green-600"
+            data-testid={`action-make-admin-${member.id}`}
+          >
+            <Star className="h-4 w-4" />
+            <span>Make admin</span>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="gap-2 text-red-500 focus:text-red-500"
+          data-testid={`action-report-${member.id}`}
+        >
+          <Flag className="h-4 w-4" />
+          <span>Report a concern</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function MembersScreen({ onBack }: { onBack: () => void }) {
   const admins = membersSeed.filter((m) => m.role === "admin");
   const participants = membersSeed.filter((m) => m.role === "participant");
@@ -471,9 +537,7 @@ function MembersScreen({ onBack }: { onBack: () => void }) {
                   {m.name}
                 </div>
               </div>
-              <button className="p-2 text-muted-foreground" data-testid={`button-admin-more-${m.id}`}>
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
+              <MemberKebabMenu member={m} />
             </div>
           ))}
         </div>
@@ -499,9 +563,7 @@ function MembersScreen({ onBack }: { onBack: () => void }) {
                   {m.name}
                 </div>
               </div>
-              <button className="p-2 text-muted-foreground" data-testid={`button-participant-more-${m.id}`}>
-                <MoreHorizontal className="h-5 w-5" />
-              </button>
+              <MemberKebabMenu member={m} />
             </div>
           ))}
         </div>
