@@ -488,30 +488,26 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        {!fromBubble && (
-          <>
-            <View style={styles.separator} />
+        <View style={styles.separator} />
 
-            <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
-              {creatorProfilePhoto ? (
-                <Image source={{ uri: creatorProfilePhoto }} style={styles.creatorAvatarImage} />
-              ) : (
-                <View style={styles.creatorAvatar}>
-                  <Ionicons name="person" size={20} color={Colors.background.primary} />
-                </View>
-              )}
-              <View style={styles.creatorInfo}>
-                <Text style={styles.creatorLabel}>
-                  Created by <Text style={styles.creatorName}>{creatorName}</Text>
-                </Text>
-                <Text style={styles.creatorCity}>
-                  {event.locationName ? event.locationName.split(',')[0] : 'Local'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
+          {creatorProfilePhoto ? (
+            <Image source={{ uri: creatorProfilePhoto }} style={styles.creatorAvatarImage} />
+          ) : (
+            <View style={styles.creatorAvatar}>
+              <Ionicons name="person" size={20} color={Colors.background.primary} />
+            </View>
+          )}
+          <View style={styles.creatorInfo}>
+            <Text style={styles.creatorLabel}>
+              Created by <Text style={styles.creatorName}>{creatorName}</Text>
+            </Text>
+            <Text style={styles.creatorCity}>
+              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
           <View style={styles.locationIconContainer}>
