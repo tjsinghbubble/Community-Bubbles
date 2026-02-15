@@ -113,6 +113,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [eventReportFreeText, setEventReportFreeText] = useState('');
   const [eventReportSubmitting, setEventReportSubmitting] = useState(false);
   const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
+  const [showKebabMenu, setShowKebabMenu] = useState(false);
 
   const EVENT_REPORT_REASONS = [
     'Safety issue at this event',
@@ -399,19 +400,49 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.navRightActions}>
-          {canManage && (
-            <TouchableOpacity onPress={showAdminOptions} style={styles.navShareButton}>
-              <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
+          <View style={{ position: 'relative', zIndex: 200 }}>
+            <TouchableOpacity onPress={() => setShowKebabMenu(!showKebabMenu)} style={styles.navShareButton}>
+              <Ionicons name="ellipsis-vertical" size={22} color={Colors.text.primary} />
             </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={handleReportEvent} style={styles.navShareButton}>
-            <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleShare} style={styles.navShareButton}>
-            <Ionicons name="paper-plane-outline" size={22} color={Colors.text.primary} />
-          </TouchableOpacity>
+            {showKebabMenu && (
+              <View style={styles.kebabMenu}>
+                <TouchableOpacity
+                  style={styles.kebabMenuItem}
+                  onPress={() => { setShowKebabMenu(false); handleShare(); }}
+                >
+                  <Text style={styles.kebabMenuText}>Share Event</Text>
+                  <Ionicons name="paper-plane-outline" size={18} color={Colors.text.primary} />
+                </TouchableOpacity>
+                {canManage && (
+                  <TouchableOpacity
+                    style={styles.kebabMenuItem}
+                    onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
+                  >
+                    <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
+                    <Ionicons name="settings-outline" size={18} color={Colors.brand.primary} />
+                  </TouchableOpacity>
+                )}
+                <View style={styles.kebabSeparator} />
+                <TouchableOpacity
+                  style={styles.kebabMenuItem}
+                  onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
+                >
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Concern</Text>
+                  <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
       </View>
+
+      {showKebabMenu && (
+        <TouchableOpacity
+          style={styles.kebabBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowKebabMenu(false)}
+        />
+      )}
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {hasImages && (
@@ -720,6 +751,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: Spacing.md,
+    zIndex: 200,
   },
   navBackButton: {
     width: 36,
@@ -745,6 +777,48 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  kebabMenu: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 12,
+    paddingVertical: 6,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutral.cloudGrey,
+  },
+  kebabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  kebabMenuText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.text.primary,
+  },
+  kebabSeparator: {
+    height: 1,
+    backgroundColor: Colors.neutral.coolMist,
+    marginHorizontal: 16,
+    opacity: 0.4,
+  },
+  kebabBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 150,
   },
   scrollView: {
     flex: 1,
@@ -775,6 +849,7 @@ const styles = StyleSheet.create({
   },
   rsvpDropdownWrapper: {
     marginLeft: 'auto',
+    marginTop: 5,
   },
   rsvpDropdownButton: {
     flexDirection: 'row',
