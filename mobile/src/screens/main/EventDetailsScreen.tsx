@@ -618,8 +618,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               )}
             </View>
             <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
-              <Ionicons name="navigate-outline" size={18} color={Colors.brand.primary} />
-              <Text style={styles.directionsText}>Open in Maps</Text>
+              <Ionicons name="navigate-outline" size={20} color={Colors.brand.primary} />
+              <Text style={styles.directionsText}>Get Directions</Text>
             </TouchableOpacity>
             <View style={styles.separator} />
           </View>
@@ -1051,14 +1051,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    borderWidth: 1,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
     borderColor: Colors.brand.primary,
     borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
+    paddingVertical: 14,
     marginTop: Spacing.md,
   },
   directionsText: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '500',
     color: Colors.brand.primary,
   },

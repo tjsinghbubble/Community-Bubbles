@@ -1541,7 +1541,7 @@ export async function registerRoutes(
       const y = Math.floor(
         ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, z)
       );
-      const tileUrl = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+      const tileUrl = `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}@2x.png`;
       const response = await fetch(tileUrl, {
         headers: { "User-Agent": "BubbleApp/1.0" },
       });
