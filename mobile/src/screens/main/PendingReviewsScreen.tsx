@@ -296,6 +296,8 @@ export default function PendingReviewsScreen() {
     count: number,
     countColor: string,
     sectionKey: string,
+    iconName: keyof typeof Ionicons.glyphMap,
+    iconColor: string,
   ) => {
     const isExpanded = expandedSections[sectionKey];
     return (
@@ -305,6 +307,7 @@ export default function PendingReviewsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.accordionHeaderLeft}>
+          <Ionicons name={iconName} size={18} color={iconColor} />
           <Text style={styles.accordionTitle}>{title}</Text>
           {count > 0 && (
             <View style={[styles.countBadge, { backgroundColor: countColor }]}>
@@ -353,7 +356,7 @@ export default function PendingReviewsScreen() {
           disabled={actionLoading === bubble.id}
         >
           <LinearGradient
-            colors={Gradients.button.colors as [string, string, ...string[]]}
+            colors={[...Gradients.button.colors] as [string, string, ...string[]]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.actionButton, styles.approveButton]}
@@ -410,7 +413,7 @@ export default function PendingReviewsScreen() {
           disabled={actionLoading === event.id}
         >
           <LinearGradient
-            colors={Gradients.button.colors as [string, string, ...string[]]}
+            colors={[...Gradients.button.colors] as [string, string, ...string[]]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.actionButton, styles.approveButton]}
@@ -552,7 +555,7 @@ export default function PendingReviewsScreen() {
           </View>
         ) : (
           <View style={styles.accordionContainer}>
-            {renderAccordionHeader('Pending Concerns', pendingReports.length, Colors.state.error, 'concerns')}
+            {renderAccordionHeader('Pending Concerns', pendingReports.length, Colors.state.error, 'concerns', 'warning', Colors.state.error)}
             {expandedSections.concerns && (
               <View style={styles.accordionContent}>
                 {pendingReports.length === 0 ? (
@@ -563,7 +566,7 @@ export default function PendingReviewsScreen() {
               </View>
             )}
 
-            {renderAccordionHeader('Pending Event Approval', pendingEvents.length, '#F59E0B', 'events')}
+            {renderAccordionHeader('Pending Event Approval', pendingEvents.length, '#F59E0B', 'events', 'flash', '#F59E0B')}
             {expandedSections.events && (
               <View style={styles.accordionContent}>
                 {pendingEvents.length === 0 ? (
@@ -576,7 +579,7 @@ export default function PendingReviewsScreen() {
 
             {isSuperAdmin && (
               <>
-                {renderAccordionHeader('Pending Bubble Approval', pendingBubbles.length, Colors.neutral.coolMist, 'bubbles')}
+                {renderAccordionHeader('Pending Bubble Approval', pendingBubbles.length, Colors.neutral.coolMist, 'bubbles', 'checkmark-circle', '#34C759')}
                 {expandedSections.bubbles && (
                   <View style={styles.accordionContent}>
                     {pendingBubbles.length === 0 ? (
