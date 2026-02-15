@@ -29,6 +29,9 @@ import {
   type BubbleVisit,
   type Category,
   type InsertCategory,
+  reports,
+  type Report,
+  type InsertReport,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -122,6 +125,12 @@ export interface IStorage {
   createCategory(data: InsertCategory): Promise<Category>;
   updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<void>;
+
+  // Reports
+  createReport(report: InsertReport): Promise<Report>;
+  getReportsForBubble(bubbleId: string): Promise<(Report & { reporter: User; reportedUser?: User })[]>;
+  getReportsForSysAdmin(): Promise<(Report & { reporter: User; reportedUser?: User; bubble: Bubble })[]>;
+  updateReportStatus(id: string, status: string): Promise<Report | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -989,6 +998,40 @@ export class DatabaseStorage implements IStorage {
   async deleteCategory(id: number): Promise<void> {
     await db.delete(categories).where(eq(categories.parentId, id));
     await db.delete(categories).where(eq(categories.id, id));
+  }
+
+  async createReport(report: InsertReport): Promise<Report> {
+    const result = await db.insert(reports).values(report).returning();
+    return result[0];
+  }
+
+  async getReportsForBubble(bubbleId: string): Promise<(Report & { reporter: User; reportedUser?: User })[]> {
+    const result = await db.select().from(reports)
+      .where(and(eq(reports.bubbleId, bubbleId), eq(reports.reportType, 'individual')))
+      .orderBy(desc(reports.createdAt));
+    const enriched = await Promise.all(result.map(async (r) => {
+      const reporter = await this.getUser(r.reporterUserId);
+      const reportedUser = r.reportedUserId ? await this.getUser(r.reportedUserId) : undefined;
+      return { ...r, reporter: reporter!, reportedUser };
+    }));
+    return enriched;
+  }
+
+  async getReportsForSysAdmin(): Promise<(Report & { reporter: User; reportedUser?: User; bubble: Bubble })[]> {
+    const result = await db.select().from(reports)
+      .orderBy(desc(reports.createdAt));
+    const enriched = await Promise.all(result.map(async (r) => {
+      const reporter = await this.getUser(r.reporterUserId);
+      const reportedUser = r.reportedUserId ? await this.getUser(r.reportedUserId) : undefined;
+      const bubble = await this.getBubble(r.bubbleId);
+      return { ...r, reporter: reporter!, reportedUser, bubble: bubble! };
+    }));
+    return enriched;
+  }
+
+  async updateReportStatus(id: string, status: string): Promise<Report | undefined> {
+    const result = await db.update(reports).set({ status }).where(eq(reports.id, id)).returning();
+    return result[0];
   }
 }
 

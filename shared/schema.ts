@@ -225,3 +225,24 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Category = typeof categories.$inferSelect;
+
+export const reports = pgTable("reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportType: text("report_type").notNull(),
+  reason: text("reason").notNull(),
+  freeText: text("free_text"),
+  reporterUserId: varchar("reporter_user_id").notNull().references(() => users.id),
+  reportedUserId: varchar("reported_user_id").references(() => users.id),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertReportSchema = createInsertSchema(reports).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+});
+
+export type InsertReport = z.infer<typeof insertReportSchema>;
+export type Report = typeof reports.$inferSelect;

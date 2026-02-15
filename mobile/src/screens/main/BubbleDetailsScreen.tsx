@@ -14,6 +14,9 @@ import {
   StatusBar,
   Share,
   Dimensions,
+  TextInput,
+  KeyboardAvoidingView,
+  Pressable,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -72,6 +75,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   const [memberCount, setMemberCount] = useState<number>(bubble.members || 0);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [reportReason, setReportReason] = useState<string | null>(null);
+  const [reportFreeText, setReportFreeText] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
 
   useEffect(() => {
     checkMembership();
@@ -283,9 +290,38 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     setShowKebabMenu(false);
   };
 
+  const REPORT_REASONS = [
+    'Harassment or inappropriate behavior',
+    'Made me feel unsafe or uncomfortable',
+    'Fake profile or suspected scammer',
+    'No-show pattern',
+    'Other',
+  ];
+
   const handleReportConcern = () => {
     setShowKebabMenu(false);
-    Alert.alert('Report', 'Thank you for your report. We will review this bubble.');
+    setReportReason(null);
+    setReportFreeText('');
+    setReportModalVisible(true);
+  };
+
+  const submitReport = async () => {
+    if (!reportReason) return;
+    setReportSubmitting(true);
+    try {
+      await apiService.submitReport({
+        reportType: 'admin',
+        reason: reportReason,
+        freeText: reportFreeText.trim() || undefined,
+        bubbleId: bubble.id,
+      });
+      setReportModalVisible(false);
+      Alert.alert('Report Submitted', 'Your concern has been sent to the Bubble team for review.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   const renderHeader = () => (
@@ -684,6 +720,70 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         subtitle={successModalConfig.subtitle}
         onClose={handleSuccessModalClose}
       />
+      <Modal
+        visible={reportModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.reportOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.reportDialog}>
+            <View style={styles.reportHeader}>
+              <Text style={styles.reportTitle}>Report a Concern</Text>
+              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reportSubtitle}>
+              About this bubble's admins — sent to the Bubble team
+            </Text>
+            <ScrollView style={styles.reportReasonsList} nestedScrollEnabled>
+              {REPORT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.reportReasonItem,
+                    reportReason === reason && styles.reportReasonSelected,
+                  ]}
+                  onPress={() => setReportReason(reason)}
+                >
+                  <Text style={[
+                    styles.reportReasonText,
+                    reportReason === reason && styles.reportReasonTextSelected,
+                  ]}>{reason}</Text>
+                  {reportReason === reason && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TextInput
+              style={styles.reportTextInput}
+              placeholder="Additional details (optional)"
+              placeholderTextColor={Colors.text.tertiary}
+              value={reportFreeText}
+              onChangeText={setReportFreeText}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitDisabled]}
+              onPress={submitReport}
+              disabled={!reportReason || reportSubmitting}
+            >
+              {reportSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.reportSubmitText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1038,5 +1138,86 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
+  },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  reportDialog: {
+    backgroundColor: Colors.background.primary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  reportHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  reportTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  reportSubtitle: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    marginBottom: Spacing.md,
+  },
+  reportReasonsList: {
+    maxHeight: 240,
+    marginBottom: Spacing.sm,
+  },
+  reportReasonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.neutral.cloudGrey,
+    marginBottom: Spacing.xs,
+  },
+  reportReasonSelected: {
+    borderColor: Colors.brand.primary,
+    backgroundColor: '#EBF5FF',
+  },
+  reportReasonText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.primary,
+    flex: 1,
+  },
+  reportReasonTextSelected: {
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.semiBold,
+  },
+  reportTextInput: {
+    borderWidth: 1,
+    borderColor: Colors.neutral.cloudGrey,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.primary,
+    minHeight: 80,
+    marginBottom: Spacing.md,
+  },
+  reportSubmitButton: {
+    backgroundColor: Colors.status.error,
+    borderRadius: Radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 20 : 0,
+  },
+  reportSubmitDisabled: {
+    opacity: 0.5,
+  },
+  reportSubmitText: {
+    color: '#fff',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
   },
 });

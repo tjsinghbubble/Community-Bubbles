@@ -381,6 +381,19 @@ class ApiService {
       body: JSON.stringify({ reason }),
     });
   }
+
+  async submitReport(data: {
+    reportType: string;
+    reason: string;
+    freeText?: string;
+    reportedUserId?: string;
+    bubbleId: string;
+  }) {
+    return this.request<any>("/api/reports", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const apiService = new ApiService();

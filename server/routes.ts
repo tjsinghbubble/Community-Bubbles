@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
@@ -1426,6 +1426,61 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       await storage.deleteCategory(id);
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reports
+  app.post("/api/reports", authMiddleware, async (req, res) => {
+    try {
+      const parsed = insertReportSchema.parse({
+        ...req.body,
+        reporterUserId: req.userId,
+      });
+      const report = await storage.createReport(parsed);
+      res.status(201).json(report);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const role = await storage.getMemberRole(req.userId!, bubbleId);
+      if (role !== 'admin') {
+        return res.status(403).json({ error: "Only bubble admins can view reports" });
+      }
+      const reps = await storage.getReportsForBubble(bubbleId);
+      res.json(reps);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/reports", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const reps = await storage.getReportsForSysAdmin();
+      res.json(reps);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/reports/:id/status", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const report = await storage.updateReportStatus(req.params.id, req.body.status);
+      if (!report) return res.status(404).json({ error: "Report not found" });
+      res.json(report);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
