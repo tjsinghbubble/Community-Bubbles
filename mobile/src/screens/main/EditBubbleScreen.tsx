@@ -12,71 +12,115 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, RadioStyles, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
   route: RouteProp<any>;
 };
 
-const CATEGORIES = [
-  'Sports & Fitness',
-  'Arts & Culture',
-  'Food & Drink',
-  'Technology',
-  'Music',
-  'Outdoors',
-  'Gaming',
-  'Books & Writing',
-  'Photography',
-  'Business',
-  'Wellness',
-  'Social',
-  'Other',
+const PRIVACY_OPTIONS = [
+  { value: 'Public', label: 'Public', subtitle: 'Anyone can discover and join' },
+  { value: 'Request', label: 'Request to Join', subtitle: 'Admin approval required before joining' },
+  { value: 'Private', label: 'Private', subtitle: 'Invite-only, hidden from explore' },
 ];
-
-const PRIVACY_OPTIONS = ['Public', 'Private'];
 
 export default function EditBubbleScreen({ navigation, route }: Props) {
   const { bubble } = route.params as { bubble: any };
-  
+
   const [title, setTitle] = useState(bubble.title || '');
   const [tagline, setTagline] = useState(bubble.tagline || '');
-  const [category, setCategory] = useState(bubble.category || '');
+  const [category] = useState(bubble.category || '');
   const [description, setDescription] = useState(bubble.description || '');
-  const [rulesText, setRulesText] = useState(
-    Array.isArray(bubble.rules) ? bubble.rules.join('\n') : ''
+  const [rules, setRules] = useState<string[]>(
+    Array.isArray(bubble.rules) ? [...bubble.rules] : []
   );
   const [privacy, setPrivacy] = useState(bubble.privacy || 'Public');
   const [images, setImages] = useState<string[]>(
     Array.isArray(bubble.images) ? bubble.images : (bubble.coverImage ? [bubble.coverImage] : [])
   );
-  
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showPrivacyPicker, setShowPrivacyPicker] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
+  const [ruleText, setRuleText] = useState('');
+  const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
 
-  const isFormValid = title && tagline && category && description;
+  const isFormValid = title && tagline && description;
+
+  const openAddRule = () => {
+    setEditingRuleIndex(null);
+    setRuleText('');
+    setShowRuleModal(true);
+  };
+
+  const openEditRule = (index: number) => {
+    setEditingRuleIndex(index);
+    setRuleText(rules[index]);
+    setShowRuleModal(true);
+  };
+
+  const saveRule = () => {
+    const trimmed = ruleText.trim();
+    if (!trimmed) return;
+    if (editingRuleIndex !== null) {
+      const updated = [...rules];
+      updated[editingRuleIndex] = trimmed;
+      setRules(updated);
+    } else {
+      setRules([trimmed, ...rules]);
+    }
+    setShowRuleModal(false);
+    setRuleText('');
+  };
+
+  const deleteRule = (index: number) => {
+    setRules(rules.filter((_, i) => i !== index));
+    if (expandedRuleIndex === index) {
+      setExpandedRuleIndex(null);
+    } else if (expandedRuleIndex !== null && expandedRuleIndex > index) {
+      setExpandedRuleIndex(expandedRuleIndex - 1);
+    }
+  };
+
+  const moveRuleUp = (index: number) => {
+    if (index <= 0) return;
+    const updated = [...rules];
+    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
+    setRules(updated);
+    if (expandedRuleIndex === index) setExpandedRuleIndex(index - 1);
+    else if (expandedRuleIndex === index - 1) setExpandedRuleIndex(index);
+  };
+
+  const moveRuleDown = (index: number) => {
+    if (index >= rules.length - 1) return;
+    const updated = [...rules];
+    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
+    setRules(updated);
+    if (expandedRuleIndex === index) setExpandedRuleIndex(index + 1);
+    else if (expandedRuleIndex === index + 1) setExpandedRuleIndex(index);
+  };
+
+  const toggleRuleExpand = (index: number) => {
+    setExpandedRuleIndex(expandedRuleIndex === index ? null : index);
+  };
 
   const handleSave = async () => {
     if (!isFormValid) return;
 
     setLoading(true);
     try {
-      const rules = rulesText
-        .split('\n')
-        .map(rule => rule.trim())
-        .filter(rule => rule.length > 0);
-
       await apiService.updateBubble(bubble.id, {
         title,
         tagline,
@@ -100,7 +144,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
@@ -110,7 +154,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -140,18 +184,14 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Category *</Text>
-            <TouchableOpacity 
-              style={styles.selectInput}
-              onPress={() => setShowCategoryPicker(true)}
-            >
-              <Text style={category ? styles.selectText : styles.selectPlaceholder}>
-                {category || 'Select a category'}
-              </Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
-            </TouchableOpacity>
-          </View>
+          {category ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.categoryDisplay}>
+                <Text style={styles.categoryDisplayText}>{category}</Text>
+              </View>
+            </View>
+          ) : null}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Description *</Text>
@@ -169,35 +209,99 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Community Rules</Text>
-            <Text style={styles.helperText}>
-              Enter each rule on a new line
-            </Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="1. Be respectful&#10;2. No spam&#10;3. Stay on topic"
-              placeholderTextColor={Colors.neutral.coolMist}
-              value={rulesText}
-              onChangeText={setRulesText}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
+
+            <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
+              <View style={styles.addRuleDashedBorder}>
+                <Ionicons name="add" size={20} color={Colors.brand.primary} />
+                <Text style={styles.addRuleText}>Add Rule</Text>
+              </View>
+            </TouchableOpacity>
+
+            {rules.map((rule, index) => {
+              const isExpanded = expandedRuleIndex === index;
+              return (
+                <Swipeable
+                  key={`rule-${index}`}
+                  renderRightActions={() => (
+                    <TouchableOpacity
+                      style={styles.swipeDeleteAction}
+                      onPress={() => deleteRule(index)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
+                      <Text style={styles.swipeDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
+                  overshootRight={false}
+                >
+                  <TouchableOpacity
+                    style={styles.ruleItem}
+                    onPress={() => toggleRuleExpand(index)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.ruleContent}>
+                      <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
+                      {isExpanded && (
+                        <View style={styles.ruleActions}>
+                          <TouchableOpacity
+                            style={[styles.ruleActionButton, index === 0 && styles.ruleActionDisabled]}
+                            onPress={() => moveRuleUp(index)}
+                            disabled={index === 0}
+                          >
+                            <Ionicons name="arrow-up" size={16} color={index === 0 ? Colors.text.tertiary : Colors.brand.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.ruleActionButton, index === rules.length - 1 && styles.ruleActionDisabled]}
+                            onPress={() => moveRuleDown(index)}
+                            disabled={index === rules.length - 1}
+                          >
+                            <Ionicons name="arrow-down" size={16} color={index === rules.length - 1 ? Colors.text.tertiary : Colors.brand.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.ruleActionButton}
+                            onPress={() => openEditRule(index)}
+                          >
+                            <Ionicons name="pencil" size={16} color={Colors.brand.primary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.ruleActionButton, { borderColor: Colors.status.error }]}
+                            onPress={() => deleteRule(index)}
+                          >
+                            <Ionicons name="trash-outline" size={16} color={Colors.status.error} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.ruleDragHandle}>
+                      <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
+              );
+            })}
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Privacy</Text>
-            <TouchableOpacity 
-              style={styles.selectInput}
-              onPress={() => setShowPrivacyPicker(true)}
-            >
-              <Text style={styles.selectText}>{privacy}</Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
-            </TouchableOpacity>
-            <Text style={styles.helperText}>
-              {privacy === 'Public' 
-                ? 'Anyone can find and join this bubble'
-                : 'Only invited members can join'}
-            </Text>
+            <View style={styles.privacyOptions}>
+              {PRIVACY_OPTIONS.map((opt) => {
+                const selected = privacy === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
+                    onPress={() => setPrivacy(opt.value)}
+                  >
+                    <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
+                      {selected && <View style={RadioStyles.innerDot} />}
+                    </View>
+                    <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                      <Text style={RadioStyles.label}>{opt.label}</Text>
+                      <Text style={RadioStyles.description}>{opt.subtitle}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
@@ -231,89 +335,54 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <Modal
-        visible={showCategoryPicker}
+        visible={showRuleModal}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowCategoryPicker(false)}
+        onRequestClose={() => setShowRuleModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowCategoryPicker(false)}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
-                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              {CATEGORIES.map((cat) => (
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowRuleModal(false)}
+          >
+            <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
+              <TextInput
+                style={styles.ruleModalInput}
+                placeholder="Enter your rule..."
+                placeholderTextColor={Colors.text.tertiary}
+                value={ruleText}
+                onChangeText={setRuleText}
+                autoFocus
+              />
+              <View style={styles.modalFooter}>
                 <TouchableOpacity
-                  key={cat}
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setCategory(cat);
-                    setShowCategoryPicker(false);
-                  }}
+                  style={styles.modalSecondaryBtn}
+                  onPress={() => setShowRuleModal(false)}
                 >
-                  <Text style={[
-                    styles.modalOptionText,
-                    category === cat && styles.modalOptionSelected,
-                  ]}>
-                    {cat}
-                  </Text>
-                  {category === cat && (
-                    <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
-                  )}
+                  <Text style={styles.modalSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      <Modal
-        visible={showPrivacyPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPrivacyPicker(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowPrivacyPicker(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Privacy</Text>
-              <TouchableOpacity onPress={() => setShowPrivacyPicker(false)}>
-                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={saveRule}
+                  disabled={!ruleText.trim()}
+                  style={{ flex: 1 }}
+                >
+                  <LinearGradient
+                    colors={Gradients.button.colors as unknown as string[]}
+                    start={Gradients.button.start}
+                    end={Gradients.button.end}
+                    style={[styles.gradientButton, !ruleText.trim() && { opacity: 0.5 }]}
+                  >
+                    <Text style={styles.gradientButtonText}>Save</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </View>
-            {PRIVACY_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option}
-                style={styles.modalOption}
-                onPress={() => {
-                  setPrivacy(option);
-                  setShowPrivacyPicker(false);
-                }}
-              >
-                <Text style={[
-                  styles.modalOptionText,
-                  privacy === option && styles.modalOptionSelected,
-                ]}>
-                  {option}
-                </Text>
-                {privacy === option && (
-                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       <SuccessModal
@@ -339,17 +408,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.coolMist,
   },
   backButton: {
-    padding: 8,
+    padding: Spacing.xs,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.neutral.charcoal,
   },
   headerSpacer: {
@@ -359,104 +428,189 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   form: {
-    padding: 20,
-    gap: 20,
+    padding: Spacing.xl,
+    gap: Spacing.xl,
     paddingBottom: 40,
   },
   inputGroup: {
-    gap: 8,
+    gap: Spacing.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.neutral.charcoal,
   },
   input: {
     borderWidth: 1,
     borderColor: Colors.neutral.coolMist,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    fontSize: Typography.sizes.base,
     backgroundColor: Colors.neutral.cloudGrey,
     color: Colors.neutral.charcoal,
   },
   textArea: {
     minHeight: 100,
   },
-  selectInput: {
+  categoryDisplay: {
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    borderRadius: 12,
-    padding: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    borderColor: Colors.border.default,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    backgroundColor: Colors.background.surface,
   },
-  selectText: {
-    fontSize: 16,
-    color: Colors.neutral.charcoal,
+  categoryDisplayText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
   },
-  selectPlaceholder: {
-    fontSize: 16,
-    color: Colors.neutral.coolMist,
-  },
-  helperText: {
-    fontSize: 12,
-    color: Colors.neutral.coolMist,
-    marginTop: 4,
+  privacyOptions: {
+    gap: Spacing.sm,
+    marginTop: Spacing.xxs,
   },
   saveButton: {
-    padding: 16,
-    borderRadius: 12,
+    padding: Spacing.lg,
+    borderRadius: Radius.lg,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   saveButtonText: {
     color: Colors.neutral.charcoal,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
   },
+
+  addRuleButton: {
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+  },
+  addRuleDashedBorder: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.brand.primary,
+    borderRadius: Platform.OS === 'ios' ? Radius.lg : 0,
+    paddingVertical: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  addRuleText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.primary,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: Colors.background.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+  },
+  ruleContent: {
+    flex: 1,
+    gap: Spacing.xs,
+  },
+  ruleText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
+  },
+  ruleActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  ruleActionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.background.surface,
+  },
+  ruleActionDisabled: {
+    opacity: 0.4,
+  },
+  ruleDragHandle: {
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swipeDeleteAction: {
+    backgroundColor: Colors.status.error,
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginLeft: Spacing.sm,
+    gap: Spacing.xxs,
+  },
+  swipeDeleteText: {
+    color: Colors.background.primary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
+  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: Colors.brand.skyWhite,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-    padding: 20,
+  modalContainer: {
+    backgroundColor: Colors.background.primary,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xl,
   },
-  modalHeader: {
+  ruleModalInput: {
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
+    minHeight: 48,
+  },
+  modalFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginTop: Spacing.lg,
+  },
+  modalSecondaryBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    backgroundColor: Colors.background.primary,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
+  modalSecondaryText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
   },
-  modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  gradientButton: {
+    height: 48,
+    borderRadius: Radius.full,
     alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    justifyContent: 'center',
   },
-  modalOptionText: {
-    fontSize: 16,
-    color: Colors.neutral.charcoal,
-  },
-  modalOptionSelected: {
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
+  gradientButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.background.primary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
 });
