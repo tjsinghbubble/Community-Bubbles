@@ -70,12 +70,11 @@ interface CategoryGroup {
   children: CategoryItem[];
 }
 
-const MANDATORY_RULES = [
+const DEFAULT_RULES = [
   'Be Respectful. Treat all members with kindness and courtesy.',
   'Stay On Topic. Keep posts relevant to the bubble\'s purpose.',
+  'Have fun and be yourself!',
 ];
-
-const DEFAULT_OPTIONAL_RULE = 'Have fun and be yourself!';
 
 const PRIVACY_OPTIONS = [
   { value: 'Public', label: 'Public', subtitle: 'Anyone can discover and join' },
@@ -105,7 +104,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [radiusMiles, setRadiusMiles] = useState(15);
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
-  const [customRules, setCustomRules] = useState<string[]>([]);
+  const [customRules, setCustomRules] = useState<string[]>([...DEFAULT_RULES]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
   const [campusOnly, setCampusOnly] = useState(false);
@@ -171,7 +170,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  const allRules = [...customRules, ...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE];
+  const allRules = [...customRules];
 
   const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number; placeId?: string }) => {
     setLocationName(location.name);
@@ -688,9 +687,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepRules = () => {
-    const customCount = customRules.length;
-    const mandatoryStartIndex = customCount;
-    const defaultRuleGlobalIndex = customCount + MANDATORY_RULES.length;
     return (
       <View style={styles.formSection}>
         <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
@@ -700,16 +696,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
 
-        {customRules.length > 0 && (
-          <Text style={styles.ruleSectionLabel}>Custom Rules</Text>
-        )}
-
         {customRules.map((rule, index) => {
-          const globalIndex = index;
-          const isExpanded = expandedRuleIndex === globalIndex;
+          const isExpanded = expandedRuleIndex === index;
           return (
             <Swipeable
-              key={`custom-${index}`}
+              key={`rule-${index}`}
               renderRightActions={() => (
                 <TouchableOpacity
                   style={styles.swipeDeleteAction}
@@ -723,7 +714,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             >
               <TouchableOpacity
                 style={styles.ruleItem}
-                onPress={() => toggleRuleExpand(globalIndex)}
+                onPress={() => toggleRuleExpand(index)}
                 activeOpacity={0.7}
               >
                 <View style={styles.ruleContent}>
@@ -766,43 +757,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             </Swipeable>
           );
         })}
-
-        <Text style={styles.ruleSectionLabel}>Mandatory Rules</Text>
-
-        {MANDATORY_RULES.map((rule, index) => {
-          const globalIndex = mandatoryStartIndex + index;
-          const isExpanded = expandedRuleIndex === globalIndex;
-          return (
-            <TouchableOpacity
-              key={`mandatory-${index}`}
-              style={[styles.ruleItem, styles.ruleItemMandatory]}
-              onPress={() => toggleRuleExpand(globalIndex)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.ruleContent}>
-                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
-              </View>
-              <View style={styles.ruleLockIcon}>
-                <Ionicons name="lock-closed" size={16} color={Colors.text.tertiary} />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-
-        <TouchableOpacity
-          style={[styles.ruleItem, styles.ruleItemMandatory]}
-          onPress={() => toggleRuleExpand(defaultRuleGlobalIndex)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.ruleContent}>
-            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 2}>
-              {DEFAULT_OPTIONAL_RULE}
-            </Text>
-          </View>
-          <View style={styles.ruleLockIcon}>
-            <Ionicons name="lock-closed" size={16} color={Colors.text.tertiary} />
-          </View>
-        </TouchableOpacity>
       </View>
     );
   };
