@@ -6,6 +6,7 @@ import { z } from "zod";
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  displayName: text("display_name"),
   icon: text("icon"),
   image: text("image"),
   parentId: integer("parent_id"),
