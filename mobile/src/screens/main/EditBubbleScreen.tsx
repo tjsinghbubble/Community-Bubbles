@@ -160,6 +160,15 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
+          {category ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.categoryDisplay}>
+                <Text style={styles.categoryDisplayText}>{category}</Text>
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Bubble Name *</Text>
             <TextInput
@@ -183,15 +192,6 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               maxLength={100}
             />
           </View>
-
-          {category ? (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Category</Text>
-              <View style={styles.categoryDisplay}>
-                <Text style={styles.categoryDisplayText}>{category}</Text>
-              </View>
-            </View>
-          ) : null}
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Description *</Text>
