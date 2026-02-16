@@ -49,6 +49,9 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const [images, setImages] = useState<string[]>(
     Array.isArray(bubble.images) ? bubble.images : (bubble.coverImage ? [bubble.coverImage] : [])
   );
+  const [attachments, setAttachments] = useState<string[]>(
+    Array.isArray(bubble.attachments) ? [...bubble.attachments] : []
+  );
 
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -130,6 +133,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         privacy,
         coverImage: images.length > 0 ? images[0] : null,
         images,
+        attachments,
         campusId: bubble.campusId,
       });
 
@@ -310,6 +314,18 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               images={images}
               onImagesChange={setImages}
               maxImages={5}
+              addLabel="+ Add Photos"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Attachments</Text>
+            <MultiImagePicker
+              images={attachments}
+              onImagesChange={setAttachments}
+              maxImages={5}
+              acceptAllFiles
+              addLabel="+ Add Attachments"
             />
           </View>
 
