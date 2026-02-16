@@ -50,6 +50,25 @@ class CometChatService {
     }
   }
 
+  async getGroupMembers(guid: string): Promise<Array<{ uid: string; name: string; avatar?: string; scope: string }>> {
+    try {
+      const limit = 100;
+      const groupMemberRequest = new CometChat.GroupMembersRequestBuilder(guid)
+        .setLimit(limit)
+        .build();
+      const members = await groupMemberRequest.fetchNext();
+      return members.map((m: any) => ({
+        uid: m.getUid(),
+        name: m.getName(),
+        avatar: m.getAvatar() || undefined,
+        scope: m.getScope(),
+      }));
+    } catch (error) {
+      console.error('Failed to fetch group members:', error);
+      return [];
+    }
+  }
+
   async logoutUser() {
     try {
       await CometChat.logout();

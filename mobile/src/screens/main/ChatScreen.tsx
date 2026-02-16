@@ -76,6 +76,9 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participants, setParticipants] = useState<Array<{ uid: string; name: string; avatar?: string; scope: string }>>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -87,6 +90,28 @@ export default function ChatScreen({ navigation, route }: Props) {
       cometChatService.removeMessageListener(`reactions_${groupId}`);
     };
   }, [groupId]);
+
+  const fetchParticipants = async () => {
+    setLoadingParticipants(true);
+    try {
+      const members = await cometChatService.getGroupMembers(groupId);
+      setParticipants(members);
+    } catch (error) {
+      console.error('Failed to fetch participants:', error);
+    } finally {
+      setLoadingParticipants(false);
+    }
+  };
+
+  const handleShowParticipants = () => {
+    setShowParticipants(true);
+    fetchParticipants();
+  };
+
+  const getInitials = (name: string) => {
+    if (!name) return '?';
+    return name.split(' ').filter(n => n.length > 0).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  };
 
   const fetchMessages = async () => {
     try {
@@ -419,17 +444,6 @@ export default function ChatScreen({ navigation, route }: Props) {
     return senderId === user?.id;
   };
 
-  const getInitials = (name: string) => {
-    if (!name || name.trim() === '') return '?';
-    return name
-      .split(' ')
-      .filter(n => n.length > 0)
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2) || '?';
-  };
-
   const renderAvatar = (sender: Message['sender']) => {
     if (sender.avatar) {
       return (
@@ -572,6 +586,9 @@ export default function ChatScreen({ navigation, route }: Props) {
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
         </View>
+        <TouchableOpacity onPress={handleShowParticipants} style={styles.participantsButton}>
+          <Ionicons name="people-outline" size={22} color={Colors.brand.bubbleBlue} />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -703,6 +720,58 @@ export default function ChatScreen({ navigation, route }: Props) {
               resizeMode="contain"
             />
           )}
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showParticipants}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowParticipants(false)}
+      >
+        <View style={styles.participantsOverlay}>
+          <View style={styles.participantsContainer}>
+            <View style={styles.participantsHeader}>
+              <Text style={styles.participantsTitle}>Participants</Text>
+              <TouchableOpacity onPress={() => setShowParticipants(false)}>
+                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
+              </TouchableOpacity>
+            </View>
+            {loadingParticipants ? (
+              <View style={styles.participantsLoading}>
+                <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+              </View>
+            ) : (
+              <ScrollView style={styles.participantsList}>
+                {participants.map((p) => (
+                  <View key={p.uid} style={styles.participantRow}>
+                    {p.avatar ? (
+                      <Image source={{ uri: p.avatar }} style={styles.participantAvatar} />
+                    ) : (
+                      <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder]}>
+                        <Text style={styles.participantInitials}>{getInitials(p.name)}</Text>
+                      </View>
+                    )}
+                    <View style={styles.participantInfo}>
+                      <Text style={styles.participantName}>{p.name}</Text>
+                      {p.scope === 'admin' && (
+                        <Text style={styles.participantRole}>Admin</Text>
+                      )}
+                      {p.scope === 'owner' && (
+                        <Text style={styles.participantRole}>Owner</Text>
+                      )}
+                    </View>
+                    {p.uid === user?.id && (
+                      <Text style={styles.participantYou}>You</Text>
+                    )}
+                  </View>
+                ))}
+                {participants.length === 0 && (
+                  <Text style={styles.noParticipants}>No participants found</Text>
+                )}
+              </ScrollView>
+            )}
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1066,5 +1135,89 @@ const styles = StyleSheet.create({
   fullScreenImage: {
     width: SCREEN_WIDTH,
     height: '80%',
+  },
+  participantsButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  participantsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  participantsContainer: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 30,
+  },
+  participantsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.coolMist,
+  },
+  participantsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.neutral.charcoal,
+  },
+  participantsLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  participantsList: {
+    padding: 16,
+  },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.neutral.coolMist,
+  },
+  participantAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  participantAvatarPlaceholder: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  participantInitials: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.brand.skyWhite,
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.neutral.charcoal,
+  },
+  participantRole: {
+    fontSize: 12,
+    color: Colors.brand.bubbleBlue,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  participantYou: {
+    fontSize: 12,
+    color: Colors.neutral.coolMist,
+    fontWeight: '500',
+  },
+  noParticipants: {
+    textAlign: 'center',
+    color: Colors.neutral.coolMist,
+    fontSize: 14,
+    padding: 20,
   },
 });
