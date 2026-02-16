@@ -212,7 +212,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const isCreator = bubbleDetails?.creatorId === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
-  const canManage = bubbleDetails && (isCreator || isSuperAdmin);
+  const isBubbleAdmin = myBubbleRole === 'admin';
+  const canManage = bubbleDetails && (isCreator || isSuperAdmin || isBubbleAdmin);
   const privacy = bubbleDetails?.privacy || bubble.privacy;
   const canCreateEvent = (() => {
     if (!user || !isMember) return false;
