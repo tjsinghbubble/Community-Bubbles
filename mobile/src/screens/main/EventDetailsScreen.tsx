@@ -414,16 +414,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleShare(); }}
                 >
-                  <Text style={styles.kebabMenuText}>Share Event</Text>
                   <Ionicons name="paper-plane-outline" size={18} color={Colors.text.primary} />
+                  <Text style={styles.kebabMenuText}>Share Event</Text>
                 </TouchableOpacity>
                 {canManage && (
                   <TouchableOpacity
                     style={styles.kebabMenuItem}
                     onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
                   >
-                    <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
                     <Ionicons name="settings-outline" size={18} color={Colors.brand.primary} />
+                    <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
                   </TouchableOpacity>
                 )}
                 <View style={styles.kebabSeparator} />
@@ -431,8 +431,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
                 >
-                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Concern</Text>
                   <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Concern</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -805,13 +805,12 @@ const styles = StyleSheet.create({
   kebabMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   kebabMenuText: {
     fontSize: 15,
-    fontWeight: '500',
     color: Colors.text.primary,
   },
   kebabSeparator: {
