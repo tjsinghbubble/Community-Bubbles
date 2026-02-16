@@ -51,15 +51,15 @@ const categoryTree: ParentCategory[] = [
       { name: "coffee_meetups", displayName: "Coffee Meetups", icon: "cafe", image: "/images/categories/coffee.jpg", placeholderName: "e.g., Morning Brew Club", placeholderTagline: "e.g., Connecting over great coffee", placeholderDescription: "e.g., Casual meetups at local cafés to chat, network, and discover the best brews in town." },
       { name: "dining_out", displayName: "Dining Out", icon: "restaurant", image: "/images/categories/food-drink.jpg", placeholderName: "e.g., Flavor Explorers", placeholderTagline: "e.g., Taste the best spots in town", placeholderDescription: "e.g., Restaurant reviews, food crawls, and tasting events for anyone who loves discovering new flavors." },
       { name: "wine_and_spirits", displayName: "Wine and Spirits", icon: "wine", placeholderName: "e.g., Pour & Savor", placeholderTagline: "e.g., Sip, swirl, and socialize", placeholderDescription: "e.g., Wine tastings, brewery tours, and cocktail nights for enthusiasts of fine beverages." },
-      { name: "brunch", displayName: "Brunch", icon: "sunny", placeholderName: "e.g., Sunday Brunch Bunch", placeholderTagline: "e.g., The best meal of the week", placeholderDescription: "e.g., Weekend brunch outings to discover the best mimosas, pancakes, and vibes in the area." },
-      { name: "farmers_market", displayName: "Farmers Market", icon: "leaf", placeholderName: "e.g., Market Wanderers", placeholderTagline: "e.g., Shop local, eat fresh", placeholderDescription: "e.g., Explore local farmers markets together, share finds, and support local growers and artisans." },
+      { name: "brunch", displayName: "Brunch", icon: "sunny", image: "/images/categories/brunch.jpg", placeholderName: "e.g., Sunday Brunch Bunch", placeholderTagline: "e.g., The best meal of the week", placeholderDescription: "e.g., Weekend brunch outings to discover the best mimosas, pancakes, and vibes in the area." },
+      { name: "farmers_market", displayName: "Farmers Market", icon: "leaf", image: "/images/categories/farmers_market.jpg", placeholderName: "e.g., Market Wanderers", placeholderTagline: "e.g., Shop local, eat fresh", placeholderDescription: "e.g., Explore local farmers markets together, share finds, and support local growers and artisans." },
     ],
   },
   {
     name: "lifestyle", displayName: "Lifestyle", icon: "heart",
     children: [
       { name: "dog_pet_groups", displayName: "Dog/Pet Groups", icon: "paw", image: "/images/categories/pets.jpg", placeholderName: "e.g., Paws & Friends", placeholderTagline: "e.g., Playdates for pets and their humans", placeholderDescription: "e.g., Connect with local pet owners for walks, playdates, pet-sitting swaps, and adorable photo shares." },
-      { name: "family_circles", displayName: "Family Circles", icon: "people", placeholderName: "e.g., Parent Connect", placeholderTagline: "e.g., Raising kids together", placeholderDescription: "e.g., A supportive space for parents and caregivers to share tips, arrange playdates, and build community." },
+      { name: "family_circles", displayName: "Family Circles", icon: "people", image: "/images/categories/family_circles.jpg", placeholderName: "e.g., Parent Connect", placeholderTagline: "e.g., Raising kids together", placeholderDescription: "e.g., A supportive space for parents and caregivers to share tips, arrange playdates, and build community." },
       { name: "wellness", displayName: "Wellness", icon: "medkit", image: "/images/categories/wellness.jpg", placeholderName: "e.g., Mindful Living Circle", placeholderTagline: "e.g., Nurture your mind, body, and soul", placeholderDescription: "e.g., Meditation sessions, wellness challenges, and self-care tips to help you feel your best." },
       { name: "gardening", displayName: "Gardening", icon: "leaf", image: "/images/categories/gardening.jpg", placeholderName: "e.g., Green Thumb Gang", placeholderTagline: "e.g., Grow together, bloom together", placeholderDescription: "e.g., Tips, plant swaps, and garden tours for anyone who loves getting their hands in the dirt." },
     ],
@@ -67,8 +67,8 @@ const categoryTree: ParentCategory[] = [
   {
     name: "adventure_and_outdoors", displayName: "Adventure & Outdoors", icon: "compass",
     children: [
-      { name: "camping_and_backpacking", displayName: "Camping and Backpacking", icon: "bonfire", placeholderName: "e.g., Basecamp Crew", placeholderTagline: "e.g., Sleep under the stars", placeholderDescription: "e.g., Plan camping trips, share gear recommendations, and explore the great outdoors together." },
-      { name: "beach_and_water", displayName: "Beach and Water", icon: "water", placeholderName: "e.g., Shore Squad", placeholderTagline: "e.g., Life's better by the water", placeholderDescription: "e.g., Beach days, surfing, kayaking, and water activities with fellow ocean and lake lovers." },
+      { name: "camping_and_backpacking", displayName: "Camping and Backpacking", icon: "bonfire", image: "/images/categories/camping.jpg", placeholderName: "e.g., Basecamp Crew", placeholderTagline: "e.g., Sleep under the stars", placeholderDescription: "e.g., Plan camping trips, share gear recommendations, and explore the great outdoors together." },
+      { name: "beach_and_water", displayName: "Beach and Water", icon: "water", image: "/images/categories/beach_and_water.jpg", placeholderName: "e.g., Shore Squad", placeholderTagline: "e.g., Life's better by the water", placeholderDescription: "e.g., Beach days, surfing, kayaking, and water activities with fellow ocean and lake lovers." },
       { name: "travel_and_exploration", displayName: "Travel & Exploration", icon: "airplane", image: "/images/categories/travel.jpg", placeholderName: "e.g., Wanderlust Club", placeholderTagline: "e.g., Explore new places together", placeholderDescription: "e.g., Group trips, travel tips, and exploration meetups for adventurers who love discovering new destinations." },
     ],
   },
