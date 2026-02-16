@@ -408,40 +408,34 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       );
     }
 
+    const allSubcategories = categoryGroups.flatMap(g => g.children);
+
     return (
       <View style={styles.formSection}>
         <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
-        {categoryGroups.map((group) => (
-          <View key={group.id} style={styles.categoryGroupContainer}>
-            <View style={styles.categoryGroupHeader}>
-              <Ionicons name={(group.icon || 'apps') as any} size={18} color={Colors.brand.primary} />
-              <Text style={styles.categoryGroupTitle}>{group.displayName || group.name}</Text>
-            </View>
-            <View style={styles.categoryChipGrid}>
-              {group.children.map((sub) => {
-                const label = sub.displayName || sub.name;
-                const selected = category === label;
-                return (
-                  <TouchableOpacity
-                    key={sub.id}
-                    style={[styles.categoryChip, selected && styles.categoryChipSelected]}
-                    onPress={() => setCategory(selected ? '' : label)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons
-                      name={(sub.icon || 'ellipse') as any}
-                      size={16}
-                      color={selected ? '#FFFFFF' : Colors.text.secondary}
-                    />
-                    <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        ))}
+        <View style={styles.categoryChipGrid}>
+          {allSubcategories.map((sub) => {
+            const label = sub.displayName || sub.name;
+            const selected = category === label;
+            return (
+              <TouchableOpacity
+                key={sub.id}
+                style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                onPress={() => setCategory(selected ? '' : label)}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={(sub.icon || 'ellipse') as any}
+                  size={16}
+                  color={selected ? '#FFFFFF' : Colors.text.secondary}
+                />
+                <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -1092,20 +1086,6 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     lineHeight: Typography.lineHeight.base,
     textAlign: 'center',
-  },
-  categoryGroupContainer: {
-    marginBottom: Spacing.lg,
-  },
-  categoryGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
-  },
-  categoryGroupTitle: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
   },
   categoryChipGrid: {
     flexDirection: 'row',
