@@ -417,7 +417,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     }
 
     const allSubcategories = categoryGroups.flatMap(g => g.children);
-    const cardWidth = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3;
+    const cardWidth = (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.sm * 2) / 3;
 
     return (
       <View style={styles.formSection}>
@@ -1539,7 +1539,7 @@ const styles = StyleSheet.create({
   categoryImageWrapper: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
