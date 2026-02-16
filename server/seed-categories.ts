@@ -69,23 +69,23 @@ const categoryTree: ParentCategory[] = [
     children: [
       { name: "camping_and_backpacking", displayName: "Camping and Backpacking", icon: "bonfire", placeholderName: "e.g., Basecamp Crew", placeholderTagline: "e.g., Sleep under the stars", placeholderDescription: "e.g., Plan camping trips, share gear recommendations, and explore the great outdoors together." },
       { name: "beach_and_water", displayName: "Beach and Water", icon: "water", placeholderName: "e.g., Shore Squad", placeholderTagline: "e.g., Life's better by the water", placeholderDescription: "e.g., Beach days, surfing, kayaking, and water activities with fellow ocean and lake lovers." },
-      { name: "travel_and_exploration", displayName: "Travel & Exploration", icon: "airplane", placeholderName: "e.g., Wanderlust Club", placeholderTagline: "e.g., Explore new places together", placeholderDescription: "e.g., Group trips, travel tips, and exploration meetups for adventurers who love discovering new destinations." },
+      { name: "travel_and_exploration", displayName: "Travel & Exploration", icon: "airplane", image: "/images/categories/travel.jpg", placeholderName: "e.g., Wanderlust Club", placeholderTagline: "e.g., Explore new places together", placeholderDescription: "e.g., Group trips, travel tips, and exploration meetups for adventurers who love discovering new destinations." },
     ],
   },
   {
     name: "community", displayName: "Community", icon: "people-circle",
     children: [
-      { name: "volunteering_and_nonprofit", displayName: "Volunteering and Non-profit", icon: "hand-left", placeholderName: "e.g., Give Back Group", placeholderTagline: "e.g., Make a difference together", placeholderDescription: "e.g., Organize volunteer events, support local causes, and connect with others who want to give back." },
+      { name: "volunteering_and_nonprofit", displayName: "Volunteering and Non-profit", icon: "hand-left", image: "/images/categories/volunteering.jpg", placeholderName: "e.g., Give Back Group", placeholderTagline: "e.g., Make a difference together", placeholderDescription: "e.g., Organize volunteer events, support local causes, and connect with others who want to give back." },
       { name: "neighborhood_groups", displayName: "Neighborhood Groups", icon: "home", image: "/images/categories/community.jpg", placeholderName: "e.g., Neighborhood Circle", placeholderTagline: "e.g., Bringing neighbors closer together", placeholderDescription: "e.g., A hub for local events, safety updates, recommendations, and getting to know the people around you." },
     ],
   },
   {
     name: "professional", displayName: "Professional", icon: "briefcase",
     children: [
-      { name: "startup_and_founders", displayName: "Startup & Founders", icon: "rocket", placeholderName: "e.g., Founders Circle", placeholderTagline: "e.g., Build something great together", placeholderDescription: "e.g., Connect with fellow founders, share startup journeys, and find co-founders and collaborators." },
-      { name: "tech_meetups", displayName: "Tech Meetups", icon: "code-slash", placeholderName: "e.g., Local Dev Collective", placeholderTagline: "e.g., Code, learn, and connect", placeholderDescription: "e.g., Tech talks, hackathons, and coding sessions for developers and tech enthusiasts in the area." },
+      { name: "startup_and_founders", displayName: "Startup & Founders", icon: "rocket", image: "/images/categories/startup_and_founders.jpg", placeholderName: "e.g., Founders Circle", placeholderTagline: "e.g., Build something great together", placeholderDescription: "e.g., Connect with fellow founders, share startup journeys, and find co-founders and collaborators." },
+      { name: "tech_meetups", displayName: "Tech Meetups", icon: "code-slash", image: "/images/categories/tech_meetups.jpg", placeholderName: "e.g., Local Dev Collective", placeholderTagline: "e.g., Code, learn, and connect", placeholderDescription: "e.g., Tech talks, hackathons, and coding sessions for developers and tech enthusiasts in the area." },
       { name: "professional_networking", displayName: "Professional Networking", icon: "briefcase", image: "/images/categories/professional.jpg", placeholderName: "e.g., Career Connect Hub", placeholderTagline: "e.g., Grow your network, grow your career", placeholderDescription: "e.g., A space for professionals to share advice, find mentors, and explore new opportunities together." },
-      { name: "coworking_and_work_buddies", displayName: "Coworking and Work Buddies", icon: "laptop", placeholderName: "e.g., Work Together Crew", placeholderTagline: "e.g., Productive company nearby", placeholderDescription: "e.g., Find coworking partners, share workspace recommendations, and stay motivated working alongside others." },
+      { name: "coworking_and_work_buddies", displayName: "Coworking and Work Buddies", icon: "laptop", image: "/images/categories/coworking.jpg", placeholderName: "e.g., Work Together Crew", placeholderTagline: "e.g., Productive company nearby", placeholderDescription: "e.g., Find coworking partners, share workspace recommendations, and stay motivated working alongside others." },
     ],
   },
   {
