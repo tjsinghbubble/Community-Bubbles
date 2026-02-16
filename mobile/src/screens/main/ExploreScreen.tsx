@@ -64,6 +64,7 @@ export default function ExploreScreen() {
   const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
   const [showCampusContent, setShowCampusContent] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -138,6 +139,7 @@ export default function ExploreScreen() {
     useCallback(() => {
       fetchData();
       if (refreshUser) refreshUser();
+      apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [isCampusVerified])
   );
 
@@ -176,7 +178,7 @@ export default function ExploreScreen() {
   };
 
   const handleNotificationPress = () => {
-    Alert.alert('Coming Soon', 'Notifications are coming soon!');
+    navigation.navigate('Notifications');
   };
 
   const formatTime = (timeStr: string) => {
@@ -259,7 +261,14 @@ export default function ExploreScreen() {
       </View>
       
       <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
-        <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+        <View>
+          <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+          {unreadNotifCount > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -913,5 +922,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.brand.bubbleBlue,
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
 });

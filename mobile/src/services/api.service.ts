@@ -420,6 +420,32 @@ class ApiService {
       body: JSON.stringify({ status }),
     });
   }
+  async getNotifications(limit = 50, offset = 0): Promise<any[]> {
+    return this.request<any[]>(`/api/notifications?limit=${limit}&offset=${offset}`);
+  }
+
+  async getUnreadNotificationCount(): Promise<{ count: number }> {
+    return this.request<{ count: number }>("/api/notifications/unread-count");
+  }
+
+  async markNotificationRead(id: string): Promise<any> {
+    return this.request<any>(`/api/notifications/${id}/read`, { method: "PUT" });
+  }
+
+  async markAllNotificationsRead(): Promise<any> {
+    return this.request<any>("/api/notifications/read-all", { method: "POST" });
+  }
+
+  async deleteNotification(id: string): Promise<any> {
+    return this.request<any>(`/api/notifications/${id}`, { method: "DELETE" });
+  }
+
+  async registerPushToken(token: string, platform: string): Promise<any> {
+    return this.request<any>("/api/device-push-tokens", {
+      method: "POST",
+      body: JSON.stringify({ token, platform }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

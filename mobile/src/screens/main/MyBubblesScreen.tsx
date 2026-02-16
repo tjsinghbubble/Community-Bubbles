@@ -126,7 +126,7 @@ export default function MyBubblesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Bubbles</Text>
-        <TouchableOpacity style={styles.bellButton}>
+        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
           <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
       </View>

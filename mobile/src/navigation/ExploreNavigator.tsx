@@ -12,6 +12,7 @@ import EditEventScreen from '../screens/main/EditEventScreen';
 import BubbleEventsScreen from '../screens/main/BubbleEventsScreen';
 import CreateBubbleScreen from '../screens/main/CreateBubbleScreen';
 import EventParticipantsScreen from '../screens/main/EventParticipantsScreen';
+import NotificationsScreen from '../screens/main/NotificationsScreen';
 
 export type BubbleData = {
   id: string;
@@ -53,6 +54,7 @@ export type ExploreStackParamList = {
   EditBubble: { bubble: BubbleData };
   EditEvent: { event: EventData };
   EventParticipants: { eventId: string; eventTitle: string; bubbleId: string; bubbleTitle: string };
+  Notifications: undefined;
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -72,6 +74,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="EditBubble" component={EditBubbleScreen} />
       <Stack.Screen name="EditEvent" component={EditEventScreen} />
       <Stack.Screen name="EventParticipants" component={EventParticipantsScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }
