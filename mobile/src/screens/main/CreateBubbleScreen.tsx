@@ -1539,7 +1539,7 @@ const styles = StyleSheet.create({
   categoryImageWrapper: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: Radius.xl,
+    borderRadius: 32,
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
@@ -1550,7 +1550,7 @@ const styles = StyleSheet.create({
   categoryImage: {
     width: '100%',
     height: '100%',
-    borderRadius: Radius.xl,
+    borderRadius: 32,
   },
   categoryImagePlaceholder: {
     width: '100%',
@@ -1558,7 +1558,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Radius.xl,
+    borderRadius: 32,
   },
   categoryImageOverlay: {
     ...StyleSheet.absoluteFillObject,
