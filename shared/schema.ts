@@ -285,3 +285,43 @@ export const insertAdminMemberChatSchema = createInsertSchema(adminMemberChats).
 
 export type InsertAdminMemberChat = z.infer<typeof insertAdminMemberChatSchema>;
 export type AdminMemberChat = typeof adminMemberChats.$inferSelect;
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recipientId: varchar("recipient_id").notNull().references(() => users.id),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  metadata: text("metadata"),
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  read: true,
+  createdAt: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
+export const devicePushTokens = pgTable("device_push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: text("token").notNull(),
+  platform: text("platform").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => [
+  unique("device_push_tokens_user_token_unique").on(table.userId, table.token),
+]);
+
+export const insertDevicePushTokenSchema = createInsertSchema(devicePushTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDevicePushToken = z.infer<typeof insertDevicePushTokenSchema>;
+export type DevicePushToken = typeof devicePushTokens.$inferSelect;
