@@ -94,6 +94,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [category, setCategory] = useState('');
+  const [selectedCategoryItem, setSelectedCategoryItem] = useState<CategoryItem | null>(null);
   const [title, setTitle] = useState('');
   const [tagline, setTagline] = useState('');
   const [description, setDescription] = useState('');
@@ -423,7 +424,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               <TouchableOpacity
                 key={sub.id}
                 style={[styles.categoryImageCard, { width: cardWidth }]}
-                onPress={() => setCategory(selected ? '' : label)}
+                onPress={() => {
+                  setCategory(selected ? '' : label);
+                  setSelectedCategoryItem(selected ? null : sub);
+                }}
                 activeOpacity={0.8}
               >
                 <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
@@ -468,7 +472,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Title <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder='Ex: Corgi Fam'
+          placeholder={selectedCategoryItem?.placeholderName || 'Ex: Corgi Fam'}
           placeholderTextColor={Colors.text.tertiary}
           value={title}
           onChangeText={(t) => setTitle(t.slice(0, 60))}
@@ -480,7 +484,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Tagline <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder='Meetup with other Corgi Parents near you'
+          placeholder={selectedCategoryItem?.placeholderTagline || 'Meetup with other Corgi Parents near you'}
           placeholderTextColor={Colors.text.tertiary}
           value={tagline}
           onChangeText={(t) => setTagline(t.slice(0, 100))}
@@ -492,7 +496,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Description <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={[styles.fieldInput, styles.textArea]}
-          placeholder="Fluffy but fierce. We're a pack of corgi lovers who meet up for park hangs, group walks, and the occasional costume parade. Whether your corg zooms, loafs, or herds strangers at the dog park – this is your crew. Events, tips, memes, and good vibes only."
+          placeholder={selectedCategoryItem?.placeholderDescription || "Describe what your bubble is about..."}
           placeholderTextColor={Colors.text.tertiary}
           value={description}
           onChangeText={(t) => setDescription(t.slice(0, 500))}
