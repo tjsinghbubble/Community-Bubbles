@@ -94,8 +94,13 @@ export interface IStorage {
   getEventAttendees(eventId: string): Promise<EventAttendee[]>;
   getEventAttendeesWithUsers(eventId: string): Promise<(EventAttendee & { user: User })[]>;
   isEventAttendee(userId: string, eventId: string): Promise<boolean>;
+  getEventAttendee(userId: string, eventId: string): Promise<EventAttendee | undefined>;
   createEventAttendee(attendee: InsertEventAttendee): Promise<EventAttendee>;
+  updateEventAttendeeStatus(userId: string, eventId: string, status: string): Promise<EventAttendee | undefined>;
   deleteEventAttendee(userId: string, eventId: string): Promise<void>;
+  getFirstWaitlistedAttendee(eventId: string): Promise<EventAttendee | undefined>;
+  getGoingCount(eventId: string): Promise<number>;
+  getWaitlistCount(eventId: string): Promise<number>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -602,8 +607,25 @@ export class DatabaseStorage implements IStorage {
     return result.length > 0;
   }
 
+  async getEventAttendee(userId: string, eventId: string): Promise<EventAttendee | undefined> {
+    const result = await db
+      .select()
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId)))
+      .limit(1);
+    return result[0];
+  }
+
   async createEventAttendee(insertAttendee: InsertEventAttendee): Promise<EventAttendee> {
     const result = await db.insert(eventAttendees).values(insertAttendee).returning();
+    return result[0];
+  }
+
+  async updateEventAttendeeStatus(userId: string, eventId: string, status: string): Promise<EventAttendee | undefined> {
+    const result = await db.update(eventAttendees)
+      .set({ status })
+      .where(and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId)))
+      .returning();
     return result[0];
   }
 
@@ -611,6 +633,32 @@ export class DatabaseStorage implements IStorage {
     await db.delete(eventAttendees).where(
       and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId))
     );
+  }
+
+  async getFirstWaitlistedAttendee(eventId: string): Promise<EventAttendee | undefined> {
+    const result = await db
+      .select()
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'waitlisted')))
+      .orderBy(eventAttendees.joinedAt)
+      .limit(1);
+    return result[0];
+  }
+
+  async getGoingCount(eventId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'going')));
+    return result[0]?.count || 0;
+  }
+
+  async getWaitlistCount(eventId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'waitlisted')));
+    return result[0]?.count || 0;
   }
 
   // Campus methods

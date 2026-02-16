@@ -156,7 +156,7 @@ export const eventAttendees = pgTable("event_attendees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull().references(() => events.id),
   userId: varchar("user_id").notNull().references(() => users.id),
-  status: text("status").notNull().default('going'), // going, interested, requested
+  status: text("status").notNull().default('going'), // going, interested, requested, waitlisted
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
 });
 

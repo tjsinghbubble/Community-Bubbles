@@ -1194,7 +1194,6 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Event not found" });
       }
       
-      // Check if campus event requires campus verification
       if (event.campusId) {
         const user = await storage.getUser(req.userId!);
         if (!user?.campusVerified || user.campusId !== event.campusId) {
@@ -1202,26 +1201,28 @@ export async function registerRoutes(
         }
       }
 
-      const isAttendee = await storage.isEventAttendee(req.userId!, req.params.id);
-      if (isAttendee) {
+      const existingAttendee = await storage.getEventAttendee(req.userId!, req.params.id);
+      if (existingAttendee) {
         return res.status(400).json({ error: "Already RSVP'd" });
       }
 
-      // Check attendee limit
-      if (event.attendeeLimit) {
-        const attendees = await storage.getEventAttendees(req.params.id);
-        if (attendees.length >= event.attendeeLimit) {
-          return res.status(400).json({ error: "Event is full" });
+      const requestedStatus = req.body.status || "going";
+      let finalStatus = requestedStatus;
+
+      if (requestedStatus === "going" && event.attendeeLimit) {
+        const goingCount = await storage.getGoingCount(req.params.id);
+        if (goingCount >= event.attendeeLimit) {
+          finalStatus = "waitlisted";
         }
       }
 
       await storage.createEventAttendee({
         eventId: req.params.id,
         userId: req.userId!,
-        status: req.body.status || "going",
+        status: finalStatus,
       });
 
-      res.json({ success: true });
+      res.json({ success: true, status: finalStatus });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1229,8 +1230,24 @@ export async function registerRoutes(
 
   app.delete("/api/events/:id/rsvp", authMiddleware, async (req, res) => {
     try {
+      const attendee = await storage.getEventAttendee(req.userId!, req.params.id);
+      const wasGoing = attendee?.status === 'going';
+
       await storage.deleteEventAttendee(req.userId!, req.params.id);
-      res.json({ success: true });
+
+      let promotedUserId: string | null = null;
+      if (wasGoing) {
+        const event = await storage.getEvent(req.params.id);
+        if (event?.attendeeLimit) {
+          const firstWaitlisted = await storage.getFirstWaitlistedAttendee(req.params.id);
+          if (firstWaitlisted) {
+            await storage.updateEventAttendeeStatus(firstWaitlisted.userId, req.params.id, 'going');
+            promotedUserId = firstWaitlisted.userId;
+          }
+        }
+      }
+
+      res.json({ success: true, promotedUserId });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

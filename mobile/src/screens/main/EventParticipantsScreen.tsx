@@ -117,13 +117,16 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     return acc;
   }, []);
 
-  const adminUserIds = new Set(uniqueAttendees.filter(a => getBubbleRole(a.userId) === 'admin').map(a => a.userId));
-  const admins = uniqueAttendees.filter(a => adminUserIds.has(a.userId));
-  const participants = uniqueAttendees.filter(a => !adminUserIds.has(a.userId));
+  const goingAttendees = uniqueAttendees.filter(a => a.status !== 'waitlisted');
+  const waitlistedAttendees = uniqueAttendees.filter(a => a.status === 'waitlisted');
+
+  const adminUserIds = new Set(goingAttendees.filter(a => getBubbleRole(a.userId) === 'admin').map(a => a.userId));
+  const admins = goingAttendees.filter(a => adminUserIds.has(a.userId));
+  const participants = goingAttendees.filter(a => !adminUserIds.has(a.userId));
 
   const mixedList = (() => {
     if (isPublicBubble) return [];
-    const sorted = [...uniqueAttendees];
+    const sorted = [...goingAttendees];
     sorted.sort((a, b) => {
       if (a.userId === eventCreatorId) return -1;
       if (b.userId === eventCreatorId) return 1;
@@ -362,6 +365,14 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
                       {mixedList.map(a => renderAttendeeRow(a, true))}
                     </>
                   )}
+                </>
+              )}
+
+              {waitlistedAttendees.length > 0 && (
+                <>
+                  <View style={styles.sectionSeparator} />
+                  <Text style={styles.sectionLabel}>Waitlisted</Text>
+                  {waitlistedAttendees.map(a => renderAttendeeRow(a))}
                 </>
               )}
 

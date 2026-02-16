@@ -227,11 +227,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         setSuccessModalConfig({ title: 'RSVP Updated', subtitle: 'You are not attending this event' });
         setShowSuccessModal(true);
       } else if (status === 'going') {
-        await apiService.rsvpEvent(eventId, 'going');
+        const result = await apiService.rsvpEvent(eventId, 'going') as { success: boolean; status: string };
         setIsRsvpd(true);
-        setRsvpStatus('going');
+        const actualStatus = result.status || 'going';
+        setRsvpStatus(actualStatus);
         fetchAttendees();
-        setSuccessModalConfig({ title: 'RSVP Confirmed!', subtitle: 'You are attending this event' });
+        if (actualStatus === 'waitlisted') {
+          setSuccessModalConfig({ title: 'Waitlisted', subtitle: 'The event is full. You\'ve been added to the waitlist.' });
+        } else {
+          setSuccessModalConfig({ title: 'RSVP Confirmed!', subtitle: 'You are attending this event' });
+        }
         setShowSuccessModal(true);
       }
     } catch (error: any) {
@@ -373,6 +378,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
+  const waitlistCount = attendees.filter(a => a.status === 'waitlisted').length;
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
@@ -470,6 +476,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               ? (isFull ? 'Event Full' : `${spotsLeft} spots left`)
               : `${goingCount} going`}
           </Text>
+          {waitlistCount > 0 && (
+            <Text style={styles.waitlistCountText}>
+              {' · '}Waitlisted: {waitlistCount}
+            </Text>
+          )}
         </View>
 
         <View style={styles.infoRows}>
@@ -494,6 +505,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   styles.rsvpDropdownButton,
                   (rsvpStatus === 'going' || (isEventCreator && !rsvpStatus)) && styles.rsvpDropdownGoing,
                   rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
+                  rsvpStatus === 'waitlisted' && styles.rsvpDropdownWaitlisted,
                   (!rsvpStatus && !isEventCreator) && styles.rsvpDropdownDefault,
                 ]}
                 onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
@@ -506,7 +518,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     <Text style={styles.rsvpDropdownButtonText}>
                       {isEventCreator
                         ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
-                        : (rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
+                        : (rsvpStatus === 'waitlisted' ? 'Waitlisted' : rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
                     </Text>
                     <Ionicons
                       name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
@@ -844,6 +856,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
   },
   spotsCenterRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -853,6 +866,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#34C759',
+  },
+  waitlistCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF9500',
   },
   dateTimeRsvpRow: {
     flexDirection: 'row',
@@ -884,6 +902,9 @@ const styles = StyleSheet.create({
   },
   rsvpDropdownNotGoing: {
     backgroundColor: '#FF3B30',
+  },
+  rsvpDropdownWaitlisted: {
+    backgroundColor: '#FF9500',
   },
   rsvpDropdownButtonText: {
     fontSize: 14,
