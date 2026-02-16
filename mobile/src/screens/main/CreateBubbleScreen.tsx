@@ -1589,7 +1589,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
     marginTop: Spacing.xxs,
     textAlign: 'center',
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
   },
   categoryImageLabelSelected: {
     color: Colors.brand.primary,
