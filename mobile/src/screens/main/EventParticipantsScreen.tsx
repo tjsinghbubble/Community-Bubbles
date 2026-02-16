@@ -387,32 +387,31 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
             {isAdmin && (
               <>
                 <TouchableOpacity style={styles.menuItem} onPress={handleDirectMessage}>
-                  <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                   <Ionicons name="chatbubble-outline" size={18} color={Colors.neutral.charcoal} />
+                  <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                 </TouchableOpacity>
-                <View style={styles.menuDivider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
-                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
-                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
-                </TouchableOpacity>
-                <View style={styles.menuDivider} />
                 {selectedAttendee && getBubbleRole(selectedAttendee.userId) === 'admin' ? (
                   <TouchableOpacity style={styles.menuItem} onPress={handleDemoteAdmin}>
-                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Remove as admin</Text>
-                    <Ionicons name="arrow-down" size={18} color="#f59e0b" />
+                    <Ionicons name="arrow-down" size={18} color={Colors.brand.bubbleBlue} />
+                    <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Remove as admin</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
-                    <Ionicons name="star-outline" size={18} color="#16a34a" />
+                    <Ionicons name="star-outline" size={18} color={Colors.brand.bubbleBlue} />
+                    <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Make admin</Text>
                   </TouchableOpacity>
                 )}
-                <View style={styles.menuDivider} />
+                <View style={styles.menuDividerHeavy} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
+                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
+                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
+                </TouchableOpacity>
+                <View style={styles.menuDividerLight} />
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
+              <Ionicons name="flag-outline" size={18} color={Colors.neutral.charcoal} />
               <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
-              <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -595,7 +594,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -603,9 +602,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.neutral.charcoal,
   },
-  menuDivider: {
-    height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+  menuDividerLight: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: 16,
+  },
+  menuDividerHeavy: {
+    height: 2,
+    backgroundColor: '#C0C0C0',
     marginHorizontal: 16,
   },
   reportOverlay: {

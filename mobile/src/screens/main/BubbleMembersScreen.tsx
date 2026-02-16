@@ -398,32 +398,31 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
             {isAdmin && (
               <>
                 <TouchableOpacity style={styles.menuItem} onPress={handleDirectMessage}>
-                  <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                   <Ionicons name="chatbubble-outline" size={18} color={Colors.neutral.charcoal} />
+                  <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                 </TouchableOpacity>
-                <View style={styles.menuDivider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
-                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
-                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
-                </TouchableOpacity>
-                <View style={styles.menuDivider} />
                 {selectedMember?.role === 'admin' ? (
                   <TouchableOpacity style={styles.menuItem} onPress={handleDemoteFromMenu}>
-                    <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>Remove as admin</Text>
-                    <Ionicons name="arrow-down" size={18} color="#f59e0b" />
+                    <Ionicons name="arrow-down" size={18} color={Colors.brand.bubbleBlue} />
+                    <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Remove as admin</Text>
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
-                    <Text style={[styles.menuItemText, { color: '#16a34a' }]}>Make admin</Text>
-                    <Ionicons name="star-outline" size={18} color="#16a34a" />
+                    <Ionicons name="star-outline" size={18} color={Colors.brand.bubbleBlue} />
+                    <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Make admin</Text>
                   </TouchableOpacity>
                 )}
-                <View style={styles.menuDivider} />
+                <View style={styles.menuDividerHeavy} />
+                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
+                  <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
+                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
+                </TouchableOpacity>
+                <View style={styles.menuDividerLight} />
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
+              <Ionicons name="flag-outline" size={18} color={Colors.neutral.charcoal} />
               <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
-              <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -644,19 +643,24 @@ const styles = StyleSheet.create({
   menuOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   menuContainer: {
     backgroundColor: Colors.brand.skyWhite,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 32,
-    paddingTop: 8,
+    borderRadius: 12,
+    width: 260,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   menuItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
   },
@@ -665,9 +669,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: Colors.neutral.charcoal,
   },
-  menuDivider: {
-    height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+  menuDividerLight: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: 20,
+  },
+  menuDividerHeavy: {
+    height: 2,
+    backgroundColor: '#C0C0C0',
     marginHorizontal: 20,
   },
   reportOverlay: {
