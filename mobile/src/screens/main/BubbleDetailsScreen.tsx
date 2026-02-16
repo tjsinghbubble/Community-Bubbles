@@ -425,6 +425,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Bubble Chat</Text>
           </TouchableOpacity>
+          {canManage && (
+            <>
+              <View style={styles.kebabSeparatorLight} />
+              <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}>
+                <Ionicons name="settings-outline" size={20} color={Colors.brand.primary} />
+                <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Manage Bubble</Text>
+              </TouchableOpacity>
+            </>
+          )}
           <View style={styles.kebabSeparatorLight} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
             <Ionicons name="flag-outline" size={20} color={Colors.text.primary} />
