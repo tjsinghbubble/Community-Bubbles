@@ -28,6 +28,8 @@ import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
+const directionsIcon = require('../../assets/icons/directions-diamond.png');
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
 const IMAGE_WIDTH = SCREEN_WIDTH - CONTENT_PADDING * 2;
@@ -618,7 +620,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               )}
             </View>
             <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
-              <Ionicons name="navigate-outline" size={20} color={Colors.brand.primary} />
+              <Image source={directionsIcon} style={{ width: 24, height: 24 }} resizeMode="contain" />
               <Text style={styles.directionsText}>Get Directions</Text>
             </TouchableOpacity>
             <View style={styles.separator} />

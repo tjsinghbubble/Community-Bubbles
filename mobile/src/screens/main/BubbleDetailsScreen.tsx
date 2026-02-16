@@ -290,8 +290,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleDirectMessage = () => {
+  const handleBubbleChat = () => {
     setShowKebabMenu(false);
+    const groupId = String(bubble.id);
+    const groupName = bubble.title || 'Bubble Chat';
+    const parent = navigation.getParent();
+    if (parent) {
+      parent.navigate('Messages' as any, {
+        screen: 'Chat',
+        params: { groupId, groupName },
+      });
+    } else {
+      (navigation as any).navigate('Messages', {
+        screen: 'Chat',
+        params: { groupId, groupName },
+      });
+    }
   };
 
   const REPORT_REASONS = [
@@ -408,9 +422,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.kebabItemText}>Share Bubble</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparator} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleDirectMessage}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
-            <Text style={styles.kebabItemText}>Direct Message</Text>
+            <Text style={styles.kebabItemText}>Bubble Chat</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparator} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
