@@ -55,11 +55,30 @@ export default function MultiImagePicker({
     }
   };
 
-  const pickImage = async () => {
-    if (acceptAllFiles) {
-      return pickFile();
+  const takePhoto = async () => {
+    if (images.length >= maxImages) {
+      Alert.alert('Limit Reached', `You can only add up to ${maxImages} images`);
+      return;
     }
 
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please allow access to your camera');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadImage(result.assets[0].uri);
+    }
+  };
+
+  const chooseFromLibrary = async () => {
     if (images.length >= maxImages) {
       Alert.alert('Limit Reached', `You can only add up to ${maxImages} images`);
       return;
@@ -81,6 +100,18 @@ export default function MultiImagePicker({
     if (!result.canceled && result.assets[0]) {
       await uploadImage(result.assets[0].uri);
     }
+  };
+
+  const pickImage = async () => {
+    if (acceptAllFiles) {
+      return pickFile();
+    }
+
+    Alert.alert('Add Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: takePhoto },
+      { text: 'Choose from Library', onPress: chooseFromLibrary },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const uploadImage = async (uri: string, fileName?: string, mimeType?: string) => {
