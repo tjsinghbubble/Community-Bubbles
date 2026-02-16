@@ -404,7 +404,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
                 <View style={styles.menuDividerHeavy} />
                 <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
                   <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
-                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from group</Text>
+                  <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from Bubble</Text>
                 </TouchableOpacity>
                 <View style={styles.menuDividerLight} />
               </>
