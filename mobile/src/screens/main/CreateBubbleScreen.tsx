@@ -519,6 +519,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           >
             <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
           </TouchableOpacity>
+          <View style={styles.locationSearchIconOverlay} pointerEvents="none">
+            <Ionicons name="search" size={20} color={Colors.text.tertiary} />
+          </View>
           <GooglePlacesAutocomplete
             placeholder='Search location or enter address'
             fetchDetails={true}
@@ -545,6 +548,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                   setLocationLng('');
                 }
               },
+              onFocus: () => {
+                setTimeout(() => {
+                  scrollRef.current?.scrollTo({ y: 300, animated: true });
+                }, 300);
+              },
             }}
             styles={{
               container: {
@@ -560,7 +568,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 borderColor: Colors.border.default,
                 borderRadius: Radius.md,
                 paddingLeft: 48,
-                paddingRight: Spacing.lg,
+                paddingRight: 48,
                 fontSize: Typography.sizes.base,
                 backgroundColor: Colors.background.primary,
                 color: Colors.text.primary,
@@ -1156,6 +1164,16 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
+    width: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  locationSearchIconOverlay: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    height: 48,
     width: 48,
     alignItems: 'center',
     justifyContent: 'center',
