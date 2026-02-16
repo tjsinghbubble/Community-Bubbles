@@ -52,7 +52,9 @@ interface CategoryItem {
   name: string;
   displayName: string | null;
   icon: string | null;
+  image: string | null;
   parentId: number | null;
+  displayOrder: number;
   placeholderName: string | null;
   placeholderTagline: string | null;
   placeholderDescription: string | null;
@@ -62,7 +64,9 @@ interface CategoryGroup {
   id: number;
   name: string;
   displayName: string | null;
+  header: string | null;
   icon: string | null;
+  displayOrder: number;
   children: CategoryItem[];
 }
 
@@ -408,28 +412,58 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       );
     }
 
-    const allSubcategories = categoryGroups.flatMap(g => g.children);
+    let orderedGroups = [...categoryGroups];
+    if (isCampusVerified) {
+      const campusIndex = orderedGroups.findIndex(g => g.name === 'campus');
+      if (campusIndex > 0) {
+        const [campusGroup] = orderedGroups.splice(campusIndex, 1);
+        orderedGroups.unshift(campusGroup);
+      }
+    }
+
+    const allSubcategories = orderedGroups.flatMap(g => g.children);
+    const cardWidth = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3;
 
     return (
       <View style={styles.formSection}>
         <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
-        <View style={styles.categoryChipGrid}>
+        <View style={styles.categoryImageGrid}>
           {allSubcategories.map((sub) => {
             const label = sub.displayName || sub.name;
             const selected = category === label;
             return (
               <TouchableOpacity
                 key={sub.id}
-                style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                style={[styles.categoryImageCard, { width: cardWidth }]}
                 onPress={() => setCategory(selected ? '' : label)}
                 activeOpacity={0.8}
               >
-                <Ionicons
-                  name={(sub.icon || 'ellipse') as any}
-                  size={16}
-                  color={selected ? '#FFFFFF' : Colors.text.secondary}
-                />
-                <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+                <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
+                  {sub.image ? (
+                    <Image
+                      source={{ uri: sub.image }}
+                      style={styles.categoryImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.categoryImagePlaceholder}>
+                      <Ionicons
+                        name={(sub.icon || 'ellipse') as any}
+                        size={28}
+                        color={Colors.text.tertiary}
+                      />
+                    </View>
+                  )}
+                  {selected && (
+                    <View style={styles.categoryImageOverlay}>
+                      <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                    </View>
+                  )}
+                </View>
+                <Text
+                  style={[styles.categoryImageLabel, selected && styles.categoryImageLabelSelected]}
+                  numberOfLines={1}
+                >
                   {label}
                 </Text>
               </TouchableOpacity>
@@ -1496,5 +1530,54 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.secondary,
     letterSpacing: Typography.letterSpacing.tight,
+  },
+
+  categoryImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  categoryImageCard: {
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  categoryImageWrapper: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  categoryImageWrapperSelected: {
+    borderColor: Colors.brand.primary,
+  },
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  categoryImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.background.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryImageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(53, 168, 247, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryImageLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    marginTop: Spacing.xxs,
+    textAlign: 'center',
+    fontWeight: Typography.weights.medium,
+  },
+  categoryImageLabelSelected: {
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.semiBold,
   },
 });

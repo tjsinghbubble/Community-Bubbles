@@ -162,7 +162,8 @@ export async function seedCategories() {
     }
   }
 
-  for (const [parentIndex, parent] of categoryTree.entries()) {
+  for (let parentIndex = 0; parentIndex < categoryTree.length; parentIndex++) {
+    const parent = categoryTree[parentIndex];
     const [inserted] = await db.insert(categories).values({
       name: parent.name,
       displayName: parent.displayName,

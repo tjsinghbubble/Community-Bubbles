@@ -1660,10 +1660,15 @@ export async function registerRoutes(
   app.get("/api/categories", async (req, res) => {
     try {
       const allCategories = await storage.getCategories();
-      const topLevel = allCategories.filter(c => c.parentId === null);
+      const topLevel = allCategories
+        .filter(c => c.parentId === null)
+        .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
       const nested = topLevel.map(parent => ({
         ...withAbsoluteImageUrl(req, parent),
-        children: allCategories.filter(c => c.parentId === parent.id).map(c => withAbsoluteImageUrl(req, c)),
+        children: allCategories
+          .filter(c => c.parentId === parent.id)
+          .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+          .map(c => withAbsoluteImageUrl(req, c)),
       }));
       res.json(nested);
     } catch (error: any) {
@@ -1674,7 +1679,8 @@ export async function registerRoutes(
   app.get("/api/categories/flat", async (req, res) => {
     try {
       const allCategories = await storage.getCategories();
-      res.json(allCategories.map(c => withAbsoluteImageUrl(req, c)));
+      const sorted = allCategories.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+      res.json(sorted.map(c => withAbsoluteImageUrl(req, c)));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
