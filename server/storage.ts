@@ -198,12 +198,12 @@ export class DatabaseStorage implements IStorage {
 
   async getBubbles(): Promise<Bubble[]> {
     return db.select().from(bubbles)
-      .where(eq(bubbles.status, 'approved'))
+      .where(and(eq(bubbles.status, 'approved'), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
   }
 
   async getBubble(id: string): Promise<Bubble | undefined> {
-    const result = await db.select().from(bubbles).where(eq(bubbles.id, id)).limit(1);
+    const result = await db.select().from(bubbles).where(and(eq(bubbles.id, id), isNull(bubbles.deletedAt))).limit(1);
     return result[0];
   }
 
@@ -218,14 +218,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBubble(id: string): Promise<void> {
-    const bubbleEvents = await db.select({ id: events.id }).from(events).where(eq(events.bubbleId, id));
-    for (const event of bubbleEvents) {
-      await db.delete(eventAttendees).where(eq(eventAttendees.eventId, event.id));
-    }
-    await db.delete(events).where(eq(events.bubbleId, id));
-    await db.delete(memberships).where(eq(memberships.bubbleId, id));
-    await db.delete(bubbleVisits).where(eq(bubbleVisits.bubbleId, id));
-    await db.delete(bubbles).where(eq(bubbles.id, id));
+    await db.update(bubbles)
+      .set({ deletedAt: new Date() })
+      .where(eq(bubbles.id, id));
   }
 
   async updateBubbleMemberCount(id: string, delta: number): Promise<void> {
@@ -239,7 +234,7 @@ export class DatabaseStorage implements IStorage {
 
   async getPendingBubbles(): Promise<Bubble[]> {
     return db.select().from(bubbles)
-      .where(eq(bubbles.status, 'pending'))
+      .where(and(eq(bubbles.status, 'pending'), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
   }
 
@@ -281,7 +276,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .innerJoin(bubbles, eq(memberships.bubbleId, bubbles.id))
-      .where(and(eq(memberships.userId, userId), eq(memberships.membershipStatus, 'approved')))
+      .where(and(eq(memberships.userId, userId), eq(memberships.membershipStatus, 'approved'), isNull(bubbles.deletedAt)))
       .orderBy(desc(memberships.joinedAt));
 
     return result.map((row) => ({
@@ -483,7 +478,8 @@ export class DatabaseStorage implements IStorage {
       .where(and(
         eq(events.visibility, 'public'),
         eq(events.status, 'approved'),
-        gte(events.date, today)
+        gte(events.date, today),
+        isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
     
@@ -497,14 +493,14 @@ export class DatabaseStorage implements IStorage {
       .from(eventAttendees)
       .innerJoin(events, eq(eventAttendees.eventId, events.id))
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(eq(eventAttendees.userId, userId))
+      .where(and(eq(eventAttendees.userId, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
     const created = await db
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(eq(events.creatorId, userId))
+      .where(and(eq(events.creatorId, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
     const eventMap = new Map<string, Event & { bubble: Bubble }>();
@@ -527,7 +523,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(eq(events.creatorId, userId))
+      .where(and(eq(events.creatorId, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
     return result.map(row => ({ ...row.events, bubble: row.bubbles }));
@@ -537,7 +533,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(bubbles)
-      .where(eq(bubbles.creatorId, userId))
+      .where(and(eq(bubbles.creatorId, userId), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
   }
 
@@ -566,7 +562,7 @@ export class DatabaseStorage implements IStorage {
     // Get bubbles where user is admin/creator
     const userBubbles = await db.select({ id: bubbles.id })
       .from(bubbles)
-      .where(eq(bubbles.creatorId, userId));
+      .where(and(eq(bubbles.creatorId, userId), isNull(bubbles.deletedAt)));
     
     if (userBubbles.length === 0) return [];
 
@@ -733,14 +729,14 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicBubbles(): Promise<Bubble[]> {
     const result = await db.select().from(bubbles)
-      .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved'), ne(bubbles.privacy, 'Private')))
+      .where(and(isNull(bubbles.campusId), eq(bubbles.status, 'approved'), ne(bubbles.privacy, 'Private'), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
     return this.attachRealMemberCounts(result);
   }
 
   async getCampusBubbles(campusId: string): Promise<Bubble[]> {
     const result = await db.select().from(bubbles)
-      .where(and(eq(bubbles.campusId, campusId), eq(bubbles.status, 'approved')))
+      .where(and(eq(bubbles.campusId, campusId), eq(bubbles.status, 'approved'), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
     return this.attachRealMemberCounts(result);
   }
@@ -756,7 +752,8 @@ export class DatabaseStorage implements IStorage {
         eq(events.visibility, 'public'),
         eq(events.status, 'approved'),
         ne(bubbles.privacy, 'Private'),
-        gte(events.date, today)
+        gte(events.date, today),
+        isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
 
@@ -777,7 +774,8 @@ export class DatabaseStorage implements IStorage {
         eq(events.visibility, 'public'),
         eq(events.status, 'approved'),
         ne(bubbles.privacy, 'Private'),
-        gte(events.date, today)
+        gte(events.date, today),
+        isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
 
@@ -792,7 +790,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(and(eq(events.campusId, campusId), eq(events.status, 'approved')))
+      .where(and(eq(events.campusId, campusId), eq(events.status, 'approved'), isNull(bubbles.deletedAt)))
       .orderBy(desc(events.createdAt));
 
     return result.map(row => ({
@@ -987,7 +985,7 @@ export class DatabaseStorage implements IStorage {
 
   async getOverviewMetrics(): Promise<{ totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number }> {
     const usersResult = await db.select({ count: count() }).from(users);
-    const bubblesResult = await db.select({ count: count() }).from(bubbles);
+    const bubblesResult = await db.select({ count: count() }).from(bubbles).where(isNull(bubbles.deletedAt));
     const eventsResult = await db.select({ count: count() }).from(events);
     const sessionsResult = await db.select({ count: count() }).from(userSessions);
 

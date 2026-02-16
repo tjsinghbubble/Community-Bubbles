@@ -65,6 +65,7 @@ export const bubbles = pgTable("bubbles", {
   status: text("status").notNull().default('pending'),
   rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  deletedAt: timestamp("deleted_at"),
 });
 
 export const memberships = pgTable("memberships", {
@@ -96,6 +97,7 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
   id: true,
   members: true,
   createdAt: true,
+  deletedAt: true,
 });
 
 export const insertMembershipSchema = createInsertSchema(memberships).omit({
