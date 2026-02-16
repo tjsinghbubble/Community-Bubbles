@@ -427,8 +427,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
           <View style={styles.kebabSeparatorLight} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
-            <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
-            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a Concern</Text>
+            <Ionicons name="flag-outline" size={20} color={Colors.text.primary} />
+            <Text style={styles.kebabItemText}>Report a concern</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparatorHeavy} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
