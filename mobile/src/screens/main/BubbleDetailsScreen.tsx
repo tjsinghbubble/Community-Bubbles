@@ -421,17 +421,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Share Bubble</Text>
           </TouchableOpacity>
-          <View style={styles.kebabSeparator} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Bubble Chat</Text>
           </TouchableOpacity>
-          <View style={styles.kebabSeparator} />
+          <View style={styles.kebabSeparatorLight} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
             <Ionicons name="flag-outline" size={20} color={Colors.status.error} />
-            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a concern</Text>
+            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a Concern</Text>
           </TouchableOpacity>
-          <View style={styles.kebabSeparator} />
+          <View style={styles.kebabSeparatorHeavy} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
             <Ionicons name="alert-circle-outline" size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
@@ -1197,9 +1196,14 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
   },
-  kebabSeparator: {
-    height: 1,
-    backgroundColor: '#D9D9D9',
+  kebabSeparatorLight: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: Spacing.lg,
+  },
+  kebabSeparatorHeavy: {
+    height: 2,
+    backgroundColor: '#C0C0C0',
     marginHorizontal: Spacing.lg,
   },
   monthHeader: {
