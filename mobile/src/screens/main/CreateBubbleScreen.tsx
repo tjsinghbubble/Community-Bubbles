@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,19 +47,24 @@ type Props = {
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const CATEGORIES = [
-  { label: 'Running', image: require('../../assets/images/running.jpg') },
-  { label: 'Cooking', image: require('../../assets/images/cooking.jpg') },
-  { label: 'Coffee Meets', image: require('../../assets/images/coffee-meets.jpg') },
-  { label: 'Hiking', image: require('../../assets/images/hiking.jpg') },
-  { label: 'Tennis', image: require('../../assets/images/tennis.jpg') },
-  { label: 'Biking', image: require('../../assets/images/biking.jpg') },
-  { label: 'Arts & Crafts', image: require('../../assets/images/arts-crafts.jpg') },
-  { label: 'Community', image: require('../../assets/images/community.jpg') },
-  { label: 'Gardening', image: require('../../assets/images/gardening.jpg') },
-  { label: 'Wellness', image: require('../../assets/images/wellness.jpg') },
-  { label: 'Yoga', image: require('../../assets/images/yoga.jpg') },
-];
+interface CategoryItem {
+  id: number;
+  name: string;
+  displayName: string | null;
+  icon: string | null;
+  parentId: number | null;
+  placeholderName: string | null;
+  placeholderTagline: string | null;
+  placeholderDescription: string | null;
+}
+
+interface CategoryGroup {
+  id: number;
+  name: string;
+  displayName: string | null;
+  icon: string | null;
+  children: CategoryItem[];
+}
 
 const MANDATORY_RULES = [
   'Be Respectful. Treat all members with kindness and courtesy.',
@@ -81,6 +86,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState(0);
+  const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
@@ -110,6 +117,27 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
 
   const sliderWidth = useRef(0);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/categories`);
+        if (res.ok) {
+          const data: CategoryGroup[] = await res.json();
+          setCategoryGroups(data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch categories:', e);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  const selectedSubcategory = categoryGroups
+    .flatMap(g => g.children)
+    .find(c => (c.displayName || c.name) === category);
 
   const handleSliderLayout = (e: LayoutChangeEvent) => {
     sliderWidth.current = e.nativeEvent.layout.width;
@@ -372,31 +400,48 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepCategory = () => {
-    const gridPadding = Spacing.lg;
-    const colGap = Spacing.md;
-    const colWidth = (SCREEN_WIDTH - (gridPadding * 2) - (colGap * 2)) / 3;
-    const imageHeight = colWidth * 1.1;
-    return (
-      <View style={[styles.formSection, { paddingHorizontal: gridPadding }]}>
-        <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
-        <View style={styles.categoryGrid}>
-          {CATEGORIES.map((cat) => {
-            const selected = category === cat.label;
-            return (
-              <TouchableOpacity
-                key={cat.label}
-                style={[styles.categoryCard, { width: colWidth }]}
-                onPress={() => setCategory(selected ? '' : cat.label)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.categoryImageWrapper, { width: colWidth }, selected && styles.categoryImageWrapperSelected]}>
-                  <Image source={cat.image} resizeMode="cover" style={[styles.categoryImage, { width: colWidth, height: imageHeight }]} />
-                </View>
-                <Text style={[styles.categoryLabel, selected && styles.categoryLabelSelected]}>{cat.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+    if (categoriesLoading) {
+      return (
+        <View style={[styles.formSection, { alignItems: 'center', paddingTop: 60 }]}>
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
         </View>
+      );
+    }
+
+    return (
+      <View style={styles.formSection}>
+        <Text style={styles.stepPrompt}>What category will your bubble be in?</Text>
+        {categoryGroups.map((group) => (
+          <View key={group.id} style={styles.categoryGroupContainer}>
+            <View style={styles.categoryGroupHeader}>
+              <Ionicons name={(group.icon || 'apps') as any} size={18} color={Colors.brand.primary} />
+              <Text style={styles.categoryGroupTitle}>{group.displayName || group.name}</Text>
+            </View>
+            <View style={styles.categoryChipGrid}>
+              {group.children.map((sub) => {
+                const label = sub.displayName || sub.name;
+                const selected = category === label;
+                return (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                    onPress={() => setCategory(selected ? '' : label)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={(sub.icon || 'ellipse') as any}
+                      size={16}
+                      color={selected ? '#FFFFFF' : Colors.text.secondary}
+                    />
+                    <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ))}
       </View>
     );
   };
@@ -1048,36 +1093,47 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.base,
     textAlign: 'center',
   },
-  categoryGrid: {
+  categoryGroupContainer: {
+    marginBottom: Spacing.lg,
+  },
+  categoryGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  categoryGroupTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  categoryChipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: Spacing.md,
-    rowGap: Spacing.lg,
+    gap: Spacing.sm,
   },
-  categoryCard: {
+  categoryChip: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: Colors.background.secondary,
+    borderWidth: 1.5,
+    borderColor: Colors.border.default,
   },
-  categoryImageWrapper: {
-    borderRadius: Radius.lg,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryImageWrapperSelected: {
+  categoryChipSelected: {
+    backgroundColor: Colors.brand.primary,
     borderColor: Colors.brand.primary,
   },
-  categoryImage: {
-    borderRadius: Radius.lg,
-  },
-  categoryLabel: {
-    fontSize: Typography.sizes.xs,
+  categoryChipText: {
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
-    color: Colors.text.primary,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
+    color: Colors.text.secondary,
   },
-  categoryLabelSelected: {
-    color: Colors.brand.primary,
+  categoryChipTextSelected: {
+    color: '#FFFFFF',
     fontWeight: Typography.weights.semiBold,
   },
 
