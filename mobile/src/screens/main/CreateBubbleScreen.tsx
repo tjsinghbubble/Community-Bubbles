@@ -519,9 +519,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           >
             <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
           </TouchableOpacity>
-          <View style={styles.locationSearchIconOverlay} pointerEvents="none">
-            <Ionicons name="search" size={20} color={Colors.text.tertiary} />
-          </View>
           <GooglePlacesAutocomplete
             placeholder='Search location or enter address'
             fetchDetails={true}
@@ -547,11 +544,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                   setLocationLat('');
                   setLocationLng('');
                 }
-              },
-              onFocus: () => {
-                setTimeout(() => {
-                  scrollRef.current?.scrollTo({ y: 300, animated: true });
-                }, 300);
               },
             }}
             styles={{
@@ -597,6 +589,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               powered: { display: 'none' },
             }}
             enablePoweredByContainer={false}
+            disableScroll={true}
+            flatListProps={{
+              nestedScrollEnabled: true,
+            }}
             debounce={300}
             minLength={2}
             nearbyPlacesAPI="GooglePlacesSearch"
@@ -616,6 +612,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               </View>
             )}
           />
+          <View style={styles.locationSearchIconOverlay} pointerEvents="none">
+            <Ionicons name="search" size={20} color={Colors.text.tertiary} />
+          </View>
         </View>
         {locationAddress ? (
           <Text style={styles.locationSubtext}>{locationAddress}</Text>
@@ -1177,7 +1176,8 @@ const styles = StyleSheet.create({
     width: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    zIndex: 15,
+    elevation: 15,
   },
   locationSubtext: {
     fontSize: Typography.sizes.sm,
