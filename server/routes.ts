@@ -360,6 +360,13 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to delete this bubble" });
       }
 
+      try {
+        await storage.archiveAdminMemberChatsForBubble(bubbleId);
+        await storage.updateBubbleChatStatus(bubbleId, 'archived');
+      } catch (e) {
+        console.error('Archive chats on bubble delete:', e);
+      }
+
       await storage.deleteBubble(bubbleId);
       res.json({ success: true });
     } catch (error: any) {
@@ -395,13 +402,18 @@ export async function registerRoutes(
       
       try {
         const groupType = bubble.privacy === 'Public' ? 'public' : 'private';
-        await ensureCometChatGroup(String(bubble.id), bubble.title || 'Bubble', groupType);
+        const cometChatGroupId = String(bubble.id);
+        await ensureCometChatGroup(cometChatGroupId, bubble.title || 'Bubble', groupType);
         if (bubble.creatorId) {
           const creator = await storage.getUser(bubble.creatorId);
           if (creator) {
             await ensureCometChatUser(String(creator.id), creator.name || creator.email);
-            await addMemberToGroup(String(bubble.id), String(creator.id), 'admin');
+            await addMemberToGroup(cometChatGroupId, String(creator.id), 'admin');
           }
+        }
+        const existingChat = await storage.getBubbleChat(bubble.id);
+        if (!existingChat) {
+          await storage.createBubbleChat(bubble.id, cometChatGroupId);
         }
       } catch (e) {
         console.error('CometChat group creation on bubble approve:', e);
@@ -503,6 +515,12 @@ export async function registerRoutes(
         await removeMemberFromGroup(bubbleId, String(req.userId!));
       } catch (e) {
         console.error('CometChat remove member on leave:', e);
+      }
+
+      try {
+        await storage.updateAdminMemberChatStatus(bubbleId, req.userId!, 'archived');
+      } catch (e) {
+        console.error('Archive admin-member chat on leave:', e);
       }
       
       res.json({ success: true });
@@ -694,6 +712,12 @@ export async function registerRoutes(
       } catch (e) {
         console.error('CometChat remove member on admin kick:', e);
       }
+
+      try {
+        await storage.updateAdminMemberChatStatus(bubbleId, userId, 'archived');
+      } catch (e) {
+        console.error('Archive admin-member chat on kick:', e);
+      }
       
       res.json({ success: true });
     } catch (error: any) {
@@ -807,13 +831,33 @@ export async function registerRoutes(
         .filter(m => m.role === 'admin')
         .map(m => ({ id: String(m.userId), name: m.user.name || m.user.email }));
 
-      const dmGuid = await syncAdminDmGroup(
-        bubbleId,
-        bubble.title || 'Bubble',
-        String(targetUser.id),
-        targetUser.name || targetUser.email,
-        adminUsers
-      );
+      let chatRecord = await storage.getAdminMemberChat(bubbleId, userId);
+      let dmGuid: string;
+
+      if (chatRecord && chatRecord.status === 'active') {
+        dmGuid = chatRecord.cometChatGroupId;
+        await syncAdminDmGroup(
+          bubbleId,
+          bubble.title || 'Bubble',
+          String(targetUser.id),
+          targetUser.name || targetUser.email,
+          adminUsers
+        );
+      } else {
+        dmGuid = await syncAdminDmGroup(
+          bubbleId,
+          bubble.title || 'Bubble',
+          String(targetUser.id),
+          targetUser.name || targetUser.email,
+          adminUsers
+        );
+
+        if (!chatRecord) {
+          chatRecord = await storage.createAdminMemberChat(bubbleId, userId, dmGuid);
+        } else {
+          await storage.updateAdminMemberChatStatus(bubbleId, userId, 'active');
+        }
+      }
 
       res.json({
         groupId: dmGuid,

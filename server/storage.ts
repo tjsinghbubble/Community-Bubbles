@@ -32,6 +32,10 @@ import {
   reports,
   type Report,
   type InsertReport,
+  bubbleChats,
+  type BubbleChat,
+  adminMemberChats,
+  type AdminMemberChat,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -132,6 +136,18 @@ export interface IStorage {
   getReportsForBubble(bubbleId: string): Promise<(Report & { reporter: User; reportedUser?: User })[]>;
   getReportsForSysAdmin(): Promise<(Report & { reporter: User; reportedUser?: User; bubble: Bubble })[]>;
   updateReportStatus(id: string, status: string): Promise<Report | undefined>;
+
+  // Bubble Chats
+  createBubbleChat(bubbleId: string, cometChatGroupId: string): Promise<BubbleChat>;
+  getBubbleChat(bubbleId: string): Promise<BubbleChat | undefined>;
+  updateBubbleChatStatus(bubbleId: string, status: string): Promise<void>;
+
+  // Admin-Member Chats
+  createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string): Promise<AdminMemberChat>;
+  getAdminMemberChat(bubbleId: string, memberId: string): Promise<AdminMemberChat | undefined>;
+  getAdminMemberChatsForBubble(bubbleId: string): Promise<AdminMemberChat[]>;
+  updateAdminMemberChatStatus(bubbleId: string, memberId: string, status: string): Promise<void>;
+  archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1046,6 +1062,45 @@ export class DatabaseStorage implements IStorage {
   async updateReportStatus(id: string, status: string): Promise<Report | undefined> {
     const result = await db.update(reports).set({ status }).where(eq(reports.id, id)).returning();
     return result[0];
+  }
+
+  async createBubbleChat(bubbleId: string, cometChatGroupId: string): Promise<BubbleChat> {
+    const result = await db.insert(bubbleChats).values({ bubbleId, cometChatGroupId, status: 'active' }).returning();
+    return result[0];
+  }
+
+  async getBubbleChat(bubbleId: string): Promise<BubbleChat | undefined> {
+    const result = await db.select().from(bubbleChats).where(eq(bubbleChats.bubbleId, bubbleId)).limit(1);
+    return result[0];
+  }
+
+  async updateBubbleChatStatus(bubbleId: string, status: string): Promise<void> {
+    await db.update(bubbleChats).set({ status }).where(eq(bubbleChats.bubbleId, bubbleId));
+  }
+
+  async createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string): Promise<AdminMemberChat> {
+    const result = await db.insert(adminMemberChats).values({ bubbleId, memberId, cometChatGroupId, status: 'active' }).returning();
+    return result[0];
+  }
+
+  async getAdminMemberChat(bubbleId: string, memberId: string): Promise<AdminMemberChat | undefined> {
+    const result = await db.select().from(adminMemberChats)
+      .where(and(eq(adminMemberChats.bubbleId, bubbleId), eq(adminMemberChats.memberId, memberId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async getAdminMemberChatsForBubble(bubbleId: string): Promise<AdminMemberChat[]> {
+    return db.select().from(adminMemberChats).where(eq(adminMemberChats.bubbleId, bubbleId));
+  }
+
+  async updateAdminMemberChatStatus(bubbleId: string, memberId: string, status: string): Promise<void> {
+    await db.update(adminMemberChats).set({ status })
+      .where(and(eq(adminMemberChats.bubbleId, bubbleId), eq(adminMemberChats.memberId, memberId)));
+  }
+
+  async archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void> {
+    await db.update(adminMemberChats).set({ status: 'archived' }).where(eq(adminMemberChats.bubbleId, bubbleId));
   }
 }
 

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -248,3 +248,40 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
+
+export const bubbleChats = pgTable("bubble_chats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  cometChatGroupId: text("cometchat_group_id").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("bubble_chats_bubble_id_unique").on(table.bubbleId),
+]);
+
+export const insertBubbleChatSchema = createInsertSchema(bubbleChats).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBubbleChat = z.infer<typeof insertBubbleChatSchema>;
+export type BubbleChat = typeof bubbleChats.$inferSelect;
+
+export const adminMemberChats = pgTable("admin_member_chats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  memberId: varchar("member_id").notNull().references(() => users.id),
+  cometChatGroupId: text("cometchat_group_id").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("admin_member_chats_bubble_member_unique").on(table.bubbleId, table.memberId),
+]);
+
+export const insertAdminMemberChatSchema = createInsertSchema(adminMemberChats).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAdminMemberChat = z.infer<typeof insertAdminMemberChatSchema>;
+export type AdminMemberChat = typeof adminMemberChats.$inferSelect;
