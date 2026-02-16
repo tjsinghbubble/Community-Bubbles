@@ -41,6 +41,18 @@ function authMiddleware(req: any, res: any, next: any) {
   }
 }
 
+function optionalAuthMiddleware(req: any, _res: any, next: any) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      req.userId = decoded.userId;
+    } catch (_) {}
+  }
+  next();
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express,
@@ -1657,12 +1669,29 @@ export async function registerRoutes(
     return { ...cat, image: `${protocol}://${host}${cat.image}` };
   }
 
-  app.get("/api/categories", async (req, res) => {
+  app.get("/api/categories", optionalAuthMiddleware, async (req, res) => {
     try {
+      let campusFirst = false;
+      if (req.userId) {
+        const user = await storage.getUser(req.userId);
+        if (user?.campusVerified && user?.campusId) {
+          campusFirst = true;
+        }
+      }
+
       const allCategories = await storage.getCategories();
       const topLevel = allCategories
         .filter(c => c.parentId === null)
         .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+
+      if (campusFirst) {
+        const campusIndex = topLevel.findIndex(c => c.name === 'campus');
+        if (campusIndex > 0) {
+          const [campusGroup] = topLevel.splice(campusIndex, 1);
+          topLevel.unshift(campusGroup);
+        }
+      }
+
       const nested = topLevel.map(parent => ({
         ...withAbsoluteImageUrl(req, parent),
         children: allCategories

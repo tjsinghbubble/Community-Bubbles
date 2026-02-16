@@ -125,7 +125,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/categories`);
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        const res = await fetch(`${API_URL}/api/categories`, { headers });
         if (res.ok) {
           const data: CategoryGroup[] = await res.json();
           setCategoryGroups(data);
@@ -137,7 +141,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       }
     };
     fetchCategories();
-  }, []);
+  }, [token]);
 
   const selectedSubcategory = categoryGroups
     .flatMap(g => g.children)
@@ -412,16 +416,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       );
     }
 
-    let orderedGroups = [...categoryGroups];
-    if (isCampusVerified) {
-      const campusIndex = orderedGroups.findIndex(g => g.name === 'campus');
-      if (campusIndex > 0) {
-        const [campusGroup] = orderedGroups.splice(campusIndex, 1);
-        orderedGroups.unshift(campusGroup);
-      }
-    }
-
-    const allSubcategories = orderedGroups.flatMap(g => g.children);
+    const allSubcategories = categoryGroups.flatMap(g => g.children);
     const cardWidth = (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm * 2) / 3;
 
     return (
