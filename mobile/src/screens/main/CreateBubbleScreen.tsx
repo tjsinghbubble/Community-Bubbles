@@ -170,7 +170,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...customRules];
+  const allRules = [...customRules, ...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE];
 
   const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number; placeId?: string }) => {
     setLocationName(location.name);
@@ -233,38 +233,31 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     setRuleText('');
   };
 
-  const customGlobalOffset = MANDATORY_RULES.length + 1;
-
   const deleteRule = (index: number) => {
-    const globalIndex = customGlobalOffset + index;
     setCustomRules(customRules.filter((_, i) => i !== index));
-    if (expandedRuleIndex === globalIndex) {
+    if (expandedRuleIndex === index) {
       setExpandedRuleIndex(null);
-    } else if (expandedRuleIndex !== null && expandedRuleIndex > globalIndex) {
+    } else if (expandedRuleIndex !== null && expandedRuleIndex > index) {
       setExpandedRuleIndex(expandedRuleIndex - 1);
     }
   };
 
   const moveRuleUp = (index: number) => {
     if (index <= 0) return;
-    const globalIndex = customGlobalOffset + index;
-    const globalAbove = customGlobalOffset + index - 1;
     const updated = [...customRules];
     [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
     setCustomRules(updated);
-    if (expandedRuleIndex === globalIndex) setExpandedRuleIndex(globalAbove);
-    else if (expandedRuleIndex === globalAbove) setExpandedRuleIndex(globalIndex);
+    if (expandedRuleIndex === index) setExpandedRuleIndex(index - 1);
+    else if (expandedRuleIndex === index - 1) setExpandedRuleIndex(index);
   };
 
   const moveRuleDown = (index: number) => {
     if (index >= customRules.length - 1) return;
-    const globalIndex = customGlobalOffset + index;
-    const globalBelow = customGlobalOffset + index + 1;
     const updated = [...customRules];
     [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
     setCustomRules(updated);
-    if (expandedRuleIndex === globalIndex) setExpandedRuleIndex(globalBelow);
-    else if (expandedRuleIndex === globalBelow) setExpandedRuleIndex(globalIndex);
+    if (expandedRuleIndex === index) setExpandedRuleIndex(index + 1);
+    else if (expandedRuleIndex === index + 1) setExpandedRuleIndex(index);
   };
 
   const toggleRuleExpand = (globalIndex: number) => {
@@ -590,9 +583,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             }}
             enablePoweredByContainer={false}
             disableScroll={true}
-            flatListProps={{
-              nestedScrollEnabled: true,
-            }}
             debounce={300}
             minLength={2}
             nearbyPlacesAPI="GooglePlacesSearch"
@@ -694,8 +684,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   );
 
   const renderStepRules = () => {
-    const mandatoryCount = MANDATORY_RULES.length;
-    const defaultRuleGlobalIndex = mandatoryCount;
+    const customCount = customRules.length;
+    const mandatoryStartIndex = customCount;
+    const defaultRuleGlobalIndex = customCount + MANDATORY_RULES.length;
     return (
       <View style={styles.formSection}>
         <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
@@ -705,42 +696,12 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           </View>
         </TouchableOpacity>
 
-        {MANDATORY_RULES.map((rule, index) => {
-          const isExpanded = expandedRuleIndex === index;
-          return (
-            <TouchableOpacity
-              key={`mandatory-${index}`}
-              style={styles.ruleItem}
-              onPress={() => toggleRuleExpand(index)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.ruleContent}>
-                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
-              </View>
-              <View style={styles.ruleDragHandle}>
-                <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-
-        <TouchableOpacity
-          style={styles.ruleItem}
-          onPress={() => toggleRuleExpand(defaultRuleGlobalIndex)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.ruleContent}>
-            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 2}>
-              {DEFAULT_OPTIONAL_RULE}
-            </Text>
-          </View>
-          <View style={styles.ruleDragHandle}>
-            <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
-          </View>
-        </TouchableOpacity>
+        {customRules.length > 0 && (
+          <Text style={styles.ruleSectionLabel}>Custom Rules</Text>
+        )}
 
         {customRules.map((rule, index) => {
-          const globalIndex = mandatoryCount + 1 + index;
+          const globalIndex = index;
           const isExpanded = expandedRuleIndex === globalIndex;
           return (
             <Swipeable
@@ -801,6 +762,43 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             </Swipeable>
           );
         })}
+
+        <Text style={styles.ruleSectionLabel}>Mandatory Rules</Text>
+
+        {MANDATORY_RULES.map((rule, index) => {
+          const globalIndex = mandatoryStartIndex + index;
+          const isExpanded = expandedRuleIndex === globalIndex;
+          return (
+            <TouchableOpacity
+              key={`mandatory-${index}`}
+              style={[styles.ruleItem, styles.ruleItemMandatory]}
+              onPress={() => toggleRuleExpand(globalIndex)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.ruleContent}>
+                <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
+              </View>
+              <View style={styles.ruleLockIcon}>
+                <Ionicons name="lock-closed" size={16} color={Colors.text.tertiary} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        <TouchableOpacity
+          style={[styles.ruleItem, styles.ruleItemMandatory]}
+          onPress={() => toggleRuleExpand(defaultRuleGlobalIndex)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.ruleContent}>
+            <Text style={styles.ruleText} numberOfLines={expandedRuleIndex === defaultRuleGlobalIndex ? undefined : 2}>
+              {DEFAULT_OPTIONAL_RULE}
+            </Text>
+          </View>
+          <View style={styles.ruleLockIcon}>
+            <Ionicons name="lock-closed" size={16} color={Colors.text.tertiary} />
+          </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -1339,6 +1337,25 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
   },
   ruleDragHandle: {
+    paddingVertical: Spacing.xs,
+    paddingLeft: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ruleSectionLabel: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  ruleItemMandatory: {
+    backgroundColor: Colors.background.secondary,
+    opacity: 0.85,
+  },
+  ruleLockIcon: {
     paddingVertical: Spacing.xs,
     paddingLeft: Spacing.xs,
     alignItems: 'center',
