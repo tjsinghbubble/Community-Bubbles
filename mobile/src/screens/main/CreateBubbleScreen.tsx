@@ -28,7 +28,6 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Colors,
@@ -506,111 +505,37 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         />
       </View>
 
-      <View style={[styles.fieldGroup, { zIndex: 10 }]}>
+      <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
-        <View style={[styles.locationInputRow, { zIndex: 10 }]}>
-          <TouchableOpacity
-            style={styles.locationPinOverlay}
-            onPress={() => setShowLocationPicker(true)}
-          >
-            <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
-          </TouchableOpacity>
-          <GooglePlacesAutocomplete
-            placeholder='Search location or enter address'
-            fetchDetails={true}
-            onPress={(data: any, details: any) => {
-              const name = data.structured_formatting?.main_text || data.description;
-              const address = details?.formatted_address || data.description;
-              setLocationName(name);
-              setLocationAddress(address);
-              if (details?.geometry?.location?.lat != null) setLocationLat(String(details.geometry.location.lat));
-              if (details?.geometry?.location?.lng != null) setLocationLng(String(details.geometry.location.lng));
-            }}
-            query={{
-              key: GOOGLE_PLACES_API_KEY,
-              language: 'en',
-            }}
-            textInputProps={{
-              placeholderTextColor: Colors.text.tertiary,
-              value: locationName,
-              onChangeText: (text: string) => {
-                setLocationName(text);
-                if (!text) {
-                  setLocationAddress('');
-                  setLocationLat('');
-                  setLocationLng('');
-                }
-              },
-            }}
-            styles={{
-              container: {
-                flex: 1,
-                zIndex: 10,
-              },
-              textInputContainer: {
-                backgroundColor: 'transparent',
-              },
-              textInput: {
-                height: 48,
-                borderWidth: 1,
-                borderColor: Colors.border.default,
-                borderRadius: Radius.md,
-                paddingLeft: 48,
-                paddingRight: 48,
-                fontSize: Typography.sizes.base,
-                backgroundColor: Colors.background.primary,
-                color: Colors.text.primary,
-              },
-              listView: {
-                backgroundColor: Colors.background.primary,
-                borderRadius: Radius.md,
-                elevation: 4,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.15,
-                shadowRadius: 8,
-                marginTop: 4,
-                zIndex: 20,
-              },
-              row: {
-                padding: 14,
-                borderBottomWidth: 1,
-                borderBottomColor: Colors.border.light,
-              },
-              description: {
-                fontSize: Typography.sizes.base,
-                color: Colors.text.primary,
-              },
-              poweredContainer: { display: 'none' },
-              powered: { display: 'none' },
-            }}
-            enablePoweredByContainer={false}
-            disableScroll={true}
-            debounce={300}
-            minLength={2}
-            nearbyPlacesAPI="GooglePlacesSearch"
-            renderRow={(data: any) => (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="location" size={18} color={Colors.brand.bubbleBlue} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: Typography.sizes.base, fontWeight: '500', color: Colors.text.primary }} numberOfLines={1}>
-                    {data.structured_formatting?.main_text || data.description}
-                  </Text>
-                  {data.structured_formatting?.secondary_text && (
-                    <Text style={{ fontSize: Typography.sizes.sm, color: Colors.text.tertiary, marginTop: 2 }} numberOfLines={1}>
-                      {data.structured_formatting.secondary_text}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )}
-          />
-          <View style={styles.locationSearchIconOverlay} pointerEvents="none">
-            <Ionicons name="search" size={20} color={Colors.text.tertiary} />
+        <TouchableOpacity
+          style={styles.locationTappableField}
+          onPress={() => setShowLocationPicker(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="location-outline" size={20} color={locationName ? Colors.brand.primary : Colors.text.tertiary} />
+          <View style={styles.locationTappableContent}>
+            <Text style={[styles.locationTappableText, !locationName && styles.locationTappablePlaceholder]} numberOfLines={1}>
+              {locationName || 'Search location or enter address'}
+            </Text>
+            {locationAddress ? (
+              <Text style={styles.locationTappableSubtext} numberOfLines={1}>{locationAddress}</Text>
+            ) : null}
           </View>
-        </View>
-        {locationAddress ? (
-          <Text style={styles.locationSubtext}>{locationAddress}</Text>
+          <Ionicons name="search" size={20} color={Colors.text.tertiary} />
+        </TouchableOpacity>
+        {locationName ? (
+          <TouchableOpacity
+            style={styles.locationClearButton}
+            onPress={() => {
+              setLocationName('');
+              setLocationAddress('');
+              setLocationLat('');
+              setLocationLng('');
+            }}
+          >
+            <Ionicons name="close-circle" size={16} color={Colors.text.tertiary} />
+            <Text style={styles.locationClearText}>Clear location</Text>
+          </TouchableOpacity>
         ) : null}
       </View>
 
@@ -1109,36 +1034,44 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
   },
 
-  locationInputRow: {
+  locationTappableField: {
     flexDirection: 'row',
     alignItems: 'center',
-    position: 'relative',
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.sm + Spacing.xxs,
+    paddingVertical: Spacing.sm + Spacing.xxs,
+    backgroundColor: Colors.background.primary,
+    gap: Spacing.sm,
   },
-  locationPinOverlay: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
+  locationTappableContent: {
+    flex: 1,
   },
-  locationSearchIconOverlay: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    height: 48,
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 15,
-    elevation: 15,
+  locationTappableText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    fontWeight: Typography.weights.medium,
   },
-  locationSubtext: {
+  locationTappablePlaceholder: {
+    color: Colors.text.tertiary,
+    fontWeight: Typography.weights.regular,
+  },
+  locationTappableSubtext: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
+    marginTop: 2,
+  },
+  locationClearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xxs,
     marginTop: Spacing.xxs,
+    paddingVertical: Spacing.xxs,
+  },
+  locationClearText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
   },
 
   sliderSeparator: {
