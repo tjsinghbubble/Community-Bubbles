@@ -7,6 +7,7 @@ import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategory
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup } from "./cometchat";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -391,6 +392,21 @@ export async function registerRoutes(
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
+      
+      try {
+        const groupType = bubble.privacy === 'Public' ? 'public' : 'private';
+        await ensureCometChatGroup(String(bubble.id), bubble.title || 'Bubble', groupType);
+        if (bubble.creatorId) {
+          const creator = await storage.getUser(bubble.creatorId);
+          if (creator) {
+            await ensureCometChatUser(String(creator.id), creator.name || creator.email);
+            await addMemberToGroup(String(bubble.id), String(creator.id), 'admin');
+          }
+        }
+      } catch (e) {
+        console.error('CometChat group creation on bubble approve:', e);
+      }
+      
       res.json(bubble);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -453,6 +469,18 @@ export async function registerRoutes(
           userId: req.userId!,
           bubbleId,
         });
+        
+        try {
+          const joiner = await storage.getUser(req.userId!);
+          if (joiner) {
+            await ensureCometChatUser(String(joiner.id), joiner.name || joiner.email);
+            await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
+            await addMemberToGroup(bubbleId, String(joiner.id));
+          }
+        } catch (e) {
+          console.error('CometChat add member on join:', e);
+        }
+        
         res.json({ success: true, status: 'approved' });
       }
     } catch (error: any) {
@@ -470,6 +498,13 @@ export async function registerRoutes(
       }
 
       await storage.deleteMembership(req.userId!, bubbleId);
+      
+      try {
+        await removeMemberFromGroup(bubbleId, String(req.userId!));
+      } catch (e) {
+        console.error('CometChat remove member on leave:', e);
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -613,6 +648,13 @@ export async function registerRoutes(
       }
       
       await storage.deleteMembership(userId, bubbleId);
+      
+      try {
+        await removeMemberFromGroup(bubbleId, String(userId));
+      } catch (e) {
+        console.error('CometChat remove member on admin kick:', e);
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -665,6 +707,19 @@ export async function registerRoutes(
       if (!membership) {
         return res.status(404).json({ error: "Join request not found" });
       }
+      
+      try {
+        const approvedUser = await storage.getUser(userId);
+        const bubble = await storage.getBubble(bubbleId);
+        if (approvedUser && bubble) {
+          await ensureCometChatUser(String(approvedUser.id), approvedUser.name || approvedUser.email);
+          await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
+          await addMemberToGroup(bubbleId, String(approvedUser.id));
+        }
+      } catch (e) {
+        console.error('CometChat add member on join approval:', e);
+      }
+      
       res.json({ success: true, membership });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
