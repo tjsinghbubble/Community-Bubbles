@@ -419,6 +419,16 @@ export async function registerRoutes(
       } catch (e) {
         console.error('CometChat group creation on bubble approve:', e);
       }
+
+      if (bubble.creatorId) {
+        sendNotification({
+          recipientId: bubble.creatorId,
+          type: "bubble_approved",
+          title: "Bubble Approved!",
+          body: `Your bubble "${bubble.title}" has been approved and is now live!`,
+          metadata: { bubbleId: bubble.id, bubbleName: bubble.title },
+        });
+      }
       
       res.json(bubble);
     } catch (error: any) {
@@ -438,6 +448,17 @@ export async function registerRoutes(
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
+
+      if (bubble.creatorId) {
+        sendNotification({
+          recipientId: bubble.creatorId,
+          type: "bubble_rejected",
+          title: "Bubble Not Approved",
+          body: `Your bubble "${bubble.title}" was not approved.${reason ? ` Reason: ${reason}` : ''}`,
+          metadata: { bubbleId: bubble.id, bubbleName: bubble.title, reason },
+        });
+      }
+
       res.json(bubble);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -476,6 +497,12 @@ export async function registerRoutes(
           userId: req.userId!,
           bubbleId,
         }, 'pending');
+
+        const requester = await storage.getUser(req.userId!);
+        notifyBubbleAdmins(bubbleId, req.userId!, "membership_request",
+          "Join Request", `${requester?.name || 'Someone'} wants to join ${bubble.title}`,
+          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: requester?.name });
+
         res.json({ success: true, status: 'pending' });
       } else {
         await storage.createMembership({
@@ -493,6 +520,11 @@ export async function registerRoutes(
         } catch (e) {
           console.error('CometChat add member on join:', e);
         }
+
+        const joinerUser = await storage.getUser(req.userId!);
+        notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
+          "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
+          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name });
         
         res.json({ success: true, status: 'approved' });
       }
@@ -636,6 +668,16 @@ export async function registerRoutes(
       } catch (e) {
         console.error('CometChat sync admin DM groups on role change:', e);
       }
+
+      const roleBubble = await storage.getBubble(bubbleId);
+      const roleLabel = role === 'admin' ? 'an admin' : 'a member';
+      sendNotification({
+        recipientId: userId,
+        type: "bubble_role_changed",
+        title: "Role Updated",
+        body: `You're now ${roleLabel} of ${roleBubble?.title || 'the bubble'}.`,
+        metadata: { bubbleId, bubbleName: roleBubble?.title, role },
+      });
       
       res.json({ success: true });
     } catch (error: any) {
@@ -706,6 +748,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User is not a member of this bubble" });
       }
       
+      const kickBubble = await storage.getBubble(bubbleId);
       await storage.deleteMembership(userId, bubbleId);
       
       try {
@@ -719,6 +762,14 @@ export async function registerRoutes(
       } catch (e) {
         console.error('Archive admin-member chat on kick:', e);
       }
+
+      sendNotification({
+        recipientId: userId,
+        type: "bubble_member_removed",
+        title: "Removed from Bubble",
+        body: `You've been removed from ${kickBubble?.title || 'the bubble'}.`,
+        metadata: { bubbleId, bubbleName: kickBubble?.title },
+      });
       
       res.json({ success: true });
     } catch (error: any) {
@@ -784,6 +835,15 @@ export async function registerRoutes(
       } catch (e) {
         console.error('CometChat add member on join approval:', e);
       }
+
+      const approvalBubble = await storage.getBubble(bubbleId);
+      sendNotification({
+        recipientId: userId,
+        type: "bubble_request_approved",
+        title: "Request Approved!",
+        body: `You've been accepted into ${approvalBubble?.title || 'the bubble'}!`,
+        metadata: { bubbleId, bubbleName: approvalBubble?.title },
+      });
       
       res.json({ success: true, membership });
     } catch (error: any) {
@@ -801,6 +861,16 @@ export async function registerRoutes(
       }
 
       await storage.rejectMembership(userId, bubbleId);
+
+      const rejBubble = await storage.getBubble(bubbleId);
+      sendNotification({
+        recipientId: userId,
+        type: "bubble_request_rejected",
+        title: "Request Declined",
+        body: `Your request to join ${rejBubble?.title || 'the bubble'} was declined.`,
+        metadata: { bubbleId, bubbleName: rejBubble?.title },
+      });
+
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1016,6 +1086,11 @@ export async function registerRoutes(
         status: "going",
       });
 
+      const eventCreator = await storage.getUser(req.userId!);
+      notifyBubbleMembers(event.bubbleId, req.userId!, "event_created",
+        "New Event", `${eventCreator?.name || 'Someone'} created "${event.title}" in ${bubble.title}`,
+        { bubbleId: event.bubbleId, bubbleName: bubble.title, eventId: event.id, eventName: event.title, userName: eventCreator?.name });
+
       res.json(event);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1223,6 +1298,18 @@ export async function registerRoutes(
         status: finalStatus,
       });
 
+      if (finalStatus === "going" && event.creatorId !== req.userId) {
+        const rsvpUser = await storage.getUser(req.userId!);
+        const rsvpBubble = await storage.getBubble(event.bubbleId);
+        sendNotification({
+          recipientId: event.creatorId,
+          type: "event_rsvp",
+          title: "New RSVP",
+          body: `${rsvpUser?.name || 'Someone'} is going to "${event.title}"`,
+          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: rsvpBubble?.title, userName: rsvpUser?.name },
+        });
+      }
+
       res.json({ success: true, status: finalStatus });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1244,6 +1331,15 @@ export async function registerRoutes(
           if (firstWaitlisted) {
             await storage.updateEventAttendeeStatus(firstWaitlisted.userId, req.params.id, 'going');
             promotedUserId = firstWaitlisted.userId;
+
+            const promoBubble = await storage.getBubble(event.bubbleId);
+            sendNotification({
+              recipientId: firstWaitlisted.userId,
+              type: "waitlist_promoted",
+              title: "You're In!",
+              body: `A spot opened up for "${event.title}" — you're now going!`,
+              metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: promoBubble?.title },
+            });
           }
         }
       }
