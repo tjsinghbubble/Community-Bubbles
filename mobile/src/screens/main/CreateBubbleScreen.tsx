@@ -28,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Colors,
@@ -441,21 +442,103 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         />
       </View>
 
-      <View style={styles.fieldGroup}>
+      <View style={[styles.fieldGroup, { zIndex: 10 }]}>
         <Text style={styles.fieldLabel}>Location <Text style={styles.required}>*</Text></Text>
-        <View style={styles.locationInputRow}>
+        <View style={[styles.locationInputRow, { zIndex: 10 }]}>
           <TouchableOpacity
             style={styles.locationPinOverlay}
             onPress={() => setShowLocationPicker(true)}
           >
             <Ionicons name="location-outline" size={20} color={Colors.text.tertiary} />
           </TouchableOpacity>
-          <TextInput
-            style={[styles.fieldInput, { flex: 1, paddingLeft: 48 }]}
+          <GooglePlacesAutocomplete
             placeholder='Search location or enter address'
-            placeholderTextColor={Colors.text.tertiary}
-            value={locationName}
-            onChangeText={setLocationName}
+            fetchDetails={true}
+            onPress={(data: any, details: any) => {
+              const name = data.structured_formatting?.main_text || data.description;
+              const address = details?.formatted_address || data.description;
+              setLocationName(name);
+              setLocationAddress(address);
+              if (details?.geometry?.location?.lat != null) setLocationLat(String(details.geometry.location.lat));
+              if (details?.geometry?.location?.lng != null) setLocationLng(String(details.geometry.location.lng));
+            }}
+            query={{
+              key: GOOGLE_PLACES_API_KEY,
+              language: 'en',
+            }}
+            textInputProps={{
+              placeholderTextColor: Colors.text.tertiary,
+              value: locationName,
+              onChangeText: (text: string) => {
+                setLocationName(text);
+                if (!text) {
+                  setLocationAddress('');
+                  setLocationLat('');
+                  setLocationLng('');
+                }
+              },
+            }}
+            styles={{
+              container: {
+                flex: 1,
+                zIndex: 10,
+              },
+              textInputContainer: {
+                backgroundColor: 'transparent',
+              },
+              textInput: {
+                height: 48,
+                borderWidth: 1,
+                borderColor: Colors.border.default,
+                borderRadius: Radius.md,
+                paddingLeft: 48,
+                paddingRight: Spacing.lg,
+                fontSize: Typography.sizes.base,
+                backgroundColor: Colors.background.primary,
+                color: Colors.text.primary,
+              },
+              listView: {
+                backgroundColor: Colors.background.primary,
+                borderRadius: Radius.md,
+                elevation: 4,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                marginTop: 4,
+                zIndex: 20,
+              },
+              row: {
+                padding: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: Colors.border.light,
+              },
+              description: {
+                fontSize: Typography.sizes.base,
+                color: Colors.text.primary,
+              },
+              poweredContainer: { display: 'none' },
+              powered: { display: 'none' },
+            }}
+            enablePoweredByContainer={false}
+            debounce={300}
+            minLength={2}
+            nearbyPlacesAPI="GooglePlacesSearch"
+            renderRow={(data: any) => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="location" size={18} color={Colors.brand.bubbleBlue} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: Typography.sizes.base, fontWeight: '500', color: Colors.text.primary }} numberOfLines={1}>
+                    {data.structured_formatting?.main_text || data.description}
+                  </Text>
+                  {data.structured_formatting?.secondary_text && (
+                    <Text style={{ fontSize: Typography.sizes.sm, color: Colors.text.tertiary, marginTop: 2 }} numberOfLines={1}>
+                      {data.structured_formatting.secondary_text}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
           />
         </View>
         {locationAddress ? (
