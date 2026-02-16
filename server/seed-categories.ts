@@ -91,11 +91,11 @@ const categoryTree: ParentCategory[] = [
   {
     name: "campus", displayName: "Campus", icon: "school",
     children: [
-      { name: "clubs", displayName: "Clubs", icon: "people", placeholderName: "e.g., Campus Club Hub", placeholderTagline: "e.g., Find your people on campus", placeholderDescription: "e.g., Discover and join student clubs, organizations, and interest groups at your university." },
-      { name: "study_groups", displayName: "Study Groups", icon: "book", placeholderName: "e.g., Study Squad", placeholderTagline: "e.g., Learn better together", placeholderDescription: "e.g., Form study groups for classes, share notes, and prepare for exams with fellow students." },
-      { name: "greek_life", displayName: "Greek Life", icon: "trophy", placeholderName: "e.g., Greek Connect", placeholderTagline: "e.g., Brotherhood and sisterhood", placeholderDescription: "e.g., Connect with members of fraternities and sororities, plan events, and build lifelong bonds." },
-      { name: "intramural_sports", displayName: "Intramural Sports", icon: "football", placeholderName: "e.g., Campus Athletes", placeholderTagline: "e.g., Compete and have fun", placeholderDescription: "e.g., Join intramural teams, find practice partners, and compete in campus sports leagues." },
-      { name: "campus_events", displayName: "Campus Events", icon: "calendar", placeholderName: "e.g., Campus Happenings", placeholderTagline: "e.g., Never miss a campus event", placeholderDescription: "e.g., Stay updated on campus events, concerts, lectures, and social gatherings at your university." },
+      { name: "clubs", displayName: "Clubs", icon: "people", image: "/images/categories/clubs.jpg", placeholderName: "e.g., Campus Club Hub", placeholderTagline: "e.g., Find your people on campus", placeholderDescription: "e.g., Discover and join student clubs, organizations, and interest groups at your university." },
+      { name: "study_groups", displayName: "Study Groups", icon: "book", image: "/images/categories/study_groups.jpg", placeholderName: "e.g., Study Squad", placeholderTagline: "e.g., Learn better together", placeholderDescription: "e.g., Form study groups for classes, share notes, and prepare for exams with fellow students." },
+      { name: "greek_life", displayName: "Greek Life", icon: "trophy", image: "/images/categories/greek_life.jpg", placeholderName: "e.g., Greek Connect", placeholderTagline: "e.g., Brotherhood and sisterhood", placeholderDescription: "e.g., Connect with members of fraternities and sororities, plan events, and build lifelong bonds." },
+      { name: "intramural_sports", displayName: "Intramural Sports", icon: "football", image: "/images/categories/intramural_sports.jpg", placeholderName: "e.g., Campus Athletes", placeholderTagline: "e.g., Compete and have fun", placeholderDescription: "e.g., Join intramural teams, find practice partners, and compete in campus sports leagues." },
+      { name: "campus_events", displayName: "Campus Events", icon: "calendar", image: "/images/categories/campus_events.jpg", placeholderName: "e.g., Campus Happenings", placeholderTagline: "e.g., Never miss a campus event", placeholderDescription: "e.g., Stay updated on campus events, concerts, lectures, and social gatherings at your university." },
     ],
   },
 ];
