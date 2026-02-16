@@ -1550,6 +1550,7 @@ const styles = StyleSheet.create({
   categoryImage: {
     width: '100%',
     height: '100%',
+    borderRadius: Radius.xl,
   },
   categoryImagePlaceholder: {
     width: '100%',
@@ -1557,6 +1558,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: Radius.xl,
   },
   categoryImageOverlay: {
     ...StyleSheet.absoluteFillObject,
