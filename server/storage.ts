@@ -36,6 +36,11 @@ import {
   type BubbleChat,
   adminMemberChats,
   type AdminMemberChat,
+  notifications,
+  type Notification,
+  type InsertNotification,
+  devicePushTokens,
+  type DevicePushToken,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -153,6 +158,19 @@ export interface IStorage {
   getAdminMemberChatsForBubble(bubbleId: string): Promise<AdminMemberChat[]>;
   updateAdminMemberChatStatus(bubbleId: string, memberId: string, status: string): Promise<void>;
   archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void>;
+
+  // Notifications
+  createNotification(data: InsertNotification): Promise<Notification>;
+  getNotifications(userId: string, limit?: number, offset?: number): Promise<Notification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  markNotificationRead(id: string, userId: string): Promise<Notification | undefined>;
+  markAllNotificationsRead(userId: string): Promise<void>;
+  deleteNotification(id: string, userId: string): Promise<void>;
+
+  // Device Push Tokens
+  upsertDevicePushToken(userId: string, token: string, platform: string): Promise<DevicePushToken>;
+  getDevicePushTokens(userId: string): Promise<DevicePushToken[]>;
+  deleteDevicePushToken(userId: string, token: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1149,6 +1167,66 @@ export class DatabaseStorage implements IStorage {
 
   async archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void> {
     await db.update(adminMemberChats).set({ status: 'archived' }).where(eq(adminMemberChats.bubbleId, bubbleId));
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const result = await db.insert(notifications).values(data).returning();
+    return result[0];
+  }
+
+  async getNotifications(userId: string, lim = 50, offset = 0): Promise<Notification[]> {
+    return db.select().from(notifications)
+      .where(eq(notifications.recipientId, userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(lim)
+      .offset(offset);
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db.select({ count: count() }).from(notifications)
+      .where(and(eq(notifications.recipientId, userId), eq(notifications.read, false)));
+    return result[0]?.count ?? 0;
+  }
+
+  async markNotificationRead(id: string, userId: string): Promise<Notification | undefined> {
+    const result = await db.update(notifications).set({ read: true })
+      .where(and(eq(notifications.id, id), eq(notifications.recipientId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    await db.update(notifications).set({ read: true })
+      .where(and(eq(notifications.recipientId, userId), eq(notifications.read, false)));
+  }
+
+  async deleteNotification(id: string, userId: string): Promise<void> {
+    await db.delete(notifications)
+      .where(and(eq(notifications.id, id), eq(notifications.recipientId, userId)));
+  }
+
+  async upsertDevicePushToken(userId: string, token: string, platform: string): Promise<DevicePushToken> {
+    const existing = await db.select().from(devicePushTokens)
+      .where(and(eq(devicePushTokens.userId, userId), eq(devicePushTokens.token, token)))
+      .limit(1);
+    if (existing[0]) {
+      const result = await db.update(devicePushTokens)
+        .set({ platform, updatedAt: new Date() })
+        .where(eq(devicePushTokens.id, existing[0].id))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(devicePushTokens).values({ userId, token, platform }).returning();
+    return result[0];
+  }
+
+  async getDevicePushTokens(userId: string): Promise<DevicePushToken[]> {
+    return db.select().from(devicePushTokens).where(eq(devicePushTokens.userId, userId));
+  }
+
+  async deleteDevicePushToken(userId: string, token: string): Promise<void> {
+    await db.delete(devicePushTokens)
+      .where(and(eq(devicePushTokens.userId, userId), eq(devicePushTokens.token, token)));
   }
 }
 

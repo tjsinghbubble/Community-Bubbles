@@ -8,6 +8,7 @@ import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
+import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -1754,6 +1755,84 @@ export async function registerRoutes(
       res.send(Buffer.from(buffer));
     } catch (error) {
       res.status(500).json({ error: "Failed to generate map" });
+    }
+  });
+
+  // ===== NOTIFICATIONS =====
+  app.get("/api/notifications", authMiddleware, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const notifs = await storage.getNotifications(req.userId!, limit, offset);
+      res.json(notifs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", authMiddleware, async (req, res) => {
+    try {
+      const count = await storage.getUnreadNotificationCount(req.userId!);
+      res.json({ count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/notifications/:id/read", authMiddleware, async (req, res) => {
+    try {
+      const notif = await storage.markNotificationRead(req.params.id, req.userId!);
+      if (!notif) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      res.json(notif);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/notifications/read-all", authMiddleware, async (req, res) => {
+    try {
+      await storage.markAllNotificationsRead(req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/notifications/:id", authMiddleware, async (req, res) => {
+    try {
+      await storage.deleteNotification(req.params.id, req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===== DEVICE PUSH TOKENS =====
+  app.post("/api/device-push-tokens", authMiddleware, async (req, res) => {
+    try {
+      const { token, platform } = req.body;
+      if (!token || !platform) {
+        return res.status(400).json({ error: "token and platform required" });
+      }
+      const result = await storage.upsertDevicePushToken(req.userId!, token, platform);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/device-push-tokens", authMiddleware, async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({ error: "token required" });
+      }
+      await storage.deleteDevicePushToken(req.userId!, token);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
