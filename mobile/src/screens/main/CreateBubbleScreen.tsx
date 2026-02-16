@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   Platform,
   StatusBar,
   Alert,
@@ -87,7 +87,7 @@ const STEP_TITLES = ['Create a Bubble', 'Bubble Details', 'Rules', 'Privacy & Se
 
 export default function CreateBubbleScreen({ navigation }: Props) {
   const { token, user } = useAuth();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<FlatList>(null);
 
   const [step, setStep] = useState(0);
   const [categoryGroups, setCategoryGroups] = useState<CategoryGroup[]>([]);
@@ -194,14 +194,14 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const goNext = () => {
     if (step < 4) {
       setStep(step + 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      scrollRef.current?.scrollToOffset({ offset: 0, animated: false });
     }
   };
 
   const goBack = () => {
     if (step > 0) {
       setStep(step - 1);
-      scrollRef.current?.scrollTo({ y: 0, animated: false });
+      scrollRef.current?.scrollToOffset({ offset: 0, animated: false });
     } else {
       navigation.goBack();
     }
@@ -951,15 +951,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
+        <FlatList
           ref={scrollRef}
+          data={[{ key: 'form' }]}
+          renderItem={() => renderStepContent()}
           style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 100 }}
-        >
-          {renderStepContent()}
-        </ScrollView>
+        />
       </KeyboardAvoidingView>
       {renderNextButton()}
 
