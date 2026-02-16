@@ -196,6 +196,12 @@ class ApiService {
     });
   }
 
+  async initiateAdminDm(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/admin-dm/${userId}`, {
+      method: "POST",
+    });
+  }
+
   async getMyCreatedBubbles() {
     return this.request("/api/bubbles/created/my", {
       method: "GET",

@@ -7,7 +7,7 @@ import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategory
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
-import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup } from "./cometchat";
+import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -598,6 +598,26 @@ export async function registerRoutes(
       }
       
       await storage.updateMemberRole(userId, bubbleId, role);
+      
+      try {
+        const bubble = await storage.getBubble(bubbleId);
+        const allMembers = await storage.getBubbleMembersWithUsers(bubbleId);
+        const newAdminIds = allMembers.filter(m => m.role === 'admin').map(m => String(m.userId));
+        const allMemberIds = allMembers.map(m => String(m.userId));
+        await syncAllAdminDmGroupsForBubble(
+          bubbleId,
+          bubble?.title || 'Bubble',
+          newAdminIds,
+          allMemberIds,
+          async (id) => {
+            const u = await storage.getUser(id);
+            return u?.name || u?.email || 'Unknown';
+          }
+        );
+      } catch (e) {
+        console.error('CometChat sync admin DM groups on role change:', e);
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -621,6 +641,26 @@ export async function registerRoutes(
       }
       
       await storage.updateMemberRole(req.userId!, bubbleId, 'member');
+      
+      try {
+        const bubble = await storage.getBubble(bubbleId);
+        const allMembers = await storage.getBubbleMembersWithUsers(bubbleId);
+        const newAdminIds = allMembers.filter(m => m.role === 'admin').map(m => String(m.userId));
+        const allMemberIds = allMembers.map(m => String(m.userId));
+        await syncAllAdminDmGroupsForBubble(
+          bubbleId,
+          bubble?.title || 'Bubble',
+          newAdminIds,
+          allMemberIds,
+          async (id) => {
+            const u = await storage.getUser(id);
+            return u?.name || u?.email || 'Unknown';
+          }
+        );
+      } catch (e) {
+        console.error('CometChat sync admin DM groups on relinquish:', e);
+      }
+      
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -739,6 +779,50 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Admin-Member DM API
+  app.post("/api/bubbles/:bubbleId/admin-dm/:userId", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      if (requesterRole !== 'admin') {
+        return res.status(403).json({ error: "Only admins can initiate admin DMs" });
+      }
+
+      const bubble = await storage.getBubble(bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const members = await storage.getBubbleMembersWithUsers(bubbleId);
+      const adminUsers = members
+        .filter(m => m.role === 'admin')
+        .map(m => ({ id: String(m.userId), name: m.user.name || m.user.email }));
+
+      const dmGuid = await syncAdminDmGroup(
+        bubbleId,
+        bubble.title || 'Bubble',
+        String(targetUser.id),
+        targetUser.name || targetUser.email,
+        adminUsers
+      );
+
+      res.json({
+        groupId: dmGuid,
+        groupName: `${bubble.title} : ${targetUser.name || targetUser.email}`,
+        memberName: targetUser.name || targetUser.email,
+        bubbleTitle: bubble.title,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

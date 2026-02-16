@@ -52,6 +52,76 @@ export async function addMemberToGroup(groupGuid: string, userUid: string, scope
   }
 }
 
+export async function getGroupMembers(groupGuid: string): Promise<string[]> {
+  try {
+    const result = await apiCall('GET', `/groups/${groupGuid}/members?perPage=100`);
+    if (result?.data) {
+      return result.data.map((m: any) => m.uid);
+    }
+    return [];
+  } catch (e: any) {
+    return [];
+  }
+}
+
+export async function syncAdminDmGroup(
+  bubbleId: string,
+  bubbleTitle: string,
+  memberId: string,
+  memberName: string,
+  adminUsers: Array<{ id: string; name: string }>
+): Promise<string> {
+  const dmGuid = `adm_${bubbleId}_${memberId}`;
+  const groupName = `${bubbleTitle} : ${memberName}`;
+
+  await ensureCometChatGroup(dmGuid, groupName, 'private');
+
+  await ensureCometChatUser(String(memberId), memberName);
+  await addMemberToGroup(dmGuid, String(memberId));
+
+  for (const admin of adminUsers) {
+    await ensureCometChatUser(String(admin.id), admin.name);
+    await addMemberToGroup(dmGuid, String(admin.id), 'admin');
+  }
+
+  return dmGuid;
+}
+
+export async function syncAllAdminDmGroupsForBubble(
+  bubbleId: string,
+  bubbleTitle: string,
+  currentAdminIds: string[],
+  allMemberIds: string[],
+  getUserName: (id: string) => Promise<string>
+): Promise<void> {
+  for (const memberId of allMemberIds) {
+    if (currentAdminIds.includes(memberId)) continue;
+
+    const dmGuid = `adm_${bubbleId}_${memberId}`;
+    try {
+      const existingMembers = await getGroupMembers(dmGuid);
+      if (existingMembers.length === 0) continue;
+
+      for (const uid of existingMembers) {
+        if (uid === String(memberId)) continue;
+        if (!currentAdminIds.includes(uid)) {
+          await removeMemberFromGroup(dmGuid, uid);
+        }
+      }
+
+      for (const adminId of currentAdminIds) {
+        if (!existingMembers.includes(String(adminId))) {
+          const name = await getUserName(adminId);
+          await ensureCometChatUser(String(adminId), name);
+          await addMemberToGroup(dmGuid, String(adminId), 'admin');
+        }
+      }
+    } catch (e) {
+      console.error(`CometChat: Failed to sync admin DM group ${dmGuid}:`, e);
+    }
+  }
+}
+
 export async function removeMemberFromGroup(groupGuid: string, userUid: string): Promise<boolean> {
   try {
     const result = await apiCall('DELETE', `/groups/${groupGuid}/members/${userUid}`);

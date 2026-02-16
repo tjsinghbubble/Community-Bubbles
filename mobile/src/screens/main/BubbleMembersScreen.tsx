@@ -174,14 +174,16 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     setMenuVisible(false);
     if (!selectedMember) return;
     try {
-      await cometChatService.createUserIfNotExists(selectedMember.userId, selectedMember.user.name);
-      await cometChatService.sendDirectMessage(selectedMember.userId, `Hi ${selectedMember.user.name}!`);
-      Alert.alert(
-        'Message Sent',
-        `A conversation with ${selectedMember.user.name} has been started. Check your Messages tab to continue chatting.`
-      );
+      const result = await apiService.initiateAdminDm(bubbleId, selectedMember.userId);
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        parentNav.navigate('Messages', {
+          screen: 'MessagesList',
+          params: { openGroupId: result.groupId },
+        });
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to send direct message. Please try again.');
+      Alert.alert('Error', 'Failed to start admin conversation. Please try again.');
     }
   };
 
