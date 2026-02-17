@@ -1308,21 +1308,24 @@ export async function registerRoutes(
 
       if (user?.isSuperAdmin) {
         const allBubbles = await storage.getBubbles();
-        for (const bubble of allBubbles) {
+        const enrichedAll = await enrichBubblesCategory(allBubbles);
+        for (const bubble of enrichedAll) {
           const events = await storage.getPendingEventsForBubble(bubble.id);
           pendingEvents.push(...events.map(e => ({ ...e, bubble })));
         }
         const allPending = await storage.getPendingBubbles();
-        for (const bubble of allPending) {
+        const enrichedPending = await enrichBubblesCategory(allPending);
+        for (const bubble of enrichedPending) {
           const events = await storage.getPendingEventsForBubble(bubble.id);
           pendingEvents.push(...events.map(e => ({ ...e, bubble })));
         }
       } else {
         const userMemberships = await storage.getUserMemberships(req.userId!);
         const adminBubbles = userMemberships.filter(m => m.role === 'admin');
-        for (const membership of adminBubbles) {
-          const events = await storage.getPendingEventsForBubble(membership.bubbleId);
-          pendingEvents.push(...events.map(e => ({ ...e, bubble: membership.bubble })));
+        const enrichedMemberBubbles = await enrichBubblesCategory(adminBubbles.map(m => m.bubble));
+        for (let i = 0; i < adminBubbles.length; i++) {
+          const events = await storage.getPendingEventsForBubble(adminBubbles[i].bubbleId);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble: enrichedMemberBubbles[i] })));
         }
       }
 
