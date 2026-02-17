@@ -640,7 +640,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={[...Gradients.button.colors] as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.primaryButton, disabled && styles.buttonDisabled]}
@@ -711,7 +711,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                   style={{ flex: 1 }}
                 >
                   <LinearGradient
-                    colors={Gradients.button.colors as unknown as string[]}
+                    colors={[...Gradients.button.colors] as [string, string]}
                     start={Gradients.button.start}
                     end={Gradients.button.end}
                     style={[styles.primaryButton, !ruleText.trim() && { opacity: 0.5 }]}

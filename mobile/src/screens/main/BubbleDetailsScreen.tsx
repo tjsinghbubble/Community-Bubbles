@@ -638,7 +638,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         disabled={isJoining}
       >
         <LinearGradient
-          colors={Gradients.button.colors as unknown as string[]}
+          colors={[...Gradients.button.colors] as [string, string]}
           start={Gradients.button.start}
           end={Gradients.button.end}
           style={StyleSheet.absoluteFillObject}

@@ -90,6 +90,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
         attendeeLimit: attendeeLimitEnabled && attendeeLimit ? parseInt(attendeeLimit) : null,
         bubbleId: event.bubbleId,
         campusId: event.campusId,
+        timezone: event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       setShowSuccessModal(true);
@@ -354,7 +355,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             disabled={!isFormValid || loading}
           >
             <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
+              colors={[...Gradients.button.colors] as [string, string]}
               start={Gradients.button.start}
               end={Gradients.button.end}
               style={styles.saveButton}

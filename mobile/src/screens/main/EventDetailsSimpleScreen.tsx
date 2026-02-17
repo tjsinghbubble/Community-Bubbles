@@ -71,6 +71,7 @@ type Bubble = {
   id: string;
   title: string;
   creatorId: string;
+  privacy?: string;
 };
 
 const MOCK_BULLETIN = [

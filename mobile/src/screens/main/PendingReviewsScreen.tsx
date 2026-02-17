@@ -13,6 +13,9 @@ import {
   Alert,
   LayoutAnimation,
   UIManager,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -95,6 +98,9 @@ export default function PendingReviewsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectTarget, setRejectTarget] = useState<{ type: 'bubble' | 'event'; id: string } | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     concerns: false,
@@ -165,30 +171,9 @@ export default function PendingReviewsScreen() {
   };
 
   const handleRejectBubble = (bubbleId: string) => {
-    Alert.prompt(
-      'Reject Bubble',
-      'Enter a reason for rejection (optional):',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async (reason?: string) => {
-            setActionLoading(bubbleId);
-            try {
-              await apiService.rejectBubble(bubbleId, reason);
-              setPendingBubbles(prev => prev.filter(b => b.id !== bubbleId));
-              Alert.alert('Rejected', 'Bubble has been rejected');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to reject bubble');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
-      ],
-      'plain-text'
-    );
+    setRejectReason('');
+    setRejectTarget({ type: 'bubble', id: bubbleId });
+    setRejectModalVisible(true);
   };
 
   const handleApproveEvent = async (eventId: string) => {
@@ -204,30 +189,32 @@ export default function PendingReviewsScreen() {
   };
 
   const handleRejectEvent = (eventId: string) => {
-    Alert.prompt(
-      'Reject Event',
-      'Enter a reason for rejection (optional):',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: async (reason?: string) => {
-            setActionLoading(eventId);
-            try {
-              await apiService.rejectEvent(eventId, reason);
-              setPendingEvents(prev => prev.filter(e => e.id !== eventId));
-              Alert.alert('Rejected', 'Event has been rejected');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to reject event');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
-      ],
-      'plain-text'
-    );
+    setRejectReason('');
+    setRejectTarget({ type: 'event', id: eventId });
+    setRejectModalVisible(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectTarget) return;
+    setRejectModalVisible(false);
+    const { type, id } = rejectTarget;
+    setActionLoading(id);
+    try {
+      if (type === 'bubble') {
+        await apiService.rejectBubble(id, rejectReason || undefined);
+        setPendingBubbles(prev => prev.filter(b => b.id !== id));
+        Alert.alert('Rejected', 'Bubble has been rejected');
+      } else {
+        await apiService.rejectEvent(id, rejectReason || undefined);
+        setPendingEvents(prev => prev.filter(e => e.id !== id));
+        Alert.alert('Rejected', 'Event has been rejected');
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to reject ${type}`);
+    } finally {
+      setActionLoading(null);
+      setRejectTarget(null);
+    }
   };
 
   const handleResolveReport = async (reportId: string) => {
@@ -594,6 +581,56 @@ export default function PendingReviewsScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={rejectModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setRejectModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.rejectModalOverlay}
+        >
+          <TouchableOpacity
+            style={styles.rejectModalOverlay}
+            activeOpacity={1}
+            onPress={() => setRejectModalVisible(false)}
+          >
+            <View style={styles.rejectModalContent}>
+              <Text style={styles.rejectModalTitle}>
+                Reject {rejectTarget?.type === 'bubble' ? 'Bubble' : 'Event'}
+              </Text>
+              <Text style={styles.rejectModalSubtitle}>
+                Enter a reason for rejection (optional):
+              </Text>
+              <TextInput
+                style={styles.rejectModalInput}
+                value={rejectReason}
+                onChangeText={setRejectReason}
+                placeholder="Reason..."
+                placeholderTextColor={Colors.neutral.coolMist}
+                multiline
+                autoFocus
+              />
+              <View style={styles.rejectModalActions}>
+                <TouchableOpacity
+                  style={styles.rejectModalCancel}
+                  onPress={() => setRejectModalVisible(false)}
+                >
+                  <Text style={styles.rejectModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rejectModalConfirm}
+                  onPress={handleConfirmReject}
+                >
+                  <Text style={styles.rejectModalConfirmText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -867,5 +904,65 @@ const styles = StyleSheet.create({
   reportMetaText: {
     fontSize: 12,
     color: Colors.neutral.coolMist,
+  },
+  rejectModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rejectModalContent: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.lg,
+    padding: Spacing.xl,
+    width: '85%',
+    maxWidth: 340,
+  },
+  rejectModalTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: '700' as const,
+    color: Colors.text.primary,
+    marginBottom: 6,
+  },
+  rejectModalSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    marginBottom: Spacing.md,
+  },
+  rejectModalInput: {
+    borderWidth: 1,
+    borderColor: Colors.border.light,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    minHeight: 80,
+    textAlignVertical: 'top' as const,
+    marginBottom: Spacing.md,
+  },
+  rejectModalActions: {
+    flexDirection: 'row' as const,
+    justifyContent: 'flex-end' as const,
+    gap: Spacing.md,
+  },
+  rejectModalCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  rejectModalCancelText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.secondary,
+    fontWeight: '600' as const,
+  },
+  rejectModalConfirm: {
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: Colors.status.error,
+    borderRadius: Radius.md,
+  },
+  rejectModalConfirmText: {
+    fontSize: Typography.sizes.base,
+    color: '#FFFFFF',
+    fontWeight: '600' as const,
   },
 });

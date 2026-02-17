@@ -23,6 +23,7 @@ export type BubbleData = {
   tagline?: string;
   description?: string;
   members?: number;
+  privacy?: string;
 };
 
 export type EventData = {
