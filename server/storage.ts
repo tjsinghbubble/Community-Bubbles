@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, gte, or, isNull, ne } from "drizzle-orm";
+import { eq, and, desc, lt, gte, or, isNull, ne, inArray } from "drizzle-orm";
 import { db } from "./db";
 import {
   users,
@@ -140,6 +140,7 @@ export interface IStorage {
   // Categories
   getCategories(): Promise<Category[]>;
   getCategory(id: number): Promise<Category | undefined>;
+  getCategoriesByIds(ids: number[]): Promise<Category[]>;
   createCategory(data: InsertCategory): Promise<Category>;
   updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<void>;
@@ -1097,6 +1098,11 @@ export class DatabaseStorage implements IStorage {
   async getCategory(id: number): Promise<Category | undefined> {
     const result = await db.select().from(categories).where(eq(categories.id, id)).limit(1);
     return result[0];
+  }
+
+  async getCategoriesByIds(ids: number[]): Promise<Category[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(categories).where(inArray(categories.id, ids));
   }
 
   async createCategory(data: InsertCategory): Promise<Category> {

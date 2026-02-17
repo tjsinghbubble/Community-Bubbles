@@ -29,18 +29,19 @@ async function enrichBubbleCategory(bubble: any): Promise<any> {
 }
 
 async function enrichBubblesCategory(bubblesArr: any[]): Promise<any[]> {
-  const categoryCache: Record<number, string> = {};
-  return Promise.all(bubblesArr.map(async (b) => {
-    if (!b.categoryId) return b;
-    if (!categoryCache[b.categoryId]) {
-      const name = await resolveCategoryName(b.categoryId);
-      if (name) categoryCache[b.categoryId] = name;
-    }
-    if (categoryCache[b.categoryId]) {
-      return { ...b, category: categoryCache[b.categoryId] };
+  const ids = [...new Set(bubblesArr.map(b => b.categoryId).filter(Boolean))] as number[];
+  if (ids.length === 0) return bubblesArr;
+  const cats = await storage.getCategoriesByIds(ids);
+  const nameMap: Record<number, string> = {};
+  for (const c of cats) {
+    nameMap[c.id] = c.displayName || c.name;
+  }
+  return bubblesArr.map(b => {
+    if (b.categoryId && nameMap[b.categoryId]) {
+      return { ...b, category: nameMap[b.categoryId] };
     }
     return b;
-  }));
+  });
 }
 
 function convertEventToLocal(event: any): any {
