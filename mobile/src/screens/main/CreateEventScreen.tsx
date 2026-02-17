@@ -324,6 +324,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         recurrenceCustomInterval: recurrenceType === 'custom' ? parseInt(recurrenceCustomInterval) || 1 : null,
         recurrenceEndDate: recurringEnabled && recurrenceEndType === 'on_date' && recurrenceEndDate ? recurrenceEndDate : null,
         campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? user?.campusId : null),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
 
       const event = await apiService.createEvent(eventData);

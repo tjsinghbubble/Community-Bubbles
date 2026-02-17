@@ -66,6 +66,8 @@ Membership statuses (`approved`, `pending`) control access and actions.
 
 **Multi-Image Upload**: Supports uploading up to 5 images for bubbles and events via presigned URLs to Google Cloud Storage.
 
+**Timezone Handling**: Events are stored in UTC in the database. Each event has a `timezone` column (IANA format, e.g. "America/Chicago") defaulting to 'UTC'. On create/update, the server converts local times to UTC using `server/timezone.ts`. On GET, the server converts UTC back to the event's local timezone before sending to clients. Mobile clients send `Intl.DateTimeFormat().resolvedOptions().timeZone` with event creation. The reminder scheduler compares UTC times directly.
+
 ## External Dependencies
 
 ### Third-Party Services

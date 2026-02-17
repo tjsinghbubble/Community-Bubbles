@@ -131,9 +131,10 @@ export const events = pgTable("events", {
   description: text("description"), // Optional
   coverImage: text("cover_image"),
   images: text("images").array().notNull().default(sql`'{}'::text[]`),
-  date: text("date").notNull(), // YYYY-MM-DD format
-  startTime: text("start_time").notNull(), // HH:MM format
-  endTime: text("end_time"), // HH:MM format, optional
+  date: text("date").notNull(), // YYYY-MM-DD format (stored in UTC)
+  startTime: text("start_time").notNull(), // HH:MM format (stored in UTC)
+  endTime: text("end_time"), // HH:MM format (stored in UTC), optional
+  timezone: text("timezone").notNull().default('UTC'), // IANA timezone e.g. "America/Chicago"
   locationName: text("location_name"), // Optional
   locationAddress: text("location_address"),
   locationLat: text("location_lat"),

@@ -9,9 +9,30 @@ import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
+import { localToUtc, utcToLocal } from "./timezone";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
+
+function convertEventToLocal(event: any): any {
+  if (!event || !event.timezone || event.timezone === 'UTC') return event;
+  const localStart = utcToLocal(event.date, event.startTime, event.timezone);
+  const result = { ...event, date: localStart.date, startTime: localStart.time };
+  if (event.endTime) {
+    const localEnd = utcToLocal(event.date, event.endTime, event.timezone);
+    result.endTime = localEnd.time;
+  }
+  return result;
+}
+
+function convertEventsToLocal(events: any[]): any[] {
+  return events.map(e => {
+    if (e.bubble) {
+      return { ...convertEventToLocal(e), bubble: e.bubble };
+    }
+    return convertEventToLocal(e);
+  });
+}
 
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -973,7 +994,7 @@ export async function registerRoutes(
   app.get("/api/events", async (req, res) => {
     try {
       const events = await storage.getPublicEvents();
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -982,7 +1003,7 @@ export async function registerRoutes(
   app.get("/api/events/upcoming", async (req, res) => {
     try {
       const events = await storage.getUpcomingEvents();
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -991,7 +1012,7 @@ export async function registerRoutes(
   app.get("/api/events/my", authMiddleware, async (req, res) => {
     try {
       const events = await storage.getUserEvents(req.userId!);
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1000,7 +1021,7 @@ export async function registerRoutes(
   app.get("/api/events/created", authMiddleware, async (req, res) => {
     try {
       const events = await storage.getUserCreatedEvents(req.userId!);
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1041,7 +1062,7 @@ export async function registerRoutes(
       }
       
       const events = await storage.getBubbleEvents(req.params.bubbleId);
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1073,7 +1094,8 @@ export async function registerRoutes(
       }
       
       const creator = await storage.getUser(event.creatorId);
-      res.json({ ...event, creatorName: creator?.name || 'Event Creator', creatorProfilePhoto: creator?.profilePhoto || null });
+      const localEvent = convertEventToLocal(event);
+      res.json({ ...localEvent, creatorName: creator?.name || 'Event Creator', creatorProfilePhoto: creator?.profilePhoto || null });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1081,8 +1103,23 @@ export async function registerRoutes(
 
   app.post("/api/events", authMiddleware, async (req, res) => {
     try {
+      const timezone = req.body.timezone || 'UTC';
+      let bodyToStore = { ...req.body };
+      if (timezone !== 'UTC' && req.body.date && req.body.startTime) {
+        const utcStart = localToUtc(req.body.date, req.body.startTime, timezone);
+        bodyToStore.date = utcStart.date;
+        bodyToStore.startTime = utcStart.time;
+        if (req.body.endTime) {
+          const utcEnd = localToUtc(req.body.date, req.body.endTime, timezone);
+          bodyToStore.endTime = utcEnd.time;
+          if (utcEnd.date !== utcStart.date) {
+            bodyToStore.endTime = utcEnd.time;
+          }
+        }
+        bodyToStore.timezone = timezone;
+      }
       const data = insertEventSchema.parse({
-        ...req.body,
+        ...bodyToStore,
         creatorId: req.userId,
       });
 
@@ -1119,7 +1156,7 @@ export async function registerRoutes(
         "New Event", `${eventCreator?.name || 'Someone'} created "${event.title}" in ${bubble.title}`,
         { bubbleId: event.bubbleId, bubbleName: bubble.title, eventId: event.id, eventName: event.title, userName: eventCreator?.name });
 
-      res.json(event);
+      res.json(convertEventToLocal(event));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1142,7 +1179,22 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to edit this event" });
       }
 
-      const updated = await storage.updateEvent(req.params.id, req.body);
+      let updateBody = { ...req.body };
+      const tz = req.body.timezone || event.timezone || 'UTC';
+      if (tz !== 'UTC') {
+        if (req.body.date && req.body.startTime) {
+          const utcStart = localToUtc(req.body.date, req.body.startTime, tz);
+          updateBody.date = utcStart.date;
+          updateBody.startTime = utcStart.time;
+        }
+        if (req.body.endTime && req.body.date) {
+          const utcEnd = localToUtc(req.body.date, req.body.endTime, tz);
+          updateBody.endTime = utcEnd.time;
+        }
+        updateBody.timezone = tz;
+      }
+
+      const updated = await storage.updateEvent(req.params.id, updateBody);
 
       const attendees = await storage.getEventAttendees(req.params.id);
       const attendeeIds = attendees
@@ -1159,7 +1211,7 @@ export async function registerRoutes(
         });
       }
 
-      res.json(updated);
+      res.json(convertEventToLocal(updated));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1230,7 +1282,7 @@ export async function registerRoutes(
         }
       }
 
-      res.json(pendingEvents);
+      res.json(convertEventsToLocal(pendingEvents));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1638,7 +1690,7 @@ export async function registerRoutes(
       }
 
       const events = await storage.getCampusEvents(user.campusId);
-      res.json(events);
+      res.json(convertEventsToLocal(events));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
