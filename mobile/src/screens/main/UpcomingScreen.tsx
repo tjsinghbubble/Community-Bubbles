@@ -93,6 +93,7 @@ export default function UpcomingScreen() {
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const navigation = useNavigation<any>();
 
   const fetchData = async () => {
@@ -110,6 +111,7 @@ export default function UpcomingScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchData();
+      apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [])
   );
 
@@ -142,7 +144,14 @@ export default function UpcomingScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+          <View>
+            <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -244,6 +253,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
   empty: {
     flex: 1,

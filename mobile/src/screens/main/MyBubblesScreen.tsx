@@ -71,9 +71,12 @@ export default function MyBubblesScreen() {
     }
   };
 
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
   useFocusEffect(
     useCallback(() => {
       fetchData();
+      apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [])
   );
 
@@ -127,7 +130,14 @@ export default function MyBubblesScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Bubbles</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
-          <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+          <View>
+            <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -239,6 +249,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
   empty: {
     flex: 1,

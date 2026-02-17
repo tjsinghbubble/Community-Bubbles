@@ -28,11 +28,13 @@ export default function ProfileScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const isSuperAdmin = user?.isSuperAdmin === true;
 
   useFocusEffect(
     useCallback(() => {
       checkAdminItems();
+      apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [user])
   );
 
@@ -127,6 +129,16 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
+          <View>
+            <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            {unreadNotifCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -247,11 +259,38 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.coolMist,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
   },
   content: {
     flex: 1,
