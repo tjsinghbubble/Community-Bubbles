@@ -350,6 +350,13 @@ export async function registerRoutes(
       if (radiusMiles !== undefined) updateData.radiusMiles = radiusMiles;
 
       const updatedBubble = await storage.updateBubble(bubbleId, updateData);
+
+      const editorUser = await storage.getUser(req.userId!);
+      notifyBubbleMembers(bubbleId, req.userId!, "bubble_edited",
+        "Bubble Updated", `${editorUser?.name || 'An admin'} updated ${bubble.title}`,
+        { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: editorUser?.name },
+        true);
+
       res.json(updatedBubble);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -513,7 +520,8 @@ export async function registerRoutes(
         const requester = await storage.getUser(req.userId!);
         notifyBubbleAdmins(bubbleId, req.userId!, "membership_request",
           "Join Request", `${requester?.name || 'Someone'} wants to join ${bubble.title}`,
-          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: requester?.name });
+          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: requester?.name },
+          true);
 
         res.json({ success: true, status: 'pending' });
       } else {
@@ -536,7 +544,8 @@ export async function registerRoutes(
         const joinerUser = await storage.getUser(req.userId!);
         notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
           "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
-          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name });
+          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name },
+          true);
         
         res.json({ success: true, status: 'approved' });
       }
@@ -567,6 +576,13 @@ export async function registerRoutes(
       } catch (e) {
         console.error('Archive admin-member chat on leave:', e);
       }
+
+      const leaverUser = await storage.getUser(req.userId!);
+      const leaveBubble = await storage.getBubble(bubbleId);
+      notifyBubbleAdmins(bubbleId, req.userId!, "bubble_leave",
+        "Member Left", `${leaverUser?.name || 'Someone'} left ${leaveBubble?.title || 'the bubble'}`,
+        { bubbleId, bubbleName: leaveBubble?.title, userId: req.userId!, userName: leaverUser?.name },
+        true);
       
       res.json({ success: true });
     } catch (error: any) {
@@ -1127,6 +1143,22 @@ export async function registerRoutes(
       }
 
       const updated = await storage.updateEvent(req.params.id, req.body);
+
+      const attendees = await storage.getEventAttendees(req.params.id);
+      const attendeeIds = attendees
+        .filter(a => a.userId !== req.userId && a.status === 'going')
+        .map(a => a.userId);
+      if (attendeeIds.length > 0) {
+        sendNotificationToMany({
+          recipientIds: attendeeIds,
+          type: "event_updated",
+          title: "Event Updated",
+          body: `"${event.title}" has been updated — check the latest details`,
+          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+          inAppOnly: true,
+        });
+      }
+
       res.json(updated);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1148,6 +1180,20 @@ export async function registerRoutes(
 
       if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
         return res.status(403).json({ error: "Not authorized to delete this event" });
+      }
+
+      const cancelAttendees = await storage.getEventAttendees(req.params.id);
+      const cancelIds = cancelAttendees
+        .filter(a => a.userId !== req.userId && a.status === 'going')
+        .map(a => a.userId);
+      if (cancelIds.length > 0) {
+        sendNotificationToMany({
+          recipientIds: cancelIds,
+          type: "event_cancelled",
+          title: "Event Cancelled",
+          body: `"${event.title}" has been cancelled`,
+          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+        });
       }
 
       await storage.deleteEvent(req.params.id);
@@ -1319,7 +1365,23 @@ export async function registerRoutes(
           title: "New RSVP",
           body: `${rsvpUser?.name || 'Someone'} is going to "${event.title}"`,
           metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: rsvpBubble?.title, userName: rsvpUser?.name },
+          inAppOnly: true,
         });
+      }
+
+      if (finalStatus === "going" && event.attendeeLimit) {
+        const goingAfterRsvp = await storage.getGoingCount(req.params.id);
+        if (goingAfterRsvp >= event.attendeeLimit) {
+          const fullBubble = await storage.getBubble(event.bubbleId);
+          sendNotification({
+            recipientId: event.creatorId,
+            type: "event_full",
+            title: "Event Full!",
+            body: `"${event.title}" has reached its capacity of ${event.attendeeLimit}`,
+            metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: fullBubble?.title },
+            inAppOnly: true,
+          });
+        }
       }
 
       res.json({ success: true, status: finalStatus });
@@ -1334,6 +1396,22 @@ export async function registerRoutes(
       const wasGoing = attendee?.status === 'going';
 
       await storage.deleteEventAttendee(req.userId!, req.params.id);
+
+      if (wasGoing) {
+        const unrsvpEvent = await storage.getEvent(req.params.id);
+        if (unrsvpEvent && unrsvpEvent.creatorId !== req.userId) {
+          const unrsvpUser = await storage.getUser(req.userId!);
+          const unrsvpBubble = await storage.getBubble(unrsvpEvent.bubbleId);
+          sendNotification({
+            recipientId: unrsvpEvent.creatorId,
+            type: "event_unrsvp",
+            title: "RSVP Cancelled",
+            body: `${unrsvpUser?.name || 'Someone'} is no longer going to "${unrsvpEvent.title}"`,
+            metadata: { eventId: unrsvpEvent.id, eventName: unrsvpEvent.title, bubbleId: unrsvpEvent.bubbleId, bubbleName: unrsvpBubble?.title, userName: unrsvpUser?.name },
+            inAppOnly: true,
+          });
+        }
+      }
 
       let promotedUserId: string | null = null;
       if (wasGoing) {
@@ -1805,6 +1883,28 @@ export async function registerRoutes(
         visibleTo,
       });
       const report = await storage.createReport(parsed);
+
+      const reporter = await storage.getUser(req.userId!);
+      const reportBubble = await storage.getBubble(parsed.bubbleId);
+      if (visibleTo === 'bubble_admin' || visibleTo === 'both') {
+        notifyBubbleAdmins(parsed.bubbleId, req.userId!, "report_submitted",
+          "New Report", `${reporter?.name || 'Someone'} submitted a ${parsed.reportType} concern in ${reportBubble?.title || 'a bubble'}`,
+          { bubbleId: parsed.bubbleId, bubbleName: reportBubble?.title, userId: req.userId!, userName: reporter?.name });
+      }
+      if (visibleTo === 'superadmin' || visibleTo === 'both') {
+        const superAdmins = await storage.getSuperAdmins();
+        const superAdminIds = superAdmins.filter(u => u.id !== req.userId).map(u => u.id);
+        if (superAdminIds.length > 0) {
+          sendNotificationToMany({
+            recipientIds: superAdminIds,
+            type: "report_submitted",
+            title: "New Report",
+            body: `${reporter?.name || 'Someone'} submitted a ${parsed.reportType} concern in ${reportBubble?.title || 'a bubble'}`,
+            metadata: { bubbleId: parsed.bubbleId, bubbleName: reportBubble?.title, userId: req.userId!, userName: reporter?.name },
+          });
+        }
+      }
+
       res.status(201).json(report);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -1852,6 +1952,19 @@ export async function registerRoutes(
       }
       const report = await storage.updateReportStatus(req.params.id, req.body.status);
       if (!report) return res.status(404).json({ error: "Report not found" });
+
+      if (req.body.status === 'resolved' && report.reporterUserId !== req.userId) {
+        const resolvedBubble = await storage.getBubble(report.bubbleId);
+        sendNotification({
+          recipientId: report.reporterUserId,
+          type: "report_resolved",
+          title: "Report Resolved",
+          body: `Your ${report.reportType} report in ${resolvedBubble?.title || 'a bubble'} has been reviewed and resolved`,
+          metadata: { bubbleId: report.bubbleId, bubbleName: resolvedBubble?.title, reportId: report.id },
+          inAppOnly: true,
+        });
+      }
+
       res.json(report);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

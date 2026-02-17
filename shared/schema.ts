@@ -153,6 +153,8 @@ export const events = pgTable("events", {
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('approved'),
   rejectionReason: text("rejection_reason"),
+  reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
+  reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -168,6 +170,8 @@ export const eventAttendees = pgTable("event_attendees", {
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   createdAt: true,
+  reminder24hSent: true,
+  reminder1hSent: true,
 });
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({

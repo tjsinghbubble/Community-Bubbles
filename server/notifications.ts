@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import type { InsertNotification } from "@shared/schema";
+import type { InsertNotification, Event } from "@shared/schema";
 
 export type NotificationType =
   | "bubble_join"
@@ -11,10 +11,15 @@ export type NotificationType =
   | "bubble_request_rejected"
   | "bubble_member_removed"
   | "bubble_role_changed"
+  | "bubble_edited"
   | "event_created"
   | "event_rsvp"
+  | "event_unrsvp"
   | "event_cancelled"
   | "event_updated"
+  | "event_full"
+  | "event_reminder_24h"
+  | "event_reminder_1h"
   | "waitlist_promoted"
   | "membership_request"
   | "report_submitted"
@@ -38,6 +43,7 @@ export async function sendNotification(params: {
   title: string;
   body: string;
   metadata?: NotificationMetadata;
+  inAppOnly?: boolean;
 }): Promise<void> {
   try {
     const data: InsertNotification = {
@@ -50,14 +56,16 @@ export async function sendNotification(params: {
 
     await storage.createNotification(data);
 
-    const tokens = await storage.getDevicePushTokens(params.recipientId);
-    if (tokens.length > 0) {
-      await sendPushNotifications(
-        tokens.map((t) => t.token),
-        params.title,
-        params.body,
-        params.metadata,
-      );
+    if (!params.inAppOnly) {
+      const tokens = await storage.getDevicePushTokens(params.recipientId);
+      if (tokens.length > 0) {
+        await sendPushNotifications(
+          tokens.map((t) => t.token),
+          params.title,
+          params.body,
+          params.metadata,
+        );
+      }
     }
   } catch (error) {
     console.error("[Notifications] Failed to send notification:", error);
@@ -70,6 +78,7 @@ export async function sendNotificationToMany(params: {
   title: string;
   body: string;
   metadata?: NotificationMetadata;
+  inAppOnly?: boolean;
 }): Promise<void> {
   await Promise.allSettled(
     params.recipientIds.map((recipientId) =>
@@ -79,6 +88,7 @@ export async function sendNotificationToMany(params: {
         title: params.title,
         body: params.body,
         metadata: params.metadata,
+        inAppOnly: params.inAppOnly,
       }),
     ),
   );
@@ -128,6 +138,7 @@ export async function notifyBubbleAdmins(
   title: string,
   body: string,
   metadata?: NotificationMetadata,
+  inAppOnly?: boolean,
 ): Promise<void> {
   try {
     const members = await storage.getBubbleMembersWithUsers(bubbleId);
@@ -147,6 +158,7 @@ export async function notifyBubbleAdmins(
         title,
         body,
         metadata,
+        inAppOnly,
       });
     }
   } catch (error) {
@@ -161,6 +173,7 @@ export async function notifyBubbleMembers(
   title: string,
   body: string,
   metadata?: NotificationMetadata,
+  inAppOnly?: boolean,
 ): Promise<void> {
   try {
     const members = await storage.getBubbleMembersWithUsers(bubbleId);
@@ -177,9 +190,62 @@ export async function notifyBubbleMembers(
         title,
         body,
         metadata,
+        inAppOnly,
       });
     }
   } catch (error) {
     console.error("[Notifications] Failed to notify bubble members:", error);
   }
+}
+
+async function processEventReminders(): Promise<void> {
+  try {
+    const events24h = await storage.getEventsNeedingReminder('24h');
+    let sent24h = 0;
+    for (const event of events24h) {
+      const attendeeIds = await storage.getEventGoingAttendeeIds(event.id);
+      if (attendeeIds.length > 0) {
+        const bubble = await storage.getBubble(event.bubbleId);
+        await sendNotificationToMany({
+          recipientIds: attendeeIds,
+          type: "event_reminder_24h",
+          title: "Event Tomorrow",
+          body: `"${event.title}" starts tomorrow at ${event.startTime}`,
+          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+        });
+        sent24h++;
+      }
+      await storage.markReminderSent(event.id, '24h');
+    }
+
+    const events1h = await storage.getEventsNeedingReminder('1h');
+    let sent1h = 0;
+    for (const event of events1h) {
+      const attendeeIds = await storage.getEventGoingAttendeeIds(event.id);
+      if (attendeeIds.length > 0) {
+        const bubble = await storage.getBubble(event.bubbleId);
+        await sendNotificationToMany({
+          recipientIds: attendeeIds,
+          type: "event_reminder_1h",
+          title: "Starting Soon",
+          body: `"${event.title}" starts in about 1 hour`,
+          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+        });
+        sent1h++;
+      }
+      await storage.markReminderSent(event.id, '1h');
+    }
+
+    if (sent24h > 0 || sent1h > 0) {
+      console.log(`[Reminders] Sent ${sent24h} 24h and ${sent1h} 1h reminders`);
+    }
+  } catch (error) {
+    console.error("[Reminders] Error processing event reminders:", error);
+  }
+}
+
+export function startEventReminderScheduler(): void {
+  console.log("[Reminders] Event reminder scheduler started (15-min interval)");
+  setInterval(processEventReminders, 15 * 60 * 1000);
+  setTimeout(processEventReminders, 10000);
 }

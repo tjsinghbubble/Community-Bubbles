@@ -49,6 +49,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  getSuperAdmins(): Promise<User[]>;
 
   getBubbles(): Promise<Bubble[]>;
   getBubble(id: string): Promise<Bubble | undefined>;
@@ -106,6 +107,9 @@ export interface IStorage {
   getFirstWaitlistedAttendee(eventId: string): Promise<EventAttendee | undefined>;
   getGoingCount(eventId: string): Promise<number>;
   getWaitlistCount(eventId: string): Promise<number>;
+  getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]>;
+  markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void>;
+  getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -194,6 +198,10 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<void> {
     await db.delete(memberships).where(eq(memberships.userId, id));
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  async getSuperAdmins(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.isSuperAdmin, true));
   }
 
   async getBubbles(): Promise<Bubble[]> {
@@ -673,6 +681,31 @@ export class DatabaseStorage implements IStorage {
       .from(eventAttendees)
       .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'waitlisted')));
     return result[0]?.count || 0;
+  }
+
+  async getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]> {
+    const now = new Date();
+    const col = type === '24h' ? events.reminder24hSent : events.reminder1hSent;
+    const hoursAhead = type === '24h' ? 24 : 1;
+    const windowEnd = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
+    const allEvents = await db.select().from(events)
+      .where(and(eq(events.status, 'approved'), eq(col, false)));
+    return allEvents.filter(e => {
+      const eventDateTime = new Date(`${e.date}T${e.startTime}:00`);
+      return eventDateTime > now && eventDateTime <= windowEnd;
+    });
+  }
+
+  async markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void> {
+    const col = type === '24h' ? { reminder24hSent: true } : { reminder1hSent: true };
+    await db.update(events).set(col).where(eq(events.id, eventId));
+  }
+
+  async getEventGoingAttendeeIds(eventId: string): Promise<string[]> {
+    const attendees = await db.select({ userId: eventAttendees.userId })
+      .from(eventAttendees)
+      .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'going')));
+    return attendees.map(a => a.userId);
   }
 
   // Campus methods
