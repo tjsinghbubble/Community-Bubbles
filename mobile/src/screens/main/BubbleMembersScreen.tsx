@@ -179,7 +179,37 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         groupName: string;
         memberName: string;
         bubbleTitle: string;
+        adminUsers?: Array<{ uid: string; name: string }>;
+        targetUser?: { uid: string; name: string };
       };
+
+      try {
+        await cometChatService.createGroup(result.groupId, result.groupName, 'private');
+      } catch (groupErr: any) {
+        console.log('CometChat group create (may already exist):', groupErr?.code);
+      }
+
+      try {
+        await cometChatService.joinGroup(result.groupId, 'private');
+      } catch (joinErr: any) {
+        console.log('CometChat join (may already be member):', joinErr?.code);
+      }
+
+      const membersToAdd: Array<{ uid: string; name: string; scope?: string }> = [];
+      if (result.targetUser) {
+        membersToAdd.push({ uid: result.targetUser.uid, name: result.targetUser.name, scope: 'participant' });
+      }
+      if (result.adminUsers) {
+        for (const admin of result.adminUsers) {
+          if (!membersToAdd.find(m => m.uid === admin.uid)) {
+            membersToAdd.push({ uid: admin.uid, name: admin.name, scope: 'admin' });
+          }
+        }
+      }
+      if (membersToAdd.length > 0) {
+        await cometChatService.addMembersToGroup(result.groupId, membersToAdd);
+      }
+
       const parentNav = navigation.getParent();
       if (parentNav) {
         parentNav.navigate('Messages', {
@@ -191,6 +221,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         });
       }
     } catch (error) {
+      console.error('Admin DM error:', error);
       Alert.alert('Error', 'Failed to start admin conversation. Please try again.');
     }
   };

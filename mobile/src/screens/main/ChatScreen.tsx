@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
+import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -92,13 +93,32 @@ export default function ChatScreen({ navigation, route }: Props) {
     };
   }, [groupId]);
 
+  const isAdminDmChat = groupId.startsWith('adm_');
+
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
     try {
-      const members = await cometChatService.getGroupMembers(groupId);
-      setParticipants(members);
+      if (isAdminDmChat) {
+        const ccMembers = await cometChatService.getGroupMembers(groupId);
+        setParticipants(ccMembers);
+      } else {
+        const members = await apiService.getBubbleMembers(groupId) as any[];
+        const mapped = members.map((m: any) => ({
+          uid: String(m.userId),
+          name: m.user?.name || m.user?.email || 'User',
+          avatar: m.user?.profilePhoto || undefined,
+          scope: m.role === 'admin' ? 'admin' : 'participant',
+        }));
+        setParticipants(mapped);
+      }
     } catch (error) {
       console.error('Failed to fetch participants:', error);
+      try {
+        const ccMembers = await cometChatService.getGroupMembers(groupId);
+        setParticipants(ccMembers);
+      } catch (e2) {
+        console.error('Fallback participant fetch also failed:', e2);
+      }
     } finally {
       setLoadingParticipants(false);
     }

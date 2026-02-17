@@ -120,6 +120,22 @@ class CometChatService {
     }
   }
 
+  async addMembersToGroup(guid: string, members: Array<{ uid: string; name: string; scope?: string }>) {
+    try {
+      const groupMembers = members.map(m => {
+        const member = new CometChat.GroupMember(m.uid, m.scope === 'admin' ? CometChat.GROUP_MEMBER_SCOPE.ADMIN : CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT);
+        member.setName(m.name);
+        return member;
+      });
+      if (groupMembers.length > 0) {
+        await CometChat.addMembersToGroup(guid, groupMembers, []);
+        console.log(`Added ${groupMembers.length} members to group ${guid}`);
+      }
+    } catch (error: any) {
+      console.log('Add members to group error (may be partial):', error?.code || error?.message);
+    }
+  }
+
   async leaveGroup(guid: string) {
     try {
       await CometChat.leaveGroup(guid);

@@ -1012,22 +1012,14 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Bubble not found" });
       }
 
-      await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
-
       const members = await storage.getBubbleMembersWithUsers(bubbleId);
-      const memberUids: Array<{ uid: string; scope: string }> = [];
+      const memberList = members.map(m => ({
+        uid: String(m.userId),
+        name: m.user?.name || m.user?.email || 'User',
+        scope: m.role === 'admin' ? 'admin' : 'participant',
+      }));
 
-      for (const member of members) {
-        await ensureCometChatUser(String(member.userId), member.user?.name || member.user?.email || 'User');
-        memberUids.push({
-          uid: String(member.userId),
-          scope: member.role === 'admin' ? 'admin' : 'participant',
-        });
-      }
-
-      await addMembersToGroupBatch(bubbleId, memberUids);
-
-      res.json({ success: true, synced: memberUids.length });
+      res.json({ success: true, synced: memberList.length, members: memberList });
     } catch (error: any) {
       console.error('Sync chat members failed:', error);
       res.status(500).json({ error: "Failed to sync chat members" });
@@ -1059,15 +1051,10 @@ export async function registerRoutes(
         .filter(m => m.role === 'admin')
         .map(m => ({ id: String(m.userId), name: m.user.name || m.user.email }));
 
-      let chatRecord = await storage.getAdminMemberChat(bubbleId, userId);
+      const dmGuid = `adm_${bubbleId}_${userId}`;
+      const participantIds = [String(userId), ...adminUsers.map(a => a.id)].filter((v, i, arr) => arr.indexOf(v) === i);
 
-      const { dmGuid, participantIds } = await syncAdminDmGroup(
-        bubbleId,
-        bubble.title || 'Bubble',
-        String(targetUser.id),
-        targetUser.name || targetUser.email,
-        adminUsers
-      );
+      let chatRecord = await storage.getAdminMemberChat(bubbleId, userId);
 
       if (chatRecord && chatRecord.status === 'active') {
         await storage.updateAdminMemberChatParticipants(chatRecord.id, participantIds);
@@ -1084,6 +1071,8 @@ export async function registerRoutes(
         memberName: targetUser.name || targetUser.email,
         bubbleTitle: bubble.title,
         participantIds,
+        adminUsers: adminUsers.map(a => ({ uid: a.id, name: a.name })),
+        targetUser: { uid: String(targetUser.id), name: targetUser.name || targetUser.email },
       });
     } catch (error: any) {
       console.error('Admin DM creation failed:', error);

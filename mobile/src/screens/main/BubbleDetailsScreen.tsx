@@ -297,9 +297,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     const groupName = bubble.title || 'Bubble Chat';
 
     try {
-      await apiService.syncChatMembers(bubble.id);
-    } catch (e) {
-      console.log('Chat member sync (non-blocking):', e);
+      await cometChatService.createGroup(groupId, groupName, 'public');
+    } catch (e: any) {
+      console.log('Group create (may exist):', e?.code);
+    }
+
+    try {
+      await cometChatService.joinGroup(groupId, 'public');
+    } catch (e: any) {
+      console.log('Group join (may be member):', e?.code);
     }
 
     const parent = navigation.getParent();
