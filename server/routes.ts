@@ -14,6 +14,35 @@ import { localToUtc, utcToLocal } from "./timezone";
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
 
+async function resolveCategoryName(categoryId: number | null | undefined): Promise<string | null> {
+  if (!categoryId) return null;
+  const cat = await storage.getCategory(categoryId);
+  return cat ? (cat.displayName || cat.name) : null;
+}
+
+async function enrichBubbleCategory(bubble: any): Promise<any> {
+  if (bubble && bubble.categoryId) {
+    const name = await resolveCategoryName(bubble.categoryId);
+    if (name) return { ...bubble, category: name };
+  }
+  return bubble;
+}
+
+async function enrichBubblesCategory(bubblesArr: any[]): Promise<any[]> {
+  const categoryCache: Record<number, string> = {};
+  return Promise.all(bubblesArr.map(async (b) => {
+    if (!b.categoryId) return b;
+    if (!categoryCache[b.categoryId]) {
+      const name = await resolveCategoryName(b.categoryId);
+      if (name) categoryCache[b.categoryId] = name;
+    }
+    if (categoryCache[b.categoryId]) {
+      return { ...b, category: categoryCache[b.categoryId] };
+    }
+    return b;
+  }));
+}
+
 function convertEventToLocal(event: any): any {
   if (!event || !event.timezone || event.timezone === 'UTC') return event;
   if (!event.date || !event.startTime) return event;
@@ -273,7 +302,7 @@ export async function registerRoutes(
     try {
       // Return only public bubbles (excludes campus-specific ones)
       const bubbles = await storage.getPublicBubbles();
-      res.json(bubbles);
+      res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -286,7 +315,7 @@ export async function registerRoutes(
         const realCount = await storage.getRealMemberCount(m.bubble.id);
         return { ...m.bubble, members: realCount, role: m.role };
       }));
-      res.json(bubblesWithCounts);
+      res.json(await enrichBubblesCategory(bubblesWithCounts));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -318,7 +347,7 @@ export async function registerRoutes(
       }
       
       const realMemberCount = await storage.getRealMemberCount(bubble.id);
-      res.json({ ...bubble, members: realMemberCount });
+      res.json(await enrichBubbleCategory({ ...bubble, members: realMemberCount }));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -326,17 +355,17 @@ export async function registerRoutes(
 
   app.post("/api/bubbles", authMiddleware, async (req, res) => {
     try {
-      const data = insertBubbleSchema.parse({
-        ...req.body,
-        creatorId: req.userId,
-      });
+      const body = { ...req.body, creatorId: req.userId };
 
+      if (body.categoryId && !body.category) {
+        const catName = await resolveCategoryName(body.categoryId);
+        body.category = catName || 'General';
+      }
+
+      const data = insertBubbleSchema.parse(body);
       const bubble = await storage.createBubble(data);
 
-      // Note: Creator does NOT become admin until super admin approves the bubble
-      // This prevents creators from approving their own events before bubble approval
-
-      res.json(bubble);
+      res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -359,12 +388,18 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to edit this bubble" });
       }
 
-      const { title, tagline, category, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = req.body;
+      const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = req.body;
       const updateData: any = {};
       
       if (title !== undefined) updateData.title = title;
       if (tagline !== undefined) updateData.tagline = tagline;
-      if (category !== undefined) updateData.category = category;
+      if (categoryId !== undefined) {
+        updateData.categoryId = categoryId;
+        const catName = await resolveCategoryName(categoryId);
+        if (catName) updateData.category = catName;
+      } else if (category !== undefined) {
+        updateData.category = category;
+      }
       if (description !== undefined) updateData.description = description;
       if (rules !== undefined) updateData.rules = rules;
       if (privacy !== undefined) updateData.privacy = privacy;
@@ -386,7 +421,7 @@ export async function registerRoutes(
         { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: editorUser?.name },
         true);
 
-      res.json(updatedBubble);
+      res.json(await enrichBubbleCategory(updatedBubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -431,7 +466,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Super admin access required" });
       }
       const pendingBubbles = await storage.getPendingBubbles();
-      res.json(pendingBubbles);
+      res.json(await enrichBubblesCategory(pendingBubbles));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -478,7 +513,7 @@ export async function registerRoutes(
         });
       }
       
-      res.json(bubble);
+      res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -507,7 +542,7 @@ export async function registerRoutes(
         });
       }
 
-      res.json(bubble);
+      res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1038,7 +1073,7 @@ export async function registerRoutes(
   app.get("/api/bubbles/created/my", authMiddleware, async (req, res) => {
     try {
       const bubbles = await storage.getUserCreatedBubbles(req.userId!);
-      res.json(bubbles);
+      res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1683,7 +1718,7 @@ export async function registerRoutes(
       }
 
       const bubbles = await storage.getCampusBubbles(user.campusId);
-      res.json(bubbles);
+      res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
