@@ -16,10 +16,18 @@ const JWT_SECRET =
 
 function convertEventToLocal(event: any): any {
   if (!event || !event.timezone || event.timezone === 'UTC') return event;
+  if (!event.date || !event.startTime) return event;
   const localStart = utcToLocal(event.date, event.startTime, event.timezone);
   const result = { ...event, date: localStart.date, startTime: localStart.time };
   if (event.endTime) {
-    const localEnd = utcToLocal(event.date, event.endTime, event.timezone);
+    const utcStartDt = new Date(`${event.date}T${event.startTime}:00Z`);
+    const utcEndDt = new Date(`${event.date}T${event.endTime}:00Z`);
+    let endUtcDate = event.date;
+    if (utcEndDt <= utcStartDt) {
+      const nextDay = new Date(utcEndDt.getTime() + 24 * 60 * 60 * 1000);
+      endUtcDate = `${nextDay.getUTCFullYear()}-${String(nextDay.getUTCMonth() + 1).padStart(2, '0')}-${String(nextDay.getUTCDate()).padStart(2, '0')}`;
+    }
+    const localEnd = utcToLocal(endUtcDate, event.endTime, event.timezone);
     result.endTime = localEnd.time;
   }
   return result;
