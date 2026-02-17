@@ -283,6 +283,8 @@ export const adminMemberChats = pgTable("admin_member_chats", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   memberId: varchar("member_id").notNull().references(() => users.id),
   cometChatGroupId: text("cometchat_group_id").notNull(),
+  isAdminDm: boolean("is_admin_dm").notNull().default(true),
+  participantIds: text("participant_ids").array().notNull().default(sql`'{}'::text[]`),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [

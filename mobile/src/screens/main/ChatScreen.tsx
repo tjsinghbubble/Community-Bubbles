@@ -79,6 +79,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [showParticipants, setShowParticipants] = useState(false);
   const [participants, setParticipants] = useState<Array<{ uid: string; name: string; avatar?: string; scope: string }>>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -144,8 +145,11 @@ export default function ChatScreen({ navigation, route }: Props) {
           })
       );
       setMessages(formattedMessages);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch messages:', error);
+      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.message?.includes('not found')) {
+        setChatError('This chat is no longer available. The group may have been removed.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -290,8 +294,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.message?.includes('not found')) {
+        setChatError('This chat is no longer available.');
+        return;
+      }
       setNewMessage(messageText);
       setReplyingTo(replyTo);
     } finally {
@@ -597,7 +605,18 @@ export default function ChatScreen({ navigation, route }: Props) {
         keyboardVerticalOffset={0}
       >
         <TouchableWithoutFeedback onPress={() => setShowReactionPicker(null)}>
-          {isLoading ? (
+          {chatError ? (
+            <View style={styles.loading}>
+              <Ionicons name="alert-circle-outline" size={48} color={Colors.neutral[400]} />
+              <Text style={[styles.emptyText, { marginTop: 12 }]}>{chatError}</Text>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: Colors.brand.bubbleBlue, borderRadius: 8 }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
+              </TouchableOpacity>
+            </View>
+          ) : isLoading ? (
             <View style={styles.loading}>
               <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
             </View>

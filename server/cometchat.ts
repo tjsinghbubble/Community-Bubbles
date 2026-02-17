@@ -10,6 +10,15 @@ const headers = {
   'appid': COMETCHAT_APP_ID,
 };
 
+class CometChatApiError extends Error {
+  code: string;
+  constructor(message: string, code: string) {
+    super(message);
+    this.code = code;
+    this.name = 'CometChatApiError';
+  }
+}
+
 async function apiCall(method: string, path: string, body?: any): Promise<any> {
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = { method, headers };
@@ -19,7 +28,10 @@ async function apiCall(method: string, path: string, body?: any): Promise<any> {
   const data = await response.json();
 
   if (!response.ok) {
+    const errCode = data?.error?.code || `HTTP_${response.status}`;
+    const errMsg = data?.error?.message || data?.message || `CometChat API error ${response.status}`;
     console.error(`CometChat API error [${method} ${path}]:`, data);
+    throw new CometChatApiError(errMsg, errCode);
   }
   return data;
 }
@@ -28,15 +40,30 @@ export async function ensureCometChatUser(uid: string, name: string): Promise<vo
   try {
     await apiCall('POST', '/users', { uid, name });
   } catch (e: any) {
-    // User may already exist
+    if (e instanceof CometChatApiError && (e.code === 'ERR_UID_ALREADY_EXISTS' || e.code === 'ERR_ALREADY_EXISTS')) {
+      return;
+    }
+    console.error(`CometChat: Failed to ensure user ${uid}:`, e.message);
+    throw e;
   }
 }
 
 export async function ensureCometChatGroup(guid: string, name: string, type: string = 'public'): Promise<void> {
   try {
     await apiCall('POST', '/groups', { guid, name, type });
+    return;
   } catch (e: any) {
-    // Group may already exist
+    if (e instanceof CometChatApiError && (e.code === 'ERR_GUID_ALREADY_EXISTS' || e.code === 'ERR_ALREADY_EXISTS')) {
+      return;
+    }
+    console.error(`CometChat: POST /groups failed for ${guid}:`, e.message);
+  }
+
+  try {
+    await apiCall('GET', `/groups/${guid}`);
+  } catch (getErr: any) {
+    console.error(`CometChat: Group ${guid} does not exist and could not be created`);
+    throw new CometChatApiError(`Failed to create or find group ${guid}`, 'ERR_GROUP_CREATE_FAILED');
   }
 }
 
@@ -47,7 +74,10 @@ export async function addMemberToGroup(groupGuid: string, userUid: string, scope
     console.log(`CometChat: Added user ${userUid} to group ${groupGuid}`, result);
     return true;
   } catch (e: any) {
-    console.error(`CometChat: Failed to add user ${userUid} to group ${groupGuid}:`, e);
+    if (e instanceof CometChatApiError && (e.code === 'ERR_ALREADY_JOINED' || e.message?.includes('already'))) {
+      return true;
+    }
+    console.error(`CometChat: Failed to add user ${userUid} to group ${groupGuid}:`, e.message);
     return false;
   }
 }
@@ -70,7 +100,7 @@ export async function syncAdminDmGroup(
   memberId: string,
   memberName: string,
   adminUsers: Array<{ id: string; name: string }>
-): Promise<string> {
+): Promise<{ dmGuid: string; participantIds: string[] }> {
   const dmGuid = `adm_${bubbleId}_${memberId}`;
   const groupName = `${bubbleTitle} : ${memberName}`;
 
@@ -79,12 +109,17 @@ export async function syncAdminDmGroup(
   await ensureCometChatUser(String(memberId), memberName);
   await addMemberToGroup(dmGuid, String(memberId));
 
+  const participantIds: string[] = [String(memberId)];
+
   for (const admin of adminUsers) {
     await ensureCometChatUser(String(admin.id), admin.name);
     await addMemberToGroup(dmGuid, String(admin.id), 'admin');
+    if (!participantIds.includes(String(admin.id))) {
+      participantIds.push(String(admin.id));
+    }
   }
 
-  return dmGuid;
+  return { dmGuid, participantIds };
 }
 
 export async function syncAllAdminDmGroupsForBubble(
@@ -128,7 +163,7 @@ export async function removeMemberFromGroup(groupGuid: string, userUid: string):
     console.log(`CometChat: Removed user ${userUid} from group ${groupGuid}`, result);
     return true;
   } catch (e: any) {
-    console.error(`CometChat: Failed to remove user ${userUid} from group ${groupGuid}:`, e);
+    console.error(`CometChat: Failed to remove user ${userUid} from group ${groupGuid}:`, e.message);
     return false;
   }
 }

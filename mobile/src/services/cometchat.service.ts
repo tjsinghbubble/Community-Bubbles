@@ -103,7 +103,7 @@ class CometChatService {
         ? CometChat.GROUP_TYPE.PRIVATE 
         : CometChat.GROUP_TYPE.PUBLIC;
       
-      const group = await CometChat.joinGroup(guid, type);
+      const group = await CometChat.joinGroup(guid, type as CometChat.GroupType);
       console.log('Joined group:', group);
       return group;
     } catch (error: any) {

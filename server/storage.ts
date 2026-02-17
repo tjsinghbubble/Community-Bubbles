@@ -158,11 +158,14 @@ export interface IStorage {
   updateBubbleChatStatus(bubbleId: string, status: string): Promise<void>;
 
   // Admin-Member Chats
-  createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string): Promise<AdminMemberChat>;
+  createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[]): Promise<AdminMemberChat>;
   getAdminMemberChat(bubbleId: string, memberId: string): Promise<AdminMemberChat | undefined>;
   getAdminMemberChatsForBubble(bubbleId: string): Promise<AdminMemberChat[]>;
+  getActiveAdminMemberChatsForUser(userId: string, bubbleId: string): Promise<AdminMemberChat[]>;
   updateAdminMemberChatStatus(bubbleId: string, memberId: string, status: string): Promise<void>;
+  updateAdminMemberChatParticipants(chatId: string, participantIds: string[]): Promise<void>;
   archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void>;
+  archiveAdminMemberChatsForMember(bubbleId: string, memberId: string): Promise<void>;
 
   // Notifications
   createNotification(data: InsertNotification): Promise<Notification>;
@@ -1181,8 +1184,8 @@ export class DatabaseStorage implements IStorage {
     await db.update(bubbleChats).set({ status }).where(eq(bubbleChats.bubbleId, bubbleId));
   }
 
-  async createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string): Promise<AdminMemberChat> {
-    const result = await db.insert(adminMemberChats).values({ bubbleId, memberId, cometChatGroupId, status: 'active' }).returning();
+  async createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[]): Promise<AdminMemberChat> {
+    const result = await db.insert(adminMemberChats).values({ bubbleId, memberId, cometChatGroupId, isAdminDm: true, participantIds, status: 'active' }).returning();
     return result[0];
   }
 
@@ -1197,13 +1200,29 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(adminMemberChats).where(eq(adminMemberChats.bubbleId, bubbleId));
   }
 
+  async getActiveAdminMemberChatsForUser(userId: string, bubbleId: string): Promise<AdminMemberChat[]> {
+    const chats = await db.select().from(adminMemberChats)
+      .where(and(eq(adminMemberChats.bubbleId, bubbleId), eq(adminMemberChats.status, 'active')));
+    return chats.filter(c => c.participantIds.includes(userId) || c.memberId === userId);
+  }
+
   async updateAdminMemberChatStatus(bubbleId: string, memberId: string, status: string): Promise<void> {
     await db.update(adminMemberChats).set({ status })
       .where(and(eq(adminMemberChats.bubbleId, bubbleId), eq(adminMemberChats.memberId, memberId)));
   }
 
+  async updateAdminMemberChatParticipants(chatId: string, participantIds: string[]): Promise<void> {
+    await db.update(adminMemberChats).set({ participantIds })
+      .where(eq(adminMemberChats.id, chatId));
+  }
+
   async archiveAdminMemberChatsForBubble(bubbleId: string): Promise<void> {
     await db.update(adminMemberChats).set({ status: 'archived' }).where(eq(adminMemberChats.bubbleId, bubbleId));
+  }
+
+  async archiveAdminMemberChatsForMember(bubbleId: string, memberId: string): Promise<void> {
+    await db.update(adminMemberChats).set({ status: 'archived' })
+      .where(and(eq(adminMemberChats.bubbleId, bubbleId), eq(adminMemberChats.memberId, memberId)));
   }
 
   async createNotification(data: InsertNotification): Promise<Notification> {
