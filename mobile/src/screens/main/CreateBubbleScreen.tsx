@@ -276,6 +276,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           title,
           tagline: tagline || title,
           category,
+          categoryId: selectedCategoryItem?.id || null,
           description,
           rules: allRules,
           privacy,

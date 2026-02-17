@@ -46,6 +46,7 @@ export const bubbles = pgTable("bubbles", {
   title: text("title").notNull(),
   tagline: text("tagline").notNull(),
   category: text("category").notNull(),
+  categoryId: integer("category_id").references(() => categories.id),
   description: text("description").notNull(),
   rules: text("rules").array().notNull().default(sql`'{}'::text[]`),
   privacy: text("privacy").notNull().default('Public'),
