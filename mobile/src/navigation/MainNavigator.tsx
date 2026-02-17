@@ -80,6 +80,12 @@ export default function MainNavigator() {
             <Ionicons name="compass-outline" size={size} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).navigate('Explore', { screen: 'ExploreList' });
+          },
+        })}
       />
       <Tab.Screen 
         name="Upcoming" 
@@ -99,6 +105,12 @@ export default function MainNavigator() {
             <Ionicons name="apps-outline" size={size} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).navigate('MyBubbles', { screen: 'MyBubblesList' });
+          },
+        })}
       />
       <Tab.Screen 
         name="Messages" 
@@ -108,6 +120,12 @@ export default function MainNavigator() {
             <Ionicons name="chatbubble-outline" size={size} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).navigate('Messages', { screen: 'MessagesList' });
+          },
+        })}
       />
       <Tab.Screen 
         name="Profile" 
@@ -125,6 +143,12 @@ export default function MainNavigator() {
             </View>
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            (navigation as any).navigate('Profile', { screen: 'ProfileMain' });
+          },
+        })}
       />
     </Tab.Navigator>
   );
