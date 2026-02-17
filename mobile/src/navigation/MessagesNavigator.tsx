@@ -4,7 +4,7 @@ import MessagesScreen from '../screens/main/MessagesScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 
 export type MessagesStackParamList = {
-  MessagesList: undefined;
+  MessagesList: { openGroupId?: string; openGroupName?: string } | undefined;
   Chat: { groupId: string; groupName: string };
 };
 

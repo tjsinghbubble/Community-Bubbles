@@ -36,6 +36,7 @@ type NotificationMetadata = {
   userName?: string;
   reason?: string;
   role?: string;
+  reportId?: string | number;
 };
 
 export async function sendNotification(params: {

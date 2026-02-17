@@ -174,12 +174,20 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     setMenuVisible(false);
     if (!selectedMember) return;
     try {
-      const result = await apiService.initiateAdminDm(bubbleId, selectedMember.userId);
+      const result = await apiService.initiateAdminDm(bubbleId, selectedMember.userId) as {
+        groupId: string;
+        groupName: string;
+        memberName: string;
+        bubbleTitle: string;
+      };
       const parentNav = navigation.getParent();
       if (parentNav) {
         parentNav.navigate('Messages', {
           screen: 'MessagesList',
-          params: { openGroupId: result.groupId },
+          params: {
+            openGroupId: result.groupId,
+            openGroupName: result.groupName,
+          },
         });
       }
     } catch (error) {

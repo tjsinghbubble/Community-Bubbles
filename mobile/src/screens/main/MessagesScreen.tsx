@@ -12,7 +12,7 @@ import {
   StatusBar,
   Image,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
@@ -40,13 +40,15 @@ type Conversation = {
 
 type Props = {
   navigation: NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
+  route: RouteProp<MessagesStackParamList, 'MessagesList'>;
 };
 
-export default function MessagesScreen({ navigation }: Props) {
+export default function MessagesScreen({ navigation, route }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
+  const hasAutoNavigated = React.useRef(false);
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
     const imageMap: Record<string, string | null> = {};
@@ -87,8 +89,21 @@ export default function MessagesScreen({ navigation }: Props) {
     }
   };
 
+  React.useEffect(() => {
+    const openGroupId = route.params?.openGroupId;
+    const openGroupName = route.params?.openGroupName;
+    if (openGroupId && !hasAutoNavigated.current) {
+      hasAutoNavigated.current = true;
+      navigation.navigate('Chat', {
+        groupId: openGroupId,
+        groupName: openGroupName || 'Admin Chat',
+      });
+    }
+  }, [route.params?.openGroupId, route.params?.openGroupName]);
+
   useFocusEffect(
     useCallback(() => {
+      hasAutoNavigated.current = false;
       fetchConversations();
     }, [])
   );
