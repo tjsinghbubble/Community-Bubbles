@@ -7,7 +7,7 @@ import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategory
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
-import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
+import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 
@@ -996,6 +996,41 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/sync-chat-members", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const isMember = await storage.isMember(req.userId!, bubbleId);
+      if (!isMember) {
+        return res.status(403).json({ error: "Not a member of this bubble" });
+      }
+
+      const bubble = await storage.getBubble(bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
+
+      const members = await storage.getBubbleMembersWithUsers(bubbleId);
+      const memberUids: Array<{ uid: string; scope: string }> = [];
+
+      for (const member of members) {
+        await ensureCometChatUser(String(member.userId), member.user?.name || member.user?.email || 'User');
+        memberUids.push({
+          uid: String(member.userId),
+          scope: member.role === 'admin' ? 'admin' : 'participant',
+        });
+      }
+
+      await addMembersToGroupBatch(bubbleId, memberUids);
+
+      res.json({ success: true, synced: memberUids.length });
+    } catch (error: any) {
+      console.error('Sync chat members failed:', error);
+      res.status(500).json({ error: "Failed to sync chat members" });
     }
   });
 

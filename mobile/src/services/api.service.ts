@@ -136,6 +136,12 @@ class ApiService {
     });
   }
 
+  async syncChatMembers(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/sync-chat-members`, {
+      method: "POST",
+    });
+  }
+
   async getMyBubbles() {
     return this.request("/api/bubbles/my", {
       method: "GET",

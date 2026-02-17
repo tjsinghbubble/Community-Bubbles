@@ -82,6 +82,19 @@ export async function addMemberToGroup(groupGuid: string, userUid: string, scope
   }
 }
 
+export async function addMembersToGroupBatch(groupGuid: string, memberUids: Array<{ uid: string; scope?: string }>): Promise<boolean> {
+  if (memberUids.length === 0) return true;
+  try {
+    const members = memberUids.map(m => ({ uid: m.uid, scope: m.scope || 'participant' }));
+    const result = await apiCall('POST', `/groups/${groupGuid}/members`, { members });
+    console.log(`CometChat: Batch added ${memberUids.length} users to group ${groupGuid}`);
+    return true;
+  } catch (e: any) {
+    console.error(`CometChat: Batch add to group ${groupGuid} failed:`, e.message);
+    return false;
+  }
+}
+
 export async function getGroupMembers(groupGuid: string): Promise<string[]> {
   try {
     const result = await apiCall('GET', `/groups/${groupGuid}/members?perPage=100`);

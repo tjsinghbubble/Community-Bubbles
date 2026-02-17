@@ -291,10 +291,17 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleBubbleChat = () => {
+  const handleBubbleChat = async () => {
     setShowKebabMenu(false);
     const groupId = String(bubble.id);
     const groupName = bubble.title || 'Bubble Chat';
+
+    try {
+      await apiService.syncChatMembers(bubble.id);
+    } catch (e) {
+      console.log('Chat member sync (non-blocking):', e);
+    }
+
     const parent = navigation.getParent();
     if (parent) {
       parent.navigate('Messages' as any, {
