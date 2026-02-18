@@ -18,6 +18,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LongPressGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -580,73 +581,80 @@ export default function ChatScreen({ navigation, route }: Props) {
     const isOwn = isOwnMessage(message.sender.uid);
     
     return (
-      <Pressable
-        key={message.id}
-        onLongPress={() => handleLongPress(message.id)}
-        delayLongPress={300}
-        onPress={() => { if (showReactionPicker && showReactionPicker !== message.id) setShowReactionPicker(null); }}
+      <LongPressGestureHandler
+        onHandlerStateChange={(e) => {
+          if (e.nativeEvent.state === GestureState.ACTIVE) {
+            handleLongPress(message.id);
+          }
+        }}
+        minDurationMs={300}
       >
-        <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-          {!isOwn && renderAvatar(message.sender)}
-          
-          <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
-            {!isOwn && (
-              <Text style={styles.senderName}>{message.sender.name}</Text>
-            )}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => { if (showReactionPicker && showReactionPicker !== message.id) setShowReactionPicker(null); }}
+        >
+          <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
+            {!isOwn && renderAvatar(message.sender)}
             
-            {message.parentMessage && renderReplyPreview(message.parentMessage)}
-            
-            {message.type === 'image' ? (
-              <View style={[styles.imageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
-                {renderImageMessage(message, isOwn)}
-              </View>
-            ) : (
-              <View style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
-                <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
-                  {message.text}
-                </Text>
-              </View>
-            )}
-            
-            {renderReactions(message)}
-            
-            <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
-              {formatTime(message.sentAt)}
-            </Text>
-          </View>
-        </View>
-        
-        {showReactionPicker === message.id && (
-          <View style={[styles.reactionPickerContainer, isOwn && styles.reactionPickerOwn]}>
-            <View style={styles.reactionPicker}>
-              {REACTION_EMOJIS.map((emoji) => (
-                <TouchableOpacity
-                  key={emoji}
-                  style={styles.reactionOption}
-                  onPress={() => handleReaction(message.id, emoji)}
-                >
-                  <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={styles.reactionOption}
-                onPress={() => {
-                  setExpandedEmojiMessageId(message.id);
-                  setShowReactionPicker(null);
-                }}
-              >
-                <Ionicons name="add-circle-outline" size={24} color={Colors.neutral.coolMist} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.replyOption}
-                onPress={() => handleReply(message)}
-              >
-                <Ionicons name="arrow-undo" size={20} color={Colors.neutral.coolMist} />
-              </TouchableOpacity>
+            <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
+              {!isOwn && (
+                <Text style={styles.senderName}>{message.sender.name}</Text>
+              )}
+              
+              {message.parentMessage && renderReplyPreview(message.parentMessage)}
+              
+              {message.type === 'image' ? (
+                <View style={[styles.imageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+                  {renderImageMessage(message, isOwn)}
+                </View>
+              ) : (
+                <View style={[styles.messageBubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
+                  <Text style={[styles.messageText, isOwn ? styles.ownText : styles.otherText]}>
+                    {message.text}
+                  </Text>
+                </View>
+              )}
+              
+              {renderReactions(message)}
+              
+              <Text style={[styles.messageTime, isOwn && styles.messageTimeOwn]}>
+                {formatTime(message.sentAt)}
+              </Text>
             </View>
           </View>
-        )}
-      </Pressable>
+          
+          {showReactionPicker === message.id && (
+            <View style={[styles.reactionPickerContainer, isOwn && styles.reactionPickerOwn]}>
+              <View style={styles.reactionPicker}>
+                {REACTION_EMOJIS.map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={styles.reactionOption}
+                    onPress={() => handleReaction(message.id, emoji)}
+                  >
+                    <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={styles.reactionOption}
+                  onPress={() => {
+                    setExpandedEmojiMessageId(message.id);
+                    setShowReactionPicker(null);
+                  }}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color={Colors.neutral.coolMist} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.replyOption}
+                  onPress={() => handleReply(message)}
+                >
+                  <Ionicons name="arrow-undo" size={20} color={Colors.neutral.coolMist} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </TouchableOpacity>
+      </LongPressGestureHandler>
     );
   };
 
@@ -671,7 +679,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       >
         {chatError ? (
             <View style={styles.loading}>
-              <Ionicons name="alert-circle-outline" size={48} color={Colors.neutral[400]} />
+              <Ionicons name="alert-circle-outline" size={48} color={Colors.neutral.coolMist} />
               <Text style={[styles.emptyText, { marginTop: 12 }]}>{chatError}</Text>
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
