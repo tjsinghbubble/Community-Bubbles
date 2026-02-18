@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  FlatList,
   ScrollView,
   TextInput,
   TouchableOpacity,
@@ -65,6 +66,17 @@ type Message = {
 
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
+const EXPANDED_EMOJIS = [
+  '👍', '❤️', '😂', '😮', '😢', '🙏',
+  '🔥', '👏', '🎉', '💯', '😍', '🤔',
+  '😡', '💔', '🥳', '😎', '🤣', '😭',
+  '🙄', '😳', '🤯', '💪', '👀', '✨',
+  '🫶', '🤝', '😊', '🥰', '😘', '🤗',
+  '😏', '😒', '🤩', '😤', '😱', '🫡',
+  '💀', '🤡', '🙈', '🙊', '❤️‍🔥', '💕',
+  '🎯', '⭐', '🌟', '💫', '🏆', '🥇',
+];
+
 export default function ChatScreen({ navigation, route }: Props) {
   const { groupId, groupName } = route.params;
   const { user } = useAuth();
@@ -81,7 +93,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [participants, setParticipants] = useState<Array<{ uid: string; name: string; avatar?: string; scope: string }>>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [expandedEmojiMessageId, setExpandedEmojiMessageId] = useState<string | null>(null);
+  const flatListRef = useRef<FlatList<Message>>(null);
 
   useEffect(() => {
     fetchMessages();
@@ -335,7 +348,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       setMessages((prev) => [...prev, newMsg]);
       
       setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error: any) {
       console.error('Failed to send message:', error);
@@ -418,7 +431,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       setMessages((prev) => [...prev, newMsg]);
       
       setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
       console.error('Failed to send image:', error);
@@ -571,7 +584,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         key={message.id}
         onLongPress={() => handleLongPress(message.id)}
         delayLongPress={300}
-        onPress={() => showReactionPicker && showReactionPicker !== message.id ? setShowReactionPicker(null) : undefined}
+        onPress={() => { if (showReactionPicker && showReactionPicker !== message.id) setShowReactionPicker(null); }}
       >
         <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
           {!isOwn && renderAvatar(message.sender)}
@@ -615,6 +628,15 @@ export default function ChatScreen({ navigation, route }: Props) {
                   <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
                 </TouchableOpacity>
               ))}
+              <TouchableOpacity
+                style={styles.reactionOption}
+                onPress={() => {
+                  setExpandedEmojiMessageId(message.id);
+                  setShowReactionPicker(null);
+                }}
+              >
+                <Ionicons name="add-circle-outline" size={24} color={Colors.neutral.coolMist} />
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.replyOption}
                 onPress={() => handleReply(message)}
@@ -663,22 +685,24 @@ export default function ChatScreen({ navigation, route }: Props) {
               <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
             </View>
           ) : (
-            <ScrollView
-              ref={scrollViewRef}
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => renderMessage(item)}
               style={styles.messagesList}
-              contentContainerStyle={styles.messagesContent}
-              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
+              contentContainerStyle={[styles.messagesContent, messages.length === 0 && { flex: 1, justifyContent: 'center' }]}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
               onScrollBeginDrag={() => showReactionPicker && setShowReactionPicker(null)}
-            >
-              {messages.length === 0 ? (
+              ListEmptyComponent={
                 <Pressable style={styles.emptyMessages} onPress={() => setShowReactionPicker(null)}>
                   <Text style={styles.emptyText}>No messages yet</Text>
                   <Text style={styles.emptySubtext}>Be the first to say hello!</Text>
                 </Pressable>
-              ) : (
-                messages.map(renderMessage)
-              )}
-            </ScrollView>
+              }
+              keyboardShouldPersistTaps="handled"
+              removeClippedSubviews={false}
+            />
           )}
 
         {replyingTo && (
@@ -834,6 +858,43 @@ export default function ChatScreen({ navigation, route }: Props) {
             )}
           </View>
         </View>
+      </Modal>
+      <Modal
+        visible={expandedEmojiMessageId !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setExpandedEmojiMessageId(null)}
+      >
+        <TouchableWithoutFeedback onPress={() => setExpandedEmojiMessageId(null)}>
+          <View style={styles.expandedEmojiOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.expandedEmojiContainer}>
+                <View style={styles.expandedEmojiHeader}>
+                  <Text style={styles.expandedEmojiTitle}>Pick a Reaction</Text>
+                  <TouchableOpacity onPress={() => setExpandedEmojiMessageId(null)}>
+                    <Ionicons name="close" size={24} color={Colors.text.primary} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.expandedEmojiGrid}>
+                  {EXPANDED_EMOJIS.map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={styles.expandedEmojiOption}
+                      onPress={() => {
+                        if (expandedEmojiMessageId) {
+                          handleReaction(expandedEmojiMessageId, emoji);
+                        }
+                        setExpandedEmojiMessageId(null);
+                      }}
+                    >
+                      <Text style={styles.expandedEmojiText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
@@ -1280,5 +1341,46 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     fontSize: 14,
     padding: 20,
+  },
+  expandedEmojiOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  expandedEmojiContainer: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '60%',
+  },
+  expandedEmojiHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.cloudGrey,
+  },
+  expandedEmojiTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  expandedEmojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 12,
+    justifyContent: 'flex-start',
+  },
+  expandedEmojiOption: {
+    width: '16.66%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandedEmojiText: {
+    fontSize: 30,
   },
 });
