@@ -115,34 +115,60 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [eventReportReason, setEventReportReason] = useState<string | null>(null);
   const [eventReportFreeText, setEventReportFreeText] = useState('');
   const [eventReportSubmitting, setEventReportSubmitting] = useState(false);
+  const [reportEventModalVisible, setReportEventModalVisible] = useState(false);
+  const [reportEventReason, setReportEventReason] = useState<string | null>(null);
+  const [reportEventFreeText, setReportEventFreeText] = useState('');
+  const [reportEventSubmitting, setReportEventSubmitting] = useState(false);
   const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
 
-  const EVENT_REPORT_REASONS = [
+  const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
     'Event didn\'t match description',
-    'Organizer no-show or unprepared',
     'Venue issue (unsafe, inaccessible, closed)',
+    'Organizer no-show or unprepared',
+    'Organizer misconduct',
     'Report a member',
     'Other',
   ];
 
-  const EVENT_REPORT_ROUTING: Record<string, string> = {
-    'Safety issue at this event': 'Sent to Superadmins & Bubble admins',
-    'Event didn\'t match description': 'Sent to Bubble admins',
-    'Organizer no-show or unprepared': 'Sent to Superadmins & Bubble admins',
-    'Venue issue (unsafe, inaccessible, closed)': 'Sent to Superadmins & Bubble admins',
+  const EVENT_CONCERN_ROUTING: Record<string, string> = {
+    'Safety issue at this event': 'Sent to Superadmins',
+    'Event didn\'t match description': 'Sent to Bubble Admins',
+    'Venue issue (unsafe, inaccessible, closed)': 'Sent to Superadmins & Bubble Admins',
+    'Organizer no-show or unprepared': 'Sent to Bubble Admins, Superadmin notified',
+    'Organizer misconduct': 'Sent to Superadmin directly',
     'Report a member': 'Opens member report flow',
-    'Other': 'Sent to Superadmins & Bubble admins',
+    'Other': 'Sent to Superadmins & Bubble Admins (needs triage)',
   };
 
-  const handleReportEvent = () => {
+  const REPORT_EVENT_REASONS = [
+    'Event was disorganized, ran late',
+    'Organizer no-show',
+    'Organizer misconduct',
+    'Organizer made me uncomfortable',
+  ];
+
+  const REPORT_EVENT_ROUTING: Record<string, string> = {
+    'Event was disorganized, ran late': 'Sent to Bubble Admins',
+    'Organizer no-show': 'Sent to Bubble Admins + Superadmin notified',
+    'Organizer misconduct': 'Sent to Superadmin directly',
+    'Organizer made me uncomfortable': 'Sent to Superadmin directly',
+  };
+
+  const handleReportConcern = () => {
     setEventReportReason(null);
     setEventReportFreeText('');
     setEventReportModalVisible(true);
   };
 
-  const handleEventReportReasonSelect = (reason: string) => {
+  const handleReportEvent = () => {
+    setReportEventReason(null);
+    setReportEventFreeText('');
+    setReportEventModalVisible(true);
+  };
+
+  const handleConcernReasonSelect = (reason: string) => {
     if (reason === 'Report a member') {
       setEventReportModalVisible(false);
       handleViewParticipants();
@@ -151,7 +177,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     setEventReportReason(reason);
   };
 
-  const submitEventReport = async () => {
+  const submitConcernReport = async () => {
     if (!eventReportReason || !event) return;
     setEventReportSubmitting(true);
     try {
@@ -163,12 +189,33 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         eventId: event.id,
       });
       setEventReportModalVisible(false);
-      const routing = EVENT_REPORT_ROUTING[eventReportReason] || 'Sent to Superadmins & Bubble admins';
+      const routing = EVENT_CONCERN_ROUTING[eventReportReason] || 'Sent to Superadmins & Bubble Admins';
       Alert.alert('Report Submitted', `Your concern about this event has been received. ${routing}.`);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to submit report');
     } finally {
       setEventReportSubmitting(false);
+    }
+  };
+
+  const submitEventReport = async () => {
+    if (!reportEventReason || !event) return;
+    setReportEventSubmitting(true);
+    try {
+      await apiService.submitReport({
+        reportType: 'event',
+        reason: reportEventReason,
+        freeText: reportEventFreeText.trim() || undefined,
+        bubbleId: event.bubbleId,
+        eventId: event.id,
+      });
+      setReportEventModalVisible(false);
+      const routing = REPORT_EVENT_ROUTING[reportEventReason] || 'Sent to Superadmins';
+      Alert.alert('Report Submitted', `Your report about this event has been received. ${routing}.`);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit report');
+    } finally {
+      setReportEventSubmitting(false);
     }
   };
 
@@ -432,13 +479,21 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
                   </TouchableOpacity>
                 )}
-                <View style={styles.kebabSeparator} />
+                <View style={styles.kebabSeparatorMedium} />
+                <TouchableOpacity
+                  style={styles.kebabMenuItem}
+                  onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
+                >
+                  <Ionicons name="flag-outline" size={18} color={Colors.text.primary} />
+                  <Text style={styles.kebabMenuText}>Report a Concern</Text>
+                </TouchableOpacity>
+                <View style={styles.kebabSeparatorHeavy} />
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
                 >
-                  <Ionicons name="flag-outline" size={18} color={Colors.status.error} />
-                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Concern</Text>
+                  <Ionicons name="alert-circle-outline" size={18} color={Colors.status.error} />
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Event</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -685,16 +740,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         >
           <View style={styles.eventReportDialog}>
             <View style={styles.eventReportHeader}>
-              <Text style={styles.eventReportTitle}>Report this Event</Text>
+              <Text style={styles.eventReportTitle}>Report a Concern</Text>
               <TouchableOpacity onPress={() => setEventReportModalVisible(false)}>
                 <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
             <Text style={styles.eventReportSubtitle}>
-              Report a concern about this event — sent to admins with event details
+              Report a concern about this event — private to admins
             </Text>
             <ScrollView style={styles.eventReportReasonsList} nestedScrollEnabled>
-              {EVENT_REPORT_REASONS.map((reason) => (
+              {EVENT_CONCERN_REASONS.map((reason) => (
                 <TouchableOpacity
                   key={reason}
                   style={[
@@ -702,7 +757,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     eventReportReason === reason && styles.eventReportReasonSelected,
                     reason === 'Report a member' && styles.eventReportReasonLink,
                   ]}
-                  onPress={() => handleEventReportReasonSelect(reason)}
+                  onPress={() => handleConcernReasonSelect(reason)}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -712,7 +767,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     ]}>{reason === 'Report a member' ? '→ Report a member' : reason}</Text>
                     {reason !== 'Report a member' && (
                       <Text style={{ fontSize: 11, color: Colors.text.tertiary, marginTop: 2 }}>
-                        {EVENT_REPORT_ROUTING[reason]}
+                        {EVENT_CONCERN_ROUTING[reason]}
                       </Text>
                     )}
                   </View>
@@ -739,10 +794,81 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             )}
             <TouchableOpacity
               style={[styles.eventReportSubmitButton, !eventReportReason && styles.eventReportSubmitDisabled]}
-              onPress={submitEventReport}
+              onPress={submitConcernReport}
               disabled={!eventReportReason || eventReportSubmitting}
             >
               {eventReportSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.eventReportSubmitText}>Submit Report</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+      <Modal
+        visible={reportEventModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setReportEventModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.eventReportOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.eventReportDialog}>
+            <View style={styles.eventReportHeader}>
+              <Text style={styles.eventReportTitle}>Report Event</Text>
+              <TouchableOpacity onPress={() => setReportEventModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.eventReportSubtitle}>
+              Report a problem with this event — sent to admins for review
+            </Text>
+            <ScrollView style={styles.eventReportReasonsList} nestedScrollEnabled>
+              {REPORT_EVENT_REASONS.map((reason) => (
+                <TouchableOpacity
+                  key={reason}
+                  style={[
+                    styles.eventReportReasonItem,
+                    reportEventReason === reason && styles.eventReportReasonSelected,
+                  ]}
+                  onPress={() => setReportEventReason(reason)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[
+                      styles.eventReportReasonText,
+                      reportEventReason === reason && styles.eventReportReasonTextSelected,
+                    ]}>{reason}</Text>
+                    <Text style={{ fontSize: 11, color: Colors.text.tertiary, marginTop: 2 }}>
+                      {REPORT_EVENT_ROUTING[reason]}
+                    </Text>
+                  </View>
+                  {reportEventReason === reason && (
+                    <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {reportEventReason && (
+              <TextInput
+                style={styles.eventReportTextInput}
+                placeholder="Additional details (optional)"
+                placeholderTextColor={Colors.text.tertiary}
+                value={reportEventFreeText}
+                onChangeText={setReportEventFreeText}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+            )}
+            <TouchableOpacity
+              style={[styles.eventReportSubmitButton, !reportEventReason && styles.eventReportSubmitDisabled]}
+              onPress={submitEventReport}
+              disabled={!reportEventReason || reportEventSubmitting}
+            >
+              {reportEventSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <Text style={styles.eventReportSubmitText}>Submit Report</Text>
@@ -830,6 +956,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral.coolMist,
     marginHorizontal: 16,
     opacity: 0.4,
+  },
+  kebabSeparatorMedium: {
+    height: 1,
+    backgroundColor: '#D0D0D0',
+    marginHorizontal: 16,
+  },
+  kebabSeparatorHeavy: {
+    height: 2,
+    backgroundColor: '#C0C0C0',
+    marginHorizontal: 16,
   },
   kebabBackdrop: {
     position: 'absolute',
