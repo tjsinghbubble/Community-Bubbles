@@ -567,11 +567,11 @@ export default function ChatScreen({ navigation, route }: Props) {
     const isOwn = isOwnMessage(message.sender.uid);
     
     return (
-      <TouchableOpacity
+      <Pressable
         key={message.id}
         onLongPress={() => handleLongPress(message.id)}
         delayLongPress={300}
-        activeOpacity={0.9}
+        onPress={() => showReactionPicker && showReactionPicker !== message.id ? setShowReactionPicker(null) : undefined}
       >
         <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
           {!isOwn && renderAvatar(message.sender)}
@@ -624,7 +624,7 @@ export default function ChatScreen({ navigation, route }: Props) {
             </View>
           </View>
         )}
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -647,8 +647,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         style={styles.keyboardView}
         keyboardVerticalOffset={0}
       >
-        <TouchableWithoutFeedback onPress={() => setShowReactionPicker(null)}>
-          {chatError ? (
+        {chatError ? (
             <View style={styles.loading}>
               <Ionicons name="alert-circle-outline" size={48} color={Colors.neutral[400]} />
               <Text style={[styles.emptyText, { marginTop: 12 }]}>{chatError}</Text>
@@ -669,18 +668,18 @@ export default function ChatScreen({ navigation, route }: Props) {
               style={styles.messagesList}
               contentContainerStyle={styles.messagesContent}
               onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: false })}
+              onScrollBeginDrag={() => showReactionPicker && setShowReactionPicker(null)}
             >
               {messages.length === 0 ? (
-                <View style={styles.emptyMessages}>
+                <Pressable style={styles.emptyMessages} onPress={() => setShowReactionPicker(null)}>
                   <Text style={styles.emptyText}>No messages yet</Text>
                   <Text style={styles.emptySubtext}>Be the first to say hello!</Text>
-                </View>
+                </Pressable>
               ) : (
                 messages.map(renderMessage)
               )}
             </ScrollView>
           )}
-        </TouchableWithoutFeedback>
 
         {replyingTo && (
           <View style={styles.replyingToBar}>
