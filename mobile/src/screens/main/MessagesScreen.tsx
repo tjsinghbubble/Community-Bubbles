@@ -48,10 +48,12 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
+  const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
   const hasAutoNavigated = React.useRef(false);
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
     const imageMap: Record<string, string | null> = {};
+    const dmData: Record<string, { memberPhoto: string | null; bubbleCover: string | null }> = {};
     const fetchPromises = convs.map(async (conv) => {
       const guid = conv.conversationWith.guid;
       if (conv.conversationWith.icon) {
@@ -65,21 +67,28 @@ export default function MessagesScreen({ navigation, route }: Props) {
         if (dmMatch) {
           const bubbleId = dmMatch[1];
           const memberId = dmMatch[2];
+          let memberPhoto: string | null = null;
+          let bubbleCover: string | null = null;
           try {
             const members = await apiService.getBubbleMembers(bubbleId) as any[];
             const targetMember = members.find((m: any) => String(m.userId) === memberId);
             if (targetMember?.user?.profilePhoto) {
-              imageMap[guid] = targetMember.user.profilePhoto;
-              return;
-            }
-            const bubble = await apiService.getBubble(bubbleId) as any;
-            if (bubble?.coverImage) {
-              imageMap[guid] = bubble.coverImage;
-              return;
+              memberPhoto = targetMember.user.profilePhoto;
             }
           } catch {}
+          try {
+            const bubble = await apiService.getBubble(bubbleId) as any;
+            if (bubble?.coverImage) {
+              bubbleCover = bubble.coverImage;
+            } else if (bubble?.images?.length > 0) {
+              bubbleCover = bubble.images[0];
+            }
+          } catch {}
+          dmData[guid] = { memberPhoto, bubbleCover };
+          imageMap[guid] = memberPhoto;
+        } else {
+          imageMap[guid] = null;
         }
-        imageMap[guid] = null;
         return;
       }
 
@@ -98,6 +107,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
     });
     await Promise.all(fetchPromises);
     setBubbleImages(imageMap);
+    setDmAvatarData(dmData);
   };
 
   const fetchConversations = async () => {
@@ -164,22 +174,52 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   const renderAvatar = (conversation: Conversation) => {
     const guid = conversation.conversationWith.guid;
+    const isAdminDm = guid.startsWith('adm_');
     const imageUrl = bubbleImages[guid] || conversation.conversationWith.icon;
+    const dmData = dmAvatarData[guid];
+
+    if (isAdminDm) {
+      const memberPhoto = dmData?.memberPhoto || imageUrl;
+      const bubbleCover = dmData?.bubbleCover;
+      return (
+        <View style={styles.dmAvatarContainer}>
+          {memberPhoto ? (
+            <Image source={{ uri: memberPhoto }} style={styles.dmMemberPhoto} />
+          ) : (
+            <View style={[styles.dmMemberPhoto, styles.dmMemberPhotoPlaceholder]}>
+              <Text style={styles.avatarText}>
+                {conversation.conversationWith.name.split(':').pop()?.trim().charAt(0).toUpperCase() || '?'}
+              </Text>
+            </View>
+          )}
+          {bubbleCover ? (
+            <Image source={{ uri: bubbleCover }} style={styles.dmBubbleBadge} />
+          ) : (
+            <View style={[styles.dmBubbleBadge, styles.dmBubbleBadgePlaceholder]}>
+              <Text style={styles.dmBubbleBadgeText}>
+                {conversation.conversationWith.name.split(':')[0]?.trim().charAt(0).toUpperCase() || 'B'}
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
 
     if (imageUrl) {
       return (
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.avatarImage}
-        />
+        <View style={styles.bubbleAvatarRing}>
+          <Image source={{ uri: imageUrl }} style={styles.bubbleAvatarImage} />
+        </View>
       );
     }
 
     return (
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>
-          {conversation.conversationWith.name.charAt(0).toUpperCase()}
-        </Text>
+      <View style={styles.bubbleAvatarRing}>
+        <View style={styles.bubbleAvatarPlaceholder}>
+          <Text style={styles.avatarText}>
+            {conversation.conversationWith.name.charAt(0).toUpperCase()}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -316,21 +356,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.brand.bubbleBlue,
+  bubbleAvatarRing: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: Colors.brand.bubbleBlue,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  avatarImage: {
+  bubbleAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.neutral.coolMist,
+  },
+  bubbleAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.neutral.coolMist,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dmAvatarContainer: {
+    width: 56,
+    height: 56,
+    marginRight: 12,
+    position: 'relative' as const,
+  },
+  dmMemberPhoto: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    marginRight: 12,
     backgroundColor: Colors.neutral.coolMist,
+  },
+  dmMemberPhotoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.neutral.cloudGrey,
+  },
+  dmBubbleBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: Colors.brand.skyWhite,
+    position: 'absolute' as const,
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.neutral.coolMist,
+  },
+  dmBubbleBadgePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  dmBubbleBadgeText: {
+    color: Colors.brand.skyWhite,
+    fontSize: 10,
+    fontWeight: '700',
   },
   avatarText: {
     color: Colors.brand.skyWhite,
