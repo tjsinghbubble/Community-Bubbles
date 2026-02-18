@@ -10,6 +10,7 @@ import { registerObjectStorageRoutes } from "./replit_integrations/object_storag
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
+import { moderateText } from "./moderation";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -358,6 +359,16 @@ export async function registerRoutes(
     try {
       const body = { ...req.body, creatorId: req.userId };
 
+      const modResult = moderateText({
+        title: body.title,
+        tagline: body.tagline,
+        description: body.description,
+        rules: body.rules,
+      });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
+      }
+
       if (body.categoryId && !body.category) {
         const catName = await resolveCategoryName(body.categoryId);
         body.category = catName || 'General';
@@ -399,6 +410,17 @@ export async function registerRoutes(
       }
 
       const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = req.body;
+
+      const modResult = moderateText({
+        title,
+        tagline,
+        description,
+        rules,
+      });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
+      }
+
       const updateData: any = {};
       
       if (title !== undefined) updateData.title = title;
@@ -1214,6 +1236,14 @@ export async function registerRoutes(
 
   app.post("/api/events", authMiddleware, async (req, res) => {
     try {
+      const modResult = moderateText({
+        title: req.body.title,
+        description: req.body.description,
+      });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
+      }
+
       const timezone = req.body.timezone || 'UTC';
       let bodyToStore = { ...req.body };
       if (timezone !== 'UTC' && req.body.date && req.body.startTime) {
@@ -1288,6 +1318,14 @@ export async function registerRoutes(
 
       if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
         return res.status(403).json({ error: "Not authorized to edit this event" });
+      }
+
+      const modResult = moderateText({
+        title: req.body.title,
+        description: req.body.description,
+      });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
       }
 
       let updateBody = { ...req.body };
