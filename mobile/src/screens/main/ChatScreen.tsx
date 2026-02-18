@@ -99,9 +99,9 @@ export default function ChatScreen({ navigation, route }: Props) {
     setLoadingParticipants(true);
     try {
       if (isAdminDmChat) {
-        const parts = groupId.split('_');
-        const bubbleId = parts.slice(1, -1).join('_');
-        const memberId = parts[parts.length - 1];
+        const dmMatch = groupId.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        const bubbleId = dmMatch ? dmMatch[1] : '';
+        const memberId = dmMatch ? dmMatch[2] : '';
         try {
           const allMembers = await apiService.getBubbleMembers(bubbleId) as any[];
           const admins = allMembers.filter((m: any) => m.role === 'admin');
