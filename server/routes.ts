@@ -366,6 +366,15 @@ export async function registerRoutes(
       const data = insertBubbleSchema.parse(body);
       const bubble = await storage.createBubble(data);
 
+      try {
+        await storage.createMembershipWithRole(
+          { userId: req.userId!, bubbleId: bubble.id },
+          'admin'
+        );
+      } catch (e) {
+        console.error('Failed to auto-add creator as admin member:', e);
+      }
+
       res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -505,6 +514,18 @@ export async function registerRoutes(
       }
 
       if (bubble.creatorId) {
+        const existingMembership = await storage.hasAnyMembership(bubble.creatorId, bubble.id);
+        if (!existingMembership) {
+          try {
+            await storage.createMembershipWithRole(
+              { userId: bubble.creatorId, bubbleId: bubble.id },
+              'admin'
+            );
+          } catch (e) {
+            console.error('Failed to auto-add creator on approve:', e);
+          }
+        }
+
         sendNotification({
           recipientId: bubble.creatorId,
           type: "bubble_approved",

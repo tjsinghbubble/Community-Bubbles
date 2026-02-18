@@ -214,6 +214,25 @@ class CometChatService {
     }
   }
 
+  async getTotalUnreadCount(): Promise<number> {
+    try {
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(50)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      let total = 0;
+      for (const conv of conversations) {
+        const count = (conv as any).unreadMessageCount || 0;
+        total += count;
+      }
+      return total;
+    } catch (error) {
+      console.error('Failed to get unread count:', error);
+      return 0;
+    }
+  }
+
   async getMessages(guid: string, limit: number = 50) {
     try {
       const messagesRequest = new CometChat.MessagesRequestBuilder()

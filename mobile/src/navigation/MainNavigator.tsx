@@ -11,6 +11,7 @@ import ProfileNavigator from './ProfileNavigator';
 import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
+import cometChatService from '../services/cometchat.service';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -27,6 +28,7 @@ export default function MainNavigator() {
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20);
   const { user } = useAuth();
   const [adminCount, setAdminCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
   
   const isAdmin = user?.isSuperAdmin === true;
 
@@ -40,12 +42,27 @@ export default function MainNavigator() {
     }
   }, [user]);
 
+  const fetchUnreadMessages = useCallback(async () => {
+    if (!user) return;
+    try {
+      const count = await cometChatService.getTotalUnreadCount();
+      setUnreadMessages(count);
+    } catch {
+      setUnreadMessages(0);
+    }
+  }, [user]);
+
   useFocusEffect(
     useCallback(() => {
       fetchAdminCount();
-      const interval = setInterval(fetchAdminCount, 30000);
-      return () => clearInterval(interval);
-    }, [fetchAdminCount])
+      fetchUnreadMessages();
+      const adminInterval = setInterval(fetchAdminCount, 30000);
+      const msgInterval = setInterval(fetchUnreadMessages, 15000);
+      return () => {
+        clearInterval(adminInterval);
+        clearInterval(msgInterval);
+      };
+    }, [fetchAdminCount, fetchUnreadMessages])
   );
 
   return (
@@ -117,7 +134,14 @@ export default function MainNavigator() {
         component={MessagesNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubble-outline" size={size} color={color} />
+            <View>
+              <Ionicons name="chatbubble-outline" size={size} color={color} />
+              {unreadMessages > 0 && (
+                <View style={badgeStyles.badge}>
+                  <Text style={badgeStyles.badgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+                </View>
+              )}
+            </View>
           ),
         }}
         listeners={({ navigation }) => ({
