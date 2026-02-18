@@ -58,6 +58,31 @@ export default function MessagesScreen({ navigation, route }: Props) {
         imageMap[guid] = conv.conversationWith.icon;
         return;
       }
+
+      const isAdminDm = guid.startsWith('adm_');
+      if (isAdminDm) {
+        const dmMatch = guid.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (dmMatch) {
+          const bubbleId = dmMatch[1];
+          const memberId = dmMatch[2];
+          try {
+            const members = await apiService.getBubbleMembers(bubbleId) as any[];
+            const targetMember = members.find((m: any) => String(m.userId) === memberId);
+            if (targetMember?.user?.profilePhoto) {
+              imageMap[guid] = targetMember.user.profilePhoto;
+              return;
+            }
+            const bubble = await apiService.getBubble(bubbleId) as any;
+            if (bubble?.coverImage) {
+              imageMap[guid] = bubble.coverImage;
+              return;
+            }
+          } catch {}
+        }
+        imageMap[guid] = null;
+        return;
+      }
+
       try {
         const bubble = await apiService.getBubble(guid) as any;
         if (bubble?.coverImage) {
