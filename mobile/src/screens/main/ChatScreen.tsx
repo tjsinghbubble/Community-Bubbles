@@ -99,8 +99,37 @@ export default function ChatScreen({ navigation, route }: Props) {
     setLoadingParticipants(true);
     try {
       if (isAdminDmChat) {
-        const ccMembers = await cometChatService.getGroupMembers(groupId);
-        setParticipants(ccMembers);
+        const parts = groupId.split('_');
+        const bubbleId = parts.slice(1, -1).join('_');
+        const memberId = parts[parts.length - 1];
+        try {
+          const allMembers = await apiService.getBubbleMembers(bubbleId) as any[];
+          const admins = allMembers.filter((m: any) => m.role === 'admin');
+          const targetMember = allMembers.find((m: any) => String(m.userId) === memberId);
+          const dmParticipants: Array<{ uid: string; name: string; avatar?: string; scope: string }> = [];
+          if (targetMember) {
+            dmParticipants.push({
+              uid: String(targetMember.userId),
+              name: targetMember.user?.name || targetMember.user?.email || 'User',
+              avatar: targetMember.user?.profilePhoto || undefined,
+              scope: 'participant',
+            });
+          }
+          for (const admin of admins) {
+            if (!dmParticipants.find(p => p.uid === String(admin.userId))) {
+              dmParticipants.push({
+                uid: String(admin.userId),
+                name: admin.user?.name || admin.user?.email || 'User',
+                avatar: admin.user?.profilePhoto || undefined,
+                scope: 'admin',
+              });
+            }
+          }
+          setParticipants(dmParticipants);
+        } catch (dbErr) {
+          const ccMembers = await cometChatService.getGroupMembers(groupId);
+          setParticipants(ccMembers);
+        }
       } else {
         const members = await apiService.getBubbleMembers(groupId) as any[];
         const mapped = members.map((m: any) => ({
@@ -113,12 +142,6 @@ export default function ChatScreen({ navigation, route }: Props) {
       }
     } catch (error) {
       console.error('Failed to fetch participants:', error);
-      try {
-        const ccMembers = await cometChatService.getGroupMembers(groupId);
-        setParticipants(ccMembers);
-      } catch (e2) {
-        console.error('Fallback participant fetch also failed:', e2);
-      }
     } finally {
       setLoadingParticipants(false);
     }
