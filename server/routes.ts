@@ -1067,7 +1067,7 @@ export async function registerRoutes(
 
       res.json({
         groupId: dmGuid,
-        groupName: `${bubble.title} : ${targetUser.name || targetUser.email}`,
+        groupName: `${bubble.title}: ${targetUser.name || targetUser.email}`,
         memberName: targetUser.name || targetUser.email,
         bubbleTitle: bubble.title,
         participantIds,
