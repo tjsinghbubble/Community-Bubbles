@@ -27,7 +27,7 @@ import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { CalendarIcon, LocationPinIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, RadioIcon } from '../../components/icons';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -701,9 +701,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
                 onPress={() => setPrivacy(opt.value)}
               >
-                <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
-                  {selected && <View style={RadioStyles.innerDot} />}
-                </View>
+                <RadioIcon size={20} selected={selected} active={true} />
                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
                   <Text style={RadioStyles.label}>{opt.label}</Text>
                   <Text style={RadioStyles.description}>{opt.subtitle}</Text>

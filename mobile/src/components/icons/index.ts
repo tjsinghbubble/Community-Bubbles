@@ -7,3 +7,5 @@ export { default as CalendarIcon } from './CalendarIcon';
 export { default as LocationPinIcon } from './LocationPinIcon';
 export { default as EyeIcon } from './EyeIcon';
 export { default as EyeOffIcon } from './EyeOffIcon';
+export { default as RadioIcon } from './RadioIcon';
+export { default as CheckboxIcon } from './CheckboxIcon';

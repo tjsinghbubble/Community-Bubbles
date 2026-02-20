@@ -15,6 +15,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { CheckboxIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -88,9 +89,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           style={styles.checkbox}
           onPress={() => setAccepted(!accepted)}
         >
-          <View style={[styles.checkboxBox, accepted && styles.checkboxBoxChecked]}>
-            {accepted && <Text style={styles.checkmark}>✓</Text>}
-          </View>
+          <CheckboxIcon size={18} checked={accepted} />
           <Text style={styles.checkboxLabel}>
             I agree to follow these community guidelines
           </Text>

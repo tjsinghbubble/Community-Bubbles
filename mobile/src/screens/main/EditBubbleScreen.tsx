@@ -28,7 +28,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { CalendarIcon, LocationPinIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, RadioIcon } from '../../components/icons';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -529,9 +529,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
                 onPress={() => setPrivacy(opt.value)}
               >
-                <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
-                  {selected && <View style={RadioStyles.innerDot} />}
-                </View>
+                <RadioIcon size={20} selected={selected} active={true} />
                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
                   <Text style={RadioStyles.label}>{opt.label}</Text>
                   <Text style={RadioStyles.description}>{opt.subtitle}</Text>

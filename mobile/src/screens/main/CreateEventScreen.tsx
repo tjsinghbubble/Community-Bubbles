@@ -27,7 +27,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
-import { CalendarIcon, LocationPinIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, CheckboxIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -831,9 +831,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               if (option.key === 'wheelchairAccessible') setWheelchairAccessible(!wheelchairAccessible);
             }}
           >
-            <View style={[styles.checkboxBox, isChecked && styles.checkboxBoxChecked]}>
-              {isChecked && <Ionicons name="checkmark" size={16} color={Colors.brand.skyWhite} />}
-            </View>
+            <CheckboxIcon size={18} checked={isChecked} />
             <Ionicons name={option.icon} size={20} color={Colors.neutral.coolMist} style={styles.checkboxIcon} />
             <View style={styles.checkboxTextContainer}>
               <Text style={styles.checkboxLabel}>{option.label}</Text>
