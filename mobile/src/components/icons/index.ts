@@ -3,3 +3,7 @@ export { default as UpcomingIcon } from './UpcomingIcon';
 export { default as BubblesIcon } from './BubblesIcon';
 export { default as MessagesIcon } from './MessagesIcon';
 export { default as ProfileIcon } from './ProfileIcon';
+export { default as CalendarIcon } from './CalendarIcon';
+export { default as LocationPinIcon } from './LocationPinIcon';
+export { default as EyeIcon } from './EyeIcon';
+export { default as EyeOffIcon } from './EyeOffIcon';

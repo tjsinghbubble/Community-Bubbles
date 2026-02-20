@@ -27,6 +27,7 @@ import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
+import { CalendarIcon, LocationPinIcon } from '../../components/icons';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -513,7 +514,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           onPress={() => setShowLocationPicker(true)}
           activeOpacity={0.7}
         >
-          <Ionicons name="location-outline" size={20} color={locationName ? Colors.brand.primary : Colors.text.tertiary} />
+          <LocationPinIcon size={20} color={locationName ? Colors.brand.primary : Colors.text.tertiary} />
           <View style={styles.locationTappableContent}>
             <Text style={[styles.locationTappableText, !locationName && styles.locationTappablePlaceholder]} numberOfLines={1}>
               {locationName || 'Search location or enter address'}

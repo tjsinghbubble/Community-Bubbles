@@ -27,6 +27,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { CalendarIcon, LocationPinIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -437,7 +438,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={date ? styles.fieldValue : styles.fieldPlaceholder}>
             {date ? formatDateForDisplay(date) : 'Select Date'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+          <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -709,7 +710,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               <Text style={recurrenceEndDate ? styles.fieldValue : styles.fieldPlaceholder}>
                 {recurrenceEndDate ? formatDateForDisplay(recurrenceEndDate) : 'Select end date'}
               </Text>
-              <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+              <CalendarIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           )}
           {showRecurrenceEndDatePicker && (
@@ -873,7 +874,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
             {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+          <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showRsvpDatePicker && (
           <DateTimePicker
@@ -950,7 +951,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
           <View style={{ height: usableHeight * 0.3, paddingHorizontal: 20, justifyContent: 'center' }}>
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.neutral.charcoal} />
+              <CalendarIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
             </View>
 
@@ -963,7 +964,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+              <LocationPinIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue} numberOfLines={2}>{locationTbd ? 'TBD' : (locationAddress || 'TBD')}</Text>
             </View>
 

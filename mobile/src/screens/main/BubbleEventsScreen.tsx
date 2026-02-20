@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { CalendarIcon, LocationPinIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -120,7 +121,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
         </View>
         {event.locationName && (
           <View style={styles.eventMeta}>
-            <Ionicons name="location-outline" size={12} color={Colors.neutral.coolMist} />
+            <LocationPinIcon size={12} color={Colors.neutral.coolMist} />
             <Text style={styles.eventMetaText} numberOfLines={1}>
               {event.locationName}
             </Text>

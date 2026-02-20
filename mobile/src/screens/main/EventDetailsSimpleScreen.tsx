@@ -21,6 +21,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import { CalendarIcon, LocationPinIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
@@ -447,7 +448,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <View style={styles.infoRows}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.text.tertiary} />
+              <CalendarIcon size={18} color={Colors.text.tertiary} />
             </View>
             <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
           </View>
@@ -460,7 +461,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           {event.locationName && (
             <View style={styles.infoRow}>
               <View style={styles.infoIconContainer}>
-                <Ionicons name="location-outline" size={18} color={Colors.text.tertiary} />
+                <LocationPinIcon size={18} color={Colors.text.tertiary} />
               </View>
               <Text style={styles.infoText} numberOfLines={2}>{locationDisplay}</Text>
             </View>
