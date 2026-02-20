@@ -310,17 +310,17 @@ export const InputStyles = StyleSheet.create({
   label: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
-    color: Colors.text.primary,
+    color: '#4D4D4D',
     marginBottom: Spacing.sm,
   },
   requiredAsterisk: {
     color: Colors.status.error,
   },
   field: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
@@ -328,14 +328,14 @@ export const InputStyles = StyleSheet.create({
   },
   fieldError: {
     borderColor: Colors.status.error,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   fieldFocused: {
     borderColor: Colors.border.focus,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   placeholder: {
-    color: Colors.text.tertiary,
+    color: '#969696',
   },
   errorMessage: {
     fontSize: Typography.sizes.sm,
@@ -353,10 +353,10 @@ export const InputStyles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   fieldWithIcon: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     paddingRight: 48,
     fontSize: Typography.sizes.base,
@@ -377,8 +377,8 @@ export const InputStyles = StyleSheet.create({
 export const TextAreaStyles = StyleSheet.create({
   field: {
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     padding: Spacing.lg,
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
@@ -388,11 +388,11 @@ export const TextAreaStyles = StyleSheet.create({
   },
   fieldError: {
     borderColor: Colors.status.error,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   charCount: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
+    color: '#969696',
     textAlign: 'right' as const,
     marginTop: Spacing.xs,
   },
@@ -403,10 +403,10 @@ export const TextAreaStyles = StyleSheet.create({
 
 export const SelectStyles = StyleSheet.create({
   field: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -419,7 +419,7 @@ export const SelectStyles = StyleSheet.create({
   },
   fieldPlaceholder: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    color: '#969696',
   },
 });
 
