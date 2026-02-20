@@ -20,6 +20,7 @@ app.use(cors({
   origin: [
     'https://y29b50u-anonymous-5000.exp.direct',
     /\.exp\.direct$/,  // Allow all Expo tunnel origins
+    'http://localhost:3000',
     'http://localhost:5000',
     'http://localhost:8081'
   ],
@@ -108,7 +109,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);
