@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinCampusButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

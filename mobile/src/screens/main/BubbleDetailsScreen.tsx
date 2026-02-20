@@ -657,7 +657,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={StyleSheet.absoluteFillObject}
         />
         {isJoining ? (
-          <ActivityIndicator color={Colors.text.primary} size="small" />
+          <ActivityIndicator color={'#FFFFFF'} size="small" />
         ) : (
           <Text style={styles.joinButtonText}>{buttonLabel}</Text>
         )}
@@ -1188,7 +1188,7 @@ const styles = StyleSheet.create({
   joinButtonText: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    color: '#FFFFFF',
   },
   kebabOverlay: {
     flex: 1,

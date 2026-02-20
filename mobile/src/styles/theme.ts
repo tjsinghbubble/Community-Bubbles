@@ -54,21 +54,21 @@ export const Colors = {
   },
 
   gradient: {
-    gradient2Start: '#5FC3F8',
-    gradient2End: '#35A8F7',
+    gradient2Start: '#35A8F7',
+    gradient2End: '#FFFFFF',
   },
 };
 
 export const Gradients = {
   button: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0.2, y: 0 },
-    end: { x: 0.8, y: 1 },
+    start: { x: 0, y: 0 },
+    end: { x: 0.65, y: 1.65 },
   },
   alert: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0.2, y: 0 },
-    end: { x: 0.8, y: 1 },
+    start: { x: 0, y: 0 },
+    end: { x: 0.65, y: 1.65 },
   },
 };
 
@@ -168,7 +168,7 @@ export const LoadingState = {
 export const ButtonStyles = StyleSheet.create({
   base: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -176,7 +176,7 @@ export const ButtonStyles = StyleSheet.create({
 
   primaryGradient: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -185,36 +185,47 @@ export const ButtonStyles = StyleSheet.create({
 
   secondary: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.primaryLight,
+    backgroundColor: '#37ADFF',
   },
 
   disabled: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.text.tertiary,
+    backgroundColor: '#969696',
   },
 
   outline: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.background.primary,
-    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.brand.primary,
+  },
+
+  pressed: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: Spacing.xl,
+    backgroundColor: 'rgba(53, 168, 247, 0.15)',
+    borderWidth: 1,
     borderColor: Colors.brand.primary,
   },
 
   light: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -223,66 +234,74 @@ export const ButtonStyles = StyleSheet.create({
 
   ghost: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.border.default,
+    borderColor: '#98B4C8',
   },
 
   destructive: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.status.error,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.status.error,
   },
 });
 
 export const ButtonTextStyles = StyleSheet.create({
   primaryGradient: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   secondary: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   disabled: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   outline: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
+    color: Colors.brand.primary,
+    letterSpacing: Typography.letterSpacing.tight,
+  },
+  pressed: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
     color: Colors.brand.primary,
     letterSpacing: Typography.letterSpacing.tight,
   },
   light: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
     color: Colors.brand.primary,
     letterSpacing: Typography.letterSpacing.tight,
   },
   ghost: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text.tertiary,
+    fontWeight: Typography.weights.bold,
+    color: '#98B4C8',
     letterSpacing: Typography.letterSpacing.tight,
   },
   destructive: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
+    fontWeight: Typography.weights.bold,
+    color: Colors.status.error,
     letterSpacing: Typography.letterSpacing.tight,
   },
 });

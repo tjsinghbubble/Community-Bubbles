@@ -90,7 +90,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
           disabled={selected.length < 3}
         >
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.button, selected.length < 3 && styles.buttonDisabled]}
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

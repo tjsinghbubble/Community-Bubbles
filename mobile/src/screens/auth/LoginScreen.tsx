@@ -86,13 +86,13 @@ export default function LoginScreen({ navigation }: Props) {
             style={(!email || !password || isLoading) ? styles.buttonDisabled : undefined}
           >
             <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
+              colors={Gradients.button.colors as [string, string]}
               start={Gradients.button.start}
               end={Gradients.button.end}
               style={styles.button}
             >
               {isLoading ? (
-                <ActivityIndicator color={Colors.neutral.charcoal} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

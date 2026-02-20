@@ -185,12 +185,12 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
       {canCreateEvent && (
         <TouchableOpacity onPress={handleCreateEvent}>
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={styles.fab}
           >
-            <Ionicons name="add" size={24} color={Colors.neutral.charcoal} />
+            <Ionicons name="add" size={24} color={'#FFFFFF'} />
           </LinearGradient>
         </TouchableOpacity>
       )}

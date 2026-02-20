@@ -349,10 +349,10 @@ export default function PendingReviewsScreen() {
             style={[styles.actionButton, styles.approveButton]}
           >
             {actionLoading === bubble.id ? (
-              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+              <ActivityIndicator size="small" color={'#FFFFFF'} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Ionicons name="checkmark" size={18} color={'#FFFFFF'} />
                 <Text style={styles.approveText}>Approve</Text>
               </>
             )}
@@ -406,10 +406,10 @@ export default function PendingReviewsScreen() {
             style={[styles.actionButton, styles.approveButton]}
           >
             {actionLoading === event.id ? (
-              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+              <ActivityIndicator size="small" color={'#FFFFFF'} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Ionicons name="checkmark" size={18} color={'#FFFFFF'} />
                 <Text style={styles.approveText}>Approve</Text>
               </>
             )}
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
   approveText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
   },
   dismissButton: {
     flex: 1,

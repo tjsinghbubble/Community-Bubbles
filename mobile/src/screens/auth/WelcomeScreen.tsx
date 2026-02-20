@@ -67,7 +67,7 @@ export default function WelcomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Signup')}
           >
             <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
+              colors={Gradients.button.colors as [string, string]}
               start={Gradients.button.start}
               end={Gradients.button.end}
               style={styles.signUpButton}
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signUpText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

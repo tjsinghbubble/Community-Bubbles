@@ -190,7 +190,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!isFormValid || loading}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={Gradients.button.colors as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={[
@@ -199,7 +199,7 @@ export default function SignupScreen({ navigation }: Props) {
                 ]}
               >
                 {loading ? (
-                  <ActivityIndicator color={Colors.neutral.charcoal} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.buttonText}>Continue</Text>
                 )}
@@ -312,7 +312,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!birthMonth || !birthDay || !birthYear}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={Gradients.button.colors as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={[
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

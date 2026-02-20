@@ -149,12 +149,12 @@ export default function MyBubblesScreen() {
           </Text>
           <TouchableOpacity onPress={handleCreateBubble}>
             <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
+              colors={Gradients.button.colors as [string, string]}
               start={Gradients.button.start}
               end={Gradients.button.end}
               style={styles.createFirstButton}
             >
-              <Ionicons name="add" size={20} color={Colors.neutral.charcoal} />
+              <Ionicons name="add" size={20} color={'#FFFFFF'} />
               <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -207,12 +207,12 @@ export default function MyBubblesScreen() {
 
       <TouchableOpacity onPress={handleCreateBubble}>
         <LinearGradient
-          colors={Gradients.button.colors as unknown as string[]}
+          colors={Gradients.button.colors as [string, string]}
           start={Gradients.button.start}
           end={Gradients.button.end}
           style={styles.fab}
         >
-          <Ionicons name="add" size={28} color={Colors.neutral.charcoal} />
+          <Ionicons name="add" size={28} color={'#FFFFFF'} />
         </LinearGradient>
       </TouchableOpacity>
     </SafeAreaView>
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createFirstButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

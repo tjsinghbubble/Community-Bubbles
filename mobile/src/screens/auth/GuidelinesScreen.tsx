@@ -103,13 +103,13 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           disabled={!accepted || isLoading}
         >
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.button, (!accepted || isLoading) && styles.buttonDisabled]}
           >
             {isLoading ? (
-              <ActivityIndicator color={Colors.neutral.charcoal} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Get Started</Text>
             )}
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

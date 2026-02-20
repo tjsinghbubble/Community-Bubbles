@@ -361,7 +361,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               style={styles.saveButton}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.neutral.charcoal} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               )}
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

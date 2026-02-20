@@ -141,13 +141,13 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           disabled={!isCodeComplete || isLoading}
         >
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={styles.verifyButton}
           >
             {isLoading ? (
-              <ActivityIndicator color={Colors.neutral.charcoal} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.verifyButtonText}>Verify</Text>
             )}
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   verifyButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

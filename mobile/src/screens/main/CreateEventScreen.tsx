@@ -1418,7 +1418,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
   },
   successEventCard: {
     borderRadius: 12,
