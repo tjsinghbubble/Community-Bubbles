@@ -27,7 +27,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
-import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -366,7 +366,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
         </View>
         <View style={styles.reviewDetailRow}>
-          <Ionicons name="time-outline" size={16} color={Colors.brand.bubbleBlue} />
+          <ClockIcon size={16} color={Colors.brand.bubbleBlue} />
           <Text style={styles.reviewDetailValue}>
             {startTime ? formatTimeForDisplay(startTime) : '--:--'}
             {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -954,7 +954,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
+              <ClockIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>
                 {startTime ? formatTimeForDisplay(startTime) : '--:--'}
                 {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -968,7 +968,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
-                <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
+                <PeopleIcon size={18} color={Colors.neutral.charcoal} />
                 <Text style={styles.reviewDetailValue}>Limit: {attendeeLimit} people</Text>
               </View>
             ) : null}

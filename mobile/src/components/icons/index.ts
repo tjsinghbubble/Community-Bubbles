@@ -11,3 +11,7 @@ export { default as RadioIcon } from './RadioIcon';
 export { default as CheckboxIcon } from './CheckboxIcon';
 export { default as ChevronDownIcon } from './ChevronDownIcon';
 export { default as ChevronUpIcon } from './ChevronUpIcon';
+export { default as FlagIcon } from './FlagIcon';
+export { default as CrownIcon } from './CrownIcon';
+export { default as ClockIcon } from './ClockIcon';
+export { default as PeopleIcon } from './PeopleIcon';

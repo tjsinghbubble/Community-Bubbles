@@ -29,7 +29,7 @@ import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
+import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -444,19 +444,19 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <>
               <View style={styles.kebabSeparatorLight} />
               <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}>
-                <Ionicons name="settings-outline" size={20} color={Colors.brand.primary} />
+                <CrownIcon size={20} color={Colors.brand.primary} />
                 <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Manage Bubble</Text>
               </TouchableOpacity>
             </>
           )}
           <View style={styles.kebabSeparatorMedium} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
-            <Ionicons name="flag-outline" size={20} color={Colors.text.primary} />
+            <FlagIcon size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Report a concern</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparatorHeavy} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
-            <Ionicons name="alert-circle-outline" size={20} color={Colors.status.error} />
+            <FlagIcon size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
           </TouchableOpacity>
         </View>
@@ -588,7 +588,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.membersLeft}>
-          <Ionicons name="people-outline" size={20} color={Colors.text.primary} />
+          <PeopleIcon size={20} color={Colors.text.primary} />
           <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>

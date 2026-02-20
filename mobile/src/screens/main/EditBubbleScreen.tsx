@@ -28,7 +28,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon, PeopleIcon } from '../../components/icons';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -595,7 +595,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
       <View style={styles.previewMembersRow}>
         <View style={styles.reviewInfoRow}>
-          <Ionicons name="people-outline" size={18} color={Colors.text.primary} />
+          <PeopleIcon size={18} color={Colors.text.primary} />
           <Text style={styles.previewMembersText}>{memberLimit || '0'} Members</Text>
         </View>
         <TouchableOpacity onPress={() => Alert.alert('Members', `Member limit: ${memberLimit || 'Unlimited'}`)}>

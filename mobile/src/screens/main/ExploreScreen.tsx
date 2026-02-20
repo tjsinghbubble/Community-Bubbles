@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { PeopleIcon, ClockIcon } from '../../components/icons';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -373,7 +374,7 @@ export default function ExploreScreen() {
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
       <View style={styles.cardMeta}>
-        <Ionicons name="people-outline" size={12} color="#4D4D4D" />
+        <PeopleIcon size={12} color="#4D4D4D" />
         <Text style={styles.metaText}>{bubble.members} members</Text>
       </View>
     </TouchableOpacity>
@@ -397,7 +398,7 @@ export default function ExploreScreen() {
       <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
       <View style={styles.cardMetaRow}>
         <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={12} color="#4D4D4D" />
+          <ClockIcon size={12} color="#4D4D4D" />
           <Text style={styles.metaText}>{formatTime(event.startTime)}</Text>
         </View>
         {event.locationName && (

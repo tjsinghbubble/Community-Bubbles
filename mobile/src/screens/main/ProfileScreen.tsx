@@ -19,6 +19,7 @@ import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { ClockIcon } from '../../components/icons';
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
@@ -187,7 +188,7 @@ export default function ProfileScreen() {
               onPress={() => navigation.navigate('PendingReviews')}
             >
               <View style={styles.menuItemLeft}>
-                <Ionicons name="time-outline" size={24} color={Colors.neutral.charcoal} />
+                <ClockIcon size={24} color={Colors.neutral.charcoal} />
                 <Text style={styles.menuItemText}>Needs Attention</Text>
                 {pendingCount > 0 && (
                   <View style={styles.badge}>

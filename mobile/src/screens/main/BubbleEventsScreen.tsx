@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
-import { CalendarIcon, LocationPinIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -114,7 +114,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
       <View style={styles.eventInfo}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.eventMeta}>
-          <Ionicons name="time-outline" size={12} color={Colors.neutral.coolMist} />
+          <ClockIcon size={12} color={Colors.neutral.coolMist} />
           <Text style={styles.eventMetaText}>
             {formatTime(event.startTime)}
           </Text>
@@ -129,7 +129,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
         )}
         {event.attendeeLimit && (
           <View style={styles.eventMeta}>
-            <Ionicons name="people-outline" size={12} color={Colors.neutral.coolMist} />
+            <PeopleIcon size={12} color={Colors.neutral.coolMist} />
             <Text style={styles.eventMetaText}>
               Max {event.attendeeLimit}
             </Text>

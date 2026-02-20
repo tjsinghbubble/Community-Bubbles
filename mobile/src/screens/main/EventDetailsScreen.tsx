@@ -24,7 +24,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, PeopleIcon, FlagIcon, CrownIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
@@ -476,7 +476,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     style={styles.kebabMenuItem}
                     onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
                   >
-                    <Ionicons name="settings-outline" size={18} color={Colors.brand.primary} />
+                    <CrownIcon size={18} color={Colors.brand.primary} />
                     <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
                   </TouchableOpacity>
                 )}
@@ -485,7 +485,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
                 >
-                  <Ionicons name="flag-outline" size={18} color={Colors.text.primary} />
+                  <FlagIcon size={18} color={Colors.text.primary} />
                   <Text style={styles.kebabMenuText}>Report a Concern</Text>
                 </TouchableOpacity>
                 <View style={styles.kebabSeparatorHeavy} />
@@ -493,7 +493,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
                 >
-                  <Ionicons name="alert-circle-outline" size={18} color={Colors.status.error} />
+                  <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Event</Text>
                 </TouchableOpacity>
               </View>
@@ -550,7 +550,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               </View>
               <View style={styles.infoRow}>
                 <View style={styles.infoIconContainer}>
-                  <Ionicons name="time-outline" size={18} color={Colors.text.tertiary} />
+                  <ClockIcon size={18} color={Colors.text.tertiary} />
                 </View>
                 <Text style={styles.infoText}>{getTimeRange()}</Text>
               </View>
@@ -609,7 +609,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="people-outline" size={18} color={Colors.text.tertiary} />
+              <PeopleIcon size={18} color={Colors.text.tertiary} />
             </View>
             <Text style={styles.infoText}>
               {event.attendeeLimit ? `${goingCount} of ${event.attendeeLimit} spots filled` : `${goingCount} going`}
@@ -656,7 +656,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
           <View style={styles.locationIconContainer}>
-            <Ionicons name="location" size={20} color={Colors.brand.primary} />
+            <LocationPinIcon size={20} color={Colors.brand.primary} />
           </View>
           <View style={styles.locationInfo}>
             <Text style={styles.locationLandmark}>{event.locationName || 'TBD'}</Text>

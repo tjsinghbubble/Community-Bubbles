@@ -27,7 +27,7 @@ import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon, PeopleIcon } from '../../components/icons';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -767,7 +767,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
       <View style={styles.previewMembersRow}>
         <View style={styles.reviewInfoRow}>
-          <Ionicons name="people-outline" size={18} color={Colors.text.primary} />
+          <PeopleIcon size={18} color={Colors.text.primary} />
           <Text style={styles.previewMembersText}>{memberLimit || '0'} Members</Text>
         </View>
         <TouchableOpacity onPress={() => Alert.alert('Members', `1 member\n\n• ${user?.name || 'You'} (Creator)`)}>

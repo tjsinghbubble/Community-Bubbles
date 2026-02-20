@@ -27,6 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { PeopleIcon } from '../../components/icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -668,7 +669,7 @@ export default function ChatScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
         </View>
         <TouchableOpacity onPress={handleShowParticipants} style={styles.participantsButton}>
-          <Ionicons name="people-outline" size={22} color={Colors.brand.bubbleBlue} />
+          <PeopleIcon size={22} color={Colors.brand.bubbleBlue} />
         </TouchableOpacity>
       </View>
 

@@ -25,7 +25,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
-import { ChevronDownIcon } from '../../components/icons';
+import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -278,7 +278,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                   </Text>
                 )}
               </View>
-              <Ionicons name="location" size={20} color={Colors.neutral.coolMist} />
+              <LocationPinIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
