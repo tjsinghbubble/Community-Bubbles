@@ -70,7 +70,8 @@ export default function MultiImagePicker({
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [16, 9],
-      quality: 0.8,
+      quality: 0.6,
+      exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -94,7 +95,8 @@ export default function MultiImagePicker({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
-      quality: 0.8,
+      quality: 0.6,
+      exif: false,
     });
 
     if (!result.canceled && result.assets[0]) {
