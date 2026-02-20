@@ -216,6 +216,10 @@ class CometChatService {
 
   async getTotalUnreadCount(): Promise<number> {
     try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) {
+        return 0;
+      }
       const conversationsRequest = new CometChat.ConversationsRequestBuilder()
         .setLimit(50)
         .setConversationType('group')
@@ -227,7 +231,10 @@ class CometChatService {
         total += count;
       }
       return total;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'USER_NOT_LOGED_IN') {
+        return 0;
+      }
       console.error('Failed to get unread count:', error);
       return 0;
     }
