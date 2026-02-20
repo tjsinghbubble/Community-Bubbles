@@ -27,7 +27,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
-import { CalendarIcon, LocationPinIcon, CheckboxIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -385,7 +385,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <Text style={selectedBubble ? styles.fieldValue : styles.fieldPlaceholder}>
               {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
             </Text>
-            <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+            <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         </View>
       )}
@@ -628,7 +628,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   <Text style={styles.fieldValue}>
                     {CUSTOM_FREQUENCY_OPTIONS.find(f => f.value === recurrenceCustomFrequency)?.label}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                  <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
                 </TouchableOpacity>
                 {showCustomFrequencyPicker && (
                   <View style={styles.dropdownList}>

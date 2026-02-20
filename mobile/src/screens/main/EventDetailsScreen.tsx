@@ -24,7 +24,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { CalendarIcon, LocationPinIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
@@ -576,11 +576,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                         ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
                         : (rsvpStatus === 'waitlisted' ? 'Waitlisted' : rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
                     </Text>
-                    <Ionicons
-                      name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
-                      size={14}
-                      color="#FFFFFF"
-                    />
+                    {showRsvpDropdown ? <ChevronUpIcon size={14} color="#FFFFFF" /> : <ChevronDownIcon size={14} color="#FFFFFF" />}
                   </>
                 )}
               </TouchableOpacity>
@@ -669,7 +665,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             )}
           </View>
           {event.locationName && (
-            <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
+            locationExpanded ? <ChevronUpIcon size={16} color={Colors.text.tertiary} /> : <ChevronDownIcon size={16} color={Colors.text.tertiary} />
           )}
         </TouchableOpacity>
 

@@ -28,7 +28,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { CalendarIcon, LocationPinIcon, RadioIcon } from '../../components/icons';
+import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -575,7 +575,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         onPress={() => setExpandAbout(!expandAbout)}
       >
         <Text style={styles.previewSectionTitle}>About</Text>
-        <Ionicons name={expandAbout ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+        {expandAbout ? <ChevronUpIcon size={20} color={Colors.text.secondary} /> : <ChevronDownIcon size={20} color={Colors.text.secondary} />}
       </TouchableOpacity>
       {expandAbout && (
         <Text style={styles.previewSectionBody}>{description}</Text>
@@ -588,7 +588,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         onPress={() => setExpandAttachments(!expandAttachments)}
       >
         <Text style={styles.previewSectionTitle}>Attachments</Text>
-        <Ionicons name={expandAttachments ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+        {expandAttachments ? <ChevronUpIcon size={20} color={Colors.text.secondary} /> : <ChevronDownIcon size={20} color={Colors.text.secondary} />}
       </TouchableOpacity>
 
       <View style={styles.previewDivider} />
@@ -610,7 +610,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         onPress={() => setExpandRules(!expandRules)}
       >
         <Text style={styles.previewSectionTitle}>Bubble Rules</Text>
-        <Ionicons name={expandRules ? 'chevron-up' : 'chevron-down'} size={20} color={Colors.text.secondary} />
+        {expandRules ? <ChevronUpIcon size={20} color={Colors.text.secondary} /> : <ChevronDownIcon size={20} color={Colors.text.secondary} />}
       </TouchableOpacity>
       {expandRules && allRules.map((rule, i) => (
         <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>

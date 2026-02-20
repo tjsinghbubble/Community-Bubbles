@@ -22,6 +22,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -302,11 +303,7 @@ export default function PendingReviewsScreen() {
             </View>
           )}
         </View>
-        <Ionicons
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={Colors.neutral.coolMist}
-        />
+        {isExpanded ? <ChevronUpIcon size={20} color={Colors.neutral.coolMist} /> : <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />}
       </TouchableOpacity>
     );
   };

@@ -25,6 +25,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { ChevronDownIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -290,7 +291,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Text style={styles.selectText}>
                 {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label || 'Public'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+              <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 

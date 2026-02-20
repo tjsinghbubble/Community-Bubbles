@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
-import { EyeIcon, EyeOffIcon } from '../../components/icons';
+import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -138,7 +138,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
 
@@ -151,7 +151,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
               <Text style={styles.helperText}>
                 To keep the community safe, we only allow members 18 and up.

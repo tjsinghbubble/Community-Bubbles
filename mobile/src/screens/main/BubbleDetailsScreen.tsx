@@ -29,6 +29,7 @@ import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import { ChevronDownIcon, ChevronUpIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -551,11 +552,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAboutExpanded(!aboutExpanded)}>
         <Text style={styles.sectionHeading}>About</Text>
-        <Ionicons
-          name={aboutExpanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={Colors.text.primary}
-        />
+        {aboutExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
       {aboutExpanded && (
         <Text style={styles.bodyText}>
@@ -569,11 +566,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
         <Text style={styles.sectionHeading}>Attachments</Text>
-        <Ionicons
-          name={attachmentsExpanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={Colors.text.primary}
-        />
+        {attachmentsExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
       {attachmentsExpanded && (
         <View>
