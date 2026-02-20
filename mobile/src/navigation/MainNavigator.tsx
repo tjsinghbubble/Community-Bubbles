@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
@@ -12,6 +11,7 @@ import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
+import { ExploreIcon, UpcomingIcon, BubblesIcon, MessagesIcon, ProfileIcon } from '../components/icons';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -81,8 +81,8 @@ export default function MainNavigator() {
           paddingBottom: bottomPadding,
           paddingTop: 8,
         },
-        tabBarActiveTintColor: 'hsl(210, 95%, 55%)',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#35A8F7',
+        tabBarInactiveTintColor: '#6A6A6A',
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '500',
@@ -94,7 +94,7 @@ export default function MainNavigator() {
         component={ExploreNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <ExploreIcon size={size} color={color} />
           ),
         }}
         listeners={({ navigation }) => ({
@@ -109,7 +109,7 @@ export default function MainNavigator() {
         component={UpcomingScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <UpcomingIcon size={size} color={color} />
           ),
         }}
       />
@@ -119,7 +119,7 @@ export default function MainNavigator() {
         options={{ 
           title: 'Bubbles',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="apps-outline" size={size} color={color} />
+            <BubblesIcon size={size} color={color} />
           ),
         }}
         listeners={({ navigation }) => ({
@@ -135,7 +135,7 @@ export default function MainNavigator() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name="chatbubble-outline" size={size} color={color} />
+              <MessagesIcon size={size} color={color} />
               {unreadMessages > 0 && (
                 <View style={badgeStyles.badge}>
                   <Text style={badgeStyles.badgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
@@ -158,7 +158,7 @@ export default function MainNavigator() {
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name="person-outline" size={size} color={color} />
+              <ProfileIcon size={size} color={color} />
               {adminCount > 0 && (
                 <View style={badgeStyles.badge}>
                   <Text style={badgeStyles.badgeText}>{adminCount > 99 ? '99+' : adminCount}</Text>
