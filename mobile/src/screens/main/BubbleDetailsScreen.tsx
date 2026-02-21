@@ -452,7 +452,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <View style={styles.kebabSeparatorMedium} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
             <FlagIcon size={20} color={Colors.status.error} />
-            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report a Concern</Text>
+            <Text style={styles.kebabItemText}>Report a Concern</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparatorLight} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
@@ -1218,7 +1218,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.lg,
   },
   kebabSeparatorMedium: {
-    height: 1,
+    height: 1.5,
     backgroundColor: '#D0D0D0',
     marginHorizontal: Spacing.lg,
   },

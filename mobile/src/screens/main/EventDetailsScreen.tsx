@@ -486,7 +486,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
-                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report a Concern</Text>
+                  <Text style={styles.kebabMenuText}>Report a Concern</Text>
                 </TouchableOpacity>
                 <View style={styles.kebabSeparator} />
                 <TouchableOpacity
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   kebabSeparatorMedium: {
-    height: 1,
+    height: 1.5,
     backgroundColor: '#D0D0D0',
     marginHorizontal: 16,
   },
