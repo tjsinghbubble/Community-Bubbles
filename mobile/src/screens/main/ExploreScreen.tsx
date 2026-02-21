@@ -22,6 +22,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
 import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
@@ -362,9 +363,10 @@ export default function ExploreScreen() {
   };
 
   const renderBubbleCard = (bubble: BubbleData) => (
-    <TouchableOpacity 
+    <AnimatedPressable
       key={bubble.id} 
       style={styles.card}
+      scaleValue={0.95}
       onPress={() => handleBubblePress(bubble)}
     >
       <View style={styles.imageContainer}>
@@ -378,13 +380,14 @@ export default function ExploreScreen() {
         <PeopleIcon size={12} color="#4D4D4D" />
         <Text style={styles.metaText}>{bubble.members} members</Text>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
   const renderEventCard = (event: EventData) => (
-    <TouchableOpacity 
+    <AnimatedPressable
       key={event.id} 
       style={styles.card}
+      scaleValue={0.95}
       onPress={() => handleEventPress(event)}
     >
       <View style={styles.imageContainer}>
@@ -409,7 +412,7 @@ export default function ExploreScreen() {
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
 

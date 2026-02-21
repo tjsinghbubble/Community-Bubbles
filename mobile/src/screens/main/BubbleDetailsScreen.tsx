@@ -28,6 +28,7 @@ import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { BubbleDetailsSkeleton } from '../../components/SkeletonLoader';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -632,8 +633,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
     if (isMember) {
       return (
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.leaveButton}
+          scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
         >
@@ -642,14 +644,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ) : (
             <Text style={styles.leaveButtonText}>Leave Bubble</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       );
     }
 
     if (membershipStatus === 'pending') {
       return (
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.pendingButton}
+          scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
         >
@@ -658,7 +661,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ) : (
             <Text style={styles.pendingButtonText}>Request Pending</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       );
     }
 
@@ -666,8 +669,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     const buttonLabel = (privacy === 'Request to Join' || privacy === 'Private') ? 'Request to Join' : 'Join Bubble';
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={styles.joinButton}
+        scaleValue={0.96}
         onPress={handleJoinLeave}
         disabled={isJoining}
       >
@@ -682,7 +686,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         ) : (
           <Text style={styles.joinButtonText}>{buttonLabel}</Text>
         )}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 

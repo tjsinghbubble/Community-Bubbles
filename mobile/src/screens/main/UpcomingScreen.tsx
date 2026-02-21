@@ -12,6 +12,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
@@ -191,11 +192,11 @@ export default function UpcomingScreen() {
               )}
 
               {group.events.map((event) => (
-                <TouchableOpacity
+                <AnimatedPressable
                   key={event.id}
                   style={styles.eventCard}
+                  scaleValue={0.97}
                   onPress={() => handleEventPress(event)}
-                  activeOpacity={0.7}
                 >
                   {event.bubble && (
                     <Text style={styles.bubbleName}>{event.bubble.title}</Text>
@@ -220,7 +221,7 @@ export default function UpcomingScreen() {
                       )}
                     </View>
                   </View>
-                </TouchableOpacity>
+                </AnimatedPressable>
               ))}
             </View>
           ))}

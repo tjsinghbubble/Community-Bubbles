@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -134,13 +135,13 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
 
   const renderPost = ({ item }: { item: BulletinPost }) => {
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={[
           styles.postCard,
           { borderLeftColor: item.postType.color, borderLeftWidth: 4 },
         ]}
+        scaleValue={0.97}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
-        activeOpacity={0.7}
       >
         <View style={styles.postTypeRow}>
           <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
@@ -169,7 +170,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             <Text style={styles.viewReplies}>View {item.replyCount === 1 ? '1 reply' : `${item.replyCount} replies`}</Text>
           )}
         </View>
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
