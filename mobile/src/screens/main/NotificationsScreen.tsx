@@ -278,7 +278,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 1,
+    borderBottomWidth: 1,
     borderBottomColor: Colors.border.light,
   },
   notifRowUnread: {
