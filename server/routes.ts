@@ -2352,7 +2352,7 @@ export async function registerRoutes(
         }
       }
 
-      const board = await storage.getOrCreateBulletinBoard(bubbleId);
+      const board = await storage.getOrCreateBulletinBoard(bubbleId, userId);
       const post = await storage.createBulletinPost({
         boardId: board.id,
         postTypeId: req.body.postTypeId,
@@ -2402,7 +2402,7 @@ export async function registerRoutes(
       if (!post) return res.status(404).json({ error: "Post not found" });
 
       const board = await storage.getBulletinBoard(req.params.postId);
-      const result = await storage.toggleBulletinPostPin(req.params.postId);
+      const result = await storage.toggleBulletinPostPin(req.params.postId, req.userId);
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

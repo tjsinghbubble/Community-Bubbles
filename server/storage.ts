@@ -194,13 +194,13 @@ export interface IStorage {
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
   getBulletinBoardById(boardId: string): Promise<BulletinBoard | undefined>;
-  getOrCreateBulletinBoard(bubbleId: string): Promise<BulletinBoard>;
+  getOrCreateBulletinBoard(bubbleId: string, userId?: string): Promise<BulletinBoard>;
   getBulletinPostTypes(): Promise<BulletinPostType[]>;
   getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]>;
   getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined>;
   createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
   deleteBulletinPost(postId: string): Promise<void>;
-  toggleBulletinPostPin(postId: string): Promise<BulletinPost | undefined>;
+  toggleBulletinPostPin(postId: string, userId?: string): Promise<BulletinPost | undefined>;
   getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]>;
   createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply>;
   getBulletinPostCount(bubbleId: string): Promise<number>;
@@ -1320,10 +1320,14 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getOrCreateBulletinBoard(bubbleId: string): Promise<BulletinBoard> {
+  async getOrCreateBulletinBoard(bubbleId: string, userId?: string): Promise<BulletinBoard> {
     const existing = await this.getBulletinBoard(bubbleId);
     if (existing) return existing;
-    const result = await db.insert(bulletinBoards).values({ bubbleId }).returning();
+    const result = await db.insert(bulletinBoards).values({
+      bubbleId,
+      createdBy: userId || null,
+      updatedBy: userId || null,
+    }).returning();
     return result[0];
   }
 
@@ -1376,7 +1380,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost> {
-    const result = await db.insert(bulletinPosts).values(post).returning();
+    const result = await db.insert(bulletinPosts).values({
+      ...post,
+      createdBy: post.authorId,
+      updatedBy: post.authorId,
+    }).returning();
     return result[0];
   }
 
@@ -1385,11 +1393,15 @@ export class DatabaseStorage implements IStorage {
     await db.delete(bulletinPosts).where(eq(bulletinPosts.id, postId));
   }
 
-  async toggleBulletinPostPin(postId: string): Promise<BulletinPost | undefined> {
+  async toggleBulletinPostPin(postId: string, userId?: string): Promise<BulletinPost | undefined> {
     const post = await db.select().from(bulletinPosts).where(eq(bulletinPosts.id, postId)).limit(1);
     if (!post[0]) return undefined;
     const result = await db.update(bulletinPosts)
-      .set({ isPinned: !post[0].isPinned })
+      .set({
+        isPinned: !post[0].isPinned,
+        updatedAt: new Date(),
+        updatedBy: userId || null,
+      })
       .where(eq(bulletinPosts.id, postId))
       .returning();
     return result[0];
@@ -1410,7 +1422,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply> {
-    const result = await db.insert(bulletinReplies).values(reply).returning();
+    const result = await db.insert(bulletinReplies).values({
+      ...reply,
+      createdBy: reply.authorId,
+      updatedBy: reply.authorId,
+    }).returning();
     return result[0];
   }
 

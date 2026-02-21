@@ -343,6 +343,9 @@ export const bulletinBoards = pgTable("bulletin_boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("bulletin_boards_bubble_id_unique").on(table.bubbleId),
 ]);
@@ -354,6 +357,10 @@ export const bulletinPostTypes = pgTable("bulletin_post_types", {
   color: text("color").notNull(),
   adminOnly: boolean("admin_only").notNull().default(false),
   displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const bulletinPosts = pgTable("bulletin_posts", {
@@ -365,6 +372,9 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   body: text("body").notNull(),
   isPinned: boolean("is_pinned").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const bulletinReplies = pgTable("bulletin_replies", {
@@ -373,26 +383,42 @@ export const bulletinReplies = pgTable("bulletin_replies", {
   authorId: varchar("author_id").notNull().references(() => users.id),
   body: text("body").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const insertBulletinBoardSchema = createInsertSchema(bulletinBoards).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export const insertBulletinPostTypeSchema = createInsertSchema(bulletinPostTypes).omit({
   id: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
   isPinned: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export const insertBulletinReplySchema = createInsertSchema(bulletinReplies).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export type BulletinBoard = typeof bulletinBoards.$inferSelect;
