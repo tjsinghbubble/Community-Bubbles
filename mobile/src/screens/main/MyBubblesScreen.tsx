@@ -19,6 +19,7 @@ import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import AnimatedPressable from '../../components/AnimatedPressable';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CARD_GAP = 12;
@@ -144,6 +145,9 @@ export default function MyBubblesScreen() {
 
       {displayBubbles.length === 0 ? (
         <View style={styles.empty}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="people-outline" size={40} color={Colors.brand.primary} />
+          </View>
           <Text style={styles.emptyTitle}>No bubbles yet</Text>
           <Text style={styles.emptySubtitle}>
             Join some bubbles from the Explore tab or create your own!
@@ -169,11 +173,11 @@ export default function MyBubblesScreen() {
         >
           <View style={styles.gridContainer}>
             {displayBubbles.map((bubble) => (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={bubble.id}
                 style={styles.gridCard}
+                scaleValue={0.95}
                 onPress={() => handleBubblePress(bubble)}
-                activeOpacity={0.7}
               >
                 <View style={styles.gridImageContainer}>
                   <Image
@@ -200,7 +204,7 @@ export default function MyBubblesScreen() {
                 <Text style={styles.gridRole}>
                   {bubble.role === 'admin' ? 'Admin' : 'Member'}
                 </Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             ))}
           </View>
         </ScrollView>
@@ -233,9 +237,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
     flex: 1,
     textAlign: 'center',
   },
@@ -259,27 +263,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
+    color: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.xxs,
+    fontWeight: Typography.weights.bold,
   },
   empty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: Spacing.xxl,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.background.brandTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 8,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.sm,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: Typography.lineHeight.base,
   },
   gridList: {
     padding: CARD_PADDING,
@@ -314,9 +327,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   gridCategoryText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
   },
   gridPendingBadge: {
     position: 'absolute',
@@ -328,9 +341,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   gridPendingText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.state.error,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.warning,
   },
   gridRejectedBadge: {
     position: 'absolute',
@@ -342,20 +355,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   gridRejectedText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.state.error,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.error,
   },
   gridTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginTop: 8,
+    fontSize: Typography.sizes.base + 1,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginTop: Spacing.sm,
   },
   gridRole: {
-    fontSize: 13,
-    color: Colors.neutral.coolMist,
-    marginTop: 2,
+    fontSize: Typography.sizes.sm + 2,
+    color: Colors.text.tertiary,
+    marginTop: Spacing.xxs,
   },
   createFirstButton: {
     flexDirection: 'row',
@@ -367,9 +380,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   createFirstButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
   },
   fab: {
     position: 'absolute',

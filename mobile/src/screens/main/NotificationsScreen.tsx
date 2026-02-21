@@ -16,6 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import AnimatedPressable from '../../components/AnimatedPressable';
 
 type NotificationItem = {
   id: string;
@@ -28,29 +29,29 @@ type NotificationItem = {
 };
 
 const ICON_MAP: Record<string, { name: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
-  bubble_join: { name: 'people', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  bubble_leave: { name: 'exit-outline', color: Colors.neutral.coolMist, bg: '#F5F6F8' },
-  bubble_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: '#E8F8EE' },
-  bubble_rejected: { name: 'close-circle', color: Colors.status.error, bg: '#FFEBEA' },
-  bubble_request_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: '#E8F8EE' },
-  bubble_request_rejected: { name: 'close-circle', color: Colors.status.error, bg: '#FFEBEA' },
-  bubble_join_request: { name: 'person-add', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  bubble_member_removed: { name: 'remove-circle', color: Colors.status.error, bg: '#FFEBEA' },
-  bubble_role_changed: { name: 'shield-checkmark', color: '#F59E0B', bg: '#FFF8E1' },
-  bubble_edited: { name: 'create-outline', color: '#F59E0B', bg: '#FFF8E1' },
-  membership_request: { name: 'person-add', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  event_created: { name: 'calendar', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  event_rsvp: { name: 'hand-right', color: Colors.status.success, bg: '#E8F8EE' },
-  event_unrsvp: { name: 'hand-left', color: Colors.status.warning, bg: '#FFF8E1' },
-  event_updated: { name: 'create-outline', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  event_cancelled: { name: 'close-circle-outline', color: Colors.status.error, bg: '#FFEBEA' },
-  event_full: { name: 'people-circle', color: '#F59E0B', bg: '#FFF8E1' },
-  event_reminder_24h: { name: 'alarm-outline', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
-  event_reminder_1h: { name: 'alarm', color: Colors.status.warning, bg: '#FFF8E1' },
-  waitlist_promoted: { name: 'arrow-up-circle', color: Colors.status.success, bg: '#E8F8EE' },
-  report_submitted: { name: 'flag', color: Colors.status.warning, bg: '#FFF8E1' },
-  report_resolved: { name: 'checkmark-done', color: Colors.status.success, bg: '#E8F8EE' },
-  admin_announcement: { name: 'megaphone', color: Colors.brand.bubbleBlue, bg: '#EBF5FF' },
+  bubble_join: { name: 'people', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  bubble_leave: { name: 'exit-outline', color: Colors.text.tertiary, bg: Colors.background.surface },
+  bubble_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: Colors.background.successTint },
+  bubble_rejected: { name: 'close-circle', color: Colors.status.error, bg: Colors.background.errorTint },
+  bubble_request_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: Colors.background.successTint },
+  bubble_request_rejected: { name: 'close-circle', color: Colors.status.error, bg: Colors.background.errorTint },
+  bubble_join_request: { name: 'person-add', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  bubble_member_removed: { name: 'remove-circle', color: Colors.status.error, bg: Colors.background.errorTint },
+  bubble_role_changed: { name: 'shield-checkmark', color: Colors.status.warning, bg: Colors.background.warningTint },
+  bubble_edited: { name: 'create-outline', color: Colors.status.warning, bg: Colors.background.warningTint },
+  membership_request: { name: 'person-add', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  event_created: { name: 'calendar', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  event_rsvp: { name: 'hand-right', color: Colors.status.success, bg: Colors.background.successTint },
+  event_unrsvp: { name: 'hand-left', color: Colors.status.warning, bg: Colors.background.warningTint },
+  event_updated: { name: 'create-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  event_cancelled: { name: 'close-circle-outline', color: Colors.status.error, bg: Colors.background.errorTint },
+  event_full: { name: 'people-circle', color: Colors.status.warning, bg: Colors.background.warningTint },
+  event_reminder_24h: { name: 'alarm-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  event_reminder_1h: { name: 'alarm', color: Colors.status.warning, bg: Colors.background.warningTint },
+  waitlist_promoted: { name: 'arrow-up-circle', color: Colors.status.success, bg: Colors.background.successTint },
+  report_submitted: { name: 'flag', color: Colors.status.warning, bg: Colors.background.warningTint },
+  report_resolved: { name: 'checkmark-done', color: Colors.status.success, bg: Colors.background.successTint },
+  admin_announcement: { name: 'megaphone', color: Colors.brand.primary, bg: Colors.background.brandTint },
 };
 
 function getTimeAgo(dateStr: string): string {
@@ -153,15 +154,15 @@ export default function NotificationsScreen() {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const renderNotification = ({ item }: { item: NotificationItem }) => {
-    const iconInfo = ICON_MAP[item.type] || { name: 'notifications' as keyof typeof Ionicons.glyphMap, color: Colors.brand.bubbleBlue, bg: '#EBF5FF' };
+    const iconInfo = ICON_MAP[item.type] || { name: 'notifications' as keyof typeof Ionicons.glyphMap, color: Colors.brand.primary, bg: Colors.background.brandTint };
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={[styles.notifRow, !item.read && styles.notifRowUnread]}
+        scaleValue={0.97}
         onPress={() => handleNotificationTap(item)}
         onLongPress={() => handleDeleteNotification(item.id)}
-        activeOpacity={0.7}
-        data-testid={`notification-item-${item.id}`}
+        testID={`notification-item-${item.id}`}
       >
         <View style={[styles.iconCircle, { backgroundColor: iconInfo.bg }]}>
           <Ionicons name={iconInfo.name} size={20} color={iconInfo.color} />
@@ -176,7 +177,7 @@ export default function NotificationsScreen() {
           <Text style={styles.notifTime}>{getTimeAgo(item.createdAt)}</Text>
         </View>
         {!item.read && <View style={styles.unreadDot} />}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
@@ -207,7 +208,9 @@ export default function NotificationsScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="notifications-off-outline" size={64} color={Colors.neutral.coolMist} />
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="notifications-outline" size={40} color={Colors.brand.primary} />
+          </View>
           <Text style={styles.emptyTitle}>No notifications yet</Text>
           <Text style={styles.emptySubtitle}>
             When something happens in your bubbles or events, you'll see it here
@@ -254,18 +257,18 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: Typography.sizes.xl,
-    fontWeight: '700',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
   },
   markAllButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.xs + 2,
+    paddingHorizontal: Spacing.md,
   },
   markAllText: {
     fontSize: Typography.sizes.base,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.semiBold,
   },
   listContent: {
     paddingBottom: 40,
@@ -294,18 +297,18 @@ const styles = StyleSheet.create({
   },
   notifTitle: {
     fontSize: Typography.sizes.base,
-    fontWeight: '500',
+    fontWeight: Typography.weights.medium,
     color: Colors.text.primary,
-    marginBottom: 2,
+    marginBottom: Spacing.xxs,
   },
   notifTitleUnread: {
-    fontWeight: '700',
+    fontWeight: Typography.weights.bold,
   },
   notifBody: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
-    lineHeight: 16,
-    marginBottom: 4,
+    lineHeight: Typography.lineHeight.sm,
+    marginBottom: Spacing.xs,
   },
   notifTime: {
     fontSize: Typography.sizes.xs,
@@ -322,19 +325,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: Spacing.xxxxl,
+  },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.background.brandTint,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyTitle: {
     fontSize: Typography.sizes.lg,
-    fontWeight: '600',
+    fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
   emptySubtitle: {
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: Typography.lineHeight.base,
   },
 });

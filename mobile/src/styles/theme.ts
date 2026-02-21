@@ -13,6 +13,10 @@ export const Colors = {
     secondary: '#FAFAFA',
     surface: '#F5F6F8',
     card: '#FFFFFF',
+    brandTint: '#EBF5FF',
+    successTint: '#E8F8EE',
+    warningTint: '#FFF8E1',
+    errorTint: '#FFEBEA',
   },
 
   border: {

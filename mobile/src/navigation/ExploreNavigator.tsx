@@ -68,7 +68,7 @@ const Stack = createNativeStackNavigator<ExploreStackParamList>();
 
 export default function ExploreNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
       <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreen} />
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />

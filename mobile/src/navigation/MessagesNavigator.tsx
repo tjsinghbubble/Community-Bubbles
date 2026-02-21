@@ -12,7 +12,7 @@ const Stack = createNativeStackNavigator<MessagesStackParamList>();
 
 export default function MessagesNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreen} />
     </Stack.Navigator>

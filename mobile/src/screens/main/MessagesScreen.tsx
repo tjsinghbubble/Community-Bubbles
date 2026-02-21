@@ -14,10 +14,12 @@ import {
 } from 'react-native';
 import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import AnimatedPressable from '../../components/AnimatedPressable';
 
 type Conversation = {
   conversationId: string;
@@ -244,6 +246,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle}>Messages</Text>
         </View>
         <View style={styles.empty}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="chatbubbles-outline" size={40} color={Colors.brand.primary} />
+          </View>
           <Text style={styles.emptyTitle}>No messages yet</Text>
           <Text style={styles.emptySubtitle}>
             Join some bubbles to start chatting with your community!
@@ -266,9 +271,10 @@ export default function MessagesScreen({ navigation, route }: Props) {
         }
       >
         {conversations.map((conversation) => (
-          <TouchableOpacity
+          <AnimatedPressable
             key={conversation.conversationId}
             style={styles.conversationItem}
+            scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
           >
             {renderAvatar(conversation)}
@@ -300,7 +306,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
                 )}
               </View>
             </View>
-          </TouchableOpacity>
+          </AnimatedPressable>
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -314,15 +320,15 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    padding: 20,
-    paddingTop: 20,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.border.light,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
     textAlign: 'center',
   },
   loading: {
@@ -336,17 +342,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: Colors.background.brandTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 8,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.sm,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: Typography.lineHeight.base,
   },
   list: {
     paddingVertical: 8,
@@ -421,8 +436,8 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: Colors.brand.skyWhite,
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.semiBold,
   },
   conversationContent: {
     flex: 1,
@@ -434,15 +449,15 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   groupName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   time: {
-    fontSize: 12,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
   },
   conversationFooter: {
     flexDirection: 'row',
@@ -450,23 +465,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lastMessage: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
     flex: 1,
-    marginRight: 8,
+    marginRight: Spacing.sm,
   },
   unreadBadge: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.sm + 2,
+    minWidth: Spacing.xl,
+    height: Spacing.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: Spacing.xs + 2,
   },
   unreadText: {
     color: Colors.brand.skyWhite,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
   },
 });

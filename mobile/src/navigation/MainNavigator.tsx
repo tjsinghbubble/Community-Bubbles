@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, Typography, Spacing } from '../styles/theme';
 import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
@@ -70,22 +71,22 @@ export default function MainNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: Colors.background.primary,
           borderTopWidth: 0,
           elevation: 8,
-          shadowColor: '#000',
+          shadowColor: Colors.neutral.black,
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
           height: 60 + bottomPadding,
           paddingBottom: bottomPadding,
-          paddingTop: 8,
+          paddingTop: Spacing.sm,
         },
-        tabBarActiveTintColor: '#35A8F7',
-        tabBarInactiveTintColor: '#6A6A6A',
+        tabBarActiveTintColor: Colors.brand.primary,
+        tabBarInactiveTintColor: Colors.text.secondary,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: Typography.sizes.sm,
+          fontWeight: Typography.weights.medium,
         },
       }}
     >
@@ -183,17 +184,17 @@ const badgeStyles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -10,
-    backgroundColor: '#FF3B30',
+    backgroundColor: Colors.status.error,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: Spacing.xs,
   },
   badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    color: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.bold,
   },
 });
