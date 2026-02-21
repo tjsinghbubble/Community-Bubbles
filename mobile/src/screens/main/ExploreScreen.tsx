@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { CreateBubbleEventIcon } from '../../components/icons';
+import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
@@ -308,8 +308,7 @@ export default function ExploreScreen() {
         onPress={() => setActiveTab('bubbles')}
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
-          <Ionicons 
-            name="chatbubbles-outline" 
+          <BubblesIcon 
             size={28} 
             color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
