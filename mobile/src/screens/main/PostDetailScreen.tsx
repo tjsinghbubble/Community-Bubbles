@@ -128,10 +128,10 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     return (
       <View style={[styles.replyCard, isOwn && styles.ownReplyCard]}>
         <View style={styles.replyHeader}>
-          <Text style={[styles.replyAuthor, isOwn && styles.ownReplyAuthor]}>{isOwn ? 'You' : item.author.name}</Text>
+          <Text style={styles.replyAuthor}>{isOwn ? 'You' : item.author.name}</Text>
           <Text style={styles.replyTime}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
-        <Text style={[styles.replyBody, isOwn && styles.ownReplyBody]}>{item.body}</Text>
+        <Text style={styles.replyBody}>{item.body}</Text>
       </View>
     );
   };
@@ -274,8 +274,6 @@ const styles = StyleSheet.create({
   },
   ownPostContainer: {
     marginLeft: '25%',
-    borderLeftColor: Colors.brand.primary,
-    backgroundColor: '#EBF5FF',
   },
   postTypeRow: {
     flexDirection: 'row',
@@ -346,9 +344,6 @@ const styles = StyleSheet.create({
   },
   ownReplyCard: {
     marginLeft: '25%',
-    backgroundColor: '#EBF5FF',
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.brand.primary,
   },
   replyHeader: {
     flexDirection: 'row',
@@ -361,9 +356,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
   },
-  ownReplyAuthor: {
-    color: Colors.brand.primary,
-  },
   replyTime: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
@@ -372,9 +364,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     lineHeight: 20,
-  },
-  ownReplyBody: {
-    color: Colors.text.primary,
   },
   inputContainer: {
     flexDirection: 'row',
