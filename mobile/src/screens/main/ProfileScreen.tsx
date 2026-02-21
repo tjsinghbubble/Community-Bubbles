@@ -129,6 +129,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
           <View>
@@ -255,12 +256,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: '#F5F6F8',
     paddingHorizontal: 20,
     paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   headerTitle: {
     fontSize: 16,
