@@ -2425,8 +2425,11 @@ export async function registerRoutes(
       const post = await storage.getBulletinPost(req.params.postId);
       if (!post) return res.status(404).json({ error: "Post not found" });
 
-      const membership = await storage.getMembership(post.bubbleId, req.userId!);
-      if (!membership || membership.status !== 'approved') {
+      const board = await storage.getBulletinBoardById(post.boardId);
+      if (!board) return res.status(404).json({ error: "Board not found" });
+
+      const membershipStatus = await storage.getMembershipStatus(req.userId!, board.bubbleId);
+      if (!membershipStatus || membershipStatus !== 'approved') {
         return res.status(403).json({ error: "Must be a member to reply" });
       }
 

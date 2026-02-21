@@ -193,6 +193,7 @@ export interface IStorage {
 
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
+  getBulletinBoardById(boardId: string): Promise<BulletinBoard | undefined>;
   getOrCreateBulletinBoard(bubbleId: string): Promise<BulletinBoard>;
   getBulletinPostTypes(): Promise<BulletinPostType[]>;
   getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]>;
@@ -1311,6 +1312,11 @@ export class DatabaseStorage implements IStorage {
 
   async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {
     const result = await db.select().from(bulletinBoards).where(eq(bulletinBoards.bubbleId, bubbleId)).limit(1);
+    return result[0];
+  }
+
+  async getBulletinBoardById(boardId: string): Promise<BulletinBoard | undefined> {
+    const result = await db.select().from(bulletinBoards).where(eq(bulletinBoards.id, boardId)).limit(1);
     return result[0];
   }
 
