@@ -142,7 +142,7 @@ export default function UpcomingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Upcoming Events</Text>
+        <Text style={styles.headerTitle}>My Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
@@ -243,9 +243,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+    flex: 1,
+    textAlign: 'center',
   },
   bellButton: {
     width: 40,

@@ -320,9 +320,10 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.neutral.coolMist,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+    textAlign: 'center',
   },
   loading: {
     flex: 1,

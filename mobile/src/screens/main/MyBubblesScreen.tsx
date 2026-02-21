@@ -129,7 +129,7 @@ export default function MyBubblesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Bubbles</Text>
+        <Text style={styles.headerTitle}>My Bubbles</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
@@ -233,9 +233,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+    flex: 1,
+    textAlign: 'center',
   },
   bellButton: {
     width: 40,
