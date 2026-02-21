@@ -142,7 +142,7 @@ export default function UpcomingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Upcoming Events</Text>
+        <Text style={styles.headerTitle}>Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
