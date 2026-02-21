@@ -26,6 +26,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, PeopleIcon, FlagIcon, CrownIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
+import { EventDetailsSkeleton } from '../../components/SkeletonLoader';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
@@ -414,9 +415,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   if (isLoading || !event) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.brand.primary} />
-        </View>
+        <EventDetailsSkeleton />
       </SafeAreaView>
     );
   }

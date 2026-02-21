@@ -21,6 +21,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
+import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
@@ -419,8 +420,8 @@ export default function ExploreScreen() {
           {renderSearchHeader()}
           {renderTabs()}
         </View>
-        <View style={[styles.loading, { paddingTop: HEADER_EXPANDED }]}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+        <View style={{ paddingTop: HEADER_EXPANDED }}>
+          <ExploreGridSkeleton />
         </View>
       </View>
     );

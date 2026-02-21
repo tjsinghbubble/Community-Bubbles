@@ -27,6 +27,7 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
+import { BubbleDetailsSkeleton } from '../../components/SkeletonLoader';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -802,9 +803,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.brand.primary} />
-        </View>
+        <BubbleDetailsSkeleton />
       </SafeAreaView>
     );
   }

@@ -19,6 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -217,9 +218,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       {renderFilterTabs()}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.brand.primary} />
-        </View>
+        <BulletinBoardSkeleton />
       ) : (
         <FlatList
           data={posts}

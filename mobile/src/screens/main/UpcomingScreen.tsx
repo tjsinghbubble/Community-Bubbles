@@ -16,6 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
 
 type UpcomingEvent = {
   id: string;
@@ -132,9 +133,15 @@ export default function UpcomingScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Upcoming Events</Text>
+          <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+            <View>
+              <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            </View>
+          </TouchableOpacity>
         </View>
+        <UpcomingScreenSkeleton />
       </SafeAreaView>
     );
   }
