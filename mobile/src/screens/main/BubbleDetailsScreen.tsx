@@ -1062,6 +1062,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
     color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
     marginTop: Spacing.md,
     marginHorizontal: Spacing.xl,
   },
@@ -1069,8 +1070,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   greenDot: {
     width: 8,
@@ -1085,9 +1086,9 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: Colors.border.default,
     marginHorizontal: Spacing.xl,
-    marginVertical: Spacing.lg,
+    marginVertical: Spacing.xl,
   },
   section: {
     paddingHorizontal: Spacing.xl,
@@ -1096,11 +1097,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   sectionHeading: {
     fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
   },
   linkText: {
@@ -1128,12 +1129,12 @@ const styles = StyleSheet.create({
   bulletinBody: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
-    lineHeight: 18,
+    lineHeight: Typography.lineHeight.sm,
   },
   bodyText: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
-    lineHeight: 20,
+    lineHeight: Typography.lineHeight.base,
   },
   attachmentItem: {
     flexDirection: 'row',

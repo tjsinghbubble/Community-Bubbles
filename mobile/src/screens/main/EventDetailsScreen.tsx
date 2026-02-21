@@ -902,9 +902,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
     flex: 1,
     textAlign: 'center',
     marginHorizontal: Spacing.sm,
@@ -944,7 +944,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   kebabMenuText: {
-    fontSize: 15,
+    fontSize: Typography.sizes.base,
     color: Colors.text.primary,
   },
   kebabSeparator: {
@@ -995,14 +995,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   spotsGreenText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#34C759',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.success,
   },
   waitlistCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF9500',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.warning,
   },
   dateTimeRsvpRow: {
     flexDirection: 'row',
@@ -1039,8 +1039,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9500',
   },
   rsvpDropdownButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
     color: '#FFFFFF',
   },
   rsvpDropdownMenu: {
@@ -1070,9 +1070,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   rsvpDropdownItemText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.primary,
   },
   rsvpDropdownDivider: {
     height: 1,
@@ -1094,23 +1094,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#4D4D4D',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
     flex: 1,
+    lineHeight: Typography.lineHeight.base,
   },
   viewLink: {
     marginLeft: Spacing.sm,
   },
   viewLinkText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   separator: {
     height: 1,
-    backgroundColor: '#D9D9D9',
-    marginVertical: Spacing.lg,
+    backgroundColor: Colors.border.default,
+    marginVertical: Spacing.xl,
   },
   creatorRow: {
     flexDirection: 'row',
@@ -1135,18 +1136,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   creatorLabel: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
   },
   creatorName: {
-    fontWeight: '600',
+    fontWeight: Typography.weights.semiBold,
   },
   creatorCity: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#4D4D4D',
-    marginTop: 1,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -1165,23 +1167,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationLandmark: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
   },
   locationAddress: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#4D4D4D',
-    marginTop: 1,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
   mapSection: {
     marginBottom: 0,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
     marginBottom: Spacing.md,
   },
   mapContainer: {
@@ -1213,8 +1215,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   directionsText: {
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   bulletinSection: {
@@ -1251,15 +1253,15 @@ const styles = StyleSheet.create({
     paddingRight: 50,
   },
   bulletinTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     marginBottom: Spacing.xs,
   },
   bulletinBody: {
-    fontSize: 12,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
-    lineHeight: 18,
+    lineHeight: Typography.lineHeight.sm,
   },
   bulletinTime: {
     fontSize: 11,
@@ -1278,8 +1280,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   addButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   eventReportOverlay: {
