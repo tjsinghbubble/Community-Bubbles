@@ -155,7 +155,7 @@ export default function ProfileScreen() {
           )}
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 241</Text>
+          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 243</Text>
         </View>
 
         <View style={styles.section}>
@@ -258,16 +258,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.skyWhite,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+    flex: 1,
+    textAlign: 'center',
   },
   bellButton: {
     width: 40,
@@ -393,8 +393,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
   },
   menuItemLeft: {
     flexDirection: 'row',

@@ -302,16 +302,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   timelineSeparator: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 24,
-    gap: 12,
   },
   timelineLine: {
-    width: 1,
-    height: 20,
-    backgroundColor: Colors.neutral.coolMist,
-    alignSelf: 'center',
+    display: 'none',
   },
   timelineSeparatorText: {
     fontSize: 18,
