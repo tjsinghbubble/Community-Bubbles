@@ -54,21 +54,21 @@ export const Colors = {
   },
 
   gradient: {
-    gradient2Start: '#35A8F7',
-    gradient2End: '#FFFFFF',
+    gradient2Start: '#5FC3F8',
+    gradient2End: '#35A8F7',
   },
 };
 
 export const Gradients = {
   button: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0, y: 0 },
-    end: { x: 0.65, y: 1.65 },
+    start: { x: 0.2, y: 0 },
+    end: { x: 0.8, y: 1 },
   },
   alert: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0, y: 0 },
-    end: { x: 0.65, y: 1.65 },
+    start: { x: 0.2, y: 0 },
+    end: { x: 0.8, y: 1 },
   },
 };
 
