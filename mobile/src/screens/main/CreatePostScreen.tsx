@@ -12,6 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import MultiImagePicker from '../../components/MultiImagePicker';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'CreatePost'>;
@@ -36,12 +38,13 @@ type PostType = {
 };
 
 export default function CreatePostScreen({ navigation, route }: Props) {
-  const { bubbleId } = route.params;
+  const { bubbleId, preselectedTypeId } = route.params;
   const { token, user } = useAuth();
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -58,11 +61,26 @@ export default function CreatePostScreen({ navigation, route }: Props) {
         const myMembership = (membershipsRes as any[]).find?.((m: any) => m.userId === user?.id);
         setUserRole(myMembership?.role || null);
 
-        const firstAvailable = typesRes.find((pt: PostType) => {
-          if (pt.adminOnly && myMembership?.role !== 'admin' && !user?.isSuperAdmin) return false;
-          return true;
-        });
-        if (firstAvailable) setSelectedTypeId(firstAvailable.id);
+        const isAdminUser = myMembership?.role === 'admin' || user?.isSuperAdmin;
+
+        if (preselectedTypeId) {
+          const preselected = typesRes.find((pt: PostType) => pt.id === preselectedTypeId);
+          if (preselected && (!preselected.adminOnly || isAdminUser)) {
+            setSelectedTypeId(preselectedTypeId);
+          } else {
+            const firstAvailable = typesRes.find((pt: PostType) => {
+              if (pt.adminOnly && !isAdminUser) return false;
+              return true;
+            });
+            if (firstAvailable) setSelectedTypeId(firstAvailable.id);
+          }
+        } else {
+          const firstAvailable = typesRes.find((pt: PostType) => {
+            if (pt.adminOnly && !isAdminUser) return false;
+            return true;
+          });
+          if (firstAvailable) setSelectedTypeId(firstAvailable.id);
+        }
       } catch (err) {
         console.error('Failed to load post types:', err);
       } finally {
@@ -83,6 +101,7 @@ export default function CreatePostScreen({ navigation, route }: Props) {
         postTypeId: selectedTypeId,
         title: title.trim(),
         body: body.trim(),
+        imageUrl: images[0] || undefined,
       });
       navigation.goBack();
     } catch (err: any) {
@@ -187,6 +206,16 @@ export default function CreatePostScreen({ navigation, route }: Props) {
             textAlignVertical="top"
             maxLength={2000}
           />
+
+          <Text style={styles.label}>Photo (optional)</Text>
+          <MultiImagePicker
+            images={images}
+            onImagesChange={setImages}
+            maxImages={1}
+            addLabel="Add a photo"
+          />
+
+          <View style={{ height: Spacing.xxxl }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -303,5 +332,6 @@ const styles = StyleSheet.create({
     minHeight: 150,
     borderWidth: 1,
     borderColor: Colors.border.light,
+    marginBottom: Spacing.xl,
   },
 });

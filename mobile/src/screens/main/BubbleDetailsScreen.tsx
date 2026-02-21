@@ -85,6 +85,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [bubbleReportReason, setBubbleReportReason] = useState<string | null>(null);
   const [bubbleReportFreeText, setBubbleReportFreeText] = useState('');
   const [bubbleReportSubmitting, setBubbleReportSubmitting] = useState(false);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
     checkMembership();
@@ -96,8 +97,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     useCallback(() => {
       fetchEvents();
       fetchMemberCount();
+      fetchAnnouncements();
     }, [bubble.id])
   );
+
+  const fetchAnnouncements = async () => {
+    try {
+      const postTypes = await apiService.getBulletinPostTypes();
+      const announcementType = postTypes.find((pt: any) => pt.name === 'announcements');
+      if (announcementType) {
+        const posts = await apiService.getBulletinPosts(bubble.id, announcementType.id);
+        setAnnouncements(posts.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Failed to fetch announcements:', error);
+    }
+  };
 
   const fetchBubbleDetails = async () => {
     try {
@@ -539,13 +554,24 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.linkText}>view all {'>'}</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.bulletinCard}>
-        <Text style={styles.pinIcon}>📌</Text>
-        <Text style={styles.bulletinTitle}>Welcome to {bubble.title}!</Text>
-        <Text style={styles.bulletinBody}>
-          Thanks for joining our community. Please read the guidelines and introduce yourself. We're excited to have you here!
-        </Text>
-      </View>
+      {announcements.length > 0 ? (
+        announcements.map((post: any) => (
+          <TouchableOpacity
+            key={post.id}
+            style={[styles.bulletinCard, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: '#FF9800' }]}
+            onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id, bubbleId: bubble.id })}
+            activeOpacity={0.7}
+          >
+            {post.isPinned && <Text style={styles.pinIcon}>📌</Text>}
+            <Text style={styles.bulletinTitle}>{post.title}</Text>
+            <Text style={styles.bulletinBody} numberOfLines={2}>{post.body}</Text>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <View style={styles.bulletinCard}>
+          <Text style={styles.bulletinBody}>No announcements yet.</Text>
+        </View>
+      )}
     </View>
   );
 

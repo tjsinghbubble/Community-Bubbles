@@ -2352,6 +2352,11 @@ export async function registerRoutes(
         }
       }
 
+      const modResult = moderateText({ title: req.body.title, body: req.body.body });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
+      }
+
       const board = await storage.getOrCreateBulletinBoard(bubbleId, userId);
       const post = await storage.createBulletinPost({
         boardId: board.id,
@@ -2359,6 +2364,7 @@ export async function registerRoutes(
         authorId: userId,
         title: req.body.title,
         body: req.body.body,
+        imageUrl: req.body.imageUrl || null,
       });
       res.json(post);
     } catch (error: any) {
@@ -2431,6 +2437,11 @@ export async function registerRoutes(
       const membershipStatus = await storage.getMembershipStatus(req.userId!, board.bubbleId);
       if (!membershipStatus || membershipStatus !== 'approved') {
         return res.status(403).json({ error: "Must be a member to reply" });
+      }
+
+      const replyModResult = moderateText({ body: req.body.body });
+      if (replyModResult.flagged) {
+        return res.status(400).json({ error: replyModResult.message });
       }
 
       const reply = await storage.createBulletinReply({

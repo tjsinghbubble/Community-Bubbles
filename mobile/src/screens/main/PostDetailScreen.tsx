@@ -11,6 +11,8 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -42,8 +44,10 @@ type BulletinPost = {
   id: string;
   title: string;
   body: string;
+  imageUrl?: string | null;
   isPinned: boolean;
   createdAt: string;
+  authorId: string;
   author: Author;
   postType: PostType;
 };
@@ -51,6 +55,7 @@ type BulletinPost = {
 type BulletinReply = {
   id: string;
   postId: string;
+  authorId: string;
   body: string;
   createdAt: string;
   author: Author;
@@ -108,24 +113,28 @@ export default function PostDetailScreen({ navigation, route }: Props) {
     try {
       setSubmitting(true);
       const newReply = await apiService.createBulletinReply(postId, replyText.trim());
-      setReplies(prev => [...prev, { ...newReply, author: { id: user!.id, name: user!.name, profilePhoto: user!.profilePhoto } }]);
+      setReplies(prev => [...prev, { ...newReply, authorId: user!.id, author: { id: user!.id, name: user!.name, profilePhoto: user!.profilePhoto } }]);
       setReplyText('');
-    } catch (err) {
-      console.error('Failed to submit reply:', err);
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to submit reply';
+      Alert.alert('Error', msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const renderReply = ({ item }: { item: BulletinReply }) => (
-    <View style={styles.replyCard}>
-      <View style={styles.replyHeader}>
-        <Text style={styles.replyAuthor}>{item.author.name}</Text>
-        <Text style={styles.replyTime}>{formatTimeAgo(item.createdAt)}</Text>
+  const renderReply = ({ item }: { item: BulletinReply }) => {
+    const isOwn = user?.id === item.authorId;
+    return (
+      <View style={[styles.replyCard, isOwn && styles.ownReplyCard]}>
+        <View style={styles.replyHeader}>
+          <Text style={[styles.replyAuthor, isOwn && styles.ownReplyAuthor]}>{isOwn ? 'You' : item.author.name}</Text>
+          <Text style={styles.replyTime}>{formatTimeAgo(item.createdAt)}</Text>
+        </View>
+        <Text style={[styles.replyBody, isOwn && styles.ownReplyBody]}>{item.body}</Text>
       </View>
-      <Text style={styles.replyBody}>{item.body}</Text>
-    </View>
-  );
+    );
+  };
 
   if (loading || !post) {
     return (
@@ -136,6 +145,8 @@ export default function PostDetailScreen({ navigation, route }: Props) {
       </SafeAreaView>
     );
   }
+
+  const isOwnPost = user?.id === post.authorId;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -159,7 +170,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
-            <View style={[styles.postContainer, { borderLeftColor: post.postType.color, borderLeftWidth: 4 }]}>
+            <View style={[
+              styles.postContainer,
+              { borderLeftColor: post.postType.color, borderLeftWidth: 4 },
+              isOwnPost && styles.ownPostContainer,
+            ]}>
               <View style={styles.postTypeRow}>
                 <View style={[styles.postTypeBadge, { backgroundColor: post.postType.color + '20' }]}>
                   <Text style={[styles.postTypeBadgeText, { color: post.postType.color }]}>{post.postType.displayName}</Text>
@@ -170,8 +185,11 @@ export default function PostDetailScreen({ navigation, route }: Props) {
               </View>
               <Text style={styles.postTitle}>{post.title}</Text>
               <Text style={styles.postBody}>{post.body}</Text>
+              {post.imageUrl && (
+                <Image source={{ uri: post.imageUrl }} style={styles.postImage} resizeMode="cover" />
+              )}
               <View style={styles.postMeta}>
-                <Text style={styles.postAuthor}>{post.author.name}</Text>
+                <Text style={styles.postAuthor}>{isOwnPost ? 'You' : post.author.name}</Text>
                 <Text style={styles.postDot}> · </Text>
                 <Text style={styles.postTime}>{formatTimeAgo(post.createdAt)}</Text>
               </View>
@@ -254,6 +272,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.light,
   },
+  ownPostContainer: {
+    marginLeft: '25%',
+    borderLeftColor: Colors.brand.primary,
+    backgroundColor: '#EBF5FF',
+  },
   postTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,6 +302,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
     lineHeight: 22,
+    marginBottom: Spacing.md,
+  },
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
   },
   postMeta: {
@@ -315,6 +344,12 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
+  ownReplyCard: {
+    marginLeft: '25%',
+    backgroundColor: '#EBF5FF',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.brand.primary,
+  },
   replyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -326,6 +361,9 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
   },
+  ownReplyAuthor: {
+    color: Colors.brand.primary,
+  },
   replyTime: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
@@ -334,6 +372,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     lineHeight: 20,
+  },
+  ownReplyBody: {
+    color: Colors.text.primary,
   },
   inputContainer: {
     flexDirection: 'row',

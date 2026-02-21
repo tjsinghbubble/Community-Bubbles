@@ -61,7 +61,7 @@ export type ExploreStackParamList = {
   Notifications: undefined;
   BulletinBoard: { bubbleId: string; bubbleTitle: string };
   PostDetail: { postId: string; bubbleId: string };
-  CreatePost: { bubbleId: string; bubbleTitle: string };
+  CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();

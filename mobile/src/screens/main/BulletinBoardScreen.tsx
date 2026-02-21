@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   StatusBar,
   ScrollView,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -45,6 +46,7 @@ type BulletinPost = {
   authorId: string;
   title: string;
   body: string;
+  imageUrl?: string | null;
   isPinned: boolean;
   createdAt: string;
   author: PostAuthor;
@@ -69,7 +71,7 @@ function formatTimeAgo(dateStr: string): string {
 
 export default function BulletinBoardScreen({ navigation, route }: Props) {
   const { bubbleId, bubbleTitle } = route.params;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [posts, setPosts] = useState<BulletinPost[]>([]);
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
@@ -101,6 +103,14 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     setSelectedTypeId(typeId);
   };
 
+  const handleCreatePost = () => {
+    navigation.navigate('CreatePost', {
+      bubbleId,
+      bubbleTitle,
+      preselectedTypeId: selectedTypeId ?? undefined,
+    });
+  };
+
   const renderFilterTabs = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
       <TouchableOpacity
@@ -121,44 +131,56 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
-  const renderPost = ({ item }: { item: BulletinPost }) => (
-    <TouchableOpacity
-      style={[styles.postCard, { borderLeftColor: item.postType.color, borderLeftWidth: 4 }]}
-      onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
-      activeOpacity={0.7}
-    >
-      <View style={styles.postTypeRow}>
-        <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
-          <Text style={[styles.postTypeBadgeText, { color: item.postType.color }]}>{item.postType.displayName}</Text>
+  const isOwnPost = (post: BulletinPost) => user?.id === post.authorId;
+
+  const renderPost = ({ item }: { item: BulletinPost }) => {
+    const own = isOwnPost(item);
+    return (
+      <TouchableOpacity
+        style={[
+          styles.postCard,
+          { borderLeftColor: item.postType.color, borderLeftWidth: 4 },
+          own && styles.ownPostCard,
+        ]}
+        onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
+        activeOpacity={0.7}
+      >
+        <View style={styles.postTypeRow}>
+          <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
+            <Text style={[styles.postTypeBadgeText, { color: item.postType.color }]}>{item.postType.displayName}</Text>
+          </View>
+          {item.isPinned && (
+            <Ionicons name="pin" size={16} color={Colors.brand.primary} style={styles.pinIcon} />
+          )}
         </View>
-        {item.isPinned && (
-          <Ionicons name="pin" size={16} color={Colors.brand.primary} style={styles.pinIcon} />
+        <Text style={styles.postTitle}>{item.title}</Text>
+        <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
+        {item.imageUrl && (
+          <Image source={{ uri: item.imageUrl }} style={styles.postImage} resizeMode="cover" />
         )}
-      </View>
-      <Text style={styles.postTitle}>{item.title}</Text>
-      <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
-      <View style={styles.postMeta}>
-        <Text style={styles.postAuthor}>{item.author.name.split(' ')[0]} {item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}</Text>
-        <Text style={styles.postDot}> · </Text>
-        <Text style={styles.postTime}>{formatTimeAgo(item.createdAt)}</Text>
-      </View>
-      <View style={styles.postFooter}>
-        <View style={styles.postFooterRight}>
-          <Ionicons name="chatbubble-outline" size={14} color={Colors.text.tertiary} />
-          <Text style={styles.postFooterCount}>{item.replyCount}</Text>
+        <View style={styles.postMeta}>
+          <Text style={styles.postAuthor}>{own ? 'You' : `${item.author.name.split(' ')[0]} ${item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}`}</Text>
+          <Text style={styles.postDot}> · </Text>
+          <Text style={styles.postTime}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
-        {item.replyCount > 0 && (
-          <Text style={styles.viewReplies}>View {item.replyCount === 1 ? '1 reply' : `${item.replyCount} replies`}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+        <View style={styles.postFooter}>
+          <View style={styles.postFooterRight}>
+            <Ionicons name="chatbubble-outline" size={14} color={Colors.text.tertiary} />
+            <Text style={styles.postFooterCount}>{item.replyCount}</Text>
+          </View>
+          {item.replyCount > 0 && (
+            <Text style={styles.viewReplies}>View {item.replyCount === 1 ? '1 reply' : `${item.replyCount} replies`}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>Nothing here yet. Start the conversation!</Text>
       <TouchableOpacity
-        onPress={() => navigation.navigate('CreatePost', { bubbleId, bubbleTitle })}
+        onPress={handleCreatePost}
         activeOpacity={0.8}
       >
         <LinearGradient
@@ -182,7 +204,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulletin Board</Text>
         <TouchableOpacity
-          onPress={() => navigation.navigate('CreatePost', { bubbleId, bubbleTitle })}
+          onPress={handleCreatePost}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -318,6 +340,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.light,
   },
+  ownPostCard: {
+    marginLeft: '25%',
+    borderLeftColor: Colors.brand.primary,
+    backgroundColor: '#EBF5FF',
+  },
   postTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -346,6 +373,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.text.secondary,
     lineHeight: 20,
+    marginBottom: Spacing.md,
+  },
+  postImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: Radius.md,
     marginBottom: Spacing.md,
   },
   postMeta: {

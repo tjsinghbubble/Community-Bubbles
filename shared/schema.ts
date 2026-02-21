@@ -370,6 +370,7 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   authorId: varchar("author_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   body: text("body").notNull(),
+  imageUrl: text("image_url"),
   isPinned: boolean("is_pinned").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),

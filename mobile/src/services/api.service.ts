@@ -470,7 +470,7 @@ class ApiService {
     return this.request<any>(`/api/bulletin/posts/${postId}`);
   }
 
-  async createBulletinPost(bubbleId: string, data: { postTypeId: number; title: string; body: string }): Promise<any> {
+  async createBulletinPost(bubbleId: string, data: { postTypeId: number; title: string; body: string; imageUrl?: string }): Promise<any> {
     return this.request<any>(`/api/bubbles/${bubbleId}/bulletin/posts`, {
       method: "POST",
       body: JSON.stringify(data),
