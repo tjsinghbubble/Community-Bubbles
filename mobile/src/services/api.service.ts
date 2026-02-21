@@ -452,6 +452,45 @@ class ApiService {
       body: JSON.stringify({ token, platform }),
     });
   }
+
+  async getBulletinPostTypes(): Promise<any[]> {
+    return this.request<any[]>("/api/bulletin/post-types");
+  }
+
+  async getBulletinBoard(bubbleId: string): Promise<any> {
+    return this.request<any>(`/api/bubbles/${bubbleId}/bulletin`);
+  }
+
+  async getBulletinPosts(bubbleId: string, postTypeId?: number): Promise<any[]> {
+    const query = postTypeId ? `?postTypeId=${postTypeId}` : '';
+    return this.request<any[]>(`/api/bubbles/${bubbleId}/bulletin/posts${query}`);
+  }
+
+  async getBulletinPost(postId: string): Promise<any> {
+    return this.request<any>(`/api/bulletin/posts/${postId}`);
+  }
+
+  async createBulletinPost(bubbleId: string, data: { postTypeId: number; title: string; body: string }): Promise<any> {
+    return this.request<any>(`/api/bubbles/${bubbleId}/bulletin/posts`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBulletinPost(postId: string): Promise<any> {
+    return this.request<any>(`/api/bulletin/posts/${postId}`, { method: "DELETE" });
+  }
+
+  async getBulletinReplies(postId: string): Promise<any[]> {
+    return this.request<any[]>(`/api/bulletin/posts/${postId}/replies`);
+  }
+
+  async createBulletinReply(postId: string, body: string): Promise<any> {
+    return this.request<any>(`/api/bulletin/posts/${postId}/replies`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

@@ -535,7 +535,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionHeading}>Bulletin Board</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
           <Text style={styles.linkText}>view all {'>'}</Text>
         </TouchableOpacity>
       </View>

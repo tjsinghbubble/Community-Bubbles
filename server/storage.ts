@@ -41,6 +41,17 @@ import {
   type InsertNotification,
   devicePushTokens,
   type DevicePushToken,
+  bulletinBoards,
+  type BulletinBoard,
+  type InsertBulletinBoard,
+  bulletinPostTypes,
+  type BulletinPostType,
+  bulletinPosts,
+  type BulletinPost,
+  type InsertBulletinPost,
+  bulletinReplies,
+  type BulletinReply,
+  type InsertBulletinReply,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -179,6 +190,19 @@ export interface IStorage {
   upsertDevicePushToken(userId: string, token: string, platform: string): Promise<DevicePushToken>;
   getDevicePushTokens(userId: string): Promise<DevicePushToken[]>;
   deleteDevicePushToken(userId: string, token: string): Promise<void>;
+
+  // Bulletin Boards
+  getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
+  getOrCreateBulletinBoard(bubbleId: string): Promise<BulletinBoard>;
+  getBulletinPostTypes(): Promise<BulletinPostType[]>;
+  getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]>;
+  getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined>;
+  createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
+  deleteBulletinPost(postId: string): Promise<void>;
+  toggleBulletinPostPin(postId: string): Promise<BulletinPost | undefined>;
+  getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]>;
+  createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply>;
+  getBulletinPostCount(bubbleId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1283,6 +1307,112 @@ export class DatabaseStorage implements IStorage {
   async deleteDevicePushToken(userId: string, token: string): Promise<void> {
     await db.delete(devicePushTokens)
       .where(and(eq(devicePushTokens.userId, userId), eq(devicePushTokens.token, token)));
+  }
+
+  async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {
+    const result = await db.select().from(bulletinBoards).where(eq(bulletinBoards.bubbleId, bubbleId)).limit(1);
+    return result[0];
+  }
+
+  async getOrCreateBulletinBoard(bubbleId: string): Promise<BulletinBoard> {
+    const existing = await this.getBulletinBoard(bubbleId);
+    if (existing) return existing;
+    const result = await db.insert(bulletinBoards).values({ bubbleId }).returning();
+    return result[0];
+  }
+
+  async getBulletinPostTypes(): Promise<BulletinPostType[]> {
+    return db.select().from(bulletinPostTypes).orderBy(bulletinPostTypes.displayOrder);
+  }
+
+  async getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]> {
+    const conditions = [eq(bulletinPosts.boardId, boardId)];
+    if (postTypeId !== undefined) {
+      conditions.push(eq(bulletinPosts.postTypeId, postTypeId));
+    }
+
+    const rows = await db
+      .select({
+        post: bulletinPosts,
+        author: users,
+        postType: bulletinPostTypes,
+        replyCount: sql<number>`(SELECT COUNT(*) FROM bulletin_replies WHERE post_id = ${bulletinPosts.id})::int`,
+      })
+      .from(bulletinPosts)
+      .innerJoin(users, eq(bulletinPosts.authorId, users.id))
+      .innerJoin(bulletinPostTypes, eq(bulletinPosts.postTypeId, bulletinPostTypes.id))
+      .where(and(...conditions))
+      .orderBy(desc(bulletinPosts.isPinned), desc(bulletinPosts.createdAt));
+
+    return rows.map(r => ({
+      ...r.post,
+      author: r.author,
+      postType: r.postType,
+      replyCount: r.replyCount,
+    }));
+  }
+
+  async getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined> {
+    const rows = await db
+      .select({
+        post: bulletinPosts,
+        author: users,
+        postType: bulletinPostTypes,
+      })
+      .from(bulletinPosts)
+      .innerJoin(users, eq(bulletinPosts.authorId, users.id))
+      .innerJoin(bulletinPostTypes, eq(bulletinPosts.postTypeId, bulletinPostTypes.id))
+      .where(eq(bulletinPosts.id, postId))
+      .limit(1);
+
+    if (!rows[0]) return undefined;
+    return { ...rows[0].post, author: rows[0].author, postType: rows[0].postType };
+  }
+
+  async createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost> {
+    const result = await db.insert(bulletinPosts).values(post).returning();
+    return result[0];
+  }
+
+  async deleteBulletinPost(postId: string): Promise<void> {
+    await db.delete(bulletinReplies).where(eq(bulletinReplies.postId, postId));
+    await db.delete(bulletinPosts).where(eq(bulletinPosts.id, postId));
+  }
+
+  async toggleBulletinPostPin(postId: string): Promise<BulletinPost | undefined> {
+    const post = await db.select().from(bulletinPosts).where(eq(bulletinPosts.id, postId)).limit(1);
+    if (!post[0]) return undefined;
+    const result = await db.update(bulletinPosts)
+      .set({ isPinned: !post[0].isPinned })
+      .where(eq(bulletinPosts.id, postId))
+      .returning();
+    return result[0];
+  }
+
+  async getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]> {
+    const rows = await db
+      .select({
+        reply: bulletinReplies,
+        author: users,
+      })
+      .from(bulletinReplies)
+      .innerJoin(users, eq(bulletinReplies.authorId, users.id))
+      .where(eq(bulletinReplies.postId, postId))
+      .orderBy(bulletinReplies.createdAt);
+
+    return rows.map(r => ({ ...r.reply, author: r.author }));
+  }
+
+  async createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply> {
+    const result = await db.insert(bulletinReplies).values(reply).returning();
+    return result[0];
+  }
+
+  async getBulletinPostCount(bubbleId: string): Promise<number> {
+    const board = await this.getBulletinBoard(bubbleId);
+    if (!board) return 0;
+    const result = await db.select({ count: sql<number>`count(*)::int` }).from(bulletinPosts).where(eq(bulletinPosts.boardId, board.id));
+    return result[0]?.count ?? 0;
   }
 }
 

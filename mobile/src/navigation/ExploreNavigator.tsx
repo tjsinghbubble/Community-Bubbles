@@ -13,6 +13,9 @@ import BubbleEventsScreen from '../screens/main/BubbleEventsScreen';
 import CreateBubbleScreen from '../screens/main/CreateBubbleScreen';
 import EventParticipantsScreen from '../screens/main/EventParticipantsScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
+import BulletinBoardScreen from '../screens/main/BulletinBoardScreen';
+import PostDetailScreen from '../screens/main/PostDetailScreen';
+import CreatePostScreen from '../screens/main/CreatePostScreen';
 
 export type BubbleData = {
   id: string;
@@ -56,6 +59,9 @@ export type ExploreStackParamList = {
   EditEvent: { event: EventData };
   EventParticipants: { eventId: string; eventTitle: string; bubbleId: string; bubbleTitle: string };
   Notifications: undefined;
+  BulletinBoard: { bubbleId: string; bubbleTitle: string };
+  PostDetail: { postId: string; bubbleId: string };
+  CreatePost: { bubbleId: string; bubbleTitle: string };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -76,6 +82,9 @@ export default function ExploreNavigator() {
       <Stack.Screen name="EditEvent" component={EditEventScreen} />
       <Stack.Screen name="EventParticipants" component={EventParticipantsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="BulletinBoard" component={BulletinBoardScreen} />
+      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
+      <Stack.Screen name="CreatePost" component={CreatePostScreen} />
     </Stack.Navigator>
   );
 }
