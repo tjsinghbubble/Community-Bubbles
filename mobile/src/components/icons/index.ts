@@ -21,3 +21,4 @@ export { default as AdminPersonIcon } from './AdminPersonIcon';
 export { default as PlusIcon } from './PlusIcon';
 export { default as ChevronRightIcon } from './ChevronRightIcon';
 export { default as ChevronLeftIcon } from './ChevronLeftIcon';
+export { default as CreateBubbleEventIcon } from './CreateBubbleEventIcon';

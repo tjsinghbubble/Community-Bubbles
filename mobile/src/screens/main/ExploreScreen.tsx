@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { CreateBubbleEventIcon } from '../../components/icons';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
@@ -521,7 +522,7 @@ export default function ExploreScreen() {
         onPress={() => setShowCreateSheet(true)}
         activeOpacity={0.8}
       >
-        <Ionicons name="add-circle" size={56} color={Colors.brand.bubbleBlue} />
+        <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
 
       <Modal

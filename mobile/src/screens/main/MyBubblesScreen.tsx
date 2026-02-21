@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
@@ -205,15 +206,8 @@ export default function MyBubblesScreen() {
         </ScrollView>
       )}
 
-      <TouchableOpacity onPress={handleCreateBubble}>
-        <LinearGradient
-          colors={Gradients.button.colors as [string, string]}
-          start={Gradients.button.start}
-          end={Gradients.button.end}
-          style={styles.fab}
-        >
-          <Ionicons name="add" size={28} color={'#FFFFFF'} />
-        </LinearGradient>
+      <TouchableOpacity onPress={handleCreateBubble} style={styles.fab} activeOpacity={0.8}>
+        <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -381,13 +375,7 @@ const styles = StyleSheet.create({
     bottom: 20,
     width: 56,
     height: 56,
-    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });
