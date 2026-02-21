@@ -28,6 +28,7 @@ import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
@@ -768,14 +769,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             ))}
           </View>
         )}
-        {canCreateEvent && (
-          <TouchableOpacity
-            style={styles.createEventButton}
-            onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-          >
-            <Text style={styles.createEventButtonText}>+ Create Event</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -798,6 +791,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {activeTab === 'Details' ? renderDetailsTab() : renderEventsTab()}
       </ScrollView>
+      {canCreateEvent && (
+        <TouchableOpacity
+          style={styles.createFab}
+          onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          activeOpacity={0.8}
+        >
+          <CreateBubbleEventIcon size={56} />
+        </TouchableOpacity>
+      )}
       {renderKebabMenu()}
       <SuccessModal
         visible={showSuccessModal}
@@ -1290,18 +1292,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createEventButton: {
-    borderWidth: 1,
-    borderColor: Colors.brand.primary,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
+  createFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  createEventButtonText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
-    color: Colors.brand.primary,
   },
   reportOverlay: {
     flex: 1,
