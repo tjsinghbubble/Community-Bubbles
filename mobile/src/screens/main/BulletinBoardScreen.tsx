@@ -131,16 +131,12 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     </ScrollView>
   );
 
-  const isOwnPost = (post: BulletinPost) => user?.id === post.authorId;
-
   const renderPost = ({ item }: { item: BulletinPost }) => {
-    const own = isOwnPost(item);
     return (
       <TouchableOpacity
         style={[
           styles.postCard,
           { borderLeftColor: item.postType.color, borderLeftWidth: 4 },
-          own && styles.ownPostCard,
         ]}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
         activeOpacity={0.7}
@@ -159,7 +155,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           <Image source={{ uri: item.imageUrl }} style={styles.postImage} resizeMode="cover" />
         )}
         <View style={styles.postMeta}>
-          <Text style={styles.postAuthor}>{own ? 'You' : `${item.author.name.split(' ')[0]} ${item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}`}</Text>
+          <Text style={styles.postAuthor}>{item.author.name.split(' ')[0]} {item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}</Text>
           <Text style={styles.postDot}> · </Text>
           <Text style={styles.postTime}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
@@ -339,11 +335,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.border.light,
-  },
-  ownPostCard: {
-    marginLeft: '25%',
-    borderLeftColor: Colors.brand.primary,
-    backgroundColor: '#EBF5FF',
   },
   postTypeRow: {
     flexDirection: 'row',
