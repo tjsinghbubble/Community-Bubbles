@@ -485,16 +485,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
                 >
-                  <FlagIcon size={18} color={Colors.text.primary} />
-                  <Text style={styles.kebabMenuText}>Report a Concern</Text>
+                  <FlagIcon size={18} color={Colors.status.error} />
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report a Concern</Text>
                 </TouchableOpacity>
-                <View style={styles.kebabSeparatorHeavy} />
+                <View style={styles.kebabSeparator} />
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
-                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Event</Text>
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report this Event</Text>
                 </TouchableOpacity>
               </View>
             )}
