@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
     flex: 1,
@@ -303,22 +303,22 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '400',
+    fontSize: 16,
+    fontWeight: '500',
     color: Colors.neutral.charcoal,
     marginTop: 16,
     marginBottom: 16,
   },
   timelineSeparator: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginVertical: 24,
   },
   timelineLine: {
     display: 'none',
   },
   timelineSeparatorText: {
-    fontSize: 18,
-    fontWeight: '400',
+    fontSize: 16,
+    fontWeight: '500',
     color: Colors.neutral.coolMist,
   },
   eventCard: {
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eventTitle: {
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
   },
