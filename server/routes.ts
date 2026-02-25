@@ -12,6 +12,7 @@ import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembers
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { moderateText } from "./moderation";
+import { sendVerificationEmail } from "./email";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
@@ -157,16 +158,14 @@ export async function registerRoutes(
         expiresAt,
       });
 
+      await sendVerificationEmail(email, code);
+
+      const response: any = { success: true, message: "Verification code sent" };
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Verification code for ${email}: ${code}`);
-        res.json({
-          success: true,
-          message: "Verification code sent",
-          devCode: code,
-        });
-      } else {
-        res.json({ success: true, message: "Verification code sent" });
+        response.devCode = code;
       }
+      res.json(response);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -1732,25 +1731,19 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      // In dev mode, return the code for testing (hidden in production)
+      await sendVerificationEmail(emailLower, code);
+
+      const response: any = {
+        success: true,
+        message: "Verification code sent to your email",
+        campusId: campus.id,
+        campusName: campus.title,
+      };
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
-        res.json({
-          success: true,
-          message: "Verification code sent",
-          campusId: campus.id,
-          campusName: campus.title,
-          devCode: code,
-        });
-      } else {
-        // In production, would send email - for now just return success
-        res.json({
-          success: true,
-          message: "Verification code sent to your email",
-          campusId: campus.id,
-          campusName: campus.title,
-        });
+        response.devCode = code;
       }
+      res.json(response);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
