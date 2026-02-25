@@ -40,9 +40,10 @@ const INTERESTS = [
 ];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_PADDING = 7;
-const CARD_GAP = 9;
-const CARD_SIZE = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP * 2) / 3;
+const GRID_PADDING = 8;
+const CARD_GAP = 8;
+const TOTAL_GAPS = CARD_GAP * 2;
+const CARD_SIZE = Math.floor((SCREEN_WIDTH - GRID_PADDING * 2 - TOTAL_GAPS) / 3);
 
 const MIN_SELECTIONS = 3;
 const PROGRESS_STEP = 0.75;
@@ -214,15 +215,15 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: GRID_PADDING,
+    paddingLeft: GRID_PADDING,
+    paddingRight: GRID_PADDING,
     paddingTop: 0,
     paddingBottom: 120,
+    gap: CARD_GAP,
   },
   cardWrapper: {
     width: CARD_SIZE,
-    marginLeft: CARD_GAP / 2,
-    marginRight: CARD_GAP / 2,
-    marginBottom: 16,
+    marginBottom: 4,
     alignItems: 'center',
   },
   card: {
