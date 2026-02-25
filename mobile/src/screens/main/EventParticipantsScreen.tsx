@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { FlagIcon } from '../../components/icons';
 
 type ParticipantsParamList = {
   EventParticipants: {
@@ -421,7 +422,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
-              <Ionicons name="flag-outline" size={18} color={Colors.neutral.charcoal} />
+              <FlagIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
             </TouchableOpacity>
           </View>

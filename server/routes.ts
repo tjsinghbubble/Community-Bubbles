@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
+import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
@@ -2286,6 +2287,173 @@ export async function registerRoutes(
 
   seedCampuses().catch(console.error);
   seedCategories().catch(console.error);
+  seedBulletinPostTypes().catch(console.error);
+
+  // Bulletin Board - Post Types
+  app.get("/api/bulletin/post-types", authMiddleware, async (_req, res) => {
+    try {
+      const types = await storage.getBulletinPostTypes();
+      res.json(types);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Get board info and post count for a bubble
+  app.get("/api/bubbles/:bubbleId/bulletin", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const board = await storage.getBulletinBoard(bubbleId);
+      const postCount = await storage.getBulletinPostCount(bubbleId);
+      res.json({ board, postCount });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - List posts
+  app.get("/api/bubbles/:bubbleId/bulletin/posts", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const postTypeId = req.query.postTypeId ? parseInt(req.query.postTypeId as string) : undefined;
+      const board = await storage.getBulletinBoard(bubbleId);
+      if (!board) {
+        return res.json([]);
+      }
+      const posts = await storage.getBulletinPosts(board.id, postTypeId);
+      res.json(posts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Create post
+  app.post("/api/bubbles/:bubbleId/bulletin/posts", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const userId = req.userId!;
+
+      const isMember = await storage.isMember(userId, bubbleId);
+      if (!isMember) {
+        return res.status(403).json({ error: "Must be a member to post" });
+      }
+
+      const postTypes = await storage.getBulletinPostTypes();
+      const postType = postTypes.find(pt => pt.id === req.body.postTypeId);
+      if (!postType) {
+        return res.status(400).json({ error: "Invalid post type" });
+      }
+
+      if (postType.adminOnly) {
+        const role = await storage.getMemberRole(userId, bubbleId);
+        const user = await storage.getUser(userId);
+        if (role !== 'admin' && !user?.isSuperAdmin) {
+          return res.status(403).json({ error: "Only admins can create this type of post" });
+        }
+      }
+
+      const modResult = moderateText({ title: req.body.title, body: req.body.body });
+      if (modResult.flagged) {
+        return res.status(400).json({ error: modResult.message });
+      }
+
+      const board = await storage.getOrCreateBulletinBoard(bubbleId, userId);
+      const post = await storage.createBulletinPost({
+        boardId: board.id,
+        postTypeId: req.body.postTypeId,
+        authorId: userId,
+        title: req.body.title,
+        body: req.body.body,
+        imageUrl: req.body.imageUrl || null,
+      });
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Get single post
+  app.get("/api/bulletin/posts/:postId", authMiddleware, async (req, res) => {
+    try {
+      const post = await storage.getBulletinPost(req.params.postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Delete post
+  app.delete("/api/bulletin/posts/:postId", authMiddleware, async (req, res) => {
+    try {
+      const post = await storage.getBulletinPost(req.params.postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+
+      const user = await storage.getUser(req.userId!);
+      if (post.authorId !== req.userId && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to delete this post" });
+      }
+
+      await storage.deleteBulletinPost(req.params.postId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Toggle pin
+  app.patch("/api/bulletin/posts/:postId/pin", authMiddleware, async (req, res) => {
+    try {
+      const post = await storage.getBulletinPost(req.params.postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+
+      const board = await storage.getBulletinBoard(req.params.postId);
+      const result = await storage.toggleBulletinPostPin(req.params.postId, req.userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - List replies
+  app.get("/api/bulletin/posts/:postId/replies", authMiddleware, async (req, res) => {
+    try {
+      const replies = await storage.getBulletinReplies(req.params.postId);
+      res.json(replies);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Create reply
+  app.post("/api/bulletin/posts/:postId/replies", authMiddleware, async (req, res) => {
+    try {
+      const post = await storage.getBulletinPost(req.params.postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+
+      const board = await storage.getBulletinBoardById(post.boardId);
+      if (!board) return res.status(404).json({ error: "Board not found" });
+
+      const membershipStatus = await storage.getMembershipStatus(req.userId!, board.bubbleId);
+      if (!membershipStatus || membershipStatus !== 'approved') {
+        return res.status(403).json({ error: "Must be a member to reply" });
+      }
+
+      const replyModResult = moderateText({ body: req.body.body });
+      if (replyModResult.flagged) {
+        return res.status(400).json({ error: replyModResult.message });
+      }
+
+      const reply = await storage.createBulletinReply({
+        postId: req.params.postId,
+        authorId: req.userId!,
+        body: req.body.body,
+      });
+      res.json(reply);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   return httpServer;
 }

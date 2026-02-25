@@ -27,6 +27,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -365,7 +366,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
         </View>
         <View style={styles.reviewDetailRow}>
-          <Ionicons name="time-outline" size={16} color={Colors.brand.bubbleBlue} />
+          <ClockIcon size={16} color={Colors.brand.bubbleBlue} />
           <Text style={styles.reviewDetailValue}>
             {startTime ? formatTimeForDisplay(startTime) : '--:--'}
             {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -384,7 +385,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <Text style={selectedBubble ? styles.fieldValue : styles.fieldPlaceholder}>
               {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
             </Text>
-            <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+            <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         </View>
       )}
@@ -437,7 +438,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={date ? styles.fieldValue : styles.fieldPlaceholder}>
             {date ? formatDateForDisplay(date) : 'Select Date'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+          <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -627,7 +628,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   <Text style={styles.fieldValue}>
                     {CUSTOM_FREQUENCY_OPTIONS.find(f => f.value === recurrenceCustomFrequency)?.label}
                   </Text>
-                  <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                  <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
                 </TouchableOpacity>
                 {showCustomFrequencyPicker && (
                   <View style={styles.dropdownList}>
@@ -709,7 +710,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               <Text style={recurrenceEndDate ? styles.fieldValue : styles.fieldPlaceholder}>
                 {recurrenceEndDate ? formatDateForDisplay(recurrenceEndDate) : 'Select end date'}
               </Text>
-              <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+              <CalendarIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           )}
           {showRecurrenceEndDatePicker && (
@@ -830,9 +831,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               if (option.key === 'wheelchairAccessible') setWheelchairAccessible(!wheelchairAccessible);
             }}
           >
-            <View style={[styles.checkboxBox, isChecked && styles.checkboxBoxChecked]}>
-              {isChecked && <Ionicons name="checkmark" size={16} color={Colors.brand.skyWhite} />}
-            </View>
+            <CheckboxIcon size={18} checked={isChecked} />
             <Ionicons name={option.icon} size={20} color={Colors.neutral.coolMist} style={styles.checkboxIcon} />
             <View style={styles.checkboxTextContainer}>
               <Text style={styles.checkboxLabel}>{option.label}</Text>
@@ -873,7 +872,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
             {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}
           </Text>
-          <Ionicons name="calendar-outline" size={20} color={Colors.neutral.coolMist} />
+          <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showRsvpDatePicker && (
           <DateTimePicker
@@ -950,12 +949,12 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
           <View style={{ height: usableHeight * 0.3, paddingHorizontal: 20, justifyContent: 'center' }}>
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="calendar-outline" size={18} color={Colors.neutral.charcoal} />
+              <CalendarIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>{date ? formatDateForDisplay(date) : 'No date set'}</Text>
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="time-outline" size={18} color={Colors.neutral.charcoal} />
+              <ClockIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue}>
                 {startTime ? formatTimeForDisplay(startTime) : '--:--'}
                 {endTime ? ` - ${formatTimeForDisplay(endTime)}` : ''}
@@ -963,13 +962,13 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.reviewDetailRow}>
-              <Ionicons name="location-outline" size={18} color={Colors.neutral.charcoal} />
+              <LocationPinIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={styles.reviewDetailValue} numberOfLines={2}>{locationTbd ? 'TBD' : (locationAddress || 'TBD')}</Text>
             </View>
 
             {attendeeLimit ? (
               <View style={styles.reviewDetailRow}>
-                <Ionicons name="people-outline" size={18} color={Colors.neutral.charcoal} />
+                <PeopleIcon size={18} color={Colors.neutral.charcoal} />
                 <Text style={styles.reviewDetailValue}>Limit: {attendeeLimit} people</Text>
               </View>
             ) : null}
@@ -1418,7 +1417,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 17,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
   },
   successEventCard: {
     borderRadius: 12,

@@ -19,6 +19,8 @@ import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { ClockIcon } from '../../components/icons';
+import AnimatedPressable from '../../components/AnimatedPressable';
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
@@ -128,6 +130,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
           <View>
@@ -154,7 +157,7 @@ export default function ProfileScreen() {
           )}
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={{ fontSize: 12, color: Colors.neutral.coolMist, marginTop: 4 }}>Version = 228</Text>
+          <Text style={{ fontSize: Typography.sizes.xs, color: Colors.neutral.coolMist, marginTop: Spacing.xs }}>Version 2.4.3</Text>
         </View>
 
         <View style={styles.section}>
@@ -182,12 +185,13 @@ export default function ProfileScreen() {
               </View>
             </View>
             
-            <TouchableOpacity 
-              style={styles.menuItem} 
+            <AnimatedPressable 
+              style={styles.menuItem}
+              scaleValue={0.97}
               onPress={() => navigation.navigate('PendingReviews')}
             >
               <View style={styles.menuItemLeft}>
-                <Ionicons name="time-outline" size={24} color={Colors.neutral.charcoal} />
+                <ClockIcon size={24} color={Colors.text.secondary} />
                 <Text style={styles.menuItemText}>Needs Attention</Text>
                 {pendingCount > 0 && (
                   <View style={styles.badge}>
@@ -195,37 +199,38 @@ export default function ProfileScreen() {
                   </View>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} />
-            </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+            </AnimatedPressable>
           </View>
         )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           
-          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
             <View style={styles.menuItemLeft}>
-              <Ionicons name="log-out-outline" size={24} color={Colors.neutral.charcoal} />
+              <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Log Out</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.neutral.coolMist} />
-          </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={[styles.menuItem, styles.deleteItem]} 
+          <AnimatedPressable 
+            style={[styles.menuItem, styles.deleteItem]}
+            scaleValue={0.97}
             onPress={handleDeleteAccount}
             disabled={deleting}
           >
             <View style={styles.menuItemLeft}>
               {deleting ? (
-                <ActivityIndicator size="small" color={Colors.state.error} />
+                <ActivityIndicator size="small" color={Colors.status.error} />
               ) : (
-                <Ionicons name="trash-outline" size={24} color={Colors.state.error} />
+                <Ionicons name="trash-outline" size={24} color={Colors.status.error} />
               )}
               <Text style={styles.deleteText}>Delete Account</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.state.error} />
-          </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={20} color={Colors.status.error} />
+          </AnimatedPressable>
         </View>
       </ScrollView>
 
@@ -254,24 +259,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: Colors.brand.skyWhite,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    backgroundColor: Colors.background.surface,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    flex: 1,
+    textAlign: 'center',
   },
   bellButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -288,54 +297,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 3,
   },
   notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
+    color: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.xxs,
+    fontWeight: Typography.weights.bold,
   },
   content: {
     flex: 1,
   },
   avatarSection: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     alignItems: 'center',
-    paddingVertical: 30,
-    marginBottom: 16,
+    paddingVertical: Spacing.xxxl,
+    marginBottom: Spacing.lg,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   avatarImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 16,
+    marginBottom: Spacing.lg,
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: '600',
+    fontSize: Typography.sizes.hero,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.brand.skyWhite,
   },
   userName: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    marginBottom: 4,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginBottom: Spacing.xs,
   },
   userEmail: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
   },
   section: {
-    backgroundColor: Colors.brand.skyWhite,
-    marginBottom: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    backgroundColor: Colors.background.primary,
+    marginBottom: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -344,47 +353,48 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.coolMist,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.tertiary,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   adminBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.brand.bubbleBlue,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
+    backgroundColor: Colors.brand.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.md,
+    gap: Spacing.xs,
   },
   superAdminBadge: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: Colors.status.warning,
   },
   adminBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.brand.skyWhite,
   },
   interestsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
   },
   interestTag: {
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
+    backgroundColor: Colors.background.brandTint,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.lg,
   },
   interestText: {
-    color: 'hsl(210, 95%, 45%)',
-    fontSize: 14,
-    fontWeight: '500',
+    color: Colors.brand.primary,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
   },
   noInterests: {
-    color: Colors.neutral.coolMist,
-    fontSize: 14,
+    color: Colors.text.tertiary,
+    fontSize: Typography.sizes.base,
     fontStyle: 'italic',
   },
   menuItem: {
@@ -392,38 +402,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
   },
   menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   menuItemText: {
-    fontSize: 16,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.md,
+    color: Colors.text.primary,
   },
   deleteItem: {
     borderBottomWidth: 0,
   },
   deleteText: {
-    fontSize: 16,
-    color: Colors.state.error,
+    fontSize: Typography.sizes.md,
+    color: Colors.status.error,
   },
   badge: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.md,
+    minWidth: Spacing.xxl,
+    height: Spacing.xxl,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    marginLeft: 8,
+    paddingHorizontal: Spacing.sm,
+    marginLeft: Spacing.sm,
   },
   badgeText: {
     color: Colors.brand.skyWhite,
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
   },
 });

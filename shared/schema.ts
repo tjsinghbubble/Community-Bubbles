@@ -338,3 +338,98 @@ export const insertDevicePushTokenSchema = createInsertSchema(devicePushTokens).
 
 export type InsertDevicePushToken = z.infer<typeof insertDevicePushTokenSchema>;
 export type DevicePushToken = typeof devicePushTokens.$inferSelect;
+
+export const bulletinBoards = pgTable("bulletin_boards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+}, (table) => [
+  unique("bulletin_boards_bubble_id_unique").on(table.bubbleId),
+]);
+
+export const bulletinPostTypes = pgTable("bulletin_post_types", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  displayName: text("display_name").notNull(),
+  color: text("color").notNull(),
+  adminOnly: boolean("admin_only").notNull().default(false),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+export const bulletinPosts = pgTable("bulletin_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  boardId: varchar("board_id").notNull().references(() => bulletinBoards.id),
+  postTypeId: integer("post_type_id").notNull().references(() => bulletinPostTypes.id),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  imageUrl: text("image_url"),
+  isPinned: boolean("is_pinned").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+export const bulletinReplies = pgTable("bulletin_replies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => bulletinPosts.id),
+  authorId: varchar("author_id").notNull().references(() => users.id),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+export const insertBulletinBoardSchema = createInsertSchema(bulletinBoards).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
+});
+
+export const insertBulletinPostTypeSchema = createInsertSchema(bulletinPostTypes).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
+});
+
+export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  isPinned: true,
+  updatedAt: true,
+  updatedBy: true,
+});
+
+export const insertBulletinReplySchema = createInsertSchema(bulletinReplies).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
+});
+
+export type BulletinBoard = typeof bulletinBoards.$inferSelect;
+export type InsertBulletinBoard = z.infer<typeof insertBulletinBoardSchema>;
+
+export type BulletinPostType = typeof bulletinPostTypes.$inferSelect;
+export type InsertBulletinPostType = z.infer<typeof insertBulletinPostTypeSchema>;
+
+export type BulletinPost = typeof bulletinPosts.$inferSelect;
+export type InsertBulletinPost = z.infer<typeof insertBulletinPostSchema>;
+
+export type BulletinReply = typeof bulletinReplies.$inferSelect;
+export type InsertBulletinReply = z.infer<typeof insertBulletinReplySchema>;

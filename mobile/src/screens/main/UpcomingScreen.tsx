@@ -12,10 +12,12 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
 
 type UpcomingEvent = {
   id: string;
@@ -132,9 +134,15 @@ export default function UpcomingScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Upcoming Events</Text>
+          <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+            <View>
+              <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            </View>
+          </TouchableOpacity>
         </View>
+        <UpcomingScreenSkeleton />
       </SafeAreaView>
     );
   }
@@ -142,7 +150,7 @@ export default function UpcomingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Your Upcoming Events</Text>
+        <Text style={styles.headerTitle}>Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
@@ -184,11 +192,11 @@ export default function UpcomingScreen() {
               )}
 
               {group.events.map((event) => (
-                <TouchableOpacity
+                <AnimatedPressable
                   key={event.id}
                   style={styles.eventCard}
+                  scaleValue={0.97}
                   onPress={() => handleEventPress(event)}
-                  activeOpacity={0.7}
                 >
                   {event.bubble && (
                     <Text style={styles.bubbleName}>{event.bubble.title}</Text>
@@ -213,7 +221,7 @@ export default function UpcomingScreen() {
                       )}
                     </View>
                   </View>
-                </TouchableOpacity>
+                </AnimatedPressable>
               ))}
             </View>
           ))}
@@ -243,9 +251,11 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
     color: Colors.neutral.charcoal,
+    flex: 1,
+    textAlign: 'center',
   },
   bellButton: {
     width: 40,
@@ -300,16 +310,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   timelineSeparator: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 24,
-    gap: 12,
   },
   timelineLine: {
-    width: 1,
-    height: 20,
-    backgroundColor: Colors.neutral.coolMist,
-    alignSelf: 'center',
+    display: 'none',
   },
   timelineSeparatorText: {
     fontSize: 18,

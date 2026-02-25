@@ -22,6 +22,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronDownIcon, ChevronUpIcon, BubblesIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -283,8 +284,7 @@ export default function PendingReviewsScreen() {
     count: number,
     countColor: string,
     sectionKey: string,
-    iconName: keyof typeof Ionicons.glyphMap,
-    iconColor: string,
+    icon: React.ReactNode,
   ) => {
     const isExpanded = expandedSections[sectionKey];
     return (
@@ -294,7 +294,7 @@ export default function PendingReviewsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.accordionHeaderLeft}>
-          <Ionicons name={iconName} size={18} color={iconColor} />
+          {icon}
           <Text style={styles.accordionTitle}>{title}</Text>
           {count > 0 && (
             <View style={[styles.countBadge, { backgroundColor: countColor }]}>
@@ -302,11 +302,7 @@ export default function PendingReviewsScreen() {
             </View>
           )}
         </View>
-        <Ionicons
-          name={isExpanded ? 'chevron-up' : 'chevron-down'}
-          size={20}
-          color={Colors.neutral.coolMist}
-        />
+        {isExpanded ? <ChevronUpIcon size={20} color={Colors.neutral.coolMist} /> : <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />}
       </TouchableOpacity>
     );
   };
@@ -349,10 +345,10 @@ export default function PendingReviewsScreen() {
             style={[styles.actionButton, styles.approveButton]}
           >
             {actionLoading === bubble.id ? (
-              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+              <ActivityIndicator size="small" color={'#FFFFFF'} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Ionicons name="checkmark" size={18} color={'#FFFFFF'} />
                 <Text style={styles.approveText}>Approve</Text>
               </>
             )}
@@ -406,10 +402,10 @@ export default function PendingReviewsScreen() {
             style={[styles.actionButton, styles.approveButton]}
           >
             {actionLoading === event.id ? (
-              <ActivityIndicator size="small" color={Colors.neutral.charcoal} />
+              <ActivityIndicator size="small" color={'#FFFFFF'} />
             ) : (
               <>
-                <Ionicons name="checkmark" size={18} color={Colors.neutral.charcoal} />
+                <Ionicons name="checkmark" size={18} color={'#FFFFFF'} />
                 <Text style={styles.approveText}>Approve</Text>
               </>
             )}
@@ -542,7 +538,7 @@ export default function PendingReviewsScreen() {
           </View>
         ) : (
           <View style={styles.accordionContainer}>
-            {renderAccordionHeader('Pending Concerns', pendingReports.length, Colors.state.error, 'concerns', 'warning', Colors.state.error)}
+            {renderAccordionHeader('Pending Concerns', pendingReports.length, Colors.state.error, 'concerns', <Ionicons name="flag" size={18} color={Colors.state.error} />)}
             {expandedSections.concerns && (
               <View style={styles.accordionContent}>
                 {pendingReports.length === 0 ? (
@@ -553,7 +549,7 @@ export default function PendingReviewsScreen() {
               </View>
             )}
 
-            {renderAccordionHeader('Pending Event Approval', pendingEvents.length, '#F59E0B', 'events', 'flash', '#F59E0B')}
+            {renderAccordionHeader('Pending Event Approval', pendingEvents.length, '#F59E0B', 'events', <Ionicons name="calendar-outline" size={18} color={Colors.neutral.coolMist} />)}
             {expandedSections.events && (
               <View style={styles.accordionContent}>
                 {pendingEvents.length === 0 ? (
@@ -566,7 +562,7 @@ export default function PendingReviewsScreen() {
 
             {isSuperAdmin && (
               <>
-                {renderAccordionHeader('Pending Bubble Approval', pendingBubbles.length, Colors.neutral.coolMist, 'bubbles', 'checkmark-circle', '#34C759')}
+                {renderAccordionHeader('Pending Bubble Approval', pendingBubbles.length, Colors.neutral.coolMist, 'bubbles', <BubblesIcon size={18} color={Colors.brand.bubbleBlue} />)}
                 {expandedSections.bubbles && (
                   <View style={styles.accordionContent}>
                     {pendingBubbles.length === 0 ? (
@@ -698,7 +694,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 12,
-    marginBottom: 2,
+    marginBottom: 5,
     shadowColor: Colors.neutral.charcoal,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -829,7 +825,7 @@ const styles = StyleSheet.create({
   approveText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
   },
   dismissButton: {
     flex: 1,

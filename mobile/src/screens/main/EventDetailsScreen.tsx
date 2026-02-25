@@ -24,7 +24,9 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
+import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, PeopleIcon, FlagIcon, CrownIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
+import { EventDetailsSkeleton } from '../../components/SkeletonLoader';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
@@ -413,9 +415,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   if (isLoading || !event) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={Colors.brand.primary} />
-        </View>
+        <EventDetailsSkeleton />
       </SafeAreaView>
     );
   }
@@ -475,7 +475,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     style={styles.kebabMenuItem}
                     onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
                   >
-                    <Ionicons name="settings-outline" size={18} color={Colors.brand.primary} />
+                    <CrownIcon size={18} color={Colors.brand.primary} />
                     <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
                   </TouchableOpacity>
                 )}
@@ -484,16 +484,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
                 >
-                  <Ionicons name="flag-outline" size={18} color={Colors.text.primary} />
+                  <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={styles.kebabMenuText}>Report a Concern</Text>
                 </TouchableOpacity>
-                <View style={styles.kebabSeparatorHeavy} />
+                <View style={styles.kebabSeparator} />
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
                 >
-                  <Ionicons name="alert-circle-outline" size={18} color={Colors.status.error} />
-                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report Event</Text>
+                  <FlagIcon size={18} color={Colors.status.error} />
+                  <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report this Event</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -543,13 +543,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <View style={styles.dateTimeColumn}>
               <View style={styles.infoRow}>
                 <View style={styles.infoIconContainer}>
-                  <Ionicons name="calendar-outline" size={18} color={Colors.text.tertiary} />
+                  <CalendarIcon size={18} color={Colors.text.tertiary} />
                 </View>
                 <Text style={styles.infoText}>{formatDateShort(event.date)}</Text>
               </View>
               <View style={styles.infoRow}>
                 <View style={styles.infoIconContainer}>
-                  <Ionicons name="time-outline" size={18} color={Colors.text.tertiary} />
+                  <ClockIcon size={18} color={Colors.text.tertiary} />
                 </View>
                 <Text style={styles.infoText}>{getTimeRange()}</Text>
               </View>
@@ -575,11 +575,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                         ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
                         : (rsvpStatus === 'waitlisted' ? 'Waitlisted' : rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
                     </Text>
-                    <Ionicons
-                      name={showRsvpDropdown ? "chevron-up" : "chevron-down"}
-                      size={14}
-                      color="#FFFFFF"
-                    />
+                    {showRsvpDropdown ? <ChevronUpIcon size={14} color="#FFFFFF" /> : <ChevronDownIcon size={14} color="#FFFFFF" />}
                   </>
                 )}
               </TouchableOpacity>
@@ -612,7 +608,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="people-outline" size={18} color={Colors.text.tertiary} />
+              <PeopleIcon size={18} color={Colors.text.tertiary} />
             </View>
             <Text style={styles.infoText}>
               {event.attendeeLimit ? `${goingCount} of ${event.attendeeLimit} spots filled` : `${goingCount} going`}
@@ -659,7 +655,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
           <View style={styles.locationIconContainer}>
-            <Ionicons name="location" size={20} color={Colors.brand.primary} />
+            <LocationPinIcon size={20} color={Colors.brand.primary} />
           </View>
           <View style={styles.locationInfo}>
             <Text style={styles.locationLandmark}>{event.locationName || 'TBD'}</Text>
@@ -668,7 +664,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             )}
           </View>
           {event.locationName && (
-            <Ionicons name={locationExpanded ? "chevron-up" : "chevron-down"} size={16} color={Colors.text.tertiary} />
+            locationExpanded ? <ChevronUpIcon size={16} color={Colors.text.tertiary} /> : <ChevronDownIcon size={16} color={Colors.text.tertiary} />
           )}
         </TouchableOpacity>
 
@@ -906,9 +902,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
     flex: 1,
     textAlign: 'center',
     marginHorizontal: Spacing.sm,
@@ -948,7 +944,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   kebabMenuText: {
-    fontSize: 15,
+    fontSize: Typography.sizes.base,
     color: Colors.text.primary,
   },
   kebabSeparator: {
@@ -958,7 +954,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   kebabSeparatorMedium: {
-    height: 1,
+    height: 1.5,
     backgroundColor: '#D0D0D0',
     marginHorizontal: 16,
   },
@@ -999,14 +995,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   spotsGreenText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#34C759',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.success,
   },
   waitlistCountText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF9500',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.status.warning,
   },
   dateTimeRsvpRow: {
     flexDirection: 'row',
@@ -1043,8 +1039,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF9500',
   },
   rsvpDropdownButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
     color: '#FFFFFF',
   },
   rsvpDropdownMenu: {
@@ -1074,9 +1070,9 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   rsvpDropdownItemText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.primary,
   },
   rsvpDropdownDivider: {
     height: 1,
@@ -1098,23 +1094,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoText: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#4D4D4D',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
     flex: 1,
+    lineHeight: Typography.lineHeight.base,
   },
   viewLink: {
     marginLeft: Spacing.sm,
   },
   viewLinkText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   separator: {
     height: 1,
-    backgroundColor: '#D9D9D9',
-    marginVertical: Spacing.lg,
+    backgroundColor: Colors.border.default,
+    marginVertical: Spacing.xl,
   },
   creatorRow: {
     flexDirection: 'row',
@@ -1139,18 +1136,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   creatorLabel: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
   },
   creatorName: {
-    fontWeight: '600',
+    fontWeight: Typography.weights.semiBold,
   },
   creatorCity: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#4D4D4D',
-    marginTop: 1,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
   locationRow: {
     flexDirection: 'row',
@@ -1169,23 +1167,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationLandmark: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
   },
   locationAddress: {
-    fontSize: 12,
-    fontWeight: '400',
-    color: '#4D4D4D',
-    marginTop: 1,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
   mapSection: {
     marginBottom: 0,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E1F26',
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
     marginBottom: Spacing.md,
   },
   mapContainer: {
@@ -1217,8 +1215,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
   },
   directionsText: {
-    fontSize: 18,
-    fontWeight: '500',
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   bulletinSection: {
@@ -1255,15 +1253,15 @@ const styles = StyleSheet.create({
     paddingRight: 50,
   },
   bulletinTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     marginBottom: Spacing.xs,
   },
   bulletinBody: {
-    fontSize: 12,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
-    lineHeight: 18,
+    lineHeight: Typography.lineHeight.sm,
   },
   bulletinTime: {
     fontSize: 11,
@@ -1282,8 +1280,8 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   addButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
     color: Colors.brand.primary,
   },
   eventReportOverlay: {

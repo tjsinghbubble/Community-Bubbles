@@ -25,6 +25,7 @@ import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -277,7 +278,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
                   </Text>
                 )}
               </View>
-              <Ionicons name="location" size={20} color={Colors.neutral.coolMist} />
+              <LocationPinIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -290,7 +291,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               <Text style={styles.selectText}>
                 {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label || 'Public'}
               </Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+              <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
             </TouchableOpacity>
           </View>
 
@@ -361,7 +362,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
               style={styles.saveButton}
             >
               {loading ? (
-                <ActivityIndicator color={Colors.neutral.charcoal} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.saveButtonText}>Save Changes</Text>
               )}
@@ -576,7 +577,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   saveButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

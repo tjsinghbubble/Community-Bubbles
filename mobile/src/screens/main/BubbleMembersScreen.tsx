@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import cometChatService from '../../services/cometchat.service';
+import { FlagIcon } from '../../components/icons';
 
 type MembersStackParamList = {
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
@@ -460,7 +461,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
               </>
             )}
             <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
-              <Ionicons name="flag-outline" size={18} color={Colors.neutral.charcoal} />
+              <FlagIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
             </TouchableOpacity>
           </View>

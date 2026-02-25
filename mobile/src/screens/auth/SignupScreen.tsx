@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -36,6 +37,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
@@ -136,7 +138,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
 
@@ -149,7 +151,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={Colors.neutral.coolMist} />
+                <ChevronDownIcon size={20} color={Colors.neutral.coolMist} />
               </TouchableOpacity>
               <Text style={styles.helperText}>
                 To keep the community safe, we only allow members 18 and up.
@@ -175,14 +177,22 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Create a password"
-                placeholderTextColor={Colors.neutral.coolMist}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 48 }]}
+                  placeholder="Create a password"
+                  placeholderTextColor={Colors.neutral.coolMist}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity
@@ -190,7 +200,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!isFormValid || loading}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={Gradients.button.colors as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={[
@@ -199,7 +209,7 @@ export default function SignupScreen({ navigation }: Props) {
                 ]}
               >
                 {loading ? (
-                  <ActivityIndicator color={Colors.neutral.charcoal} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <Text style={styles.buttonText}>Continue</Text>
                 )}
@@ -312,7 +322,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!birthMonth || !birthDay || !birthYear}
             >
               <LinearGradient
-                colors={Gradients.button.colors as unknown as string[]}
+                colors={Gradients.button.colors as [string, string]}
                 start={Gradients.button.start}
                 end={Gradients.button.end}
                 style={[
@@ -383,6 +393,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral.cloudGrey,
     color: Colors.neutral.charcoal,
   },
+  passwordContainer: {
+    position: 'relative',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
   selectInput: {
     borderWidth: 1,
     borderColor: Colors.neutral.coolMist,
@@ -416,7 +436,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, Typography, Spacing } from '../styles/theme';
 import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
@@ -12,6 +12,7 @@ import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
+import { ExploreIcon, UpcomingIcon, BubblesIcon, MessagesIcon, ProfileIcon } from '../components/icons';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -70,22 +71,22 @@ export default function MainNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: Colors.background.primary,
           borderTopWidth: 0,
           elevation: 8,
-          shadowColor: '#000',
+          shadowColor: Colors.neutral.black,
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
           height: 60 + bottomPadding,
           paddingBottom: bottomPadding,
-          paddingTop: 8,
+          paddingTop: Spacing.sm,
         },
-        tabBarActiveTintColor: 'hsl(210, 95%, 55%)',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: Colors.brand.primary,
+        tabBarInactiveTintColor: Colors.text.secondary,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: Typography.sizes.sm,
+          fontWeight: Typography.weights.medium,
         },
       }}
     >
@@ -94,7 +95,7 @@ export default function MainNavigator() {
         component={ExploreNavigator}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass-outline" size={size} color={color} />
+            <ExploreIcon size={size} color={color} />
           ),
         }}
         listeners={({ navigation }) => ({
@@ -109,7 +110,7 @@ export default function MainNavigator() {
         component={UpcomingScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+            <UpcomingIcon size={size} color={color} />
           ),
         }}
       />
@@ -119,7 +120,7 @@ export default function MainNavigator() {
         options={{ 
           title: 'Bubbles',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="apps-outline" size={size} color={color} />
+            <BubblesIcon size={size} color={color} />
           ),
         }}
         listeners={({ navigation }) => ({
@@ -135,7 +136,7 @@ export default function MainNavigator() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name="chatbubble-outline" size={size} color={color} />
+              <MessagesIcon size={size} color={color} />
               {unreadMessages > 0 && (
                 <View style={badgeStyles.badge}>
                   <Text style={badgeStyles.badgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
@@ -158,7 +159,7 @@ export default function MainNavigator() {
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <View>
-              <Ionicons name="person-outline" size={size} color={color} />
+              <ProfileIcon size={size} color={color} />
               {adminCount > 0 && (
                 <View style={badgeStyles.badge}>
                   <Text style={badgeStyles.badgeText}>{adminCount > 99 ? '99+' : adminCount}</Text>
@@ -183,17 +184,17 @@ const badgeStyles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -10,
-    backgroundColor: '#FF3B30',
+    backgroundColor: Colors.status.error,
     borderRadius: 9,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: Spacing.xs,
   },
   badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    color: Colors.brand.skyWhite,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.bold,
   },
 });

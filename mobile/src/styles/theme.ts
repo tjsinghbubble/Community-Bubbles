@@ -13,6 +13,10 @@ export const Colors = {
     secondary: '#FAFAFA',
     surface: '#F5F6F8',
     card: '#FFFFFF',
+    brandTint: '#EBF5FF',
+    successTint: '#E8F8EE',
+    warningTint: '#FFF8E1',
+    errorTint: '#FFEBEA',
   },
 
   border: {
@@ -168,7 +172,7 @@ export const LoadingState = {
 export const ButtonStyles = StyleSheet.create({
   base: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -176,7 +180,7 @@ export const ButtonStyles = StyleSheet.create({
 
   primaryGradient: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -185,36 +189,47 @@ export const ButtonStyles = StyleSheet.create({
 
   secondary: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.brand.primaryLight,
+    backgroundColor: '#37ADFF',
   },
 
   disabled: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.text.tertiary,
+    backgroundColor: '#969696',
   },
 
   outline: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.background.primary,
-    borderWidth: 1.5,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.brand.primary,
+  },
+
+  pressed: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: Spacing.xl,
+    backgroundColor: 'rgba(53, 168, 247, 0.15)',
+    borderWidth: 1,
     borderColor: Colors.brand.primary,
   },
 
   light: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
@@ -223,66 +238,74 @@ export const ButtonStyles = StyleSheet.create({
 
   ghost: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.border.default,
+    borderColor: '#98B4C8',
   },
 
   destructive: {
     height: 56,
-    borderRadius: Radius.full,
+    borderRadius: 28,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
     paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.status.error,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.status.error,
   },
 });
 
 export const ButtonTextStyles = StyleSheet.create({
   primaryGradient: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   secondary: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   disabled: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
     letterSpacing: Typography.letterSpacing.tight,
   },
   outline: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
+    color: Colors.brand.primary,
+    letterSpacing: Typography.letterSpacing.tight,
+  },
+  pressed: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
     color: Colors.brand.primary,
     letterSpacing: Typography.letterSpacing.tight,
   },
   light: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
     color: Colors.brand.primary,
     letterSpacing: Typography.letterSpacing.tight,
   },
   ghost: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text.tertiary,
+    fontWeight: Typography.weights.bold,
+    color: '#98B4C8',
     letterSpacing: Typography.letterSpacing.tight,
   },
   destructive: {
     fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
+    fontWeight: Typography.weights.bold,
+    color: Colors.status.error,
     letterSpacing: Typography.letterSpacing.tight,
   },
 });
@@ -291,17 +314,17 @@ export const InputStyles = StyleSheet.create({
   label: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
-    color: Colors.text.primary,
+    color: '#4D4D4D',
     marginBottom: Spacing.sm,
   },
   requiredAsterisk: {
     color: Colors.status.error,
   },
   field: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
@@ -309,14 +332,14 @@ export const InputStyles = StyleSheet.create({
   },
   fieldError: {
     borderColor: Colors.status.error,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   fieldFocused: {
     borderColor: Colors.border.focus,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   placeholder: {
-    color: Colors.text.tertiary,
+    color: '#969696',
   },
   errorMessage: {
     fontSize: Typography.sizes.sm,
@@ -334,10 +357,10 @@ export const InputStyles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   fieldWithIcon: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     paddingRight: 48,
     fontSize: Typography.sizes.base,
@@ -358,8 +381,8 @@ export const InputStyles = StyleSheet.create({
 export const TextAreaStyles = StyleSheet.create({
   field: {
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     padding: Spacing.lg,
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
@@ -369,11 +392,11 @@ export const TextAreaStyles = StyleSheet.create({
   },
   fieldError: {
     borderColor: Colors.status.error,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   charCount: {
     fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
+    color: '#969696',
     textAlign: 'right' as const,
     marginTop: Spacing.xs,
   },
@@ -384,10 +407,10 @@ export const TextAreaStyles = StyleSheet.create({
 
 export const SelectStyles = StyleSheet.create({
   field: {
-    height: 48,
+    height: 56,
     borderWidth: 1,
-    borderColor: Colors.border.default,
-    borderRadius: Radius.md,
+    borderColor: '#969696',
+    borderRadius: Radius.sm,
     paddingHorizontal: Spacing.lg,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
@@ -400,7 +423,7 @@ export const SelectStyles = StyleSheet.create({
   },
   fieldPlaceholder: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    color: '#969696',
   },
 });
 
@@ -452,22 +475,22 @@ export const RadioStyles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   circle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
-    borderColor: Colors.border.default,
+    borderColor: '#969696',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
   },
   circleSelected: {
-    borderColor: Colors.brand.primary,
+    borderColor: '#35A8F7',
   },
   innerDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.brand.primary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#35A8F7',
   },
   label: {
     fontSize: Typography.sizes.base,

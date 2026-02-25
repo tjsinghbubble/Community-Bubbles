@@ -16,6 +16,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { EyeIcon, EyeOffIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -25,6 +26,7 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
   const handleLogin = async () => {
@@ -70,14 +72,22 @@ export default function LoginScreen({ navigation }: Props) {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your password"
-              placeholderTextColor={Colors.neutral.coolMist}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.input, { paddingRight: 48 }]}
+                placeholder="Enter your password"
+                placeholderTextColor={Colors.neutral.coolMist}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -86,13 +96,13 @@ export default function LoginScreen({ navigation }: Props) {
             style={(!email || !password || isLoading) ? styles.buttonDisabled : undefined}
           >
             <LinearGradient
-              colors={Gradients.button.colors as unknown as string[]}
+              colors={Gradients.button.colors as [string, string]}
               start={Gradients.button.start}
               end={Gradients.button.end}
               style={styles.button}
             >
               {isLoading ? (
-                <ActivityIndicator color={Colors.neutral.charcoal} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
@@ -154,6 +164,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutral.cloudGrey,
     color: Colors.neutral.charcoal,
   },
+  passwordContainer: {
+    position: 'relative',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
   button: {
     borderRadius: Radius.full,
     padding: 16,
@@ -164,7 +184,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

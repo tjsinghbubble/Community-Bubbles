@@ -27,8 +27,12 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
+import { BubbleDetailsSkeleton } from '../../components/SkeletonLoader';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
+import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -83,6 +87,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [bubbleReportReason, setBubbleReportReason] = useState<string | null>(null);
   const [bubbleReportFreeText, setBubbleReportFreeText] = useState('');
   const [bubbleReportSubmitting, setBubbleReportSubmitting] = useState(false);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
     checkMembership();
@@ -94,8 +99,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     useCallback(() => {
       fetchEvents();
       fetchMemberCount();
+      fetchAnnouncements();
     }, [bubble.id])
   );
+
+  const fetchAnnouncements = async () => {
+    try {
+      const postTypes = await apiService.getBulletinPostTypes();
+      const announcementType = postTypes.find((pt: any) => pt.name === 'announcements');
+      if (announcementType) {
+        const posts = await apiService.getBulletinPosts(bubble.id, announcementType.id);
+        setAnnouncements(posts.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Failed to fetch announcements:', error);
+    }
+  };
 
   const fetchBubbleDetails = async () => {
     try {
@@ -443,19 +462,19 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <>
               <View style={styles.kebabSeparatorLight} />
               <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}>
-                <Ionicons name="settings-outline" size={20} color={Colors.brand.primary} />
+                <CrownIcon size={20} color={Colors.brand.primary} />
                 <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Manage Bubble</Text>
               </TouchableOpacity>
             </>
           )}
           <View style={styles.kebabSeparatorMedium} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
-            <Ionicons name="flag-outline" size={20} color={Colors.text.primary} />
-            <Text style={styles.kebabItemText}>Report a concern</Text>
+            <FlagIcon size={20} color={Colors.status.error} />
+            <Text style={styles.kebabItemText}>Report a Concern</Text>
           </TouchableOpacity>
-          <View style={styles.kebabSeparatorHeavy} />
+          <View style={styles.kebabSeparatorLight} />
           <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
-            <Ionicons name="alert-circle-outline" size={20} color={Colors.status.error} />
+            <FlagIcon size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
           </TouchableOpacity>
         </View>
@@ -533,17 +552,28 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionHeading}>Bulletin Board</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
           <Text style={styles.linkText}>view all {'>'}</Text>
         </TouchableOpacity>
       </View>
-      <View style={styles.bulletinCard}>
-        <Text style={styles.pinIcon}>📌</Text>
-        <Text style={styles.bulletinTitle}>Welcome to {bubble.title}!</Text>
-        <Text style={styles.bulletinBody}>
-          Thanks for joining our community. Please read the guidelines and introduce yourself. We're excited to have you here!
-        </Text>
-      </View>
+      {announcements.length > 0 ? (
+        announcements.map((post: any) => (
+          <TouchableOpacity
+            key={post.id}
+            style={[styles.bulletinCard, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: '#FF9800' }]}
+            onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id, bubbleId: bubble.id })}
+            activeOpacity={0.7}
+          >
+            {post.isPinned && <Text style={styles.pinIcon}>📌</Text>}
+            <Text style={styles.bulletinTitle}>{post.title}</Text>
+            <Text style={styles.bulletinBody} numberOfLines={2}>{post.body}</Text>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <View style={styles.bulletinCard}>
+          <Text style={styles.bulletinBody}>No announcements yet.</Text>
+        </View>
+      )}
     </View>
   );
 
@@ -551,11 +581,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAboutExpanded(!aboutExpanded)}>
         <Text style={styles.sectionHeading}>About</Text>
-        <Ionicons
-          name={aboutExpanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={Colors.text.primary}
-        />
+        {aboutExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
       {aboutExpanded && (
         <Text style={styles.bodyText}>
@@ -569,11 +595,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
         <Text style={styles.sectionHeading}>Attachments</Text>
-        <Ionicons
-          name={attachmentsExpanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={Colors.text.primary}
-        />
+        {attachmentsExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
       {attachmentsExpanded && (
         <View>
@@ -595,7 +617,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <View style={styles.membersLeft}>
-          <Ionicons name="people-outline" size={20} color={Colors.text.primary} />
+          <PeopleIcon size={20} color={Colors.text.primary} />
           <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>
@@ -611,8 +633,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
     if (isMember) {
       return (
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.leaveButton}
+          scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
         >
@@ -621,14 +644,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ) : (
             <Text style={styles.leaveButtonText}>Leave Bubble</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       );
     }
 
     if (membershipStatus === 'pending') {
       return (
-        <TouchableOpacity
+        <AnimatedPressable
           style={styles.pendingButton}
+          scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
         >
@@ -637,7 +661,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ) : (
             <Text style={styles.pendingButtonText}>Request Pending</Text>
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       );
     }
 
@@ -645,8 +669,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     const buttonLabel = (privacy === 'Request to Join' || privacy === 'Private') ? 'Request to Join' : 'Join Bubble';
 
     return (
-      <TouchableOpacity
+      <AnimatedPressable
         style={styles.joinButton}
+        scaleValue={0.96}
         onPress={handleJoinLeave}
         disabled={isJoining}
       >
@@ -657,11 +682,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={StyleSheet.absoluteFillObject}
         />
         {isJoining ? (
-          <ActivityIndicator color={Colors.text.primary} size="small" />
+          <ActivityIndicator color={'#FFFFFF'} size="small" />
         ) : (
           <Text style={styles.joinButtonText}>{buttonLabel}</Text>
         )}
-      </TouchableOpacity>
+      </AnimatedPressable>
     );
   };
 
@@ -775,14 +800,6 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             ))}
           </View>
         )}
-        {canCreateEvent && (
-          <TouchableOpacity
-            style={styles.createEventButton}
-            onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-          >
-            <Text style={styles.createEventButtonText}>+ Create Event</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   };
@@ -790,9 +807,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.brand.primary} />
-        </View>
+        <BubbleDetailsSkeleton />
       </SafeAreaView>
     );
   }
@@ -805,6 +820,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {activeTab === 'Details' ? renderDetailsTab() : renderEventsTab()}
       </ScrollView>
+      {canCreateEvent && (
+        <TouchableOpacity
+          style={styles.createFab}
+          onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          activeOpacity={0.8}
+        >
+          <CreateBubbleEventIcon size={56} />
+        </TouchableOpacity>
+      )}
       {renderKebabMenu()}
       <SuccessModal
         visible={showSuccessModal}
@@ -1042,6 +1066,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,
     color: Colors.text.primary,
+    lineHeight: Typography.lineHeight.base,
     marginTop: Spacing.md,
     marginHorizontal: Spacing.xl,
   },
@@ -1049,8 +1074,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   greenDot: {
     width: 8,
@@ -1065,9 +1090,9 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: Colors.border.default,
     marginHorizontal: Spacing.xl,
-    marginVertical: Spacing.lg,
+    marginVertical: Spacing.xl,
   },
   section: {
     paddingHorizontal: Spacing.xl,
@@ -1076,11 +1101,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   sectionHeading: {
     fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
   },
   linkText: {
@@ -1108,12 +1133,12 @@ const styles = StyleSheet.create({
   bulletinBody: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
-    lineHeight: 18,
+    lineHeight: Typography.lineHeight.sm,
   },
   bodyText: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
-    lineHeight: 20,
+    lineHeight: Typography.lineHeight.base,
   },
   attachmentItem: {
     flexDirection: 'row',
@@ -1188,7 +1213,7 @@ const styles = StyleSheet.create({
   joinButtonText: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    color: '#FFFFFF',
   },
   kebabOverlay: {
     flex: 1,
@@ -1225,7 +1250,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.lg,
   },
   kebabSeparatorMedium: {
-    height: 1,
+    height: 1.5,
     backgroundColor: '#D0D0D0',
     marginHorizontal: Spacing.lg,
   },
@@ -1297,18 +1322,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createEventButton: {
-    borderWidth: 1,
-    borderColor: Colors.brand.primary,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
+  createFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  createEventButtonText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
-    color: Colors.brand.primary,
   },
   reportOverlay: {
     flex: 1,

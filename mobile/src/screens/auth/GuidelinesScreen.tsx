@@ -15,6 +15,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { CheckboxIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -88,9 +89,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           style={styles.checkbox}
           onPress={() => setAccepted(!accepted)}
         >
-          <View style={[styles.checkboxBox, accepted && styles.checkboxBoxChecked]}>
-            {accepted && <Text style={styles.checkmark}>✓</Text>}
-          </View>
+          <CheckboxIcon size={18} checked={accepted} />
           <Text style={styles.checkboxLabel}>
             I agree to follow these community guidelines
           </Text>
@@ -103,13 +102,13 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           disabled={!accepted || isLoading}
         >
           <LinearGradient
-            colors={Gradients.button.colors as unknown as string[]}
+            colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
             end={Gradients.button.end}
             style={[styles.button, (!accepted || isLoading) && styles.buttonDisabled]}
           >
             {isLoading ? (
-              <ActivityIndicator color={Colors.neutral.charcoal} />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>Get Started</Text>
             )}
@@ -204,7 +203,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

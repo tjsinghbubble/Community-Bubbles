@@ -20,12 +20,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
+import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
+import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { PeopleIcon, ClockIcon } from '../../components/icons';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -306,8 +310,7 @@ export default function ExploreScreen() {
         onPress={() => setActiveTab('bubbles')}
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
-          <Ionicons 
-            name="chatbubbles-outline" 
+          <BubblesIcon 
             size={28} 
             color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
           />
@@ -360,9 +363,10 @@ export default function ExploreScreen() {
   };
 
   const renderBubbleCard = (bubble: BubbleData) => (
-    <TouchableOpacity 
+    <AnimatedPressable
       key={bubble.id} 
       style={styles.card}
+      scaleValue={0.95}
       onPress={() => handleBubblePress(bubble)}
     >
       <View style={styles.imageContainer}>
@@ -373,16 +377,17 @@ export default function ExploreScreen() {
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
       <View style={styles.cardMeta}>
-        <Ionicons name="people-outline" size={12} color="#4D4D4D" />
+        <PeopleIcon size={12} color="#4D4D4D" />
         <Text style={styles.metaText}>{bubble.members} members</Text>
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
   const renderEventCard = (event: EventData) => (
-    <TouchableOpacity 
+    <AnimatedPressable
       key={event.id} 
       style={styles.card}
+      scaleValue={0.95}
       onPress={() => handleEventPress(event)}
     >
       <View style={styles.imageContainer}>
@@ -397,7 +402,7 @@ export default function ExploreScreen() {
       <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
       <View style={styles.cardMetaRow}>
         <View style={styles.cardMeta}>
-          <Ionicons name="time-outline" size={12} color="#4D4D4D" />
+          <ClockIcon size={12} color="#4D4D4D" />
           <Text style={styles.metaText}>{formatTime(event.startTime)}</Text>
         </View>
         {event.locationName && (
@@ -407,7 +412,7 @@ export default function ExploreScreen() {
           </View>
         )}
       </View>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
 
@@ -418,8 +423,8 @@ export default function ExploreScreen() {
           {renderSearchHeader()}
           {renderTabs()}
         </View>
-        <View style={[styles.loading, { paddingTop: HEADER_EXPANDED }]}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
+        <View style={{ paddingTop: HEADER_EXPANDED }}>
+          <ExploreGridSkeleton />
         </View>
       </View>
     );
@@ -520,7 +525,7 @@ export default function ExploreScreen() {
         onPress={() => setShowCreateSheet(true)}
         activeOpacity={0.8}
       >
-        <Ionicons name="add-circle" size={56} color={Colors.brand.bubbleBlue} />
+        <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
 
       <Modal
@@ -765,7 +770,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   joinCampusButtonText: {
-    color: Colors.neutral.charcoal,
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
