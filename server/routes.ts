@@ -7,6 +7,7 @@ import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategory
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
+import { seedData } from "./seed-data";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
@@ -2280,7 +2281,9 @@ export async function registerRoutes(
 
   seedCampuses().catch(console.error);
   seedCategories().catch(console.error);
-  seedBulletinPostTypes().catch(console.error);
+  seedBulletinPostTypes().catch(console.error).then(() => {
+    seedData().catch(console.error);
+  });
 
   // Bulletin Board - Post Types
   app.get("/api/bulletin/post-types", authMiddleware, async (_req, res) => {
