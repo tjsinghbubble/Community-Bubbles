@@ -6,12 +6,15 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Gradients } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -19,23 +22,34 @@ type Props = {
 };
 
 const INTERESTS = [
-  { id: 'sports', label: 'Sports', emoji: '⚽' },
-  { id: 'wellness', label: 'Wellness', emoji: '🧘' },
-  { id: 'food', label: 'Food', emoji: '🍕' },
-  { id: 'tech', label: 'Tech', emoji: '💻' },
-  { id: 'music', label: 'Music', emoji: '🎵' },
-  { id: 'art', label: 'Art', emoji: '🎨' },
-  { id: 'books', label: 'Books', emoji: '📚' },
-  { id: 'games', label: 'Games', emoji: '🎮' },
-  { id: 'outdoors', label: 'Outdoors', emoji: '🏕️' },
-  { id: 'pets', label: 'Pets', emoji: '🐕' },
-  { id: 'family', label: 'Family', emoji: '👨‍👩‍👧‍👦' },
-  { id: 'social', label: 'Social', emoji: '🎉' },
+  { id: 'running', label: 'Running', image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=300&h=300&fit=crop' },
+  { id: 'cooking', label: 'Cooking', image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=300&h=300&fit=crop' },
+  { id: 'coffee', label: 'Coffee Meets', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300&h=300&fit=crop' },
+  { id: 'gardening', label: 'Gardening', image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=300&h=300&fit=crop' },
+  { id: 'yoga', label: 'Yoga', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&h=300&fit=crop' },
+  { id: 'tennis', label: 'Tennis', image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=300&h=300&fit=crop' },
+  { id: 'biking', label: 'Biking', image: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=300&h=300&fit=crop' },
+  { id: 'pets', label: 'Pets', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&h=300&fit=crop' },
+  { id: 'photography', label: 'Photography', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop' },
+  { id: 'hiking', label: 'Hiking', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=300&h=300&fit=crop' },
+  { id: 'music', label: 'Music', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop' },
+  { id: 'art', label: 'Art', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=300&h=300&fit=crop' },
+  { id: 'gaming', label: 'Gaming', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&h=300&fit=crop' },
+  { id: 'reading', label: 'Reading', image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=300&fit=crop' },
+  { id: 'fitness', label: 'Fitness', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=300&fit=crop' },
 ];
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_PADDING = 7;
+const CARD_GAP = 9;
+const CARD_SIZE = (SCREEN_WIDTH - GRID_PADDING * 2 - CARD_GAP * 2) / 3;
+
+const MIN_SELECTIONS = 3;
+const PROGRESS_STEP = 0.75;
 
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
-  const { name, email, password } = route.params;
+  const { name, email, password, gender, dateOfBirth } = route.params;
 
   const toggleInterest = (id: string) => {
     setSelected((prev) =>
@@ -44,60 +58,102 @@ export default function InterestsScreen({ navigation, route }: Props) {
   };
 
   const handleContinue = () => {
-    if (selected.length >= 3) {
-      navigation.navigate('Guidelines', { 
-        name, 
-        email, 
-        password, 
-        interests: selected 
+    if (selected.length >= MIN_SELECTIONS) {
+      navigation.navigate('Guidelines', {
+        name,
+        email,
+        password,
+        gender,
+        dateOfBirth,
+        interests: selected,
       });
     }
   };
 
+  const remaining = Math.max(0, MIN_SELECTIONS - selected.length);
+  const canContinue = selected.length >= MIN_SELECTIONS;
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>What are you into?</Text>
-        <Text style={styles.subtitle}>
-          Pick at least 3 interests to find your community
-        </Text>
-        <Text style={styles.counter}>
-          {selected.length} selected {selected.length >= 3 && '✓'}
-        </Text>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          data-testid="button-back"
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.text.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.grid}>
+      <View style={styles.progressContainer}>
+        <View style={styles.progressTrack} />
+        <View style={[styles.progressFill, { width: `${PROGRESS_STEP * 100}%` }]} />
+      </View>
+
+      <Text style={styles.title} data-testid="text-title">Tell us your interests</Text>
+
+      <Text style={styles.subtitle} data-testid="text-subtitle">
+        Select at least 3 to continue
+      </Text>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.gridContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {INTERESTS.map((interest) => {
           const isSelected = selected.includes(interest.id);
           return (
-            <TouchableOpacity
-              key={interest.id}
-              style={[styles.card, isSelected && styles.cardSelected]}
-              onPress={() => toggleInterest(interest.id)}
-            >
-              <Text style={styles.emoji}>{interest.emoji}</Text>
-              <Text style={[styles.label, isSelected && styles.labelSelected]}>
+            <View key={interest.id} style={styles.cardWrapper}>
+              <TouchableOpacity
+                style={[styles.card, isSelected && styles.cardSelected]}
+                onPress={() => toggleInterest(interest.id)}
+                activeOpacity={0.8}
+                data-testid={`button-interest-${interest.id}`}
+              >
+                <Image
+                  source={{ uri: interest.image }}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+                {isSelected && (
+                  <View style={styles.selectedOverlay}>
+                    <View style={styles.checkCircle}>
+                      <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                    </View>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text
+                style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
+                data-testid={`text-interest-${interest.id}`}
+              >
                 {interest.label}
               </Text>
-            </TouchableOpacity>
+            </View>
           );
         })}
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={handleContinue}
-          disabled={selected.length < 3}
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={[styles.button, selected.length < 3 && styles.buttonDisabled]}
-          >
-            <Text style={styles.buttonText}>Continue</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        {canContinue ? (
+          <TouchableOpacity onPress={handleContinue} data-testid="button-continue">
+            <LinearGradient
+              colors={Gradients.button.colors as [string, string]}
+              start={Gradients.button.start}
+              end={Gradients.button.end}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Continue</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.button, styles.buttonDisabled]} data-testid="button-disabled">
+            <Text style={styles.buttonText}>
+              Select {remaining} more
+            </Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -106,80 +162,132 @@ export default function InterestsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: '#FAFAFA',
   },
-  header: {
-    padding: 24,
-    paddingTop: 40,
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 38,
+  },
+  backButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressContainer: {
+    height: 2,
+    position: 'relative',
+  },
+  progressTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#DDDDDD',
+  },
+  progressFill: {
+    position: 'absolute',
+    left: 0,
+    height: 2,
+    backgroundColor: '#35A8F7',
   },
   title: {
-    fontSize: 28,
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.neutral.charcoal,
-    marginBottom: 8,
+    color: '#1E1F26',
+    textAlign: 'center',
+    marginTop: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.neutral.coolMist,
-    marginBottom: 16,
-  },
-  counter: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.brand.bubbleBlue,
+    fontWeight: '500',
+    color: '#4D4D4D',
+    textAlign: 'center',
+    marginTop: 34,
+    marginBottom: 8,
   },
   scroll: {
     flex: 1,
   },
-  grid: {
+  gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: GRID_PADDING,
+    paddingTop: 0,
+    paddingBottom: 120,
+  },
+  cardWrapper: {
+    width: CARD_SIZE,
+    marginLeft: CARD_GAP / 2,
+    marginRight: CARD_GAP / 2,
+    marginBottom: 16,
+    alignItems: 'center',
   },
   card: {
-    width: '30%',
-    aspectRatio: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
+    width: CARD_SIZE,
+    height: CARD_SIZE,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 3,
     borderColor: 'transparent',
   },
   cardSelected: {
-    backgroundColor: 'hsl(210, 95%, 95%)',
-    borderColor: Colors.brand.bubbleBlue,
+    borderColor: '#35A8F7',
   },
-  emoji: {
-    fontSize: 32,
-    marginBottom: 8,
+  cardImage: {
+    width: '100%',
+    height: '100%',
   },
-  label: {
-    fontSize: 13,
+  selectedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(53, 168, 247, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#35A8F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: '#4D4D4D',
     textAlign: 'center',
+    marginTop: 6,
   },
-  labelSelected: {
-    color: Colors.brand.bubbleBlue,
+  cardLabelSelected: {
+    color: '#35A8F7',
   },
   footer: {
-    padding: 24,
-    paddingBottom: 32,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 40,
+    paddingBottom: 40,
+    paddingTop: 16,
   },
   button: {
-    borderRadius: Radius.full,
-    padding: 16,
+    height: 56,
+    borderRadius: 100,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 80,
   },
   buttonDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#969696',
   },
   buttonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
