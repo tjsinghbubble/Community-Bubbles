@@ -116,18 +116,26 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const renderFilterTabs = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
       <TouchableOpacity
-        style={[styles.filterChip, selectedTypeId === null && styles.filterChipActive]}
+        style={[
+          styles.filterChip,
+          selectedTypeId === null && { backgroundColor: Colors.text.primary + '15', borderColor: Colors.text.primary },
+        ]}
         onPress={() => handleFilterChange(null)}
       >
-        <Text style={[styles.filterChipText, selectedTypeId === null && styles.filterChipTextActive]}>All</Text>
+        <View style={[styles.filterColorDot, { backgroundColor: Colors.text.primary }]} />
+        <Text style={[styles.filterChipText, selectedTypeId === null && { color: Colors.text.primary, fontWeight: '600' }]}>All</Text>
       </TouchableOpacity>
       {postTypes.map((pt) => (
         <TouchableOpacity
           key={pt.id}
-          style={[styles.filterChip, selectedTypeId === pt.id && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            selectedTypeId === pt.id && { backgroundColor: pt.color + '20', borderColor: pt.color },
+          ]}
           onPress={() => handleFilterChange(pt.id)}
         >
-          <Text style={[styles.filterChipText, selectedTypeId === pt.id && styles.filterChipTextActive]}>{pt.displayName}</Text>
+          <View style={[styles.filterColorDot, { backgroundColor: pt.color }]} />
+          <Text style={[styles.filterChipText, selectedTypeId === pt.id && { color: pt.color, fontWeight: '600' }]}>{pt.displayName}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -275,24 +283,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterChip: {
-    paddingHorizontal: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
     borderWidth: 1,
     borderColor: Colors.border.light,
     backgroundColor: Colors.background.primary,
+    gap: Spacing.xs,
   },
-  filterChipActive: {
-    backgroundColor: Colors.text.primary,
-    borderColor: Colors.text.primary,
+  filterColorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   filterChipText: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
     color: Colors.text.primary,
-  },
-  filterChipTextActive: {
-    color: Colors.background.primary,
   },
   loadingContainer: {
     flex: 1,
