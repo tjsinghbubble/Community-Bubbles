@@ -176,7 +176,6 @@ export default function NotificationsScreen() {
           </Text>
           <Text style={styles.notifTime}>{getTimeAgo(item.createdAt)}</Text>
         </View>
-        {!item.read && <View style={styles.unreadDot} />}
       </AnimatedPressable>
     );
   };
@@ -285,8 +284,6 @@ const styles = StyleSheet.create({
   },
   notifRowUnread: {
     backgroundColor: Colors.background.brandTint,
-    borderLeftWidth: 3,
-    borderLeftColor: Colors.brand.primary,
   },
   iconCircle: {
     width: 40,
