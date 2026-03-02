@@ -47,6 +47,7 @@ export const Colors = {
   neutral: {
     black: '#000000',
     cloudGrey: '#F5F6F8',
+    lightSilver: '#E2E2E2',
     coolMist: '#969696',
     charcoal: '#4D4D4D',
   },
