@@ -235,6 +235,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   headerTitle: {
     fontSize: Typography.sizes.md,

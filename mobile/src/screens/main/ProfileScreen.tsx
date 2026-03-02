@@ -265,6 +265,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   headerSpacer: {
     width: 40,

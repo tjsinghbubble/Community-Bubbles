@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border.light,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   headerTitle: {
     fontSize: Typography.sizes.md,

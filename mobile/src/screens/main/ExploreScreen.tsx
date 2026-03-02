@@ -621,8 +621,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 40,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E0E0E0',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   tab: {
     alignItems: 'center',
