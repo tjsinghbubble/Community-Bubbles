@@ -281,9 +281,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: Radius.md,
     marginHorizontal: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightSilver,
   },
   notifRowUnread: {
     backgroundColor: Colors.background.brandTint,
+    borderColor: Colors.brand.primary,
   },
   iconCircle: {
     width: 40,
