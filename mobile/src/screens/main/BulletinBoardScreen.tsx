@@ -24,6 +24,7 @@ import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
+import { ChatBubbleIcon, ReactionFaceIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -330,7 +331,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.postFooterRight}>
             <View style={styles.footerIconGroup}>
-              <Ionicons name="chatbubble-outline" size={16} color={Colors.text.secondary} />
+              <ChatBubbleIcon size={18} color={Colors.text.secondary} />
               {item.replyCount > 0 && (
                 <Text style={styles.footerIconCount}>{item.replyCount}</Text>
               )}
@@ -340,13 +341,13 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={(e) => { e.stopPropagation(); handleToggleReaction(item.id); }}
             >
-              {item.userReacted || item.reactionCount > 0 ? (
+              {item.reactionCount > 0 ? (
                 <>
                   <Text style={{ fontSize: 16 }}>❤️</Text>
                   <Text style={styles.footerIconCount}>{item.reactionCount}</Text>
                 </>
               ) : (
-                <Ionicons name="happy-outline" size={18} color={Colors.text.secondary} />
+                <ReactionFaceIcon size={20} color={Colors.text.secondary} />
               )}
             </TouchableOpacity>
           </View>
