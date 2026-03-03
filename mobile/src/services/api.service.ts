@@ -485,6 +485,13 @@ class ApiService {
     return this.request<any>(`/api/bulletin/posts/${postId}/pin`, { method: "PATCH" });
   }
 
+  async toggleBulletinReaction(postId: string, emoji: string = 'heart'): Promise<{ added: boolean }> {
+    return this.request<{ added: boolean }>(`/api/bulletin/posts/${postId}/reactions`, {
+      method: "POST",
+      body: JSON.stringify({ emoji }),
+    });
+  }
+
   async getBulletinReplies(postId: string): Promise<any[]> {
     return this.request<any[]>(`/api/bulletin/posts/${postId}/replies`);
   }

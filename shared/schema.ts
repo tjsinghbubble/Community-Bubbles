@@ -422,6 +422,14 @@ export const insertBulletinReplySchema = createInsertSchema(bulletinReplies).omi
   updatedBy: true,
 });
 
+export const bulletinPostReactions = pgTable("bulletin_post_reactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => bulletinPosts.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  emoji: varchar("emoji", { length: 32 }).notNull().default('heart'),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export type BulletinBoard = typeof bulletinBoards.$inferSelect;
 export type InsertBulletinBoard = z.infer<typeof insertBulletinBoardSchema>;
 
@@ -433,3 +441,5 @@ export type InsertBulletinPost = z.infer<typeof insertBulletinPostSchema>;
 
 export type BulletinReply = typeof bulletinReplies.$inferSelect;
 export type InsertBulletinReply = z.infer<typeof insertBulletinReplySchema>;
+
+export type BulletinPostReaction = typeof bulletinPostReactions.$inferSelect;

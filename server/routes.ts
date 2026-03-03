@@ -2316,7 +2316,7 @@ export async function registerRoutes(
       if (!board) {
         return res.json([]);
       }
-      const posts = await storage.getBulletinPosts(board.id, postTypeId);
+      const posts = await storage.getBulletinPosts(board.id, postTypeId, req.userId);
       res.json(posts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2405,6 +2405,20 @@ export async function registerRoutes(
 
       const board = await storage.getBulletinBoard(req.params.postId);
       const result = await storage.toggleBulletinPostPin(req.params.postId, req.userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Bulletin Board - Toggle reaction
+  app.post("/api/bulletin/posts/:postId/reactions", authMiddleware, async (req, res) => {
+    try {
+      const post = await storage.getBulletinPost(req.params.postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+
+      const emoji = req.body.emoji || 'heart';
+      const result = await storage.toggleBulletinReaction(req.params.postId, req.userId!, emoji);
       res.json(result);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

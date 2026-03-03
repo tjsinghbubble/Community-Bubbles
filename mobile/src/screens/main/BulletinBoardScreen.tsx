@@ -44,6 +44,15 @@ type PostAuthor = {
   profilePhoto?: string | null;
 };
 
+type BulletinReply = {
+  id: string;
+  postId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: PostAuthor;
+};
+
 type BulletinPost = {
   id: string;
   boardId: string;
@@ -57,6 +66,8 @@ type BulletinPost = {
   author: PostAuthor;
   postType: PostType;
   replyCount: number;
+  reactionCount: number;
+  userReacted: boolean;
 };
 
 function formatTimeAgo(dateStr: string): string {
@@ -82,6 +93,9 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [kebabPostId, setKebabPostId] = useState<string | null>(null);
+  const [expandedPostIds, setExpandedPostIds] = useState<Set<string>>(new Set());
+  const [postReplies, setPostReplies] = useState<Record<string, BulletinReply[]>>({});
+  const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
 
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
 
@@ -169,6 +183,49 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     );
   };
 
+  const toggleExpandReplies = async (postId: string) => {
+    const newSet = new Set(expandedPostIds);
+    if (newSet.has(postId)) {
+      newSet.delete(postId);
+      setExpandedPostIds(newSet);
+      return;
+    }
+    newSet.add(postId);
+    setExpandedPostIds(newSet);
+    if (!postReplies[postId]) {
+      setLoadingReplies(prev => new Set(prev).add(postId));
+      try {
+        const replies = await apiService.getBulletinReplies(postId);
+        setPostReplies(prev => ({ ...prev, [postId]: replies }));
+      } catch (err) {
+        console.error('Failed to load replies:', err);
+      } finally {
+        setLoadingReplies(prev => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleToggleReaction = async (postId: string) => {
+    try {
+      const result = await apiService.toggleBulletinReaction(postId);
+      setPosts(prev => prev.map(p =>
+        p.id === postId
+          ? {
+              ...p,
+              userReacted: result.added,
+              reactionCount: result.added ? p.reactionCount + 1 : Math.max(0, p.reactionCount - 1),
+            }
+          : p
+      ));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to react');
+    }
+  };
+
   const renderKebabMenu = () => (
     <Modal
       visible={kebabPostId !== null}
@@ -230,6 +287,11 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   );
 
   const renderPost = ({ item }: { item: BulletinPost }) => {
+    const isExpanded = expandedPostIds.has(item.id);
+    const replies = postReplies[item.id] || [];
+    const isLoadingReplies = loadingReplies.has(item.id);
+    const authorDisplay = `${item.author.name.split(' ')[0]} ${item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}`;
+
     return (
       <AnimatedPressable
         style={[
@@ -260,20 +322,73 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         {item.imageUrl && (
           <Image source={{ uri: item.imageUrl }} style={styles.postImage} resizeMode="cover" />
         )}
-        <View style={styles.postMeta}>
-          <Text style={styles.postAuthor}>{item.author.name.split(' ')[0]} {item.author.name.split(' ')[1]?.[0] ? item.author.name.split(' ')[1][0] + '.' : ''}</Text>
-          <Text style={styles.postDot}> · </Text>
-          <Text style={styles.postTime}>{formatTimeAgo(item.createdAt)}</Text>
-        </View>
+
         <View style={styles.postFooter}>
-          <View style={styles.postFooterRight}>
-            <Ionicons name="chatbubble-outline" size={14} color={Colors.text.tertiary} />
-            <Text style={styles.postFooterCount}>{item.replyCount}</Text>
+          <View style={styles.postFooterLeft}>
+            <Text style={styles.postAuthor}>{authorDisplay}</Text>
+            <Text style={styles.postTime}>{formatTimeAgo(item.createdAt)}</Text>
           </View>
-          {item.replyCount > 0 && (
-            <Text style={styles.viewReplies}>View {item.replyCount === 1 ? '1 reply' : `${item.replyCount} replies`}</Text>
-          )}
+          <View style={styles.postFooterRight}>
+            <View style={styles.footerIconGroup}>
+              <Ionicons name="chatbubble-outline" size={16} color={Colors.text.secondary} />
+              {item.replyCount > 0 && (
+                <Text style={styles.footerIconCount}>{item.replyCount}</Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.footerIconGroup}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={(e) => { e.stopPropagation(); handleToggleReaction(item.id); }}
+            >
+              {item.userReacted || item.reactionCount > 0 ? (
+                <>
+                  <Text style={{ fontSize: 16 }}>❤️</Text>
+                  <Text style={styles.footerIconCount}>{item.reactionCount}</Text>
+                </>
+              ) : (
+                <Ionicons name="happy-outline" size={18} color={Colors.text.secondary} />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {item.replyCount > 0 && (
+          <>
+            <TouchableOpacity
+              style={styles.caretRow}
+              onPress={(e) => { e.stopPropagation(); toggleExpandReplies(item.id); }}
+            >
+              <Ionicons
+                name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={Colors.text.tertiary}
+              />
+              <Text style={styles.caretText}>
+                View {item.replyCount} {item.replyCount === 1 ? 'reply' : 'replies'}
+              </Text>
+            </TouchableOpacity>
+
+            {isExpanded && (
+              <View style={styles.repliesContainer}>
+                {isLoadingReplies ? (
+                  <ActivityIndicator size="small" color={Colors.brand.primary} style={{ marginVertical: Spacing.sm }} />
+                ) : (
+                  replies.map((reply) => (
+                    <View key={reply.id} style={styles.replyItem}>
+                      <View style={styles.replyHeader}>
+                        <Text style={styles.replyAuthor}>
+                          {reply.author.name.split(' ')[0]} {reply.author.name.split(' ')[1]?.[0] ? reply.author.name.split(' ')[1][0] + '.' : ''}
+                        </Text>
+                        <Text style={styles.replyTime}>{formatTimeAgo(reply.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.replyBody}>{reply.body}</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+          </>
+        )}
       </AnimatedPressable>
     );
   };
@@ -431,9 +546,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold,
   },
-  pinIcon: {
-    marginLeft: Spacing.sm,
-  },
   postTitle: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold,
@@ -452,41 +564,79 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     marginBottom: Spacing.md,
   },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  postAuthor: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-    fontWeight: Typography.weights.medium,
-  },
-  postDot: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-  },
-  postTime: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-  },
   postFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  postFooterLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  postAuthor: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.primary,
+    fontWeight: Typography.weights.semiBold,
+  },
+  postTime: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+  },
   postFooterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+  },
+  footerIconGroup: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  postFooterCount: {
+  footerIconCount: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weights.medium,
+  },
+  caretRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+  },
+  caretText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+  },
+  repliesContainer: {
+    marginTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E0E0E0',
+    paddingTop: Spacing.sm,
+  },
+  replyItem: {
+    marginBottom: Spacing.md,
+  },
+  replyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: 2,
+  },
+  replyAuthor: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  replyTime: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
   },
-  viewReplies: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
+  replyBody: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: 20,
   },
   kebabOverlay: {
     flex: 1,

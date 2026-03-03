@@ -52,6 +52,7 @@ import {
   bulletinReplies,
   type BulletinReply,
   type InsertBulletinReply,
+  bulletinPostReactions,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -196,7 +197,7 @@ export interface IStorage {
   getBulletinBoardById(boardId: string): Promise<BulletinBoard | undefined>;
   getOrCreateBulletinBoard(bubbleId: string, userId?: string): Promise<BulletinBoard>;
   getBulletinPostTypes(): Promise<BulletinPostType[]>;
-  getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]>;
+  getBulletinPosts(boardId: string, postTypeId?: number, currentUserId?: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number; reactionCount: number; userReacted: boolean })[]>;
   getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined>;
   createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
   deleteBulletinPost(postId: string): Promise<void>;
@@ -204,6 +205,7 @@ export interface IStorage {
   getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]>;
   createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply>;
   getBulletinPostCount(bubbleId: string): Promise<number>;
+  toggleBulletinReaction(postId: string, userId: string, emoji?: string): Promise<{ added: boolean }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1335,11 +1337,15 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(bulletinPostTypes).orderBy(bulletinPostTypes.displayOrder);
   }
 
-  async getBulletinPosts(boardId: string, postTypeId?: number): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number })[]> {
+  async getBulletinPosts(boardId: string, postTypeId?: number, currentUserId?: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number; reactionCount: number; userReacted: boolean })[]> {
     const conditions = [eq(bulletinPosts.boardId, boardId)];
     if (postTypeId !== undefined) {
       conditions.push(eq(bulletinPosts.postTypeId, postTypeId));
     }
+
+    const userReactedSql = currentUserId
+      ? sql<boolean>`EXISTS(SELECT 1 FROM bulletin_post_reactions WHERE post_id = ${bulletinPosts.id} AND user_id = ${currentUserId})`
+      : sql<boolean>`false`;
 
     const rows = await db
       .select({
@@ -1347,6 +1353,8 @@ export class DatabaseStorage implements IStorage {
         author: users,
         postType: bulletinPostTypes,
         replyCount: sql<number>`(SELECT COUNT(*) FROM bulletin_replies WHERE post_id = ${bulletinPosts.id})::int`,
+        reactionCount: sql<number>`(SELECT COUNT(*) FROM bulletin_post_reactions WHERE post_id = ${bulletinPosts.id})::int`,
+        userReacted: userReactedSql,
       })
       .from(bulletinPosts)
       .innerJoin(users, eq(bulletinPosts.authorId, users.id))
@@ -1359,6 +1367,8 @@ export class DatabaseStorage implements IStorage {
       author: r.author,
       postType: r.postType,
       replyCount: r.replyCount,
+      reactionCount: r.reactionCount,
+      userReacted: r.userReacted,
     }));
   }
 
@@ -1389,6 +1399,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteBulletinPost(postId: string): Promise<void> {
+    await db.delete(bulletinPostReactions).where(eq(bulletinPostReactions.postId, postId));
     await db.delete(bulletinReplies).where(eq(bulletinReplies.postId, postId));
     await db.delete(bulletinPosts).where(eq(bulletinPosts.id, postId));
   }
@@ -1435,6 +1446,28 @@ export class DatabaseStorage implements IStorage {
     if (!board) return 0;
     const result = await db.select({ count: sql<number>`count(*)::int` }).from(bulletinPosts).where(eq(bulletinPosts.boardId, board.id));
     return result[0]?.count ?? 0;
+  }
+
+  async toggleBulletinReaction(postId: string, userId: string, emoji: string = 'heart'): Promise<{ added: boolean }> {
+    const existing = await db
+      .select()
+      .from(bulletinPostReactions)
+      .where(
+        and(
+          eq(bulletinPostReactions.postId, postId),
+          eq(bulletinPostReactions.userId, userId),
+          eq(bulletinPostReactions.emoji, emoji),
+        )
+      )
+      .limit(1);
+
+    if (existing[0]) {
+      await db.delete(bulletinPostReactions).where(eq(bulletinPostReactions.id, existing[0].id));
+      return { added: false };
+    } else {
+      await db.insert(bulletinPostReactions).values({ postId, userId, emoji });
+      return { added: true };
+    }
   }
 }
 
