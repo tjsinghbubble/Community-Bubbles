@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import type { InsertNotification, Event } from "@shared/schema";
-import { utcToLocal } from "./timezone";
+import { utcToLocal, formatTime12h } from "./timezone";
 
 export type NotificationType =
   | "bubble_join"
@@ -211,11 +211,12 @@ async function processEventReminders(): Promise<void> {
         const localTime = event.timezone && event.timezone !== 'UTC'
           ? utcToLocal(event.date, event.startTime, event.timezone).time
           : event.startTime;
+        const displayTime = formatTime12h(localTime);
         await sendNotificationToMany({
           recipientIds: attendeeIds,
           type: "event_reminder_24h",
           title: "Event Tomorrow",
-          body: `"${event.title}" starts tomorrow at ${localTime}`,
+          body: `"${event.title}" starts tomorrow at ${displayTime}`,
           metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
         });
         sent24h++;
@@ -232,11 +233,12 @@ async function processEventReminders(): Promise<void> {
         const localTime1h = event.timezone && event.timezone !== 'UTC'
           ? utcToLocal(event.date, event.startTime, event.timezone).time
           : event.startTime;
+        const displayTime1h = formatTime12h(localTime1h);
         await sendNotificationToMany({
           recipientIds: attendeeIds,
           type: "event_reminder_1h",
           title: "Starting Soon",
-          body: `"${event.title}" starts in about 1 hour (${localTime1h})`,
+          body: `"${event.title}" starts in about 1 hour (${displayTime1h})`,
           metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
         });
         sent1h++;

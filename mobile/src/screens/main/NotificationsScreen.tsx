@@ -286,7 +286,6 @@ const styles = StyleSheet.create({
   },
   notifRowUnread: {
     backgroundColor: Colors.background.brandTint,
-    borderColor: Colors.brand.primary,
   },
   iconCircle: {
     width: 40,
