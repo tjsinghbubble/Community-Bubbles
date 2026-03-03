@@ -54,6 +54,11 @@ type BulletinReply = {
   author: PostAuthor;
 };
 
+type ReactionSummary = {
+  reactions: { emoji: string; count: number }[];
+  userEmojis: string[];
+};
+
 type BulletinPost = {
   id: string;
   boardId: string;
@@ -69,7 +74,26 @@ type BulletinPost = {
   replyCount: number;
   reactionCount: number;
   userReacted: boolean;
+  reactionSummary: ReactionSummary;
 };
+
+const EMOJI_MAP: Record<string, string> = {
+  thumbsup: '👍',
+  heart: '❤️',
+  laugh: '😂',
+  surprised: '😮',
+  cry: '😢',
+  pray: '🙏',
+};
+
+const EMOJI_PICKER_OPTIONS = [
+  { key: 'thumbsup', char: '👍' },
+  { key: 'heart', char: '❤️' },
+  { key: 'laugh', char: '😂' },
+  { key: 'surprised', char: '😮' },
+  { key: 'cry', char: '😢' },
+  { key: 'pray', char: '🙏' },
+];
 
 function formatTimeAgo(dateStr: string): string {
   const now = new Date();
@@ -97,6 +121,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [expandedPostIds, setExpandedPostIds] = useState<Set<string>>(new Set());
   const [postReplies, setPostReplies] = useState<Record<string, BulletinReply[]>>({});
   const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
+  const [emojiPickerPostId, setEmojiPickerPostId] = useState<string | null>(null);
 
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
 
@@ -210,18 +235,46 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleToggleReaction = async (postId: string) => {
+  const handleToggleReaction = async (postId: string, emoji: string = 'heart') => {
+    setEmojiPickerPostId(null);
     try {
-      const result = await apiService.toggleBulletinReaction(postId);
-      setPosts(prev => prev.map(p =>
-        p.id === postId
-          ? {
-              ...p,
-              userReacted: result.added,
-              reactionCount: result.added ? p.reactionCount + 1 : Math.max(0, p.reactionCount - 1),
+      const result = await apiService.toggleBulletinReaction(postId, emoji);
+      setPosts(prev => prev.map(p => {
+        if (p.id !== postId) return p;
+        const summary = { ...p.reactionSummary };
+        const reactions = [...summary.reactions];
+        const userEmojis = [...summary.userEmojis];
+        const existingIdx = reactions.findIndex(r => r.emoji === emoji);
+
+        if (result.added) {
+          if (existingIdx >= 0) {
+            reactions[existingIdx] = { ...reactions[existingIdx], count: reactions[existingIdx].count + 1 };
+          } else {
+            reactions.push({ emoji, count: 1 });
+          }
+          if (!userEmojis.includes(emoji)) userEmojis.push(emoji);
+        } else {
+          if (existingIdx >= 0) {
+            const newCount = reactions[existingIdx].count - 1;
+            if (newCount <= 0) {
+              reactions.splice(existingIdx, 1);
+            } else {
+              reactions[existingIdx] = { ...reactions[existingIdx], count: newCount };
             }
-          : p
-      ));
+          }
+          const ueIdx = userEmojis.indexOf(emoji);
+          if (ueIdx >= 0) userEmojis.splice(ueIdx, 1);
+        }
+
+        const totalReactions = reactions.reduce((sum, r) => sum + r.count, 0);
+
+        return {
+          ...p,
+          reactionCount: totalReactions,
+          userReacted: userEmojis.length > 0,
+          reactionSummary: { reactions, userEmojis },
+        };
+      }));
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Failed to react');
     }
@@ -256,6 +309,33 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             <Ionicons name="trash-outline" size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Delete Post</Text>
           </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
+  const renderEmojiPicker = () => (
+    <Modal
+      visible={emojiPickerPostId !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setEmojiPickerPostId(null)}
+    >
+      <TouchableOpacity
+        style={styles.kebabOverlay}
+        activeOpacity={1}
+        onPress={() => setEmojiPickerPostId(null)}
+      >
+        <View style={styles.emojiPickerContainer}>
+          {EMOJI_PICKER_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.key}
+              style={styles.emojiPickerItem}
+              onPress={() => emojiPickerPostId && handleToggleReaction(emojiPickerPostId, opt.key)}
+            >
+              <Text style={styles.emojiPickerEmoji}>{opt.char}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </TouchableOpacity>
     </Modal>
@@ -336,20 +416,28 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 <Text style={styles.footerIconCount}>{item.replyCount}</Text>
               )}
             </View>
-            <TouchableOpacity
-              style={styles.footerIconGroup}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={(e) => { e.stopPropagation(); handleToggleReaction(item.id); }}
-            >
-              {item.reactionCount > 0 ? (
-                <>
-                  <Text style={{ fontSize: 16 }}>❤️</Text>
-                  <Text style={styles.footerIconCount}>{item.reactionCount}</Text>
-                </>
-              ) : (
+            {item.reactionSummary?.reactions?.length > 0 ? (
+              item.reactionSummary.reactions.map((r) => (
+                <TouchableOpacity
+                  key={r.emoji}
+                  style={styles.footerIconGroup}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={(e) => { e.stopPropagation(); handleToggleReaction(item.id, r.emoji); }}
+                >
+                  <Text style={{ fontSize: 16 }}>{EMOJI_MAP[r.emoji] || r.emoji}</Text>
+                  <Text style={styles.footerIconCount}>{r.count}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <TouchableOpacity
+                style={styles.footerIconGroup}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onLongPress={(e) => { e.stopPropagation(); setEmojiPickerPostId(item.id); }}
+                onPress={(e) => { e.stopPropagation(); setEmojiPickerPostId(item.id); }}
+              >
                 <ReactionFaceIcon size={20} color={Colors.text.secondary} />
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -450,6 +538,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         />
       )}
       {renderKebabMenu()}
+      {renderEmojiPicker()}
     </SafeAreaView>
   );
 }
@@ -672,5 +761,28 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: '#E0E0E0',
     marginHorizontal: Spacing.lg,
+  },
+  emojiPickerContainer: {
+    position: 'absolute',
+    top: '40%',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    backgroundColor: Colors.background.primary,
+    borderRadius: 28,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+    gap: 4,
+  },
+  emojiPickerItem: {
+    padding: Spacing.sm,
+    borderRadius: 20,
+  },
+  emojiPickerEmoji: {
+    fontSize: 28,
   },
 });

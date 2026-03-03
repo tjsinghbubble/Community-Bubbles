@@ -2317,7 +2317,13 @@ export async function registerRoutes(
         return res.json([]);
       }
       const posts = await storage.getBulletinPosts(board.id, postTypeId, req.userId);
-      res.json(posts);
+      const postIds = posts.map(p => p.id);
+      const reactionSummaries = await storage.getBulletinPostReactionSummaries(postIds, req.userId);
+      const enrichedPosts = posts.map(p => ({
+        ...p,
+        reactionSummary: reactionSummaries[p.id] || { reactions: [], userEmojis: [] },
+      }));
+      res.json(enrichedPosts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

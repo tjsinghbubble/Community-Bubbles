@@ -205,7 +205,8 @@ export interface IStorage {
   getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]>;
   createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply>;
   getBulletinPostCount(bubbleId: string): Promise<number>;
-  toggleBulletinReaction(postId: string, userId: string, emoji?: string): Promise<{ added: boolean }>;
+  toggleBulletinReaction(postId: string, userId: string, emoji?: string): Promise<{ added: boolean; emoji: string }>;
+  getBulletinPostReactionSummaries(postIds: string[], currentUserId?: string): Promise<Record<string, { reactions: { emoji: string; count: number }[]; userEmojis: string[] }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1448,7 +1449,7 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count ?? 0;
   }
 
-  async toggleBulletinReaction(postId: string, userId: string, emoji: string = 'heart'): Promise<{ added: boolean }> {
+  async toggleBulletinReaction(postId: string, userId: string, emoji: string = 'heart'): Promise<{ added: boolean; emoji: string }> {
     const existing = await db
       .select()
       .from(bulletinPostReactions)
@@ -1463,11 +1464,49 @@ export class DatabaseStorage implements IStorage {
 
     if (existing[0]) {
       await db.delete(bulletinPostReactions).where(eq(bulletinPostReactions.id, existing[0].id));
-      return { added: false };
+      return { added: false, emoji };
     } else {
       await db.insert(bulletinPostReactions).values({ postId, userId, emoji });
-      return { added: true };
+      return { added: true, emoji };
     }
+  }
+
+  async getBulletinPostReactionSummaries(postIds: string[], currentUserId?: string): Promise<Record<string, { reactions: { emoji: string; count: number }[]; userEmojis: string[] }>> {
+    if (postIds.length === 0) return {};
+
+    const allReactions = await db
+      .select({
+        postId: bulletinPostReactions.postId,
+        emoji: bulletinPostReactions.emoji,
+        userId: bulletinPostReactions.userId,
+      })
+      .from(bulletinPostReactions)
+      .where(inArray(bulletinPostReactions.postId, postIds));
+
+    const result: Record<string, { reactions: { emoji: string; count: number }[]; userEmojis: string[] }> = {};
+
+    for (const postId of postIds) {
+      result[postId] = { reactions: [], userEmojis: [] };
+    }
+
+    const countsMap: Record<string, Record<string, number>> = {};
+    for (const r of allReactions) {
+      if (!countsMap[r.postId]) countsMap[r.postId] = {};
+      countsMap[r.postId][r.emoji] = (countsMap[r.postId][r.emoji] || 0) + 1;
+      if (currentUserId && r.userId === currentUserId) {
+        if (!result[r.postId]) result[r.postId] = { reactions: [], userEmojis: [] };
+        result[r.postId].userEmojis.push(r.emoji);
+      }
+    }
+
+    for (const postId of Object.keys(countsMap)) {
+      if (!result[postId]) result[postId] = { reactions: [], userEmojis: [] };
+      result[postId].reactions = Object.entries(countsMap[postId])
+        .map(([emoji, count]) => ({ emoji, count }))
+        .sort((a, b) => b.count - a.count);
+    }
+
+    return result;
   }
 }
 
