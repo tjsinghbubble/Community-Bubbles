@@ -2,10 +2,10 @@ import { db } from "./db";
 import { bulletinPostTypes } from "@shared/schema";
 
 const postTypes = [
-  { name: "general", displayName: "General", color: "#4CAF50", adminOnly: false, displayOrder: 1 },
-  { name: "announcements", displayName: "Announcements", color: "#FF9800", adminOnly: true, displayOrder: 2 },
-  { name: "help_exchange", displayName: "Help & Exchange", color: "#2196F3", adminOnly: false, displayOrder: 3 },
-  { name: "marketplace", displayName: "Marketplace", color: "#E91E63", adminOnly: false, displayOrder: 4 },
+  { name: "general", displayName: "General", color: "#0EADFF", adminOnly: false, displayOrder: 1 },
+  { name: "announcements", displayName: "Announcements", color: "#F9AA2B", adminOnly: true, displayOrder: 2 },
+  { name: "help_exchange", displayName: "Community Help", color: "#34C759", adminOnly: false, displayOrder: 3 },
+  { name: "marketplace", displayName: "Marketplace", color: "#FF666B", adminOnly: false, displayOrder: 4 },
 ];
 
 export async function seedBulletinPostTypes() {
