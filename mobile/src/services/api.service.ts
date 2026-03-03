@@ -481,6 +481,10 @@ class ApiService {
     return this.request<any>(`/api/bulletin/posts/${postId}`, { method: "DELETE" });
   }
 
+  async toggleBulletinPostPin(postId: string): Promise<any> {
+    return this.request<any>(`/api/bulletin/posts/${postId}/pin`, { method: "PATCH" });
+  }
+
   async getBulletinReplies(postId: string): Promise<any[]> {
     return this.request<any[]>(`/api/bulletin/posts/${postId}/replies`);
   }

@@ -10,6 +10,9 @@ import {
   StatusBar,
   ScrollView,
   Image,
+  Modal,
+  Alert,
+  Platform,
 } from 'react-native';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -78,6 +81,9 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [kebabPostId, setKebabPostId] = useState<string | null>(null);
+
+  const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
 
   const fetchData = useCallback(async () => {
     try {
@@ -112,6 +118,90 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       preselectedTypeId: selectedTypeId ?? undefined,
     });
   };
+
+  const handlePinPost = async () => {
+    if (!kebabPost) return;
+    setKebabPostId(null);
+    try {
+      await apiService.toggleBulletinPostPin(kebabPost.id);
+      setPosts(prev => prev.map(p =>
+        p.id === kebabPost.id ? { ...p, isPinned: !p.isPinned } : p
+      ));
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to pin post');
+    }
+  };
+
+  const handleEditPost = () => {
+    if (!kebabPost) return;
+    setKebabPostId(null);
+    navigation.navigate('CreatePost', {
+      bubbleId,
+      bubbleTitle,
+      editPostId: kebabPost.id,
+      editTitle: kebabPost.title,
+      editBody: kebabPost.body,
+      preselectedTypeId: kebabPost.postTypeId,
+    } as any);
+  };
+
+  const handleDeletePost = () => {
+    if (!kebabPost) return;
+    setKebabPostId(null);
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiService.deleteBulletinPost(kebabPost.id);
+              setPosts(prev => prev.filter(p => p.id !== kebabPost.id));
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Failed to delete post');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderKebabMenu = () => (
+    <Modal
+      visible={kebabPostId !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setKebabPostId(null)}
+    >
+      <TouchableOpacity
+        style={styles.kebabOverlay}
+        activeOpacity={1}
+        onPress={() => setKebabPostId(null)}
+      >
+        <View style={styles.kebabDropdown}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handlePinPost}>
+            <Ionicons name="pin-outline" size={20} color={Colors.brand.primary} />
+            <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>
+              {kebabPost?.isPinned ? 'Unpin Post' : 'Pin Post'}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.kebabSeparatorLight} />
+          <TouchableOpacity style={styles.kebabItem} onPress={handleEditPost}>
+            <Ionicons name="create-outline" size={20} color={Colors.brand.primary} />
+            <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Edit Post</Text>
+          </TouchableOpacity>
+          <View style={styles.kebabSeparatorLight} />
+          <TouchableOpacity style={styles.kebabItem} onPress={handleDeletePost}>
+            <Ionicons name="trash-outline" size={20} color={Colors.status.error} />
+            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Delete Post</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
 
   const renderFilterTabs = () => (
     <View style={[BulletinPillStyles.container, styles.filterContainer]}>
@@ -150,12 +240,20 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
       >
         <View style={styles.postTypeRow}>
-          <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
-            <Text style={[styles.postTypeBadgeText, { color: item.postType.color }]}>{item.postType.displayName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+            <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
+              <Text style={[styles.postTypeBadgeText, { color: item.postType.color }]}>{item.postType.displayName}</Text>
+            </View>
+            {item.isPinned && (
+              <Ionicons name="pin" size={16} color={Colors.brand.primary} />
+            )}
           </View>
-          {item.isPinned && (
-            <Ionicons name="pin" size={16} color={Colors.brand.primary} style={styles.pinIcon} />
-          )}
+          <TouchableOpacity
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            onPress={(e) => { e.stopPropagation(); setKebabPostId(item.id); }}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
+          </TouchableOpacity>
         </View>
         <Text style={styles.postTitle}>{item.title}</Text>
         <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
@@ -235,6 +333,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           ListEmptyComponent={renderEmpty}
         />
       )}
+      {renderKebabMenu()}
     </SafeAreaView>
   );
 }
@@ -388,5 +487,39 @@ const styles = StyleSheet.create({
   viewReplies: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
+  },
+  kebabOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  kebabDropdown: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    right: Spacing.lg,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 12,
+    paddingVertical: Spacing.sm,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  kebabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  kebabItemText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+  },
+  kebabSeparatorLight: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: Spacing.lg,
   },
 });
