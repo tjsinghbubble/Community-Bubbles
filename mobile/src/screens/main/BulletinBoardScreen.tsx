@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -122,8 +122,36 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [postReplies, setPostReplies] = useState<Record<string, BulletinReply[]>>({});
   const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
   const [emojiPickerPostId, setEmojiPickerPostId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [emojiPosition, setEmojiPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const kebabRefs = useRef<Record<string, View | null>>({});
+  const emojiRefs = useRef<Record<string, View | null>>({});
 
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
+
+  const openKebab = (postId: string) => {
+    const ref = kebabRefs.current[postId];
+    if (ref) {
+      ref.measureInWindow((x, y, width, height) => {
+        setMenuPosition({ x: x + width, y: y + height + 4 });
+        setKebabPostId(postId);
+      });
+    } else {
+      setKebabPostId(postId);
+    }
+  };
+
+  const openEmojiPicker = (postId: string) => {
+    const ref = emojiRefs.current[postId];
+    if (ref) {
+      ref.measureInWindow((x, y, _width, _height) => {
+        setEmojiPosition({ x, y: y - 52 });
+        setEmojiPickerPostId(postId);
+      });
+    } else {
+      setEmojiPickerPostId(postId);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -292,7 +320,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         activeOpacity={1}
         onPress={() => setKebabPostId(null)}
       >
-        <View style={styles.kebabDropdown}>
+        <View style={[styles.kebabDropdown, { top: menuPosition.y, right: Spacing.lg }]}>
           <TouchableOpacity style={styles.kebabItem} onPress={handlePinPost}>
             <Ionicons name="pin-outline" size={20} color={Colors.brand.primary} />
             <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>
@@ -326,7 +354,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         activeOpacity={1}
         onPress={() => setEmojiPickerPostId(null)}
       >
-        <View style={styles.emojiPickerContainer}>
+        <View style={[styles.emojiPickerContainer, { top: emojiPosition.y, right: Spacing.lg }]}>
           {EMOJI_PICKER_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.key}
@@ -391,12 +419,14 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               <Ionicons name="pin" size={16} color={Colors.brand.primary} />
             )}
           </View>
-          <TouchableOpacity
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            onPress={(e) => { e.stopPropagation(); setKebabPostId(item.id); }}
-          >
-            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
-          </TouchableOpacity>
+          <View ref={(r) => { kebabRefs.current[item.id] = r; }} collapsable={false}>
+            <TouchableOpacity
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={(e) => { e.stopPropagation(); openKebab(item.id); }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
+            </TouchableOpacity>
+          </View>
         </View>
         <Text style={styles.postTitle}>{item.title}</Text>
         <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
@@ -429,14 +459,16 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               ))
             ) : (
-              <TouchableOpacity
-                style={styles.footerIconGroup}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onLongPress={(e) => { e.stopPropagation(); setEmojiPickerPostId(item.id); }}
-                onPress={(e) => { e.stopPropagation(); setEmojiPickerPostId(item.id); }}
-              >
-                <ReactionFaceIcon size={20} color={Colors.text.secondary} />
-              </TouchableOpacity>
+              <View ref={(r) => { emojiRefs.current[item.id] = r; }} collapsable={false}>
+                <TouchableOpacity
+                  style={styles.footerIconGroup}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onLongPress={(e) => { e.stopPropagation(); openEmojiPicker(item.id); }}
+                  onPress={(e) => { e.stopPropagation(); openEmojiPicker(item.id); }}
+                >
+                  <ReactionFaceIcon size={20} color={Colors.text.secondary} />
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
@@ -734,8 +766,6 @@ const styles = StyleSheet.create({
   },
   kebabDropdown: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 90 : 50,
-    right: Spacing.lg,
     backgroundColor: Colors.background.primary,
     borderRadius: 12,
     paddingVertical: Spacing.sm,
@@ -764,8 +794,6 @@ const styles = StyleSheet.create({
   },
   emojiPickerContainer: {
     position: 'absolute',
-    top: '40%',
-    alignSelf: 'center',
     flexDirection: 'row',
     backgroundColor: Colors.background.primary,
     borderRadius: 28,
