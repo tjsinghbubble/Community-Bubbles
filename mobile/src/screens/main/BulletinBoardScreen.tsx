@@ -114,7 +114,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   };
 
   const renderFilterTabs = () => (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterContainer} contentContainerStyle={styles.filterContent}>
+    <View style={styles.filterContainer}>
       <TouchableOpacity
         style={[
           styles.filterChip,
@@ -138,7 +138,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           <Text style={[styles.filterChipText, selectedTypeId === pt.id && { color: pt.color, fontWeight: '600' }]}>{pt.displayName}</Text>
         </TouchableOpacity>
       ))}
-    </ScrollView>
+    </View>
   );
 
   const renderPost = ({ item }: { item: BulletinPost }) => {
@@ -274,13 +274,11 @@ const styles = StyleSheet.create({
     color: Colors.background.primary,
   },
   filterContainer: {
-    maxHeight: 44,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-  },
-  filterContent: {
     gap: Spacing.sm,
-    alignItems: 'center',
   },
   filterChip: {
     flexDirection: 'row',
