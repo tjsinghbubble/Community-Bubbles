@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 
@@ -114,28 +114,28 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   };
 
   const renderFilterTabs = () => (
-    <View style={styles.filterContainer}>
+    <View style={[BulletinPillStyles.container, styles.filterContainer]}>
       <TouchableOpacity
         style={[
-          styles.filterChip,
-          selectedTypeId === null && { backgroundColor: Colors.text.primary + '15', borderColor: Colors.text.primary },
+          BulletinPillStyles.chip,
+          selectedTypeId === null && { backgroundColor: BulletinPillColors.all + '15', borderColor: BulletinPillColors.all },
         ]}
         onPress={() => handleFilterChange(null)}
       >
-        <View style={[styles.filterColorDot, { backgroundColor: Colors.text.primary }]} />
-        <Text style={[styles.filterChipText, selectedTypeId === null && { color: Colors.text.primary, fontWeight: '600' }]}>All</Text>
+        <View style={[BulletinPillStyles.colorDot, { backgroundColor: BulletinPillColors.all }]} />
+        <Text style={[BulletinPillStyles.chipText, selectedTypeId === null && { color: BulletinPillColors.all, fontWeight: '600' }]}>All</Text>
       </TouchableOpacity>
       {postTypes.map((pt) => (
         <TouchableOpacity
           key={pt.id}
           style={[
-            styles.filterChip,
+            BulletinPillStyles.chip,
             selectedTypeId === pt.id && { backgroundColor: pt.color + '20', borderColor: pt.color },
           ]}
           onPress={() => handleFilterChange(pt.id)}
         >
-          <View style={[styles.filterColorDot, { backgroundColor: pt.color }]} />
-          <Text style={[styles.filterChipText, selectedTypeId === pt.id && { color: pt.color, fontWeight: '600' }]}>{pt.displayName}</Text>
+          <View style={[BulletinPillStyles.colorDot, { backgroundColor: pt.color }]} />
+          <Text style={[BulletinPillStyles.chipText, selectedTypeId === pt.id && { color: pt.color, fontWeight: '600' }]}>{pt.displayName}</Text>
         </TouchableOpacity>
       ))}
     </View>
@@ -274,32 +274,8 @@ const styles = StyleSheet.create({
     color: Colors.background.primary,
   },
   filterContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
-    backgroundColor: Colors.background.primary,
-    gap: Spacing.xs,
-  },
-  filterColorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  filterChipText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text.primary,
   },
   loadingContainer: {
     flex: 1,

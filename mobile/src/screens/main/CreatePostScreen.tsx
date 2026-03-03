@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles } from '../../styles/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import MultiImagePicker from '../../components/MultiImagePicker';
 
@@ -157,25 +157,25 @@ export default function CreatePostScreen({ navigation, route }: Props) {
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Category</Text>
-          <View style={styles.typesContainer}>
+          <View style={[BulletinPillStyles.container, styles.typesContainer]}>
             {postTypes.map((pt) => {
               const disabled = pt.adminOnly && !isAdmin;
               return (
                 <TouchableOpacity
                   key={pt.id}
                   style={[
-                    styles.typeChip,
+                    BulletinPillStyles.chip,
                     selectedTypeId === pt.id && { backgroundColor: pt.color + '20', borderColor: pt.color },
-                    disabled && styles.typeChipDisabled,
+                    disabled && BulletinPillStyles.chipDisabled,
                   ]}
                   onPress={() => !disabled && setSelectedTypeId(pt.id)}
                   disabled={disabled}
                 >
-                  <View style={[styles.typeColorDot, { backgroundColor: pt.color }]} />
+                  <View style={[BulletinPillStyles.colorDot, { backgroundColor: pt.color }]} />
                   <Text style={[
-                    styles.typeChipText,
+                    BulletinPillStyles.chipText,
                     selectedTypeId === pt.id && { color: pt.color },
-                    disabled && styles.typeChipTextDisabled,
+                    disabled && BulletinPillStyles.chipTextDisabled,
                   ]}>
                     {pt.displayName}
                   </Text>
@@ -274,36 +274,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   typesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
     marginBottom: Spacing.xl,
-  },
-  typeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
-    gap: Spacing.xs,
-  },
-  typeChipDisabled: {
-    opacity: 0.4,
-  },
-  typeColorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  typeChipText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text.primary,
-  },
-  typeChipTextDisabled: {
-    color: Colors.text.tertiary,
   },
   adminOnlyBadge: {
     fontSize: Typography.sizes.xs,

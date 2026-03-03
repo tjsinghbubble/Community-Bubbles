@@ -564,6 +564,45 @@ export const CardStyles = {
   },
 };
 
+export const BulletinPillStyles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    borderColor: Colors.border.light,
+    backgroundColor: Colors.background.primary,
+    gap: Spacing.xs,
+  },
+  chipDisabled: {
+    opacity: 0.4,
+  },
+  colorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  chipText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.primary,
+  },
+  chipTextDisabled: {
+    color: Colors.text.tertiary,
+  },
+});
+
+export const BulletinPillColors = {
+  all: '#4D4D4D',
+};
+
 const theme = {
   Colors,
   Gradients,
@@ -586,6 +625,8 @@ const theme = {
   CheckboxColors,
   SwitchColors,
   CardStyles,
+  BulletinPillStyles,
+  BulletinPillColors,
 };
 
 export default theme;
