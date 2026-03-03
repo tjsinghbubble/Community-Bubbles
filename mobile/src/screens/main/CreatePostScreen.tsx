@@ -165,16 +165,15 @@ export default function CreatePostScreen({ navigation, route }: Props) {
                   key={pt.id}
                   style={[
                     BulletinPillStyles.chip,
-                    selectedTypeId === pt.id && { backgroundColor: pt.color + '20', borderColor: pt.color },
+                    selectedTypeId === pt.id && [BulletinPillStyles.chipActive, { backgroundColor: pt.color }],
                     disabled && BulletinPillStyles.chipDisabled,
                   ]}
                   onPress={() => !disabled && setSelectedTypeId(pt.id)}
                   disabled={disabled}
                 >
-                  <View style={[BulletinPillStyles.colorDot, { backgroundColor: pt.color }]} />
                   <Text style={[
                     BulletinPillStyles.chipText,
-                    selectedTypeId === pt.id && { color: pt.color },
+                    selectedTypeId === pt.id && BulletinPillStyles.chipTextActive,
                     disabled && BulletinPillStyles.chipTextDisabled,
                   ]}>
                     {pt.displayName}

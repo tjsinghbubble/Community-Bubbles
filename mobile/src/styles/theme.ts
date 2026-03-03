@@ -573,26 +573,30 @@ export const BulletinPillStyles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
     backgroundColor: Colors.background.primary,
-    gap: Spacing.xs,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  chipActive: {
+    shadowOpacity: 0,
+    elevation: 0,
   },
   chipDisabled: {
     opacity: 0.4,
   },
-  colorDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   chipText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
   },
   chipTextDisabled: {
     color: Colors.text.tertiary,

@@ -118,24 +118,22 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       <TouchableOpacity
         style={[
           BulletinPillStyles.chip,
-          selectedTypeId === null && { backgroundColor: BulletinPillColors.all + '15', borderColor: BulletinPillColors.all },
+          selectedTypeId === null && [BulletinPillStyles.chipActive, { backgroundColor: BulletinPillColors.all }],
         ]}
         onPress={() => handleFilterChange(null)}
       >
-        <View style={[BulletinPillStyles.colorDot, { backgroundColor: BulletinPillColors.all }]} />
-        <Text style={[BulletinPillStyles.chipText, selectedTypeId === null && { color: BulletinPillColors.all, fontWeight: '600' }]}>All</Text>
+        <Text style={[BulletinPillStyles.chipText, selectedTypeId === null && BulletinPillStyles.chipTextActive]}>All</Text>
       </TouchableOpacity>
       {postTypes.map((pt) => (
         <TouchableOpacity
           key={pt.id}
           style={[
             BulletinPillStyles.chip,
-            selectedTypeId === pt.id && { backgroundColor: pt.color + '20', borderColor: pt.color },
+            selectedTypeId === pt.id && [BulletinPillStyles.chipActive, { backgroundColor: pt.color }],
           ]}
           onPress={() => handleFilterChange(pt.id)}
         >
-          <View style={[BulletinPillStyles.colorDot, { backgroundColor: pt.color }]} />
-          <Text style={[BulletinPillStyles.chipText, selectedTypeId === pt.id && { color: pt.color, fontWeight: '600' }]}>{pt.displayName}</Text>
+          <Text style={[BulletinPillStyles.chipText, selectedTypeId === pt.id && BulletinPillStyles.chipTextActive]}>{pt.displayName}</Text>
         </TouchableOpacity>
       ))}
     </View>
