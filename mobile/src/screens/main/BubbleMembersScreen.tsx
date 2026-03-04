@@ -540,15 +540,15 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
     padding: 8,
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     padding: 12,
     marginHorizontal: 16,
     marginTop: 16,
@@ -589,6 +589,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background.secondary,
   },
   list: {
     padding: 16,
@@ -609,7 +610,7 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontSize: 12,
     color: Colors.neutral.coolMist,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -617,7 +618,7 @@ const styles = StyleSheet.create({
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,

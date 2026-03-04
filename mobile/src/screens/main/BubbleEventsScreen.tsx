@@ -194,14 +194,15 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
+    backgroundColor: Colors.background.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
     marginRight: 12,
@@ -223,12 +224,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background.secondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+    backgroundColor: Colors.background.secondary,
   },
   emptyText: {
     fontSize: 16,
@@ -241,7 +244,7 @@ const styles = StyleSheet.create({
   eventCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
     borderRadius: 12,
     overflow: 'hidden',
   },

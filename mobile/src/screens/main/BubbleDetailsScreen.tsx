@@ -943,12 +943,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.background.secondary,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: Colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
@@ -956,10 +957,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
+    backgroundColor: Colors.background.secondary,
   },
   headerSeparator: {
     height: 1,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: Colors.neutral.lightSilver,
   },
   headerButton: {
     width: 40,

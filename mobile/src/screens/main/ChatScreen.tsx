@@ -912,15 +912,15 @@ export default function ChatScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
     padding: 8,

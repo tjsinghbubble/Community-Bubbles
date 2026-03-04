@@ -589,7 +589,7 @@ export default function PendingReviewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loadingContainer: {
@@ -598,14 +598,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
     padding: 4,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 12,

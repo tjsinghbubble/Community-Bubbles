@@ -458,7 +458,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
@@ -467,8 +467,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: Colors.background.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
     padding: 8,
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
     color: Colors.neutral.charcoal,
   },
   textArea: {
@@ -514,7 +515,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
     padding: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

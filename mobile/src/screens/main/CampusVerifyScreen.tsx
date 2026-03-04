@@ -99,16 +99,19 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
+      </View>
+      <View style={styles.headerSeparator} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.content}
+      >
 
         <View style={styles.iconContainer}>
           <View style={styles.emailIcon}>
@@ -174,7 +177,16 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.background.secondary,
+  },
+  headerSeparator: {
+    height: 1,
+    backgroundColor: Colors.neutral.lightSilver,
   },
   content: {
     flex: 1,
@@ -184,11 +196,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
-    marginBottom: 20,
   },
   iconContainer: {
     alignItems: 'center',
     marginBottom: 24,
+    marginTop: 20,
   },
   emailIcon: {
     width: 100,
@@ -226,11 +238,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     textAlign: 'center',
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
   },
   codeInputFilled: {
     borderColor: Colors.brand.bubbleBlue,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.primary,
   },
   verifyButton: {
     borderRadius: Radius.full,

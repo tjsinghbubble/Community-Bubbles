@@ -880,7 +880,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.background.secondary,
   },
   loading: {
     flex: 1,
@@ -894,6 +894,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: Spacing.md,
     zIndex: 200,
+    backgroundColor: Colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   navBackButton: {
     width: 36,

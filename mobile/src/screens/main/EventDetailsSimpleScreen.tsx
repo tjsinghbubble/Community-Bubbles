@@ -590,7 +590,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.background.secondary,
   },
   loading: {
     flex: 1,
@@ -602,6 +602,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingHorizontal: CONTENT_PADDING,
     position: 'relative',
+    backgroundColor: Colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   dragHandle: {
     width: 40,
@@ -634,6 +637,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: Spacing.md,
+    backgroundColor: Colors.background.secondary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   navBackButton: {
     width: 36,

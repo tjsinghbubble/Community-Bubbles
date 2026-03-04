@@ -501,7 +501,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
   },
   loading: {
     flex: 1,
@@ -513,8 +513,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
+    backgroundColor: Colors.background.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.cloudGrey,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   headerBackButton: {
     padding: 4,
@@ -536,7 +537,7 @@ const styles = StyleSheet.create({
   },
   sectionSeparator: {
     height: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.neutral.lightSilver,
     marginHorizontal: 20,
     marginTop: 8,
   },
@@ -545,12 +546,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
+    backgroundColor: Colors.background.primary,
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

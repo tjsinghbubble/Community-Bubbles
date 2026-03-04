@@ -75,16 +75,19 @@ export default function CampusJoinScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
+      <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
+      </View>
+      <View style={styles.headerSeparator} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.content}
+      >
 
         <View style={styles.iconContainer}>
           <Text style={styles.graduationIcon}>🎓</Text>
@@ -128,7 +131,16 @@ export default function CampusJoinScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: Colors.background.secondary,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: Colors.background.secondary,
+  },
+  headerSeparator: {
+    height: 1,
+    backgroundColor: Colors.neutral.lightSilver,
   },
   content: {
     flex: 1,
@@ -138,11 +150,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
-    marginBottom: 20,
   },
   iconContainer: {
     alignItems: 'center',
     marginBottom: 24,
+    marginTop: 20,
   },
   graduationIcon: {
     fontSize: 80,
@@ -175,7 +187,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     fontSize: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.primary,
   },
   verifyButton: {
     borderRadius: Radius.full,
