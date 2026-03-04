@@ -234,7 +234,7 @@ export default function UpcomingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loading: {

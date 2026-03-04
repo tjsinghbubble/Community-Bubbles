@@ -250,7 +250,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loadingContainer: {
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    backgroundColor: Colors.background.surface,
+    backgroundColor: Colors.background.secondary,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     flexDirection: 'row',

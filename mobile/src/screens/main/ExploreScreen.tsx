@@ -563,11 +563,11 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   overlayHeader: {
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.background.secondary,
   },
   searchContainer: {
     flexDirection: 'row',
