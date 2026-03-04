@@ -24,7 +24,8 @@ import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
 
 type Props = {
@@ -350,24 +351,14 @@ export default function EditEventScreen({ navigation, route }: Props) {
             )}
           </View>
 
-          <TouchableOpacity
-            style={[(!isFormValid || loading) && styles.buttonDisabled]}
+          <BubbleButton
+            title="Save Changes"
             onPress={handleSave}
-            disabled={!isFormValid || loading}
-          >
-            <LinearGradient
-              colors={[...Gradients.button.colors] as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.saveButton}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+            disabled={!isFormValid}
+            loading={loading}
+            testID="button-save-event"
+            style={{ marginTop: 12 }}
+          />
         </View>
       </ScrollView>
 

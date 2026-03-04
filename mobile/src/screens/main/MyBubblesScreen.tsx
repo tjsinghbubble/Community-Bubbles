@@ -17,7 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
-import { LinearGradient } from 'expo-linear-gradient';
+import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
@@ -152,17 +152,13 @@ export default function MyBubblesScreen() {
           <Text style={styles.emptySubtitle}>
             Join some bubbles from the Explore tab or create your own!
           </Text>
-          <TouchableOpacity onPress={handleCreateBubble}>
-            <LinearGradient
-              colors={Gradients.button.colors as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.createFirstButton}
-            >
-              <Ionicons name="add" size={20} color={'#FFFFFF'} />
-              <Text style={styles.createFirstButtonText}>Create a Bubble</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <BubbleButton
+            title="Create a Bubble"
+            onPress={handleCreateBubble}
+            style={styles.createFirstButton}
+            icon={<Ionicons name="add" size={20} color={'#FFFFFF'} />}
+            testID="button-create-bubble-empty"
+          />
         </View>
       ) : (
         <ScrollView
@@ -389,11 +385,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.full,
     marginTop: 20,
     gap: 8,
-  },
-  createFirstButtonText: {
-    color: Colors.brand.skyWhite,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
   },
   fab: {
     position: 'absolute',

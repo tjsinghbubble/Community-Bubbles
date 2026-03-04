@@ -8,15 +8,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { EyeIcon, EyeOffIcon } from '../../components/icons';
+import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
@@ -90,24 +89,13 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <TouchableOpacity
+          <BubbleButton
+            title="Sign In"
             onPress={handleLogin}
             disabled={!email || !password || isLoading}
-            style={(!email || !password || isLoading) ? styles.buttonDisabled : undefined}
-          >
-            <LinearGradient
-              colors={Gradients.button.colors as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.button}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+            loading={isLoading}
+            testID="button-sign-in"
+          />
         </View>
 
         <View style={styles.footer}>

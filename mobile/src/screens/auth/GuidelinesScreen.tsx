@@ -7,15 +7,14 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Gradients } from '../../styles/theme';
+import { Colors } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -135,24 +134,13 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <BubbleButton
+          title="I Agree"
           onPress={handleAgree}
           disabled={isLoading}
-          data-testid="button-agree"
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buttonText}>I Agree</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          loading={isLoading}
+          testID="button-agree"
+        />
       </View>
     </SafeAreaView>
   );

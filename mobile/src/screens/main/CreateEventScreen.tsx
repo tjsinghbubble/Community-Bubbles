@@ -10,7 +10,6 @@ import {
   Platform,
   StatusBar,
   Alert,
-  ActivityIndicator,
   Modal,
   Image,
   Switch,
@@ -19,14 +18,14 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
-import { Colors, Spacing, Radius, Typography, SwitchColors, Gradients } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
+import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
@@ -1007,19 +1006,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             </View>
             <Text style={styles.successTitle}>Event Created!</Text>
             <Text style={styles.successSubtitle}>Your event has been published successfully</Text>
-            <TouchableOpacity
+            <BubbleButton
+              title="View Event"
               onPress={handleViewEventNavigation}
-              style={{ width: '100%' }}
-            >
-              <LinearGradient
-                colors={[...Gradients.button.colors] as [string, string]}
-                start={Gradients.button.start}
-                end={Gradients.button.end}
-                style={styles.successViewButton}
-              >
-                <Text style={styles.successViewButtonText}>View Event</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              testID="button-view-event"
+            />
           </View>
         </View>
       </Modal>
@@ -1097,35 +1088,20 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
         <View style={styles.bottomButtonContainer}>
           {step === 4 ? (
-            <TouchableOpacity
-              style={[styles.publishButton, loading && styles.primaryButtonDisabled]}
+            <BubbleButton
+              title="Publish Event"
               onPress={handlePublish}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color={Colors.brand.skyWhite} />
-              ) : (
-                <View style={styles.publishButtonContent}>
-                  <Ionicons name="checkmark" size={20} color={Colors.brand.skyWhite} style={{ marginRight: 8 }} />
-                  <Text style={styles.publishButtonText}>Publish Event</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+              loading={loading}
+              icon={<Ionicons name="checkmark" size={20} color={Colors.brand.skyWhite} />}
+              testID="button-publish-event"
+            />
           ) : (
-            <TouchableOpacity
-              style={[loading && styles.primaryButtonDisabled]}
+            <BubbleButton
+              title={getBottomButtonLabel()}
               onPress={handleNext}
-              disabled={loading}
-            >
-              <LinearGradient
-                colors={[...Gradients.button.colors] as [string, string]}
-                start={Gradients.button.start}
-                end={Gradients.button.end}
-                style={styles.primaryButton}
-              >
-                <Text style={styles.primaryButtonText}>{getBottomButtonLabel()}</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              loading={loading}
+              testID="button-next"
+            />
           )}
         </View>
       </KeyboardAvoidingView>

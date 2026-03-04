@@ -21,8 +21,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 import { ChatBubbleIcon, ReactionFaceIcon } from '../../components/icons';
 
@@ -517,19 +517,12 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyText}>Nothing here yet. Start the conversation!</Text>
-      <TouchableOpacity
+      <BubbleButton
+        title="+ Create a post"
         onPress={handleCreatePost}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={Gradients.button.colors as [string, string]}
-          start={Gradients.button.start}
-          end={Gradients.button.end}
-          style={styles.createPostButton}
-        >
-          <Text style={styles.createPostButtonText}>+ Create a post</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+        style={styles.createPostButton}
+        testID="button-create-post-empty"
+      />
     </View>
   );
 
@@ -541,19 +534,12 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulletin Board</Text>
-        <TouchableOpacity
+        <BubbleButton
+          title="+ New"
           onPress={handleCreatePost}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.newButton}
-          >
-            <Text style={styles.newButtonText}>+ New</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          style={styles.newButton}
+          testID="button-new-post-header"
+        />
       </View>
 
       {renderFilterTabs()}
@@ -602,11 +588,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderRadius: Radius.full,
   },
-  newButtonText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
-  },
   filterContainer: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.sm,
@@ -639,11 +620,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.md,
     borderRadius: Radius.full,
-  },
-  createPostButtonText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.background.primary,
   },
   postCard: {
     backgroundColor: Colors.background.primary,

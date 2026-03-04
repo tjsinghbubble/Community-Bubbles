@@ -32,6 +32,7 @@ import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIco
 import MultiImagePicker from '../../components/MultiImagePicker';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import { LinearGradient } from 'expo-linear-gradient';
+import BubbleButton from '../../components/BubbleButton';
 import {
   Colors,
   Spacing,
@@ -40,7 +41,6 @@ import {
   RadioStyles,
   SwitchColors,
   ModalStyles,
-  Gradients,
 } from '../../styles/theme';
 
 type Props = {
@@ -633,22 +633,13 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
     const disabled = !canGoNext();
     return (
       <View style={styles.bottomBar}>
-        <TouchableOpacity
+        <BubbleButton
+          title={isReview ? 'Save Changes' : 'Next'}
           onPress={isReview ? handleSubmit : goNext}
           disabled={disabled}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={[...Gradients.button.colors] as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={[styles.primaryButton, disabled && styles.buttonDisabled]}
-          >
-            <Text style={styles.primaryButtonText}>
-              {isReview ? 'Save Changes' : 'Next'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          loading={loading}
+          testID={isReview ? "button-save" : "button-next"}
+        />
       </View>
     );
   };
@@ -698,26 +689,20 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 autoFocus
               />
               <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.modalSecondaryBtn}
+                <BubbleButton
+                  title="Cancel"
                   onPress={() => setShowRuleModal(false)}
-                >
-                  <Text style={styles.modalSecondaryText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                  variant="outline"
+                  style={{ flex: 1 }}
+                  testID="button-cancel-rule"
+                />
+                <BubbleButton
+                  title="Save"
                   onPress={saveRule}
                   disabled={!ruleText.trim()}
                   style={{ flex: 1 }}
-                >
-                  <LinearGradient
-                    colors={[...Gradients.button.colors] as [string, string]}
-                    start={Gradients.button.start}
-                    end={Gradients.button.end}
-                    style={[styles.primaryButton, !ruleText.trim() && { opacity: 0.5 }]}
-                  >
-                    <Text style={styles.primaryButtonText}>Save</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  testID="button-save-rule"
+                />
               </View>
             </View>
           </TouchableOpacity>

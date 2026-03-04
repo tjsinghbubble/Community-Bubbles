@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
@@ -63,25 +63,18 @@ export default function WelcomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.buttons}>
-          <TouchableOpacity
+          <BubbleButton
+            title="Sign Up"
             onPress={() => navigation.navigate('Signup')}
-          >
-            <LinearGradient
-              colors={Gradients.button.colors as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.signUpButton}
-            >
-              <Text style={styles.signUpText}>Sign Up</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+            testID="button-sign-up"
+          />
 
-          <TouchableOpacity
-            style={styles.logInButton}
+          <BubbleButton
+            title="Log In"
+            variant="outline"
             onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.logInText}>Log In</Text>
-          </TouchableOpacity>
+            testID="button-log-in"
+          />
         </View>
       </View>
     </SafeAreaView>

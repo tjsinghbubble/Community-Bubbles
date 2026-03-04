@@ -29,7 +29,7 @@ import cometChatService from '../../services/cometchat.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon, PeopleIcon } from '../../components/icons';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { LinearGradient } from 'expo-linear-gradient';
+import BubbleButton from '../../components/BubbleButton';
 import {
   Colors,
   Spacing,
@@ -38,7 +38,6 @@ import {
   RadioStyles,
   SwitchColors,
   ModalStyles,
-  Gradients,
 } from '../../styles/theme';
 
 type Props = {
@@ -356,19 +355,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             />
           </View>
           <View style={styles.successBottomSection}>
-            <TouchableOpacity
-              style={styles.finishButton}
+            <BubbleButton
+              title="Finish"
               onPress={() => navigation.goBack()}
-            >
-              <LinearGradient
-                colors={Gradients.button.colors as [string, string]}
-                start={Gradients.button.start}
-                end={Gradients.button.end}
-                style={styles.primaryButton}
-              >
-                <Text style={styles.primaryButtonText}>Finish</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              testID="button-finish"
+            />
           </View>
         </View>
       </SafeAreaView>
@@ -803,25 +794,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const renderNextButton = () => {
     const isReview = step === 4;
-    const disabled = !canGoNext();
     return (
       <View style={styles.bottomBar}>
-        <TouchableOpacity
+        <BubbleButton
+          title={isReview ? 'Submit for review' : 'Next'}
           onPress={isReview ? handleSubmit : goNext}
-          disabled={disabled}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={[styles.primaryButton, disabled && styles.buttonDisabled]}
-          >
-            <Text style={styles.primaryButtonText}>
-              {isReview ? 'Submit for review' : 'Next'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          disabled={!canGoNext()}
+          loading={loading}
+          testID={isReview ? 'button-submit-review' : 'button-next'}
+        />
       </View>
     );
   };
@@ -871,26 +852,20 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 autoFocus
               />
               <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.modalSecondaryBtn}
+                <BubbleButton
+                  title="Cancel"
                   onPress={() => setShowRuleModal(false)}
-                >
-                  <Text style={styles.modalSecondaryText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+                  variant="outline"
+                  style={{ flex: 1, height: 56 }}
+                  testID="button-cancel-rule"
+                />
+                <BubbleButton
+                  title="Save"
                   onPress={saveRule}
                   disabled={!ruleText.trim()}
-                  style={{ flex: 1 }}
-                >
-                  <LinearGradient
-                    colors={Gradients.button.colors as [string, string]}
-                    start={Gradients.button.start}
-                    end={Gradients.button.end}
-                    style={[styles.primaryButton, !ruleText.trim() && { opacity: 0.5 }]}
-                  >
-                    <Text style={styles.primaryButtonText}>Save</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  style={{ flex: 1, height: 56 }}
+                  testID="button-save-rule"
+                />
               </View>
             </View>
           </TouchableOpacity>

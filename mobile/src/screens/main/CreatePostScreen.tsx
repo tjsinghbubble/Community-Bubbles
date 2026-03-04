@@ -20,9 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles } from '../../styles/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Colors, Spacing, Radius, Typography, BulletinPillStyles } from '../../styles/theme';
 import MultiImagePicker from '../../components/MultiImagePicker';
+import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'CreatePost'>;
@@ -135,24 +135,15 @@ export default function CreatePostScreen({ navigation, route }: Props) {
             <Ionicons name="close" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>New Post</Text>
-          <TouchableOpacity
+          <BubbleButton
+            title="Post"
             onPress={handleSubmit}
             disabled={!canSubmit}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={canSubmit ? Gradients.button.colors as [string, string] : ['#ccc', '#ccc']}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.postButton}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={Colors.background.primary} />
-              ) : (
-                <Text style={styles.postButtonText}>Post</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+            loading={submitting}
+            style={styles.postButton}
+            textStyle={styles.postButtonText}
+            testID="button-post"
+          />
         </View>
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">

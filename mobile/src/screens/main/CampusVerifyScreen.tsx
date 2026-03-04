@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
-import { LinearGradient } from 'expo-linear-gradient';
+import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
@@ -123,7 +123,7 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           {code.map((digit, index) => (
             <TextInput
               key={index}
-              ref={(ref) => (inputRefs.current[index] = ref)}
+              ref={(ref) => { inputRefs.current[index] = ref; }}
               style={[styles.codeInput, digit && styles.codeInputFilled]}
               value={digit}
               onChangeText={(value) => handleCodeChange(value, index)}
@@ -135,24 +135,14 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[(!isCodeComplete || isLoading) && styles.buttonDisabled]}
+        <BubbleButton
+          title="Verify"
           onPress={handleVerify}
-          disabled={!isCodeComplete || isLoading}
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.verifyButton}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.verifyButtonText}>Verify</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          disabled={!isCodeComplete}
+          loading={isLoading}
+          style={styles.verifyButton}
+          testID="button-verify-campus-code"
+        />
 
         <TouchableOpacity
           style={styles.resendButton}
@@ -247,14 +237,6 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  verifyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   resendButton: {
     padding: 12,

@@ -33,7 +33,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
+import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
@@ -631,62 +632,28 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const renderJoinLeaveButton = () => {
     if (isLoading) return null;
 
-    if (isMember) {
-      return (
-        <AnimatedPressable
-          style={styles.leaveButton}
-          scaleValue={0.96}
-          onPress={handleJoinLeave}
-          disabled={isJoining}
-        >
-          {isJoining ? (
-            <ActivityIndicator color={Colors.status.error} size="small" />
-          ) : (
-            <Text style={styles.leaveButtonText}>Leave Bubble</Text>
-          )}
-        </AnimatedPressable>
-      );
-    }
-
-    if (membershipStatus === 'pending') {
-      return (
-        <AnimatedPressable
-          style={styles.pendingButton}
-          scaleValue={0.96}
-          onPress={handleJoinLeave}
-          disabled={isJoining}
-        >
-          {isJoining ? (
-            <ActivityIndicator color={Colors.neutral.coolMist} size="small" />
-          ) : (
-            <Text style={styles.pendingButtonText}>Request Pending</Text>
-          )}
-        </AnimatedPressable>
-      );
-    }
-
+    let title = 'Join Bubble';
+    let variant: 'primary' | 'outline' = 'primary';
     const privacy = bubbleDetails?.privacy || bubble.privacy;
-    const buttonLabel = (privacy === 'Request to Join' || privacy === 'Private') ? 'Request to Join' : 'Join Bubble';
+
+    if (isMember) {
+      title = 'Leave Bubble';
+      variant = 'outline';
+    } else if (membershipStatus === 'pending') {
+      title = 'Request Pending';
+      variant = 'outline';
+    } else if (privacy === 'Request to Join' || privacy === 'Private') {
+      title = 'Request to Join';
+    }
 
     return (
-      <AnimatedPressable
-        style={styles.joinButton}
-        scaleValue={0.96}
+      <BubbleButton
+        title={title}
         onPress={handleJoinLeave}
-        disabled={isJoining}
-      >
-        <LinearGradient
-          colors={[...Gradients.button.colors] as [string, string]}
-          start={Gradients.button.start}
-          end={Gradients.button.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-        {isJoining ? (
-          <ActivityIndicator color={'#FFFFFF'} size="small" />
-        ) : (
-          <Text style={styles.joinButtonText}>{buttonLabel}</Text>
-        )}
-      </AnimatedPressable>
+        variant={variant}
+        loading={isJoining}
+        testID="button-join-leave"
+      />
     );
   };
 

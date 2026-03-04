@@ -27,9 +27,9 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
+import BubbleButton from '../../components/BubbleButton';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -286,16 +286,12 @@ export default function ExploreScreen() {
         <Text style={styles.studentPromptSubtitle}>
           Unlock exclusive campus events, verified student communities, and connect with classmates
         </Text>
-        <TouchableOpacity onPress={handleJoinCampus}>
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.joinCampusButton}
-          >
-            <Text style={styles.joinCampusButtonText}>Join a campus</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        <BubbleButton 
+          title="Join a campus"
+          onPress={handleJoinCampus}
+          style={styles.joinCampusButton}
+          testID="button-join-campus"
+        />
         <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
         </TouchableOpacity>

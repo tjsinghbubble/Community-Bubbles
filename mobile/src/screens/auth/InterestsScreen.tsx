@@ -12,9 +12,9 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Gradients } from '../../styles/theme';
+import { Colors } from '../../styles/theme';
+import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -137,24 +137,12 @@ export default function InterestsScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        {canContinue ? (
-          <TouchableOpacity onPress={handleContinue} data-testid="button-continue">
-            <LinearGradient
-              colors={Gradients.button.colors as [string, string]}
-              start={Gradients.button.start}
-              end={Gradients.button.end}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Continue</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <View style={[styles.button, styles.buttonDisabled]} data-testid="button-disabled">
-            <Text style={styles.buttonText}>
-              Select {remaining} more
-            </Text>
-          </View>
-        )}
+        <BubbleButton
+          title={canContinue ? 'Continue' : `Select ${remaining} more`}
+          onPress={handleContinue}
+          disabled={!canContinue}
+          testID="button-continue"
+        />
       </View>
     </SafeAreaView>
   );

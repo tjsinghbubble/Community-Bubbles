@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { LinearGradient } from 'expo-linear-gradient';
+import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
@@ -110,24 +109,13 @@ export default function CampusJoinScreen({ navigation }: Props) {
           />
         </View>
 
-        <TouchableOpacity
-          style={[isLoading && styles.buttonDisabled]}
+        <BubbleButton
+          title="Verify My .edu Email"
           onPress={handleVerifyEmail}
-          disabled={isLoading}
-        >
-          <LinearGradient
-            colors={Gradients.button.colors as [string, string]}
-            start={Gradients.button.start}
-            end={Gradients.button.end}
-            style={styles.verifyButton}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.verifyButtonText}>Verify My .edu Email</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
+          loading={isLoading}
+          style={styles.verifyButton}
+          testID="button-verify-edu-email"
+        />
 
         <Text style={styles.disclaimer}>
           Bubble is not managed by or affiliated with your school
@@ -194,14 +182,6 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  verifyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   disclaimer: {
     fontSize: 12,
