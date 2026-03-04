@@ -9,7 +9,12 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Svg, {
+  Rect,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+} from 'react-native-svg';
 import { Colors, Typography, Spacing } from '../styles/theme';
 
 export type BubbleButtonVariant =
@@ -30,6 +35,109 @@ interface BubbleButtonProps {
   testID?: string;
 }
 
+function ButtonSvgDefault() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Defs>
+        <SvgLinearGradient id="grad_default" x1="7.77313e-06" y1="0.0833303" x2="105.144" y2="267.375" gradientUnits="userSpaceOnUse">
+          <Stop stopColor="#35A8F7" />
+          <Stop offset="1" stopColor="white" />
+        </SvgLinearGradient>
+      </Defs>
+      <Rect width="313" height="56" rx="28" fill="url(#grad_default)" />
+    </Svg>
+  );
+}
+
+function ButtonSvgPressed() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect width="313" height="56" rx="28" fill="#37ADFF" />
+    </Svg>
+  );
+}
+
+function ButtonSvgDisabled() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect width="313" height="56" rx="28" fill="#969696" />
+    </Svg>
+  );
+}
+
+function ButtonSvgOutlined() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#35A8F7" fill="none" />
+    </Svg>
+  );
+}
+
+function ButtonSvgOutlinedPressed() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#35A8F7" fillOpacity={0.15} />
+      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#35A8F7" fill="none" />
+    </Svg>
+  );
+}
+
+function ButtonSvgOutlinedDisabled() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#98B4C8" fill="none" />
+    </Svg>
+  );
+}
+
+function ButtonSvgRedOutline() {
+  return (
+    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#FF3B30" fill="none" />
+    </Svg>
+  );
+}
+
+function getSvgBackground(
+  variant: BubbleButtonVariant,
+  pressed: boolean,
+  isDisabled: boolean,
+): React.ReactNode {
+  if (variant === 'primary') {
+    if (isDisabled) return <ButtonSvgDisabled />;
+    if (pressed) return <ButtonSvgPressed />;
+    return <ButtonSvgDefault />;
+  }
+  if (variant === 'outline') {
+    if (isDisabled) return <ButtonSvgOutlinedDisabled />;
+    if (pressed) return <ButtonSvgOutlinedPressed />;
+    return <ButtonSvgOutlined />;
+  }
+  if (variant === 'destructive') {
+    if (pressed) {
+      return (
+        <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#FF3B30" fillOpacity={0.1} />
+          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#FF3B30" fill="none" />
+        </Svg>
+      );
+    }
+    return <ButtonSvgRedOutline />;
+  }
+  if (variant === 'ghost') {
+    if (pressed) {
+      return (
+        <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#35A8F7" fillOpacity={0.08} />
+          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#98B4C8" fill="none" />
+        </Svg>
+      );
+    }
+    return <ButtonSvgOutlinedDisabled />;
+  }
+  return <ButtonSvgDefault />;
+}
+
 export default function BubbleButton({
   title,
   onPress,
@@ -43,46 +151,6 @@ export default function BubbleButton({
 }: BubbleButtonProps) {
   const isDisabled = disabled || loading;
 
-  const getContainerStyle = (pressed: boolean): StyleProp<ViewStyle> => {
-    const base: ViewStyle = {
-      height: 56,
-      borderRadius: 28,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: Spacing.xl,
-      flexDirection: 'row',
-      overflow: 'hidden',
-    };
-
-    if (variant === 'primary') {
-      if (isDisabled) return [base, { backgroundColor: '#969696' }, style].filter(Boolean) as ViewStyle[];
-      if (pressed) return [base, { backgroundColor: '#37ADFF' }, style].filter(Boolean) as ViewStyle[];
-      return [base, style].filter(Boolean) as ViewStyle[];
-    }
-
-    if (variant === 'outline') {
-      if (isDisabled)
-        return [base, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#98B4C8' }, style].filter(Boolean) as ViewStyle[];
-      if (pressed)
-        return [base, { backgroundColor: 'rgba(53, 168, 247, 0.15)', borderWidth: 1, borderColor: Colors.brand.primary }, style].filter(Boolean) as ViewStyle[];
-      return [base, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.brand.primary }, style].filter(Boolean) as ViewStyle[];
-    }
-
-    if (variant === 'destructive') {
-      if (pressed)
-        return [base, { backgroundColor: 'rgba(255, 59, 48, 0.1)', borderWidth: 1, borderColor: '#FF3B30' }, style].filter(Boolean) as ViewStyle[];
-      return [base, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#FF3B30' }, style].filter(Boolean) as ViewStyle[];
-    }
-
-    if (variant === 'ghost') {
-      if (pressed)
-        return [base, { backgroundColor: 'rgba(53, 168, 247, 0.08)', borderWidth: 1, borderColor: '#98B4C8' }, style].filter(Boolean) as ViewStyle[];
-      return [base, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#98B4C8' }, style].filter(Boolean) as ViewStyle[];
-    }
-
-    return [base, style].filter(Boolean) as ViewStyle[];
-  };
-
   const getTextColor = (): string => {
     if (variant === 'primary') return '#FFFFFF';
     if (variant === 'outline') return isDisabled ? '#98B4C8' : Colors.brand.primary;
@@ -91,25 +159,16 @@ export default function BubbleButton({
     return '#FFFFFF';
   };
 
-  const showGradient = variant === 'primary' && !isDisabled;
-
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
       testID={testID}
-      style={({ pressed }) => getContainerStyle(pressed)}
+      style={[styles.wrapper, style]}
     >
       {({ pressed }) => (
         <>
-          {showGradient && !pressed && (
-            <LinearGradient
-              colors={['#35A8F7', '#FFFFFF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 2.5, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-          )}
+          {getSvgBackground(variant, pressed, isDisabled)}
           {loading ? (
             <ActivityIndicator
               color={variant === 'primary' ? '#FFFFFF' : Colors.brand.primary}
@@ -136,6 +195,15 @@ export default function BubbleButton({
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
