@@ -288,7 +288,6 @@ export default function SignupScreen({ navigation }: Props) {
                   }}
                   keyboardType="number-pad"
                   maxLength={2}
-                  autoFocus
                 />
               </View>
               <View style={styles.dateInputGroup}>
