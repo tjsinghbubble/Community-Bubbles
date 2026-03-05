@@ -281,6 +281,11 @@ export default function SignupScreen({ navigation }: Props) {
                   setBirthMonth(val);
                   if (val.length === 2) {
                     Keyboard.dismiss();
+                    const m = parseInt(val, 10);
+                    if (m < 1 || m > 12) {
+                      Alert.alert('Invalid Month', 'Month must be between 01 and 12.');
+                      setBirthMonth('');
+                    }
                   }
                 }}
                 keyboardType="number-pad"
@@ -297,6 +302,13 @@ export default function SignupScreen({ navigation }: Props) {
                   setBirthDay(val);
                   if (val.length === 2) {
                     Keyboard.dismiss();
+                    const d = parseInt(val, 10);
+                    const m = birthMonth ? parseInt(birthMonth, 10) : 0;
+                    const maxDays = m >= 1 && m <= 12 ? new Date(2000, m, 0).getDate() : 31;
+                    if (d < 1 || d > maxDays) {
+                      Alert.alert('Invalid Day', `Day must be between 01 and ${maxDays}.`);
+                      setBirthDay('');
+                    }
                   }
                 }}
                 keyboardType="number-pad"
@@ -313,47 +325,46 @@ export default function SignupScreen({ navigation }: Props) {
                   setBirthYear(val);
                   if (val.length === 4) {
                     Keyboard.dismiss();
-                    if (birthMonth && birthDay) {
-                      const m = parseInt(birthMonth, 10);
-                      const d = parseInt(birthDay, 10);
-                      const y = parseInt(val, 10);
+                    const y = parseInt(val, 10);
+                    const m = parseInt(birthMonth, 10);
+                    const d = parseInt(birthDay, 10);
 
-                      if (m < 1 || m > 12) {
-                        Alert.alert('Invalid Date', 'Month must be between 01 and 12.');
-                        setBirthMonth('');
-                        return;
-                      }
-
-                      const daysInMonth = new Date(y, m, 0).getDate();
-                      if (d < 1 || d > daysInMonth) {
-                        Alert.alert('Invalid Date', `Day must be between 01 and ${daysInMonth} for the selected month.`);
-                        setBirthDay('');
-                        return;
-                      }
-
-                      const dob = new Date(y, m - 1, d);
-                      const today = new Date();
-                      let age = today.getFullYear() - dob.getFullYear();
-                      const monthDiff = today.getMonth() - dob.getMonth();
-                      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-                        age--;
-                      }
-
-                      if (age < 18) {
-                        Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
-                        setBirthYear('');
-                        return;
-                      }
-
-                      if (y < 1900 || dob > today) {
-                        Alert.alert('Invalid Date', 'Please enter a valid date of birth.');
-                        setBirthYear('');
-                        return;
-                      }
-
-                      setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
-                      setTimeout(() => setShowDatePicker(false), 2000);
+                    if (y < 1900) {
+                      Alert.alert('Invalid Year', 'Year must be 1900 or later.');
+                      setBirthYear('');
+                      return;
                     }
+
+                    const today = new Date();
+                    const dob = new Date(y, m - 1, d);
+
+                    if (dob > today) {
+                      Alert.alert('Invalid Date', 'Date of birth cannot be in the future.');
+                      setBirthYear('');
+                      return;
+                    }
+
+                    const daysInMonth = new Date(y, m, 0).getDate();
+                    if (d > daysInMonth) {
+                      Alert.alert('Invalid Day', `${birthMonth}/${birthDay} is not a valid date in ${val}.`);
+                      setBirthDay('');
+                      return;
+                    }
+
+                    let age = today.getFullYear() - dob.getFullYear();
+                    const monthDiff = today.getMonth() - dob.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                      age--;
+                    }
+
+                    if (age < 18) {
+                      Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
+                      setBirthYear('');
+                      return;
+                    }
+
+                    setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
+                    setTimeout(() => setShowDatePicker(false), 2000);
                   }
                 }}
                 keyboardType="number-pad"
