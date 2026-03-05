@@ -12,6 +12,7 @@ import {
   StatusBar,
   Modal,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -280,7 +281,10 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => {
                     const val = text.replace(/[^0-9]/g, '').slice(0, 2);
                     setBirthMonth(val);
-                    if (val.length === 2) dayRef.current?.focus();
+                    if (val.length === 2) {
+                      Keyboard.dismiss();
+                      setTimeout(() => dayRef.current?.focus(), 300);
+                    }
                   }}
                   keyboardType="number-pad"
                   maxLength={2}
@@ -298,7 +302,10 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => {
                     const val = text.replace(/[^0-9]/g, '').slice(0, 2);
                     setBirthDay(val);
-                    if (val.length === 2) yearRef.current?.focus();
+                    if (val.length === 2) {
+                      Keyboard.dismiss();
+                      setTimeout(() => yearRef.current?.focus(), 300);
+                    }
                   }}
                   keyboardType="number-pad"
                   maxLength={2}
