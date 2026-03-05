@@ -163,6 +163,20 @@ export default function NotificationsScreen() {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const readNotifications = notifications.filter(n => n.read);
+
+  type SectionItem = { type: 'header'; title: string } | { type: 'notif'; data: NotificationItem };
+
+  const sectionData: SectionItem[] = [];
+  if (unreadNotifications.length > 0) {
+    sectionData.push({ type: 'header', title: 'New' });
+    unreadNotifications.forEach(n => sectionData.push({ type: 'notif', data: n }));
+  }
+  if (readNotifications.length > 0) {
+    sectionData.push({ type: 'header', title: 'Older Notifications' });
+    readNotifications.forEach(n => sectionData.push({ type: 'notif', data: n }));
+  }
 
   const renderNotification = ({ item }: { item: NotificationItem }) => {
     const iconInfo = ICON_MAP[item.type] || { name: 'notifications' as keyof typeof Ionicons.glyphMap, color: Colors.brand.primary, bg: Colors.background.brandTint };
@@ -228,9 +242,16 @@ export default function NotificationsScreen() {
         </View>
       ) : (
         <FlatList
-          data={notifications}
-          keyExtractor={item => item.id}
-          renderItem={renderNotification}
+          data={sectionData}
+          keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `notif-${item.data.id}`}
+          renderItem={({ item: sectionItem }) => {
+            if (sectionItem.type === 'header') {
+              return (
+                <Text style={styles.sectionHeader}>{sectionItem.title}</Text>
+              );
+            }
+            return renderNotification({ item: sectionItem.data });
+          }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={Colors.brand.bubbleBlue} />
           }
@@ -281,7 +302,16 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
   },
   listContent: {
+    paddingTop: Spacing.sm,
     paddingBottom: 40,
+  },
+  sectionHeader: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.tertiary,
+    paddingHorizontal: Spacing.md + Spacing.sm,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
   },
   notifRow: {
     flexDirection: 'row',
