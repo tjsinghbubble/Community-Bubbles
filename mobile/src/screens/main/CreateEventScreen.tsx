@@ -189,6 +189,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     return `${month}/${day}/${year} ${hour12}:${min} ${ampm}`;
   };
 
+  const datePickerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
     if (Platform.OS === 'android') {
       setShowDatePicker(false);
@@ -199,6 +201,13 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDateValue.getDate()).padStart(2, '0');
       setDate(`${year}-${month}-${day}`);
+
+      if (Platform.OS === 'ios') {
+        if (datePickerTimeout.current) clearTimeout(datePickerTimeout.current);
+        datePickerTimeout.current = setTimeout(() => {
+          setShowDatePicker(false);
+        }, 1500);
+      }
     }
   };
 
@@ -440,23 +449,13 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showDatePicker && (
-          <>
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={onDateChange}
-              minimumDate={new Date()}
-            />
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity
-                style={styles.pickerDoneButton}
-                onPress={() => setShowDatePicker(false)}
-              >
-                <Text style={styles.pickerDoneText}>Done</Text>
-              </TouchableOpacity>
-            )}
-          </>
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onDateChange}
+            minimumDate={new Date()}
+          />
         )}
       </View>
 
