@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   gridTitle: {
-    fontSize: Typography.sizes.base + 1,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
     marginTop: Spacing.sm,
