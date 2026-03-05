@@ -203,7 +203,29 @@ These are full-frame illustration/layout SVGs used as visual references for the 
 
 ## NavBar
 
-**SVG Source**: `icons/NavBar.svg`, `icons/NavBar/` (empty — awaiting 25 state SVGs)
+**SVG Source**: `icons/NavBar.svg`, `icons/NavBar-Tabs/` (5 files: Tab=Explore, Tab=Upcoming, Tab=Bubbles, Tab=Messages, Tab=Profile)
 **Used By**: `navigation/MainNavigator.tsx`, `components/icons/`
 
-Currently uses hand-coded SVG path components. The NavBar folder is reserved for 25 icon state SVGs (5 tabs x 5 states) once provided.
+Each SVG is a full 393×90 navbar mockup showing all 5 tabs, with the active tab highlighted.
+
+### Tab Bar Container
+| Property | Value | SVG Reference |
+|---|---|---|
+| Background | `#FFFFFF` | `fill="white"` |
+| Top border | `#D9D9D9`, 1px | `fill="#D9D9D9"` mask path |
+| Height | 90 | `viewBox="0 0 393 90"` |
+
+### Icon Colors
+| State | Color | SVG Reference |
+|---|---|---|
+| Active | `#35A8F7` | `fill="#35A8F7"` |
+| Inactive | `#4D4D4D` | `fill="#4D4D4D"` |
+
+### Tab Icons (components in `components/icons/`)
+| Tab | Component | viewBox | Has stroke |
+|---|---|---|---|
+| Explore | `ExploreIcon` | `0 0 24 24` | No |
+| Upcoming | `UpcomingIcon` | `0 0 18 24` | No |
+| Bubbles | `BubblesIcon` | `-3 0 24 24` | Yes (0.4) |
+| Messages | `MessagesIcon` | `0 0 20 22` | No |
+| Profile | `ProfileIcon` | `0 0 24 24` | No |

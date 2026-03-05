@@ -6,7 +6,7 @@ interface Props {
   color?: string;
 }
 
-export default function MessagesIcon({ size = 24, color = '#6A6A6A' }: Props) {
+export default function MessagesIcon({ size = 24, color = '#4D4D4D' }: Props) {
   return (
     <Svg width={size} height={size} viewBox="0 0 20 22" fill="none">
       <Path

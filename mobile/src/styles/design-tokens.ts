@@ -105,3 +105,13 @@ export const CheckboxTokens = {
   uncheckedFill: '#FFFFFF',
   checkmarkColor: '#1C1B1F',
 } as const;
+
+export const NavBarTokens = {
+  background: '#FFFFFF',
+  borderTopColor: '#D9D9D9',
+  borderTopWidth: 1,
+  activeColor: '#35A8F7',
+  inactiveColor: '#4D4D4D',
+  iconSize: 24,
+  height: 90,
+} as const;

@@ -72,7 +72,8 @@ export default function MainNavigator() {
         headerShown: false,
         tabBarStyle: {
           backgroundColor: Colors.background.primary,
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: '#D9D9D9',
           elevation: 8,
           shadowColor: Colors.neutral.black,
           shadowOffset: { width: 0, height: -2 },
