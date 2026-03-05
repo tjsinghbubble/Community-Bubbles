@@ -9,12 +9,7 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import Svg, {
-  Rect,
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Stop,
-} from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Typography, Spacing } from '../styles/theme';
 import { ButtonSvgTokens } from '../styles/design-tokens';
 
@@ -37,110 +32,31 @@ interface BubbleButtonProps {
 }
 
 const B = ButtonSvgTokens;
-const VB = `0 0 313 ${B.height}`;
-const OR = B.outlineBorderRadius;
 
-function ButtonSvgDefault() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Defs>
-        <SvgLinearGradient id="grad_default" x1="0" y1="0" x2="1" y2="4.77" gradientUnits="objectBoundingBox">
-          <Stop offset="0" stopColor={B.primary.gradient.start} />
-          <Stop offset="1" stopColor={B.primary.gradient.end} />
-        </SvgLinearGradient>
-      </Defs>
-      <Rect width="313" height={B.height} rx={B.borderRadius} fill="url(#grad_default)" />
-    </Svg>
-  );
-}
-
-function ButtonSvgPressed() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect width="313" height={B.height} rx={B.borderRadius} fill={B.primary.pressed} />
-    </Svg>
-  );
-}
-
-function ButtonSvgDisabled() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect width="313" height={B.height} rx={B.borderRadius} fill={B.primary.disabled} />
-    </Svg>
-  );
-}
-
-function ButtonSvgOutlined() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.stroke} fill="none" />
-    </Svg>
-  );
-}
-
-function ButtonSvgOutlinedPressed() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.outline.stroke} fillOpacity={B.outline.pressedFillOpacity} />
-      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.stroke} fill="none" />
-    </Svg>
-  );
-}
-
-function ButtonSvgOutlinedDisabled() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.disabledStroke} fill="none" />
-    </Svg>
-  );
-}
-
-function ButtonSvgRedOutline() {
-  return (
-    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.destructive.stroke} fill="none" />
-    </Svg>
-  );
-}
-
-function getSvgBackground(
+function getBackgroundStyle(
   variant: BubbleButtonVariant,
   pressed: boolean,
   isDisabled: boolean,
-): React.ReactNode {
+): ViewStyle {
   if (variant === 'primary') {
-    if (isDisabled) return <ButtonSvgDisabled />;
-    if (pressed) return <ButtonSvgPressed />;
-    return <ButtonSvgDefault />;
+    if (isDisabled) return { backgroundColor: B.primary.disabled };
+    if (pressed) return { backgroundColor: B.primary.pressed };
+    return {};
   }
   if (variant === 'outline') {
-    if (isDisabled) return <ButtonSvgOutlinedDisabled />;
-    if (pressed) return <ButtonSvgOutlinedPressed />;
-    return <ButtonSvgOutlined />;
+    const borderColor = isDisabled ? B.outline.disabledStroke : B.outline.stroke;
+    if (pressed) return { borderWidth: 1, borderColor, backgroundColor: `${B.outline.stroke}1A` };
+    return { borderWidth: 1, borderColor };
   }
   if (variant === 'destructive') {
-    if (pressed) {
-      return (
-        <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.destructive.stroke} fillOpacity={B.destructive.pressedFillOpacity} />
-          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.destructive.stroke} fill="none" />
-        </Svg>
-      );
-    }
-    return <ButtonSvgRedOutline />;
+    if (pressed) return { borderWidth: 1, borderColor: B.destructive.stroke, backgroundColor: `${B.destructive.stroke}1A` };
+    return { borderWidth: 1, borderColor: B.destructive.stroke };
   }
   if (variant === 'ghost') {
-    if (pressed) {
-      return (
-        <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.ghost.pressedFillColor} fillOpacity={B.ghost.pressedFillOpacity} />
-          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.ghost.stroke} fill="none" />
-        </Svg>
-      );
-    }
-    return <ButtonSvgOutlinedDisabled />;
+    if (pressed) return { borderWidth: 1, borderColor: B.ghost.stroke, backgroundColor: `${B.ghost.pressedFillColor}1A` };
+    return { borderWidth: 1, borderColor: B.outline.disabledStroke };
   }
-  return <ButtonSvgDefault />;
+  return {};
 }
 
 export default function BubbleButton({
@@ -164,6 +80,8 @@ export default function BubbleButton({
     return B.primary.text;
   };
 
+  const usesGradient = variant === 'primary' && !isDisabled;
+
   return (
     <Pressable
       onPress={onPress}
@@ -171,55 +89,62 @@ export default function BubbleButton({
       testID={testID}
       style={[styles.wrapper, style]}
     >
-      {({ pressed }) => (
-        <>
-          {getSvgBackground(variant, pressed, isDisabled)}
-          {loading ? (
-            <ActivityIndicator
-              color={variant === 'primary' ? B.primary.text : B.outline.text}
-              size="small"
-            />
-          ) : (
-            <View style={styles.content}>
-              {icon && <View style={styles.iconWrap}>{icon}</View>}
-              <Text
-                style={[
-                  styles.text,
-                  { color: getTextColor() },
-                  textStyle,
-                ]}
-              >
-                {title}
-              </Text>
-            </View>
-          )}
-        </>
-      )}
+      {({ pressed }) => {
+        const bgStyle = getBackgroundStyle(variant, pressed, isDisabled);
+        const showGradient = usesGradient && !pressed;
+
+        return (
+          <View style={[styles.inner, bgStyle]}>
+            {showGradient && (
+              <LinearGradient
+                colors={[B.primary.gradient.start, '#5CBBF9', '#8AD0FB']}
+                locations={[0, 0.7, 1]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            {loading ? (
+              <ActivityIndicator
+                color={variant === 'primary' ? B.primary.text : B.outline.text}
+                size="small"
+              />
+            ) : (
+              <>
+                {icon && <View style={styles.iconWrap}>{icon}</View>}
+                <Text
+                  style={[
+                    styles.text,
+                    { color: getTextColor() },
+                    textStyle,
+                  ]}
+                >
+                  {title}
+                </Text>
+              </>
+            )}
+          </View>
+        );
+      }}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  inner: {
     height: B.height,
     borderRadius: B.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
     flexDirection: 'row',
     overflow: 'hidden',
-    width: '100%',
-    alignSelf: 'center',
-  },
-  content: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    zIndex: 1,
   },
   iconWrap: {
-    marginRight: 2,
+    marginRight: 6,
   },
   text: {
     fontSize: Typography.sizes.md,
