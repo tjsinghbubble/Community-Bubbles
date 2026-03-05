@@ -445,8 +445,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const locationDisplay = event.locationAddress || event.locationName || '';
 
   const eventAny = event as any;
-  const mapImageUrl = event.locationName && (eventAny.locationLat || event.locationAddress)
-    ? `${API_URL}/api/static-map?lat=${eventAny.locationLat || ''}&lng=${eventAny.locationLng || ''}&zoom=15`
+  const hasValidCoords = eventAny.locationLat && eventAny.locationLng;
+  const mapImageUrl = hasValidCoords
+    ? `${API_URL}/api/static-map?lat=${eventAny.locationLat}&lng=${eventAny.locationLng}&zoom=15`
     : null;
 
   return (
