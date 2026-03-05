@@ -209,7 +209,7 @@ export default function UpcomingScreen() {
                       style={styles.eventImage}
                     />
                     <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                      <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
                       <Text style={styles.eventDateTime}>
                         {formatEventDate(event.date)} | {formatTime(event.startTime)}
                         {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
@@ -324,29 +324,32 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
   },
   eventCard: {
-    backgroundColor: Colors.brand.skyWhite,
-    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 15,
+    height: 118,
     marginBottom: 12,
-    padding: 14,
+    padding: 10,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: '#D9D9D9',
+    justifyContent: 'center',
   },
   bubbleName: {
+    position: 'absolute',
+    top: 6,
+    right: 10,
     fontSize: 12,
-    color: Colors.neutral.coolMist,
-    textAlign: 'right',
-    marginBottom: 4,
+    color: '#969696',
   },
   eventCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
   },
   eventImage: {
-    width: 72,
-    height: 72,
+    width: 98,
+    height: 98,
     borderRadius: 10,
-    backgroundColor: Colors.neutral.coolMist,
+    backgroundColor: '#D9D9D9',
   },
   eventInfo: {
     flex: 1,
@@ -355,15 +358,15 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.neutral.charcoal,
+    color: '#1E1F26',
   },
   eventDateTime: {
     fontSize: 13,
-    color: Colors.neutral.coolMist,
+    color: '#4D4D4D',
     marginTop: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: Colors.neutral.coolMist,
+    color: '#4D4D4D',
   },
 });
