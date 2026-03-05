@@ -223,10 +223,14 @@ export default function NotificationsScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
-        {unreadCount > 0 && (
+        {unreadCount > 0 ? (
           <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton} data-testid="button-mark-all-read">
             <Text style={styles.markAllText}>Mark all read</Text>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.backButton}>
+            <View style={{ width: 24 }} />
+          </View>
         )}
       </View>
 
@@ -277,20 +281,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
-    marginRight: 12,
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     flex: 1,
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
+    textAlign: 'center',
   },
   markAllButton: {
     paddingVertical: Spacing.xs + 2,

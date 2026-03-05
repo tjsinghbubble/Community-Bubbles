@@ -130,10 +130,11 @@ export default function MyBubblesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>My Bubbles</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
           <View>
-            <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
+            <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
             {unreadNotifCount > 0 && (
               <View style={styles.notifBadge}>
                 <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
@@ -233,6 +234,9 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
+  },
+  headerSpacer: {
+    width: 40,
   },
   headerTitle: {
     fontSize: Typography.sizes.md,

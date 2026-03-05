@@ -48,6 +48,7 @@ type Props = {
 export default function MessagesScreen({ navigation, route }: Props) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
   const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
@@ -142,6 +143,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
     useCallback(() => {
       hasAutoNavigated.current = false;
       fetchConversations();
+      apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [])
   );
 
@@ -226,11 +228,26 @@ export default function MessagesScreen({ navigation, route }: Props) {
     );
   };
 
+  const bellIcon = (
+    <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+      <View>
+        <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
+        {unreadNotifCount > 0 && (
+          <View style={styles.notifBadge}>
+            <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
+          <View style={styles.headerSpacer} />
           <Text style={styles.headerTitle}>Messages</Text>
+          {bellIcon}
         </View>
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
@@ -243,7 +260,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
+          <View style={styles.headerSpacer} />
           <Text style={styles.headerTitle}>Messages</Text>
+          {bellIcon}
         </View>
         <View style={styles.empty}>
           <View style={styles.emptyIconCircle}>
@@ -261,7 +280,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>Messages</Text>
+        {bellIcon}
       </View>
 
       <ScrollView
@@ -320,16 +341,48 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
+  },
+  headerSpacer: {
+    width: 40,
   },
   headerTitle: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
+    flex: 1,
     textAlign: 'center',
+  },
+  bellButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  notifBadgeText: {
+    color: Colors.neutral.white,
+    fontSize: 9,
+    fontWeight: Typography.weights.bold,
   },
   loading: {
     flex: 1,
