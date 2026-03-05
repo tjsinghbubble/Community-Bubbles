@@ -28,6 +28,17 @@ type NotificationItem = {
   createdAt: string;
 };
 
+function fixMilitaryTime(text: string): string {
+  return text.replace(/\b(\d{1,2}):(\d{2})\b(?!\s*[APap][Mm])/g, (_, h, m) => {
+    let hour = parseInt(h, 10);
+    if (hour > 23 || hour < 0) return `${h}:${m}`;
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    if (hour === 0) hour = 12;
+    else if (hour > 12) hour -= 12;
+    return `${hour}:${m} ${ampm}`;
+  });
+}
+
 const ICON_MAP: Record<string, { name: keyof typeof Ionicons.glyphMap; color: string; bg: string }> = {
   bubble_join: { name: 'people', color: Colors.brand.primary, bg: Colors.background.brandTint },
   bubble_leave: { name: 'exit-outline', color: Colors.text.tertiary, bg: Colors.background.surface },
@@ -172,7 +183,7 @@ export default function NotificationsScreen() {
             {item.title}
           </Text>
           <Text style={styles.notifBody} numberOfLines={2}>
-            {item.body}
+            {fixMilitaryTime(item.body)}
           </Text>
           <Text style={styles.notifTime}>{getTimeAgo(item.createdAt)}</Text>
         </View>
