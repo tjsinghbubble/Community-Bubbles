@@ -244,6 +244,14 @@ export default function ExploreScreen() {
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
+      {isCampusVerified && (
+        <TouchableOpacity 
+          style={[styles.campusHatButton, showCampusContent && styles.campusHatButtonActive]} 
+          onPress={handleCampusToggle}
+        >
+          <Ionicons name="school-outline" size={22} color={showCampusContent ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
+        </TouchableOpacity>
+      )}
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={20} color={Colors.neutral.coolMist} />
         <TextInput
