@@ -283,7 +283,6 @@ export default function SignupScreen({ navigation }: Props) {
                     setBirthMonth(val);
                     if (val.length === 2) {
                       Keyboard.dismiss();
-                      setTimeout(() => dayRef.current?.focus(), 300);
                     }
                   }}
                   keyboardType="number-pad"
@@ -303,7 +302,6 @@ export default function SignupScreen({ navigation }: Props) {
                     setBirthDay(val);
                     if (val.length === 2) {
                       Keyboard.dismiss();
-                      setTimeout(() => yearRef.current?.focus(), 300);
                     }
                   }}
                   keyboardType="number-pad"
@@ -322,10 +320,10 @@ export default function SignupScreen({ navigation }: Props) {
                     const val = text.replace(/[^0-9]/g, '').slice(0, 4);
                     setBirthYear(val);
                     if (val.length === 4) {
-                      yearRef.current?.blur();
+                      Keyboard.dismiss();
                       if (birthMonth && birthDay) {
                         setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
-                        setTimeout(() => setShowDatePicker(false), 300);
+                        setTimeout(() => setShowDatePicker(false), 2000);
                       }
                     }
                   }}
