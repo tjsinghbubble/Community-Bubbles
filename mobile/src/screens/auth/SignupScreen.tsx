@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,9 @@ export default function SignupScreen({ navigation }: Props) {
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
   const [birthYear, setBirthYear] = useState('');
+
+  const dayRef = useRef<TextInput>(null);
+  const yearRef = useRef<TextInput>(null);
 
   const isFormValid = name && email && password && gender && dateOfBirth;
 
@@ -258,7 +261,8 @@ export default function SignupScreen({ navigation }: Props) {
           activeOpacity={1}
           onPress={() => setShowDatePicker(false)}
         >
-          <View style={styles.modalContent}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent} onPress={() => {}}>
+
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Date of Birth</Text>
               <TouchableOpacity onPress={() => setShowDatePicker(false)}>
@@ -273,33 +277,50 @@ export default function SignupScreen({ navigation }: Props) {
                   placeholder="MM"
                   placeholderTextColor={Colors.neutral.coolMist}
                   value={birthMonth}
-                  onChangeText={(text) => setBirthMonth(text.slice(0, 2))}
+                  onChangeText={(text) => {
+                    const val = text.replace(/[^0-9]/g, '').slice(0, 2);
+                    setBirthMonth(val);
+                    if (val.length === 2) dayRef.current?.focus();
+                  }}
                   keyboardType="number-pad"
                   maxLength={2}
+                  returnKeyType="next"
+                  autoFocus
                 />
               </View>
               <View style={styles.dateInputGroup}>
                 <Text style={styles.dateLabel}>Day</Text>
                 <TextInput
+                  ref={dayRef}
                   style={styles.dateInput}
                   placeholder="DD"
                   placeholderTextColor={Colors.neutral.coolMist}
                   value={birthDay}
-                  onChangeText={(text) => setBirthDay(text.slice(0, 2))}
+                  onChangeText={(text) => {
+                    const val = text.replace(/[^0-9]/g, '').slice(0, 2);
+                    setBirthDay(val);
+                    if (val.length === 2) yearRef.current?.focus();
+                  }}
                   keyboardType="number-pad"
                   maxLength={2}
+                  returnKeyType="next"
                 />
               </View>
               <View style={styles.dateInputGroup}>
                 <Text style={styles.dateLabel}>Year</Text>
                 <TextInput
+                  ref={yearRef}
                   style={styles.dateInput}
                   placeholder="YYYY"
                   placeholderTextColor={Colors.neutral.coolMist}
                   value={birthYear}
-                  onChangeText={(text) => setBirthYear(text.slice(0, 4))}
+                  onChangeText={(text) => {
+                    const val = text.replace(/[^0-9]/g, '').slice(0, 4);
+                    setBirthYear(val);
+                  }}
                   keyboardType="number-pad"
                   maxLength={4}
+                  returnKeyType="done"
                 />
               </View>
             </View>
@@ -309,7 +330,7 @@ export default function SignupScreen({ navigation }: Props) {
               disabled={!birthMonth || !birthDay || !birthYear}
               testID="button-confirm-dob"
             />
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
