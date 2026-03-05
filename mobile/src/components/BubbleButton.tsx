@@ -44,8 +44,8 @@ function ButtonSvgDefault() {
   return (
     <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
       <Defs>
-        <SvgLinearGradient id="grad_default" x1="7.77313e-06" y1="0.0833303" x2="105.144" y2="267.375" gradientUnits="userSpaceOnUse">
-          <Stop stopColor={B.primary.gradient.start} />
+        <SvgLinearGradient id="grad_default" x1="0" y1="0" x2="1" y2="4.77" gradientUnits="objectBoundingBox">
+          <Stop offset="0" stopColor={B.primary.gradient.start} />
           <Stop offset="1" stopColor={B.primary.gradient.end} />
         </SvgLinearGradient>
       </Defs>
