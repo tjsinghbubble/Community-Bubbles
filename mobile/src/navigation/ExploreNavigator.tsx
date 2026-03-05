@@ -27,6 +27,7 @@ export type BubbleData = {
   description?: string;
   members?: number;
   privacy?: string;
+  campusId?: number | null;
 };
 
 export type EventData = {

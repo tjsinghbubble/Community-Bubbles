@@ -38,17 +38,17 @@ type Bubble = {
   creatorId?: string;
   role?: string;
   status?: 'pending' | 'approved' | 'rejected';
+  campusId?: number | null;
 };
 
 export default function MyBubblesScreen() {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [createdBubbles, setCreatedBubbles] = useState<Bubble[]>([]);
-  const [campusBubbles, setCampusBubbles] = useState<Bubble[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCampusOnly, setShowCampusOnly] = useState(false);
   const navigation = useNavigation<any>();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const isCampusVerified = user?.campusVerified === true;
 
   const fetchData = async () => {
@@ -70,16 +70,6 @@ export default function MyBubblesScreen() {
 
       setBubbles(bubblesData);
       setCreatedBubbles(createdBubblesData);
-
-      if (isCampusVerified && token) {
-        apiService.setToken(token);
-        try {
-          const campusData = await apiService.getCampusBubbles() as Bubble[];
-          setCampusBubbles(campusData);
-        } catch (err) {
-          console.error('[MyBubbles] getCampusBubbles FAILED:', err);
-        }
-      }
     } catch (error) {
       console.error('[MyBubbles] Failed to fetch data:', error);
     } finally {
@@ -132,9 +122,8 @@ export default function MyBubblesScreen() {
     ...bubbles,
   ];
 
-  const campusBubbleIds = new Set(campusBubbles.map(b => b.id));
   const displayBubbles = showCampusOnly
-    ? allMyBubbles.filter(b => campusBubbleIds.has(b.id))
+    ? allMyBubbles.filter(b => b.campusId)
     : allMyBubbles;
 
   if (isLoading) {

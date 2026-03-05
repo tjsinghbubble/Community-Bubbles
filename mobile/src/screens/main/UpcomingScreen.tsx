@@ -108,29 +108,18 @@ function formatEventDate(date: string): string {
 
 export default function UpcomingScreen() {
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
-  const [campusEvents, setCampusEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [showCampusOnly, setShowCampusOnly] = useState(false);
   const navigation = useNavigation<any>();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const isCampusVerified = user?.campusVerified === true;
 
   const fetchData = async () => {
     try {
       const data = await apiService.getUpcomingEvents() as UpcomingEvent[];
       setEvents(data);
-
-      if (isCampusVerified && token) {
-        apiService.setToken(token);
-        try {
-          const campusData = await apiService.getCampusEvents() as UpcomingEvent[];
-          setCampusEvents(campusData);
-        } catch (err) {
-          console.error('[Upcoming] getCampusEvents FAILED:', err);
-        }
-      }
     } catch (error) {
       console.error('[Upcoming] Failed to fetch events:', error);
     } finally {
@@ -158,9 +147,8 @@ export default function UpcomingScreen() {
     });
   };
 
-  const campusEventIds = new Set(campusEvents.map(e => e.id));
   const displayEvents = showCampusOnly
-    ? events.filter(e => campusEventIds.has(e.id))
+    ? events.filter((e: any) => e.campusId)
     : events;
   const grouped = groupEventsByTimePeriod(displayEvents);
 

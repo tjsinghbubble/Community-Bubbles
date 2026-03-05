@@ -59,8 +59,6 @@ export default function ExploreScreen() {
   const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [events, setEvents] = useState<EventData[]>([]);
-  const [campusBubbles, setCampusBubbles] = useState<BubbleData[]>([]);
-  const [campusEvents, setCampusEvents] = useState<EventData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,8 +83,7 @@ export default function ExploreScreen() {
       const bubblesData = await bubblesResponse.json();
       const eventsData = await eventsResponse.json();
       
-      const publicBubbles = bubblesData.filter((b: any) => !b.campusId);
-      const transformedBubbles: BubbleData[] = publicBubbles.map((bubble: any) => ({
+      const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
         id: bubble.id,
         title: bubble.title,
         tagline: bubble.tagline,
@@ -95,35 +92,16 @@ export default function ExploreScreen() {
         members: bubble.members || 0,
         image: bubble.coverImage || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
         distance: '~',
+        campusId: bubble.campusId || null,
       }));
       
-      const publicEvents = eventsData.filter((e: any) => !e.campusId);
-      
       setBubbles(transformedBubbles);
-      setEvents(publicEvents || []);
+      setEvents(eventsData || []);
       
       if (isCampusVerified && token) {
         apiService.setToken(token);
         try {
-          const [campusBubblesData, campusEventsData, myCampus] = await Promise.all([
-            apiService.getCampusBubbles(),
-            apiService.getCampusEvents(),
-            apiService.getMyCampus(),
-          ]);
-          
-          const transformedCampusBubbles: BubbleData[] = campusBubblesData.map((bubble: any) => ({
-            id: bubble.id,
-            title: bubble.title,
-            tagline: bubble.tagline,
-            category: bubble.category,
-            description: bubble.description,
-            members: bubble.members || 0,
-            image: bubble.coverImage || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
-            distance: '~',
-          }));
-          
-          setCampusBubbles(transformedCampusBubbles);
-          setCampusEvents(campusEventsData || []);
+          const myCampus = await apiService.getMyCampus();
           if (myCampus.campus) {
             setCampusInfo({ name: myCampus.campus.name });
           }
@@ -194,10 +172,8 @@ export default function ExploreScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const allBubbles = isCampusVerified ? [...bubbles, ...campusBubbles] : bubbles;
-  const allEvents = isCampusVerified ? [...events, ...campusEvents] : events;
-  const displayBubbles = showCampusContent ? campusBubbles : allBubbles;
-  const displayEvents = showCampusContent ? campusEvents : allEvents;
+  const displayBubbles = showCampusContent ? bubbles.filter(b => b.campusId) : bubbles;
+  const displayEvents = showCampusContent ? events.filter((e: any) => e.campusId) : events;
 
   const filteredBubbles = displayBubbles.filter((bubble) => {
     const query = searchQuery.toLowerCase();
