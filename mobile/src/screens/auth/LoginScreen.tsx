@@ -145,11 +145,11 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    borderRadius: Radius.full,
+    borderColor: '#969696',
+    borderRadius: 8,
     padding: 16,
     fontSize: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
+    backgroundColor: Colors.brand.skyWhite,
     color: Colors.neutral.charcoal,
   },
   passwordContainer: {
