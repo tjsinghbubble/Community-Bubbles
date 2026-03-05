@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: '#FAFAFA',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
+    borderBottomColor: '#D9D9D9',
   },
   modalOptionText: {
     fontSize: 16,

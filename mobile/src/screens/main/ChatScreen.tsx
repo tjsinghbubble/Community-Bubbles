@@ -1277,7 +1277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   participantsContainer: {
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: '#FAFAFA',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
