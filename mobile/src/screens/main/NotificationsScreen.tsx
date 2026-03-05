@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
   },
   notifBody: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
-    lineHeight: Typography.lineHeight.sm,
+    lineHeight: Typography.lineHeight.base,
     marginBottom: Spacing.xs,
   },
   notifTime: {
