@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
   aboutText: {
     fontSize: Typography.sizes.base,
     color: Colors.neutral.charcoal,
-    lineHeight: Typography.lineHeights.md,
+    lineHeight: Typography.lineHeight.md,
   },
   buttonSection: {
     paddingHorizontal: Spacing.xl,
