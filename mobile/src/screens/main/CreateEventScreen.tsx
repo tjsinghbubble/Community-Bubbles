@@ -190,10 +190,10 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   };
 
   const onDateChange = (event: DateTimePickerEvent, selectedDateValue?: Date) => {
-    if (Platform.OS === 'android' || event.type === 'dismissed' || event.type === 'set') {
+    if (Platform.OS === 'android') {
       setShowDatePicker(false);
     }
-    if (event.type === 'set' && selectedDateValue) {
+    if (selectedDateValue) {
       setSelectedDate(selectedDateValue);
       const year = selectedDateValue.getFullYear();
       const month = String(selectedDateValue.getMonth() + 1).padStart(2, '0');
@@ -440,13 +440,23 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           <CalendarIcon size={20} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
         {showDatePicker && (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={onDateChange}
-            minimumDate={new Date()}
-          />
+          <>
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onDateChange}
+              minimumDate={new Date()}
+            />
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.pickerDoneButton}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.pickerDoneText}>Done</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
 
