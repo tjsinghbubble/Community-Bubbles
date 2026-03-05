@@ -212,7 +212,7 @@ export default function UpcomingScreen() {
                       style={styles.eventImage}
                     />
                     <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
+                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}</Text>
                       <Text style={styles.eventDateTime}>
                         {formatEventDate(event.date)} | {formatTime(event.startTime)}
                         {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
