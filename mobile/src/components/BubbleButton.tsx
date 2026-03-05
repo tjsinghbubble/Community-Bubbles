@@ -208,10 +208,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     flexDirection: 'row',
     overflow: 'hidden',
+    width: '100%',
+    alignSelf: 'center',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.sm,
     zIndex: 1,
   },
@@ -222,5 +225,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold as TextStyle['fontWeight'],
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
 });
