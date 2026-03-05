@@ -16,6 +16,7 @@ import AnimatedPressable from '../../components/AnimatedPressable';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Radius, Typography, NotificationBadge } from '../../styles/theme';
 import { EventCardTokens } from '../../styles/design-tokens';
 import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
@@ -107,15 +108,29 @@ function formatEventDate(date: string): string {
 
 export default function UpcomingScreen() {
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
+  const [campusEvents, setCampusEvents] = useState<UpcomingEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [showCampusOnly, setShowCampusOnly] = useState(false);
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
+  const isCampusVerified = user?.campusVerified === true;
 
   const fetchData = async () => {
     try {
       const data = await apiService.getUpcomingEvents() as UpcomingEvent[];
       setEvents(data);
+
+      if (isCampusVerified && token) {
+        apiService.setToken(token);
+        try {
+          const campusData = await apiService.getCampusEvents() as UpcomingEvent[];
+          setCampusEvents(campusData);
+        } catch (err) {
+          console.error('[Upcoming] getCampusEvents FAILED:', err);
+        }
+      }
     } catch (error) {
       console.error('[Upcoming] Failed to fetch events:', error);
     } finally {
@@ -143,13 +158,26 @@ export default function UpcomingScreen() {
     });
   };
 
-  const grouped = groupEventsByTimePeriod(events);
+  const campusEventIds = new Set(campusEvents.map(e => e.id));
+  const displayEvents = showCampusOnly
+    ? events.filter(e => campusEventIds.has(e.id))
+    : events;
+  const grouped = groupEventsByTimePeriod(displayEvents);
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
+          {isCampusVerified ? (
+            <TouchableOpacity 
+              style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+              onPress={() => setShowCampusOnly(!showCampusOnly)}
+            >
+              <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
           <Text style={styles.headerTitle}>Upcoming Events</Text>
           <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
             <View>
@@ -165,7 +193,16 @@ export default function UpcomingScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        {isCampusVerified ? (
+          <TouchableOpacity 
+            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+            onPress={() => setShowCampusOnly(!showCampusOnly)}
+          >
+            <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
         <Text style={styles.headerTitle}>Upcoming Events</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
           <View>
@@ -179,7 +216,7 @@ export default function UpcomingScreen() {
         </TouchableOpacity>
       </View>
 
-      {events.length === 0 ? (
+      {displayEvents.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="calendar-outline" size={64} color={Colors.neutral.coolMist} />
           <Text style={styles.emptyTitle}>No upcoming events</Text>
@@ -287,6 +324,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  campusHatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  campusHatButtonActive: {
+    backgroundColor: '#E8F4FD',
   },
   empty: {
     flex: 1,

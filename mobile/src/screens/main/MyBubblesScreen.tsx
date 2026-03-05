@@ -17,6 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
+import { useAuth } from '../../context/AuthContext';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -42,9 +43,13 @@ type Bubble = {
 export default function MyBubblesScreen() {
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [createdBubbles, setCreatedBubbles] = useState<Bubble[]>([]);
+  const [campusBubbles, setCampusBubbles] = useState<Bubble[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCampusOnly, setShowCampusOnly] = useState(false);
   const navigation = useNavigation<any>();
+  const { user, token } = useAuth();
+  const isCampusVerified = user?.campusVerified === true;
 
   const fetchData = async () => {
     try {
@@ -65,6 +70,16 @@ export default function MyBubblesScreen() {
 
       setBubbles(bubblesData);
       setCreatedBubbles(createdBubblesData);
+
+      if (isCampusVerified && token) {
+        apiService.setToken(token);
+        try {
+          const campusData = await apiService.getCampusBubbles() as Bubble[];
+          setCampusBubbles(campusData);
+        } catch (err) {
+          console.error('[MyBubbles] getCampusBubbles FAILED:', err);
+        }
+      }
     } catch (error) {
       console.error('[MyBubbles] Failed to fetch data:', error);
     } finally {
@@ -112,10 +127,15 @@ export default function MyBubblesScreen() {
     b => b.status === 'pending' || b.status === 'rejected'
   );
   const joinedBubbleIds = new Set(bubbles.map(b => b.id));
-  const displayBubbles = [
+  const allMyBubbles = [
     ...pendingOrRejectedBubbles.filter(b => !joinedBubbleIds.has(b.id)),
     ...bubbles,
   ];
+
+  const campusBubbleIds = new Set(campusBubbles.map(b => b.id));
+  const displayBubbles = showCampusOnly
+    ? allMyBubbles.filter(b => campusBubbleIds.has(b.id))
+    : allMyBubbles;
 
   if (isLoading) {
     return (
@@ -130,7 +150,16 @@ export default function MyBubblesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        {isCampusVerified ? (
+          <TouchableOpacity 
+            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+            onPress={() => setShowCampusOnly(!showCampusOnly)}
+          >
+            <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
         <Text style={styles.headerTitle}>My Bubbles</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
           <View>
@@ -251,6 +280,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  campusHatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  campusHatButtonActive: {
+    backgroundColor: '#E8F4FD',
   },
   empty: {
     flex: 1,

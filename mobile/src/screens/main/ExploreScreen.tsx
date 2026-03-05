@@ -194,8 +194,10 @@ export default function ExploreScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const displayBubbles = showCampusContent ? campusBubbles : bubbles;
-  const displayEvents = showCampusContent ? campusEvents : events;
+  const allBubbles = isCampusVerified ? [...bubbles, ...campusBubbles] : bubbles;
+  const allEvents = isCampusVerified ? [...events, ...campusEvents] : events;
+  const displayBubbles = showCampusContent ? campusBubbles : allBubbles;
+  const displayEvents = showCampusContent ? campusEvents : allEvents;
 
   const filteredBubbles = displayBubbles.filter((bubble) => {
     const query = searchQuery.toLowerCase();
@@ -511,15 +513,6 @@ export default function ExploreScreen() {
         </Animated.ScrollView>
       )}
       
-      {isCampusVerified && (
-        <TouchableOpacity 
-          style={[styles.campusFab, showCampusContent && styles.campusFabActive]} 
-          onPress={handleCampusToggle}
-        >
-          <Text style={{ fontSize: 24 }}>🎓</Text>
-        </TouchableOpacity>
-      )}
-
       <TouchableOpacity
         style={styles.createFab}
         onPress={() => setShowCreateSheet(true)}
@@ -827,27 +820,15 @@ const styles = StyleSheet.create({
     padding: 40,
     gap: 12,
   },
-  campusFab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.brand.skyWhite,
+  campusHatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 2,
-    borderColor: Colors.neutral.coolMist,
   },
-  campusFabActive: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderColor: Colors.brand.bubbleBlue,
+  campusHatButtonActive: {
+    backgroundColor: '#E8F4FD',
   },
   createFab: {
     position: 'absolute',
