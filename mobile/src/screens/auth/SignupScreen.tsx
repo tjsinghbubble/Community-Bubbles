@@ -314,6 +314,43 @@ export default function SignupScreen({ navigation }: Props) {
                   if (val.length === 4) {
                     Keyboard.dismiss();
                     if (birthMonth && birthDay) {
+                      const m = parseInt(birthMonth, 10);
+                      const d = parseInt(birthDay, 10);
+                      const y = parseInt(val, 10);
+
+                      if (m < 1 || m > 12) {
+                        Alert.alert('Invalid Date', 'Month must be between 01 and 12.');
+                        setBirthMonth('');
+                        return;
+                      }
+
+                      const daysInMonth = new Date(y, m, 0).getDate();
+                      if (d < 1 || d > daysInMonth) {
+                        Alert.alert('Invalid Date', `Day must be between 01 and ${daysInMonth} for the selected month.`);
+                        setBirthDay('');
+                        return;
+                      }
+
+                      const dob = new Date(y, m - 1, d);
+                      const today = new Date();
+                      let age = today.getFullYear() - dob.getFullYear();
+                      const monthDiff = today.getMonth() - dob.getMonth();
+                      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+                        age--;
+                      }
+
+                      if (age < 18) {
+                        Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
+                        setBirthYear('');
+                        return;
+                      }
+
+                      if (y < 1900 || dob > today) {
+                        Alert.alert('Invalid Date', 'Please enter a valid date of birth.');
+                        setBirthYear('');
+                        return;
+                      }
+
                       setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
                       setTimeout(() => setShowDatePicker(false), 2000);
                     }
