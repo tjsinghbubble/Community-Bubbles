@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, NotificationBadge } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 type Conversation = {
@@ -233,8 +233,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
       <View>
         <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
         {unreadNotifCount > 0 && (
-          <View style={styles.notifBadge}>
-            <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+          <View style={NotificationBadge.badge}>
+            <Text style={NotificationBadge.badgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
           </View>
         )}
       </View>
@@ -366,23 +366,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: Colors.status.error,
-    borderRadius: 9,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  notifBadgeText: {
-    color: Colors.neutral.white,
-    fontSize: 9,
-    fontWeight: Typography.weights.bold,
   },
   loading: {
     flex: 1,

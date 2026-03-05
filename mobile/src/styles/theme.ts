@@ -607,6 +607,26 @@ export const BulletinPillColors = {
   all: '#4D4D4D',
 };
 
+export const NotificationBadge = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    backgroundColor: Colors.status.error,
+    borderRadius: 9,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '700',
+  },
+});
+
 const theme = {
   Colors,
   Gradients,
@@ -631,6 +651,7 @@ const theme = {
   CardStyles,
   BulletinPillStyles,
   BulletinPillColors,
+  NotificationBadge,
 };
 
 export default theme;

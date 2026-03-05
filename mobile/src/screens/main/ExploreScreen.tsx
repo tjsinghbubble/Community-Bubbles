@@ -27,7 +27,7 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
 import BubbleButton from '../../components/BubbleButton';
 
@@ -244,10 +244,6 @@ export default function ExploreScreen() {
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
-      <TouchableOpacity style={styles.iconButton} onPress={handleFilterPress}>
-        <Ionicons name="options-outline" size={24} color={Colors.neutral.charcoal} />
-      </TouchableOpacity>
-      
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={20} color={Colors.neutral.coolMist} />
         <TextInput
@@ -268,8 +264,8 @@ export default function ExploreScreen() {
         <View>
           <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
           {unreadNotifCount > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+            <View style={NotificationBadge.badge}>
+              <Text style={NotificationBadge.badgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
             </View>
           )}
         </View>
@@ -582,7 +578,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 48,
+    paddingTop: 55,
     paddingBottom: 4,
     gap: 12,
   },
@@ -923,22 +919,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.brand.bubbleBlue,
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: Colors.status.error,
-    borderRadius: 9,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-  },
-  notifBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontWeight: '700',
   },
 });

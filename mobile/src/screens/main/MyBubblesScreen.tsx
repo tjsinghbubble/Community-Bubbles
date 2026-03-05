@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import BubbleButton from '../../components/BubbleButton';
-import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -136,8 +136,8 @@ export default function MyBubblesScreen() {
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
             {unreadNotifCount > 0 && (
-              <View style={styles.notifBadge}>
-                <Text style={styles.notifBadgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
+              <View style={NotificationBadge.badge}>
+                <Text style={NotificationBadge.badgeText}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text>
               </View>
             )}
           </View>
@@ -251,23 +251,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  notifBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -6,
-    backgroundColor: Colors.status.error,
-    borderRadius: 9,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-  },
-  notifBadgeText: {
-    color: Colors.brand.skyWhite,
-    fontSize: Typography.sizes.xxs,
-    fontWeight: Typography.weights.bold,
   },
   empty: {
     flex: 1,
