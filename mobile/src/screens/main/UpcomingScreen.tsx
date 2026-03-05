@@ -17,6 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { EventCardTokens } from '../../styles/design-tokens';
 import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
 
 type UpcomingEvent = {
@@ -324,32 +325,32 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
   },
   eventCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 15,
-    height: 118,
+    backgroundColor: EventCardTokens.fill,
+    borderRadius: EventCardTokens.borderRadius,
+    height: EventCardTokens.height,
     marginBottom: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#D9D9D9',
+    padding: EventCardTokens.padding,
+    borderWidth: EventCardTokens.strokeWidth,
+    borderColor: EventCardTokens.stroke,
     justifyContent: 'center',
   },
   bubbleName: {
     position: 'absolute',
     top: 6,
-    right: 10,
+    right: EventCardTokens.padding,
     fontSize: 12,
-    color: '#969696',
+    color: EventCardTokens.colors.label,
   },
   eventCardInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: EventCardTokens.padding,
   },
   eventImage: {
-    width: 98,
-    height: 98,
-    borderRadius: 10,
-    backgroundColor: '#D9D9D9',
+    width: EventCardTokens.image.size,
+    height: EventCardTokens.image.size,
+    borderRadius: EventCardTokens.image.borderRadius,
+    backgroundColor: EventCardTokens.image.placeholder,
   },
   eventInfo: {
     flex: 1,
@@ -358,15 +359,15 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1E1F26',
+    color: EventCardTokens.colors.title,
   },
   eventDateTime: {
     fontSize: 13,
-    color: '#4D4D4D',
+    color: EventCardTokens.colors.subtitle,
     marginTop: 2,
   },
   eventLocation: {
     fontSize: 13,
-    color: '#4D4D4D',
+    color: EventCardTokens.colors.subtitle,
   },
 });

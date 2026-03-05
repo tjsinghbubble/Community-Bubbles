@@ -15,7 +15,8 @@ import Svg, {
   LinearGradient as SvgLinearGradient,
   Stop,
 } from 'react-native-svg';
-import { Colors, Typography, Spacing } from '../styles/theme';
+import { Typography, Spacing } from '../styles/theme';
+import { ButtonSvgTokens } from '../styles/design-tokens';
 
 export type BubbleButtonVariant =
   | 'primary'
@@ -35,65 +36,69 @@ interface BubbleButtonProps {
   testID?: string;
 }
 
+const B = ButtonSvgTokens;
+const VB = `0 0 313 ${B.height}`;
+const OR = B.outlineBorderRadius;
+
 function ButtonSvgDefault() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
       <Defs>
         <SvgLinearGradient id="grad_default" x1="7.77313e-06" y1="0.0833303" x2="105.144" y2="267.375" gradientUnits="userSpaceOnUse">
-          <Stop stopColor="#35A8F7" />
-          <Stop offset="1" stopColor="white" />
+          <Stop stopColor={B.primary.gradient.start} />
+          <Stop offset="1" stopColor={B.primary.gradient.end} />
         </SvgLinearGradient>
       </Defs>
-      <Rect width="313" height="56" rx="28" fill="url(#grad_default)" />
+      <Rect width="313" height={B.height} rx={B.borderRadius} fill="url(#grad_default)" />
     </Svg>
   );
 }
 
 function ButtonSvgPressed() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect width="313" height="56" rx="28" fill="#37ADFF" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect width="313" height={B.height} rx={B.borderRadius} fill={B.primary.pressed} />
     </Svg>
   );
 }
 
 function ButtonSvgDisabled() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect width="313" height="56" rx="28" fill="#969696" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect width="313" height={B.height} rx={B.borderRadius} fill={B.primary.disabled} />
     </Svg>
   );
 }
 
 function ButtonSvgOutlined() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#35A8F7" fill="none" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.stroke} fill="none" />
     </Svg>
   );
 }
 
 function ButtonSvgOutlinedPressed() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#35A8F7" fillOpacity={0.15} />
-      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#35A8F7" fill="none" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.outline.stroke} fillOpacity={B.outline.pressedFillOpacity} />
+      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.stroke} fill="none" />
     </Svg>
   );
 }
 
 function ButtonSvgOutlinedDisabled() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#98B4C8" fill="none" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.outline.disabledStroke} fill="none" />
     </Svg>
   );
 }
 
 function ButtonSvgRedOutline() {
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#FF3B30" fill="none" />
+    <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.destructive.stroke} fill="none" />
     </Svg>
   );
 }
@@ -116,9 +121,9 @@ function getSvgBackground(
   if (variant === 'destructive') {
     if (pressed) {
       return (
-        <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#FF3B30" fillOpacity={0.1} />
-          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#FF3B30" fill="none" />
+        <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.destructive.stroke} fillOpacity={B.destructive.pressedFillOpacity} />
+          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.destructive.stroke} fill="none" />
         </Svg>
       );
     }
@@ -127,9 +132,9 @@ function getSvgBackground(
   if (variant === 'ghost') {
     if (pressed) {
       return (
-        <Svg width="100%" height="100%" viewBox="0 0 313 56" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" fill="#35A8F7" fillOpacity={0.08} />
-          <Rect x="0.5" y="0.5" width="312" height="55" rx="27.5" stroke="#98B4C8" fill="none" />
+        <Svg width="100%" height="100%" viewBox={VB} preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} fill={B.ghost.pressedFillColor} fillOpacity={B.ghost.pressedFillOpacity} />
+          <Rect x="0.5" y="0.5" width="312" height="55" rx={OR} stroke={B.ghost.stroke} fill="none" />
         </Svg>
       );
     }
@@ -152,11 +157,11 @@ export default function BubbleButton({
   const isDisabled = disabled || loading;
 
   const getTextColor = (): string => {
-    if (variant === 'primary') return '#FFFFFF';
-    if (variant === 'outline') return isDisabled ? '#98B4C8' : Colors.brand.primary;
-    if (variant === 'destructive') return '#FF3B30';
-    if (variant === 'ghost') return '#98B4C8';
-    return '#FFFFFF';
+    if (variant === 'primary') return B.primary.text;
+    if (variant === 'outline') return isDisabled ? B.outline.disabledText : B.outline.text;
+    if (variant === 'destructive') return B.destructive.text;
+    if (variant === 'ghost') return B.ghost.text;
+    return B.primary.text;
   };
 
   return (
@@ -171,7 +176,7 @@ export default function BubbleButton({
           {getSvgBackground(variant, pressed, isDisabled)}
           {loading ? (
             <ActivityIndicator
-              color={variant === 'primary' ? '#FFFFFF' : Colors.brand.primary}
+              color={variant === 'primary' ? B.primary.text : B.outline.text}
               size="small"
             />
           ) : (
@@ -196,8 +201,8 @@ export default function BubbleButton({
 
 const styles = StyleSheet.create({
   wrapper: {
-    height: 56,
-    borderRadius: 28,
+    height: B.height,
+    borderRadius: B.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.xl,
