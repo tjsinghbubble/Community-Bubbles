@@ -284,7 +284,6 @@ export default function SignupScreen({ navigation }: Props) {
                   }}
                   keyboardType="number-pad"
                   maxLength={2}
-                  returnKeyType="next"
                   autoFocus
                 />
               </View>
@@ -303,7 +302,6 @@ export default function SignupScreen({ navigation }: Props) {
                   }}
                   keyboardType="number-pad"
                   maxLength={2}
-                  returnKeyType="next"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -317,19 +315,19 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => {
                     const val = text.replace(/[^0-9]/g, '').slice(0, 4);
                     setBirthYear(val);
+                    if (val.length === 4) {
+                      yearRef.current?.blur();
+                      if (birthMonth && birthDay) {
+                        setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
+                        setTimeout(() => setShowDatePicker(false), 300);
+                      }
+                    }
                   }}
                   keyboardType="number-pad"
                   maxLength={4}
-                  returnKeyType="done"
                 />
               </View>
             </View>
-            <BubbleButton
-              title="Confirm"
-              onPress={handleDateConfirm}
-              disabled={!birthMonth || !birthDay || !birthYear}
-              testID="button-confirm-dob"
-            />
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
