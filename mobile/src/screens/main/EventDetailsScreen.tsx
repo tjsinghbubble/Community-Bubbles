@@ -1184,10 +1184,10 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.lg,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    marginBottom: Spacing.md,
+    color: Colors.neutral.charcoal,
+    marginBottom: Spacing.sm,
   },
   mapContainer: {
     borderRadius: Radius.md,

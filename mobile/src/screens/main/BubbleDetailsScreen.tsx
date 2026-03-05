@@ -1075,7 +1075,7 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
+    color: Colors.neutral.charcoal,
   },
   linkText: {
     fontSize: Typography.sizes.sm,
