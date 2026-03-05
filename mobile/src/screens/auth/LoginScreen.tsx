@@ -9,12 +9,15 @@ import {
   Platform,
   SafeAreaView,
   Alert,
+  StatusBar,
+  ScrollView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { EyeIcon, EyeOffIcon } from '../../components/icons';
+import { Ionicons } from '@expo/vector-icons';
 import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
@@ -43,67 +46,82 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.navBar}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Log In</Text>
+        <View style={styles.navSpacer} />
+      </View>
+      <View style={styles.navDivider} />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
+        style={styles.keyboardView}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>
-            Sign in to your account
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.title}>Welcome back!</Text>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor={Colors.neutral.coolMist}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder=""
+                placeholderTextColor="#969696"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[styles.input, { paddingRight: 48 }]}
+                  placeholder=""
+                  placeholderTextColor="#969696"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeIcon size={24} color="#969696" /> : <EyeOffIcon size={24} color="#969696" />}
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity onPress={() => {}}>
+                <Text style={styles.forgotPassword}>Forgot your password?</Text>
+              </TouchableOpacity>
+            </View>
+
+            <BubbleButton
+              title="Log In"
+              onPress={handleLogin}
+              disabled={!email || !password || isLoading}
+              loading={isLoading}
+              testID="button-log-in"
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[styles.input, { paddingRight: 48 }]}
-                placeholder="Enter your password"
-                placeholderTextColor={Colors.neutral.coolMist}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
-              </TouchableOpacity>
-            </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+              <Text style={styles.footerLink}>Sign Up</Text>
+            </TouchableOpacity>
           </View>
-
-          <BubbleButton
-            title="Sign In"
-            onPress={handleLogin}
-            disabled={!email || !password || isLoading}
-            loading={isLoading}
-            testID="button-sign-in"
-          />
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.footerLink}>Sign Up</Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -112,42 +130,63 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.brand.skyWhite,
+    backgroundColor: '#FAFAFA',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  navBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 8,
+  },
+  navTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.brand.midnight,
+    textAlign: 'center',
+  },
+  navSpacer: {
+    width: 40,
+  },
+  navDivider: {
+    height: 1,
+    backgroundColor: '#DDDDDD',
+  },
+  keyboardView: {
+    flex: 1,
   },
   content: {
-    flex: 1,
     padding: 24,
-    justifyContent: 'center',
-  },
-  header: {
-    marginBottom: 40,
+    paddingBottom: 40,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
-    color: Colors.neutral.charcoal,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: Colors.neutral.coolMist,
+    color: '#000000',
+    marginTop: 33,
+    marginBottom: 32,
   },
   form: {
-    gap: 20,
+    gap: 24,
   },
   inputGroup: {
     gap: 8,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#4D4D4D',
   },
   input: {
     borderWidth: 1,
     borderColor: '#969696',
     borderRadius: 8,
-    padding: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 8,
     fontSize: 16,
     backgroundColor: Colors.brand.skyWhite,
     color: Colors.neutral.charcoal,
@@ -157,24 +196,15 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     position: 'absolute',
-    right: 16,
+    right: 8,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
   },
-  button: {
-    borderRadius: Radius.full,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  forgotPassword: {
+    fontSize: 12,
+    color: Colors.brand.bubbleBlue,
+    textDecorationLine: 'underline',
   },
   footer: {
     flexDirection: 'row',
