@@ -271,66 +271,57 @@ export default function SignupScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             <View style={styles.dateInputRow}>
-              <View style={styles.dateInputGroup}>
-                <Text style={styles.dateLabel}>Month</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="MM"
-                  placeholderTextColor={Colors.neutral.coolMist}
-                  value={birthMonth}
-                  onChangeText={(text) => {
-                    const val = text.replace(/[^0-9]/g, '').slice(0, 2);
-                    setBirthMonth(val);
-                    if (val.length === 2) {
-                      Keyboard.dismiss();
+              <TextInput
+                style={styles.dateInput}
+                placeholder="MM"
+                placeholderTextColor="#969696"
+                value={birthMonth}
+                onChangeText={(text) => {
+                  const val = text.replace(/[^0-9]/g, '').slice(0, 2);
+                  setBirthMonth(val);
+                  if (val.length === 2) {
+                    Keyboard.dismiss();
+                  }
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+              <TextInput
+                ref={dayRef}
+                style={styles.dateInput}
+                placeholder="DD"
+                placeholderTextColor="#969696"
+                value={birthDay}
+                onChangeText={(text) => {
+                  const val = text.replace(/[^0-9]/g, '').slice(0, 2);
+                  setBirthDay(val);
+                  if (val.length === 2) {
+                    Keyboard.dismiss();
+                  }
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+              <TextInput
+                ref={yearRef}
+                style={[styles.dateInput, { flex: 1.5 }]}
+                placeholder="YYYY"
+                placeholderTextColor="#969696"
+                value={birthYear}
+                onChangeText={(text) => {
+                  const val = text.replace(/[^0-9]/g, '').slice(0, 4);
+                  setBirthYear(val);
+                  if (val.length === 4) {
+                    Keyboard.dismiss();
+                    if (birthMonth && birthDay) {
+                      setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
+                      setTimeout(() => setShowDatePicker(false), 2000);
                     }
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                />
-              </View>
-              <View style={styles.dateInputGroup}>
-                <Text style={styles.dateLabel}>Day</Text>
-                <TextInput
-                  ref={dayRef}
-                  style={styles.dateInput}
-                  placeholder="DD"
-                  placeholderTextColor={Colors.neutral.coolMist}
-                  value={birthDay}
-                  onChangeText={(text) => {
-                    const val = text.replace(/[^0-9]/g, '').slice(0, 2);
-                    setBirthDay(val);
-                    if (val.length === 2) {
-                      Keyboard.dismiss();
-                    }
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                />
-              </View>
-              <View style={styles.dateInputGroup}>
-                <Text style={styles.dateLabel}>Year</Text>
-                <TextInput
-                  ref={yearRef}
-                  style={styles.dateInput}
-                  placeholder="YYYY"
-                  placeholderTextColor={Colors.neutral.coolMist}
-                  value={birthYear}
-                  onChangeText={(text) => {
-                    const val = text.replace(/[^0-9]/g, '').slice(0, 4);
-                    setBirthYear(val);
-                    if (val.length === 4) {
-                      Keyboard.dismiss();
-                      if (birthMonth && birthDay) {
-                        setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
-                        setTimeout(() => setShowDatePicker(false), 2000);
-                      }
-                    }
-                  }}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                />
-              </View>
+                  }
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+              />
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -483,23 +474,16 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  dateInputGroup: {
-    flex: 1,
-    gap: 8,
-  },
-  dateLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.neutral.coolMist,
-  },
   dateInput: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: Colors.neutral.coolMist,
-    borderRadius: Radius.full,
-    padding: 16,
+    borderColor: '#969696',
+    borderRadius: 8,
+    height: 57,
+    paddingHorizontal: 8,
     fontSize: 16,
-    backgroundColor: Colors.neutral.cloudGrey,
-    color: Colors.neutral.charcoal,
+    backgroundColor: '#FFFFFF',
+    color: Colors.brand.midnight,
     textAlign: 'center',
   },
   modalButton: {
