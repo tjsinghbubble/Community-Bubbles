@@ -87,6 +87,19 @@ function formatTime(time: string): string {
   return `${hour12}:${minutes} ${ampm}`;
 }
 
+function formatTimeNoSuffix(time: string): string {
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours);
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${minutes}`;
+}
+
+function crossesMidnight(startTime: string, endTime: string): boolean {
+  const [sh] = startTime.split(':').map(Number);
+  const [eh] = endTime.split(':').map(Number);
+  return eh < sh;
+}
+
 function formatEventDate(date: string): string {
   const d = new Date(date + 'T00:00:00');
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -214,8 +227,11 @@ export default function UpcomingScreen() {
                     <View style={styles.eventInfo}>
                       <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}</Text>
                       <Text style={styles.eventDateTime}>
-                        {formatEventDate(event.date)} | {formatTime(event.startTime)}
-                        {event.endTime ? ` - ${formatTime(event.endTime)}` : ''}
+                        {formatEventDate(event.date)} | {event.endTime
+                          ? (crossesMidnight(event.startTime, event.endTime)
+                            ? `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`
+                            : `${formatTimeNoSuffix(event.startTime)} - ${formatTime(event.endTime)}`)
+                          : formatTime(event.startTime)}
                       </Text>
                       {event.locationName && (
                         <Text style={styles.eventLocation} numberOfLines={1}>
