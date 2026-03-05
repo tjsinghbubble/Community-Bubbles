@@ -16,6 +16,7 @@ import NotificationsScreen from '../screens/main/NotificationsScreen';
 import BulletinBoardScreen from '../screens/main/BulletinBoardScreen';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import CreatePostScreen from '../screens/main/CreatePostScreen';
+import JoinBubbleScreen from '../screens/main/JoinBubbleScreen';
 
 export type BubbleData = {
   id: string;
@@ -63,6 +64,7 @@ export type ExploreStackParamList = {
   BulletinBoard: { bubbleId: string; bubbleTitle: string };
   PostDetail: { postId: string; bubbleId: string };
   CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number };
+  JoinBubble: { bubble: BubbleData };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -86,6 +88,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="BulletinBoard" component={BulletinBoardScreen} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
+      <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} />
     </Stack.Navigator>
   );
 }

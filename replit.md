@@ -60,6 +60,8 @@ The project comprises a monorepo structure with distinct frontend (web and mobil
 - **Private**: Hidden from Explore, accessible via direct link, requires admin approval.
 Membership statuses (`approved`, `pending`) control access and actions.
 
+**Join Bubble Screen**: Non-members tapping a bubble are redirected from `BubbleDetailsScreen` to `JoinBubbleScreen` (`mobile/src/screens/main/JoinBubbleScreen.tsx`). Shows image carousel, tagline, member count (with spots left if `memberLimit` is set), upcoming events (horizontal scroll cards), expandable About section, Join/Request to Join button (based on privacy), and a Contact button (placeholder). On successful join, navigates to BubbleDetailsScreen; for request-based bubbles, shows confirmation and navigates back. Route registered as `JoinBubble` in `ExploreNavigator.tsx`.
+
 **Admin Features**:
 - **System Admin**: A dedicated super admin account (`sysadmin@seinfeld.com`) with platform-wide management capabilities.
 - **Super Admins**: Users with `isSuperAdmin=true` can edit/delete any content and approve/reject bubbles/events.
