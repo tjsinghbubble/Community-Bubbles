@@ -315,6 +315,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       const shareContent = Platform.OS === 'ios'
         ? { message: `Check out "${bubble.title}" on Bubble!`, url: deepLink }
         : { message: `Check out "${bubble.title}" on Bubble!\n${deepLink}` };
+      await new Promise(resolve => setTimeout(resolve, 500));
       await Share.share(shareContent);
     } catch (error: any) {
       if (error?.message !== 'User did not share') {
