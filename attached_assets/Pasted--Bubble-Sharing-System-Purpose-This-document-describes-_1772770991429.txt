@@ -1,0 +1,420 @@
+# Bubble Sharing System
+
+## Purpose
+
+This document describes how to implement **shareable short URLs for Bubbles**.
+
+The goal is to allow users to easily share a bubble with others using a **short, stable link** that works across web, mobile apps, and QR codes.
+
+Example share link:
+
+```
+https://app.com/b/a7F3kP
+```
+
+Where:
+
+* `b` → bubble route
+* `a7F3kP` → unique short identifier for a bubble
+
+---
+
+# System Design Goals
+
+The sharing system should provide:
+
+* Short and clean URLs
+* Stable identifiers
+* Mobile deep linking compatibility
+* QR code support for physical locations
+* Simple backend implementation
+* Scalability to millions of bubbles
+
+---
+
+# URL Structure
+
+Bubble URLs follow this format:
+
+```
+https://app.com/b/{shortId}
+```
+
+Example:
+
+```
+https://app.com/b/a7F3kP
+```
+
+The **shortId uniquely identifies the bubble** and is used for database lookup.
+
+---
+
+# Database Changes
+
+The existing `bubbles` table must include a `short_id` column.
+
+## Migration
+
+```sql
+ALTER TABLE bubbles ADD COLUMN short_id TEXT UNIQUE;
+```
+
+Create an index for fast lookup:
+
+```sql
+CREATE UNIQUE INDEX idx_bubbles_short_id
+ON bubbles(short_id);
+```
+
+---
+
+# Example Database Record
+
+| id  | name                 | short_id |
+| --- | -------------------- | -------- |
+| 101 | Sunnyvale Pickleball | a7F3kP   |
+| 102 | Downtown Yoga        | K91pLx   |
+
+Generated share URL:
+
+```
+https://app.com/b/a7F3kP
+```
+
+---
+
+# Short ID System
+
+## Base62 Character Set
+
+Short IDs are generated using Base62 characters.
+
+```
+0123456789
+abcdefghijklmnopqrstuvwxyz
+ABCDEFGHIJKLMNOPQRSTUVWXYZ
+```
+
+## ID Length
+
+```
+6 characters
+```
+
+Total combinations:
+
+```
+62^6 = 56+ billion
+```
+
+This is sufficient for a very large number of bubbles.
+
+---
+
+# Utility: Short ID Generator
+
+Create the following file:
+
+```
+utils/shortId.js
+```
+
+Implementation:
+
+```javascript
+const chars =
+  "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+export function generateShortId(length = 6) {
+  let result = "";
+
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+
+  return result;
+}
+```
+
+Example generated IDs:
+
+```
+a7F3kP
+K91pLx
+Z4m2Qa
+```
+
+---
+
+# Bubble Creation Logic
+
+When creating a bubble:
+
+1. Generate a short ID
+2. Check if the ID already exists
+3. Retry if collision occurs
+4. Save the ID in the bubble record
+
+Example implementation:
+
+```javascript
+import { generateShortId } from "../utils/shortId.js";
+
+async function createBubble(name, otherFields) {
+  let shortId;
+  let exists = true;
+
+  while (exists) {
+    shortId = generateShortId(6);
+
+    const result = await db.query(
+      "SELECT 1 FROM bubbles WHERE short_id = ?",
+      [shortId]
+    );
+
+    exists = result.length > 0;
+  }
+
+  const bubble = await db.query(
+    `INSERT INTO bubbles (name, short_id)
+     VALUES (?, ?)
+     RETURNING *`,
+    [name, shortId]
+  );
+
+  return bubble;
+}
+```
+
+---
+
+# Share URL Generator
+
+Create a helper service:
+
+```
+services/bubbleShareUrl.js
+```
+
+Implementation:
+
+```javascript
+export function getBubbleShareUrl(bubble) {
+  return `/b/${bubble.short_id}`;
+}
+```
+
+Example result:
+
+```
+/b/a7F3kP
+```
+
+Full share link:
+
+```
+https://app.com/b/a7F3kP
+```
+
+---
+
+# Bubble Resolution Route
+
+Add a route to resolve the short URL.
+
+Endpoint:
+
+```
+GET /b/:shortId
+```
+
+Example request:
+
+```
+GET /b/a7F3kP
+```
+
+Implementation:
+
+```javascript
+app.get("/b/:shortId", async (req, res) => {
+  const shortId = req.params.shortId;
+
+  const bubble = await db.query(
+    "SELECT * FROM bubbles WHERE short_id = ?",
+    [shortId]
+  );
+
+  if (!bubble) {
+    return res.status(404).send("Bubble not found");
+  }
+
+  return res.json(bubble);
+});
+```
+
+In production this route may:
+
+* redirect to a bubble web page
+* open a mobile deep link
+* return bubble metadata
+
+---
+
+# Share Flow in the Application
+
+1. User taps **Share Bubble**
+2. System retrieves the bubble
+3. Generate share URL:
+
+```
+https://app.com/b/{shortId}
+```
+
+Example:
+
+```
+https://app.com/b/a7F3kP
+```
+
+4. Display sharing options:
+
+* Copy link
+* SMS
+* WhatsApp
+* Social share
+* QR code
+
+---
+
+# QR Code Support
+
+Because bubbles represent **real-world communities**, QR codes are extremely useful.
+
+Each bubble should support generating a QR code.
+
+QR code content:
+
+```
+https://app.com/b/{shortId}
+```
+
+Example:
+
+```
+https://app.com/b/a7F3kP
+```
+
+Use cases:
+
+* posters
+* parks
+* gyms
+* community boards
+* events
+* meetups
+
+---
+
+# Example Bubble
+
+Bubble record:
+
+| id | name           | short_id |
+| -- | -------------- | -------- |
+| 54 | Sunnyvale Yoga | K91pLx   |
+
+Share URL:
+
+```
+https://app.com/b/K91pLx
+```
+
+---
+
+# Security Considerations
+
+Short IDs should:
+
+* be random
+* not expose internal IDs
+* not allow enumeration attacks
+
+6-character Base62 IDs provide **56+ billion combinations**, making guessing difficult.
+
+If needed later, rate limiting can be added to the `/b/:shortId` endpoint.
+
+---
+
+# Future Enhancements
+
+These features are **not required for the initial version**.
+
+---
+
+## Invite Links
+
+Private invite links could be created:
+
+```
+https://app.com/invite/x8Ks2p
+```
+
+Features:
+
+* expiration
+* usage limits
+* invite tracking
+* role assignment
+
+---
+
+## Analytics
+
+Track metrics such as:
+
+* share link clicks
+* bubble joins from share links
+* viral growth metrics
+
+---
+
+## Custom Handles
+
+Allow bubbles to claim readable handles:
+
+```
+https://app.com/b/@sunnyvale-yoga
+```
+
+Requires a separate `bubble_handles` table.
+
+---
+
+# Final System Summary
+
+## Share URL
+
+```
+https://app.com/b/{shortId}
+```
+
+Example:
+
+```
+https://app.com/b/a7F3kP
+```
+
+## Key Benefits
+
+* very short URLs
+* easy sharing
+* scalable
+* QR code friendly
+* simple backend logic
+* mobile deep link compatible
+
+---
+
+# End of Document
