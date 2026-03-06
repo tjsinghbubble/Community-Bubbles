@@ -177,7 +177,7 @@ export default function WelcomeBubbleModal({
           </View>
 
           <View style={styles.nextStepRow}>
-            <Text style={styles.nextStepEmoji}>🥳</Text>
+            <Text style={styles.nextStepEmoji}>🎯</Text>
             <View style={styles.nextStepContent}>
               <Text style={styles.nextStepTitle}>RSVP to an Upcoming Event</Text>
               {nextEvent ? (
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xxxl,
-    maxHeight: SCREEN_HEIGHT * 0.95,
+    maxHeight: SCREEN_HEIGHT * 0.97,
   },
   handleBar: {
     width: 40,
