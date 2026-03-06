@@ -310,7 +310,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const configRes = await apiService.getShareBaseUrl();
       const baseUrl = configRes.baseUrl;
-      const shortId = bubble.shortId || bubble.id;
+      const shortId = bubbleDetails?.shortId || bubble.shortId || bubble.id;
       const deepLink = `${baseUrl}/b/${shortId}`;
       const shareContent = Platform.OS === 'ios'
         ? { message: `Check out "${bubble.title}" on Bubble!`, url: deepLink }
@@ -330,7 +330,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const configRes = await apiService.getShareBaseUrl();
       const baseUrl = configRes.baseUrl;
-      const shortId = bubble.shortId || bubble.id;
+      const shortId = bubbleDetails?.shortId || bubble.shortId || bubble.id;
       setShareUrl(`${baseUrl}/b/${shortId}`);
       setShowQRModal(true);
     } catch (error) {
