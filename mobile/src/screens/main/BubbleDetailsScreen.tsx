@@ -308,9 +308,12 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShareBubble = async () => {
     setShowKebabMenu(false);
     try {
-      const configRes = await apiService.getShareBaseUrl();
+      const [configRes, freshBubble] = await Promise.all([
+        apiService.getShareBaseUrl(),
+        apiService.getBubble(bubble.id),
+      ]);
       const baseUrl = configRes.baseUrl;
-      const shortId = bubbleDetails?.shortId || bubble.shortId || bubble.id;
+      const shortId = freshBubble?.shortId || bubbleDetails?.shortId || bubble.shortId || bubble.id;
       const deepLink = `${baseUrl}/b/${shortId}`;
       const shareContent = Platform.OS === 'ios'
         ? { message: `Check out "${bubble.title}" on Bubble!`, url: deepLink }
@@ -328,9 +331,12 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShowQRCode = async () => {
     setShowKebabMenu(false);
     try {
-      const configRes = await apiService.getShareBaseUrl();
+      const [configRes, freshBubble] = await Promise.all([
+        apiService.getShareBaseUrl(),
+        apiService.getBubble(bubble.id),
+      ]);
       const baseUrl = configRes.baseUrl;
-      const shortId = bubbleDetails?.shortId || bubble.shortId || bubble.id;
+      const shortId = freshBubble?.shortId || bubbleDetails?.shortId || bubble.shortId || bubble.id;
       setShareUrl(`${baseUrl}/b/${shortId}`);
       setShowQRModal(true);
     } catch (error) {
