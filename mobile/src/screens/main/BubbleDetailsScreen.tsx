@@ -312,10 +312,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       const baseUrl = configRes.baseUrl;
       const shortId = bubble.shortId || bubble.id;
       const deepLink = `${baseUrl}/b/${shortId}`;
-      await Share.share({
-        message: `Check out "${bubble.title}" on Bubble!\n${deepLink}`,
-      });
-    } catch (error) {
+      const shareContent = Platform.OS === 'ios'
+        ? { message: `Check out "${bubble.title}" on Bubble!`, url: deepLink }
+        : { message: `Check out "${bubble.title}" on Bubble!\n${deepLink}` };
+      await Share.share(shareContent);
+    } catch (error: any) {
+      if (error?.message !== 'User did not share') {
+        Alert.alert('Share Error', 'Unable to share this bubble. Please try again.');
+      }
       console.error('Share error:', error);
     }
   };
