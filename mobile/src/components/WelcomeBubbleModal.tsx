@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xxxl,
-    maxHeight: SCREEN_HEIGHT * 0.88,
+    maxHeight: SCREEN_HEIGHT * 0.95,
   },
   handleBar: {
     width: 40,
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: Colors.neutral.coolMist,
+    borderColor: Colors.status.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
