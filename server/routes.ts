@@ -2284,6 +2284,7 @@ export async function registerRoutes(
   seedBulletinPostTypes().catch(console.error).then(() => {
     seedData().catch(console.error);
   });
+  storage.backfillBubbleShortIds().catch(console.error);
 
   // Bulletin Board - Post Types
   app.get("/api/bulletin/post-types", authMiddleware, async (_req, res) => {
@@ -2469,6 +2470,24 @@ export async function registerRoutes(
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
+  });
+
+  app.get("/b/:shortId", async (req, res) => {
+    try {
+      const bubble = await storage.getBubbleByShortId(req.params.shortId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      const realMemberCount = await storage.getRealMemberCount(bubble.id);
+      res.json(await enrichBubbleCategory({ ...bubble, members: realMemberCount }));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/config/share-base-url", (_req, res) => {
+    const baseUrl = process.env.SHARE_BASE_URL || "https://mybubble.trybubble.io";
+    res.json({ baseUrl });
   });
 
   return httpServer;

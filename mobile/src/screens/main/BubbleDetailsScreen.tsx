@@ -305,8 +305,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShareBubble = async () => {
     setShowKebabMenu(false);
     try {
-      const bubbleName = encodeURIComponent(bubble.title || 'bubble');
-      const deepLink = `https://community-bubbles.replit.app/${bubbleName}/${bubble.id}`;
+      let baseUrl = 'https://mybubble.trybubble.io';
+      try {
+        const configRes = await apiService.fetch('/api/config/share-base-url');
+        if (configRes.baseUrl) baseUrl = configRes.baseUrl;
+      } catch {}
+      const shortId = bubble.shortId || bubble.id;
+      const deepLink = `${baseUrl}/b/${shortId}`;
       await Share.share({
         message: `Check out "${bubble.title}" on Bubble!\n${deepLink}`,
       });

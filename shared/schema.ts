@@ -65,6 +65,7 @@ export const bubbles = pgTable("bubbles", {
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('pending'),
   rejectionReason: text("rejection_reason"),
+  shortId: text("short_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   deletedAt: timestamp("deleted_at"),
 });
@@ -97,6 +98,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const insertBubbleSchema = createInsertSchema(bubbles).omit({
   id: true,
   members: true,
+  shortId: true,
   createdAt: true,
   deletedAt: true,
 });

@@ -70,6 +70,8 @@ Membership statuses (`approved`, `pending`) control access and actions.
 - **Content Approval Workflow**: Bubbles default to 'pending' and require super admin approval. Events are approved immediately but have an underlying approval infrastructure. Super admins manage pending content and can provide rejection reasons.
 - **Authorization Model**: Granular permissions for content creation, editing, deletion, and approval are enforced server-side.
 
+**Bubble Sharing System**: Each bubble has a unique 6-character Base62 `shortId` (stored in `bubbles.short_id`). Short IDs are auto-generated on bubble creation and backfilled for existing bubbles on startup. Resolution endpoint `GET /b/:shortId` returns bubble data. The share URL format is `{SHARE_BASE_URL}/b/{shortId}`, where `SHARE_BASE_URL` is a configurable env var (defaults to `https://mybubble.trybubble.io`). The config endpoint `GET /api/config/share-base-url` returns the current base URL. The shortId generator lives in `server/shortId.ts`.
+
 **Multi-Image Upload**: Supports uploading up to 5 images for bubbles and events via presigned URLs to Google Cloud Storage.
 
 **Timezone Handling**: Events are stored in UTC in the database. Each event has a `timezone` column (IANA format, e.g. "America/Chicago") defaulting to 'UTC'. On create/update, the server converts local times to UTC using `server/timezone.ts`. On GET, the server converts UTC back to the event's local timezone before sending to clients. Mobile clients send `Intl.DateTimeFormat().resolvedOptions().timeZone` with event creation. The reminder scheduler compares UTC times directly.

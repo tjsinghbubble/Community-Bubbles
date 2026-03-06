@@ -1,5 +1,6 @@
 import { eq, and, desc, lt, gte, or, isNull, ne, inArray } from "drizzle-orm";
 import { db } from "./db";
+import { generateShortId } from "./shortId";
 import {
   users,
   bubbles,
@@ -65,6 +66,8 @@ export interface IStorage {
 
   getBubbles(): Promise<Bubble[]>;
   getBubble(id: string): Promise<Bubble | undefined>;
+  getBubbleByShortId(shortId: string): Promise<Bubble | undefined>;
+  backfillBubbleShortIds(): Promise<void>;
   createBubble(bubble: InsertBubble): Promise<Bubble>;
   updateBubble(id: string, bubble: Partial<InsertBubble>): Promise<Bubble | undefined>;
   deleteBubble(id: string): Promise<void>;
@@ -247,8 +250,40 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getBubbleByShortId(shortId: string): Promise<Bubble | undefined> {
+    const result = await db.select().from(bubbles).where(and(eq(bubbles.shortId, shortId), isNull(bubbles.deletedAt))).limit(1);
+    return result[0];
+  }
+
+  async backfillBubbleShortIds(): Promise<void> {
+    const rows = await db.select({ id: bubbles.id }).from(bubbles).where(isNull(bubbles.shortId));
+    for (const row of rows) {
+      let shortId: string;
+      let attempts = 0;
+      do {
+        shortId = generateShortId();
+        const existing = await db.select().from(bubbles).where(eq(bubbles.shortId, shortId)).limit(1);
+        if (existing.length === 0) break;
+        attempts++;
+      } while (attempts < 10);
+      await db.update(bubbles).set({ shortId }).where(eq(bubbles.id, row.id));
+    }
+    if (rows.length > 0) {
+      console.log(`Backfilled shortIds for ${rows.length} bubbles`);
+    }
+  }
+
   async createBubble(insertBubble: InsertBubble): Promise<Bubble> {
-    const result = await db.insert(bubbles).values(insertBubble).returning();
+    let shortId: string;
+    let attempts = 0;
+    do {
+      shortId = generateShortId();
+      const existing = await db.select().from(bubbles).where(eq(bubbles.shortId, shortId)).limit(1);
+      if (existing.length === 0) break;
+      attempts++;
+    } while (attempts < 10);
+
+    const result = await db.insert(bubbles).values({ ...insertBubble, shortId }).returning();
     return result[0];
   }
 
