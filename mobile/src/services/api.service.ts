@@ -492,6 +492,14 @@ class ApiService {
     });
   }
 
+  async getShareBaseUrl(): Promise<{ baseUrl: string }> {
+    return this.request<{ baseUrl: string }>('/api/config/share-base-url');
+  }
+
+  async getBubbleByShortId(shortId: string): Promise<any> {
+    return this.request<any>(`/b/${shortId}`);
+  }
+
   async getBulletinReplies(postId: string): Promise<any[]> {
     return this.request<any[]>(`/api/bulletin/posts/${postId}/replies`);
   }

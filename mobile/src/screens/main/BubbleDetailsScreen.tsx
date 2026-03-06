@@ -34,6 +34,7 @@ import { CreateBubbleEventIcon } from '../../components/icons';
 import * as ImagePicker from 'expo-image-picker';
 import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
 import BubbleButton from '../../components/BubbleButton';
+import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -77,6 +78,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [successModalConfig, setSuccessModalConfig] = useState({ title: '', subtitle: '' });
   const [activeTab, setActiveTab] = useState<'Details' | 'Events'>('Details');
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
   const [memberCount, setMemberCount] = useState<number>(bubble.members || 0);
@@ -307,7 +310,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       let baseUrl = 'https://mybubble.trybubble.io';
       try {
-        const configRes = await apiService.fetch('/api/config/share-base-url');
+        const configRes = await apiService.getShareBaseUrl();
         if (configRes.baseUrl) baseUrl = configRes.baseUrl;
       } catch {}
       const shortId = bubble.shortId || bubble.id;
@@ -317,6 +320,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       });
     } catch (error) {
       console.error('Share error:', error);
+    }
+  };
+
+  const handleShowQRCode = async () => {
+    setShowKebabMenu(false);
+    try {
+      let baseUrl = 'https://mybubble.trybubble.io';
+      try {
+        const configRes = await apiService.getShareBaseUrl();
+        if (configRes.baseUrl) baseUrl = configRes.baseUrl;
+      } catch {}
+      const shortId = bubble.shortId || bubble.id;
+      setShareUrl(`${baseUrl}/b/${shortId}`);
+      setShowQRModal(true);
+    } catch (error) {
+      console.error('QR code error:', error);
     }
   };
 
@@ -463,6 +482,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
             <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Share Bubble</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleShowQRCode} data-testid="button-qr-code">
+            <Ionicons name="qr-code-outline" size={20} color={Colors.text.primary} />
+            <Text style={styles.kebabItemText}>QR Code</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
@@ -811,6 +834,12 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         title={successModalConfig.title}
         subtitle={successModalConfig.subtitle}
         onClose={handleSuccessModalClose}
+      />
+      <ShareQRCodeModal
+        visible={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        bubbleName={bubble.title || ''}
+        shareUrl={shareUrl}
       />
       <Modal
         visible={reportModalVisible}
