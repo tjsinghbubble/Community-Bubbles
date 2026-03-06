@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
   TouchableOpacity,
   FlatList,
   Dimensions,
@@ -20,9 +19,11 @@ import ImageCarousel from '../../components/ImageCarousel';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Typography } from '../../styles/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CAROUSEL_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
+const CAROUSEL_HEIGHT = SCREEN_HEIGHT * 0.25;
 const EVENT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.sm) / 2;
+const EVENT_CARD_HEIGHT = 100;
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'JoinBubble'>;
@@ -184,15 +185,11 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       </View>
       <View style={styles.headerSeparator} />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.content}>
         <View style={styles.carouselWrapper}>
           <ImageCarousel
             images={images}
-            height={CAROUSEL_WIDTH}
+            height={CAROUSEL_HEIGHT}
             width={CAROUSEL_WIDTH}
             borderRadius={12}
           />
@@ -241,7 +238,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
         <View style={styles.insetSeparator} />
 
-        <View style={styles.section}>
+        <View style={styles.aboutSection}>
           <TouchableOpacity
             style={styles.aboutHeader}
             onPress={() => setAboutExpanded(!aboutExpanded)}
@@ -258,7 +255,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           {description ? (
             <Text
               style={styles.aboutText}
-              numberOfLines={aboutExpanded ? undefined : 4}
+              numberOfLines={aboutExpanded ? 4 : 2}
               data-testid="text-about-description"
             >
               {description}
@@ -267,25 +264,25 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.insetSeparator} />
+      </View>
 
-        <View style={styles.buttonSection}>
-          <BubbleButton
-            title={isRequestBased ? 'Request to Join' : 'Join'}
-            variant="primary"
-            onPress={handleJoin}
-            loading={isJoining}
-            disabled={isJoining}
-            testID="button-join-bubble"
-          />
-          <View style={{ height: Spacing.sm }} />
-          <BubbleButton
-            title="Contact"
-            variant="outline"
-            onPress={handleContact}
-            testID="button-contact"
-          />
-        </View>
-      </ScrollView>
+      <View style={styles.buttonSection}>
+        <BubbleButton
+          title={isRequestBased ? 'Request to Join' : 'Join'}
+          variant="primary"
+          onPress={handleJoin}
+          loading={isJoining}
+          disabled={isJoining}
+          testID="button-join-bubble"
+        />
+        <View style={{ height: Spacing.sm }} />
+        <BubbleButton
+          title="Contact"
+          variant="outline"
+          onPress={handleContact}
+          testID="button-contact"
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -332,30 +329,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scrollView: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: Spacing.xxxl,
   },
   carouselWrapper: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
   tagline: {
-    fontSize: Typography.sizes.xl,
+    fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     textAlign: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xxs,
   },
   memberInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xl,
   },
   memberDot: {
@@ -366,60 +360,65 @@ const styles = StyleSheet.create({
     marginRight: Spacing.xs,
   },
   memberText: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.neutral.charcoal,
   },
   memberDivider: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.neutral.charcoal,
   },
   spotsText: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.status.error,
     fontWeight: Typography.weights.medium as any,
   },
   section: {
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
+    paddingTop: Spacing.sm,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold as any,
     color: Colors.neutral.charcoal,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   eventsListContent: {
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
   eventCard: {
     width: EVENT_CARD_WIDTH,
-    aspectRatio: 1,
+    height: EVENT_CARD_HEIGHT,
     borderWidth: 1,
     borderColor: Colors.neutral.lightSilver,
     borderRadius: 12,
     padding: Spacing.md,
-    justifyContent: 'center' as const,
+    justifyContent: 'center',
   },
   eventTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.xxs,
   },
   eventDate: {
-    fontSize: Typography.sizes.sm,
+    fontSize: Typography.sizes.xs,
     color: Colors.neutral.charcoal,
     marginBottom: 2,
   },
   eventTime: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
-    marginBottom: Spacing.xs,
-  },
-  eventAttendees: {
     fontSize: Typography.sizes.xs,
     color: Colors.neutral.coolMist,
-    marginTop: Spacing.xs,
+    marginBottom: Spacing.xxs,
+  },
+  eventAttendees: {
+    fontSize: Typography.sizes.xxs,
+    color: Colors.neutral.coolMist,
+    marginTop: Spacing.xxs,
+  },
+  aboutSection: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
   },
   aboutHeader: {
     flexDirection: 'row',
@@ -427,12 +426,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   aboutText: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.neutral.charcoal,
     lineHeight: Typography.lineHeight.md,
   },
   buttonSection: {
     paddingHorizontal: Spacing.xxxxl,
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
   },
 });
