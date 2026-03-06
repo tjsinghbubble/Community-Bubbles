@@ -308,7 +308,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShareBubble = async () => {
     setShowKebabMenu(false);
     try {
-      let baseUrl = 'https://mybubble.trybubble.io';
+      let baseUrl = 'https://your-project.replit.dev';
       try {
         const configRes = await apiService.getShareBaseUrl();
         if (configRes.baseUrl) baseUrl = configRes.baseUrl;
@@ -326,7 +326,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const handleShowQRCode = async () => {
     setShowKebabMenu(false);
     try {
-      let baseUrl = 'https://mybubble.trybubble.io';
+      let baseUrl = 'https://your-project.replit.dev';
       try {
         const configRes = await apiService.getShareBaseUrl();
         if (configRes.baseUrl) baseUrl = configRes.baseUrl;

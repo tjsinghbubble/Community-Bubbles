@@ -18,7 +18,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const prefix = Linking.createURL('/');
 
 const linking = {
-  prefixes: [prefix, 'bubble://', 'https://mybubble.trybubble.io'],
+  prefixes: [prefix, 'bubble://', 'https://mybubble.trybubble.io', 'https://your-project.replit.dev'],
   config: {
     screens: {
       Main: {
