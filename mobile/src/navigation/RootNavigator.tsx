@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
@@ -17,26 +17,41 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const prefix = Linking.createURL('/');
 
-const linking = {
-  prefixes: [prefix, 'bubble://', 'https://mybubble.trybubble.io', 'https://your-project.replit.dev'],
-  config: {
-    screens: {
-      Main: {
-        screens: {
-          Explore: {
-            screens: {
-              BubbleDetails: 'b/:shortId',
+function buildLinking(shareBaseUrl?: string) {
+  const prefixes = [prefix, 'bubble://'];
+  if (shareBaseUrl) prefixes.push(shareBaseUrl);
+  return {
+    prefixes,
+    config: {
+      screens: {
+        Main: {
+          screens: {
+            Explore: {
+              screens: {
+                BubbleDetails: 'b/:shortId',
+              },
             },
           },
         },
       },
     },
-  },
-};
+  };
+}
 
 export default function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [linkingConfig, setLinkingConfig] = useState(() => buildLinking());
+
+  useEffect(() => {
+    apiService.getShareBaseUrl()
+      .then((res) => {
+        if (res.baseUrl) {
+          setLinkingConfig(buildLinking(res.baseUrl));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
@@ -87,7 +102,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linkingConfig}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />

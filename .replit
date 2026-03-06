@@ -64,4 +64,9 @@ integrations = ["javascript_object_storage:2.0.0"]
 
 [userenv.shared]
 EXPO_PUBLIC_API_URL = "https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev"
-SHARE_BASE_URL = "https://your-project.replit.dev"
+
+[userenv.development]
+SHARE_BASE_URL = "https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev"
+
+[userenv.production]
+SHARE_BASE_URL = "https://mybubble.trybubble.io"
