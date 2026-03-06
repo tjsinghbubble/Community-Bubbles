@@ -60,7 +60,9 @@ The project comprises a monorepo structure with distinct frontend (web and mobil
 - **Private**: Hidden from Explore, accessible via direct link, requires admin approval.
 Membership statuses (`approved`, `pending`) control access and actions.
 
-**Join Bubble Screen**: Non-members tapping a bubble are redirected from `BubbleDetailsScreen` to `JoinBubbleScreen` (`mobile/src/screens/main/JoinBubbleScreen.tsx`). Shows image carousel, tagline, member count (with spots left if `memberLimit` is set), upcoming events (horizontal scroll cards), expandable About section, Join/Request to Join button (based on privacy), and a Contact button (placeholder). On successful join, navigates to BubbleDetailsScreen; for request-based bubbles, shows confirmation and navigates back. Route registered as `JoinBubble` in `ExploreNavigator.tsx`.
+**Join Bubble Screen**: Non-members tapping a bubble are redirected from `BubbleDetailsScreen` to `JoinBubbleScreen` (`mobile/src/screens/main/JoinBubbleScreen.tsx`). Shows image carousel, tagline, member count (with spots left if `memberLimit` is set), upcoming events (horizontal scroll cards), expandable About section, Join/Request to Join button (based on privacy), and a Contact button (placeholder). For request-based bubbles, shows confirmation and navigates back. Route registered as `JoinBubble` in `ExploreNavigator.tsx`.
+
+**Welcome Bubble Modal**: When a user taps Join on a public bubble, a bottom sheet modal (`mobile/src/components/WelcomeBubbleModal.tsx`) appears showing: "Welcome to {bubble name}", category, bubble rules with checkboxes (scrollable if many rules), Next Steps (Introduce Yourself + RSVP to event), and a "Let's Go" button. The button is disabled until all rule checkboxes are checked. Uses `#FAFAFA` background consistent with other modals.
 
 **Admin Features**:
 - **System Admin**: A dedicated super admin account (`sysadmin@seinfeld.com`) with platform-wide management capabilities.

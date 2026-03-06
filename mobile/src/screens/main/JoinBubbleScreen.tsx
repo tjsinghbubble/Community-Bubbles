@@ -17,6 +17,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import ImageCarousel from '../../components/ImageCarousel';
 import BubbleButton from '../../components/BubbleButton';
+import WelcomeBubbleModal from '../../components/WelcomeBubbleModal';
 import { Colors, Spacing, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -47,6 +48,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [aboutExpanded, setAboutExpanded] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -73,22 +75,24 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const isRequestBased = privacy === 'Request to Join' || privacy === 'Private';
 
   const handleJoin = async () => {
-    setIsJoining(true);
-    try {
-      const result = await apiService.joinBubble(bubble.id);
-      if (result.status === 'pending') {
-        Alert.alert(
-          'Request Sent',
-          'Your request to join this bubble has been sent to the admins.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-      } else {
-        navigation.replace('BubbleDetails', { bubble });
+    if (isRequestBased) {
+      setIsJoining(true);
+      try {
+        const result = await apiService.joinBubble(bubble.id);
+        if (result.status === 'pending') {
+          Alert.alert(
+            'Request Sent',
+            'Your request to join this bubble has been sent to the admins.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to join bubble');
+      } finally {
+        setIsJoining(false);
       }
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to join bubble');
-    } finally {
-      setIsJoining(false);
+    } else {
+      setShowWelcomeModal(true);
     }
   };
 
@@ -283,6 +287,19 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           testID="button-contact"
         />
       </View>
+
+      <WelcomeBubbleModal
+        visible={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+        bubbleName={bubble.title}
+        category={bubble.category}
+        rules={bubbleDetails?.rules || []}
+        nextEvent={
+          events.length > 0
+            ? { title: events[0].title, date: events[0].date, startTime: events[0].startTime }
+            : null
+        }
+      />
     </SafeAreaView>
   );
 }
