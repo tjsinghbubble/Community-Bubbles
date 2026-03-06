@@ -42,7 +42,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [bubbleDetails, setBubbleDetails] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [memberCount, setMemberCount] = useState(bubble.members || 0);
-  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -158,7 +158,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           </Text>
           <View style={styles.headerSpacer} />
         </View>
-        <View style={styles.separator} />
+        <View style={styles.headerSeparator} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.brand.primary} />
         </View>
@@ -181,18 +181,21 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         </Text>
         <View style={styles.headerSpacer} />
       </View>
-      <View style={styles.separator} />
+      <View style={styles.headerSeparator} />
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ImageCarousel
-          images={images}
-          height={220}
-          borderRadius={0}
-        />
+        <View style={styles.carouselWrapper}>
+          <ImageCarousel
+            images={images}
+            height={220}
+            width={SCREEN_WIDTH - Spacing.xl * 2}
+            borderRadius={12}
+          />
+        </View>
 
         {tagline ? (
           <Text style={styles.tagline} data-testid="text-tagline">{tagline}</Text>
@@ -209,7 +212,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        <View style={styles.separator} />
+        <View style={styles.insetSeparator} />
 
         {events.length > 0 && (
           <View style={styles.section}>
@@ -237,6 +240,8 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           </View>
         )}
 
+        <View style={styles.insetSeparator} />
+
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.aboutHeader}
@@ -256,7 +261,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           ) : null}
         </View>
 
-        <View style={styles.separator} />
+        <View style={styles.insetSeparator} />
 
         <View style={styles.buttonSection}>
           <BubbleButton
@@ -307,9 +312,15 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
-  separator: {
+  headerSeparator: {
     height: 1,
     backgroundColor: Colors.neutral.lightSilver,
+    marginHorizontal: Spacing.xl,
+  },
+  insetSeparator: {
+    height: 1,
+    backgroundColor: Colors.neutral.lightSilver,
+    marginHorizontal: Spacing.xl,
   },
   loadingContainer: {
     flex: 1,
@@ -321,6 +332,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: Spacing.xxxl,
+  },
+  carouselWrapper: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
   },
   tagline: {
     fontSize: Typography.sizes.xl,
@@ -410,7 +425,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.md,
   },
   buttonSection: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.xxxl,
     paddingTop: Spacing.xl,
   },
 });
