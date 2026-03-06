@@ -96,6 +96,19 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleLetsGo = async () => {
+    setIsJoining(true);
+    try {
+      await apiService.joinBubble(bubble.id);
+      setShowWelcomeModal(false);
+      navigation.replace('BubbleDetails', { bubble });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to join bubble');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
   const handleContact = () => {
     Alert.alert('Coming Soon', 'Contact functionality will be available soon.');
   };
@@ -291,6 +304,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       <WelcomeBubbleModal
         visible={showWelcomeModal}
         onClose={() => setShowWelcomeModal(false)}
+        onLetsGo={handleLetsGo}
         bubbleName={bubble.title}
         category={bubble.category}
         rules={bubbleDetails?.rules || []}

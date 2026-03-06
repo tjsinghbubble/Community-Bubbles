@@ -23,6 +23,7 @@ interface NextEventInfo {
 interface WelcomeBubbleModalProps {
   visible: boolean;
   onClose: () => void;
+  onLetsGo: () => void;
   bubbleName: string;
   category: string;
   rules: string[];
@@ -32,6 +33,7 @@ interface WelcomeBubbleModalProps {
 export default function WelcomeBubbleModal({
   visible,
   onClose,
+  onLetsGo,
   bubbleName,
   category,
   rules,
@@ -194,7 +196,7 @@ export default function WelcomeBubbleModal({
             <BubbleButton
               title="Let's Go"
               variant="primary"
-              onPress={() => {}}
+              onPress={onLetsGo}
               disabled={!allRulesChecked}
               testID="button-lets-go"
             />
