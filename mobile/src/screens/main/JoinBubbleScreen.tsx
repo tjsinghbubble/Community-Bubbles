@@ -21,6 +21,7 @@ import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CAROUSEL_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
 const EVENT_CARD_WIDTH = (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.sm) / 2;
 
 type Props = {
@@ -191,8 +192,8 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         <View style={styles.carouselWrapper}>
           <ImageCarousel
             images={images}
-            height={220}
-            width={SCREEN_WIDTH - Spacing.xl * 2}
+            height={CAROUSEL_WIDTH}
+            width={CAROUSEL_WIDTH}
             borderRadius={12}
           />
         </View>
@@ -228,11 +229,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
                   <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
                   <Text style={styles.eventDate}>{formatEventDate(item.date)}</Text>
                   <Text style={styles.eventTime}>{formatTimeRange(item.startTime, item.endTime)}</Text>
-                  {(item as any).attendeeCount != null && (
-                    <Text style={styles.eventAttendees}>
-                      {(item as any).attendeeCount} members showing up
-                    </Text>
-                  )}
+                  <Text style={styles.eventAttendees}>
+                    {(item as any).attendeeCount || 0} members showing up
+                  </Text>
                 </View>
               )}
               ItemSeparatorComponent={() => <View style={{ width: Spacing.sm }} />}
@@ -256,8 +255,14 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
               color={Colors.neutral.charcoal}
             />
           </TouchableOpacity>
-          {aboutExpanded && description ? (
-            <Text style={styles.aboutText} data-testid="text-about-description">{description}</Text>
+          {description ? (
+            <Text
+              style={styles.aboutText}
+              numberOfLines={aboutExpanded ? undefined : 4}
+              data-testid="text-about-description"
+            >
+              {description}
+            </Text>
           ) : null}
         </View>
 
@@ -388,10 +393,12 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     width: EVENT_CARD_WIDTH,
+    aspectRatio: 1,
     borderWidth: 1,
     borderColor: Colors.neutral.lightSilver,
     borderRadius: 12,
     padding: Spacing.md,
+    justifyContent: 'center' as const,
   },
   eventTitle: {
     fontSize: Typography.sizes.base,
@@ -425,7 +432,7 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.md,
   },
   buttonSection: {
-    paddingHorizontal: Spacing.xxxl,
+    paddingHorizontal: Spacing.xxxxl,
     paddingTop: Spacing.xl,
   },
 });
