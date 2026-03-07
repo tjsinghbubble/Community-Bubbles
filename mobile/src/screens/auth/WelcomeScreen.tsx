@@ -4,30 +4,30 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
   Image,
   Platform,
   StatusBar,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Radius } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
+import { BubbleLogoIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 };
 
-const PHOTOS = [
-  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200',
-  'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=200',
-  'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=200',
-  'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=200',
-  'https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=200',
-  'https://images.unsplash.com/photo-1543807535-eceef0bc6599?w=200',
-  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=200',
-  'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?w=200',
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=200',
+const GRID_IMAGES = [
+  require('../../assets/images/LandingPage/pickleball.jpg'),
+  require('../../assets/images/LandingPage/dog_meeting.png'),
+  require('../../assets/images/LandingPage/volunteer_group.png'),
+  require('../../assets/images/LandingPage/group_cheers.jpg'),
+  require('../../assets/images/LandingPage/fitness_class.jpg'),
+  require('../../assets/images/LandingPage/picnic.jpg'),
+  require('../../assets/images/LandingPage/group_craft.png'),
+  require('../../assets/images/LandingPage/badminton.jpg'),
+  require('../../assets/images/LandingPage/mask_group.jpg'),
 ];
 
 export default function WelcomeScreen({ navigation }: Props) {
@@ -35,10 +35,10 @@ export default function WelcomeScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.photoGrid}>
-          {PHOTOS.map((photo, index) => (
+          {GRID_IMAGES.map((img, index) => (
             <View key={index} style={styles.photoWrapper}>
               <Image
-                source={{ uri: photo }}
+                source={img}
                 style={styles.photo}
                 resizeMode="cover"
               />
@@ -48,10 +48,7 @@ export default function WelcomeScreen({ navigation }: Props) {
 
         <View style={styles.branding}>
           <View style={styles.logoRow}>
-            <View style={styles.logoCircles}>
-              <View style={[styles.circle, styles.circle1]} />
-              <View style={[styles.circle, styles.circle2]} />
-            </View>
+            <BubbleLogoIcon width={40} height={37} />
             <Text style={styles.logoText}>Bubble</Text>
           </View>
           <Text style={styles.tagline}>
@@ -115,26 +112,8 @@ const styles = StyleSheet.create({
   logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
-  },
-  logoCircles: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  circle: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 2,
-  },
-  circle1: {
-    borderColor: Colors.brand.bubbleBlue,
-    backgroundColor: 'transparent',
-  },
-  circle2: {
-    borderColor: Colors.brand.bubbleBlue,
-    backgroundColor: Colors.brand.bubbleBlue,
-    marginLeft: -6,
   },
   logoText: {
     fontSize: 28,
@@ -151,28 +130,5 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     gap: 12,
     paddingBottom: 20,
-  },
-  signUpButton: {
-    borderRadius: Radius.full,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  signUpText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  logInButton: {
-    backgroundColor: Colors.brand.skyWhite,
-    borderRadius: Radius.full,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.brand.bubbleBlue,
-  },
-  logInText: {
-    color: Colors.brand.bubbleBlue,
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
