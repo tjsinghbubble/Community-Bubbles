@@ -13,7 +13,6 @@ import {
   Modal,
   Alert,
   Keyboard,
-  Linking,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -213,14 +212,14 @@ export default function SignupScreen({ navigation }: Props) {
                 I agree to the{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://mybubble.trybubble.io/terms')}
+                  onPress={() => navigation.navigate('TermsOfService')}
                 >
                   Terms of Service
                 </Text>
                 {' '}and{' '}
                 <Text
                   style={styles.termsLink}
-                  onPress={() => Linking.openURL('https://mybubble.trybubble.io/privacy')}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
                 >
                   Privacy Policy
                 </Text>
