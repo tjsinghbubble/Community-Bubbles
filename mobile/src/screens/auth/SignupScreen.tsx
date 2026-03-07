@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -38,6 +39,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
@@ -46,7 +48,7 @@ export default function SignupScreen({ navigation }: Props) {
   const dayRef = useRef<TextInput>(null);
   const yearRef = useRef<TextInput>(null);
 
-  const isFormValid = name && email && password && gender && dateOfBirth;
+  const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
 
   const handleContinue = async () => {
     if (!isFormValid) return;
@@ -197,6 +199,33 @@ export default function SignupScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.termsRow}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              activeOpacity={0.7}
+              testID="checkbox-terms"
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://mybubble.trybubble.io/terms')}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => Linking.openURL('https://mybubble.trybubble.io/privacy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
 
             <BubbleButton
               title="Continue"
@@ -463,6 +492,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.neutral.coolMist,
     lineHeight: 16,
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral.coolMist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text.secondary,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: Colors.brand.bubbleBlue,
+    textDecorationLine: 'underline',
   },
   button: {
     borderRadius: Radius.full,
