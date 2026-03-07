@@ -497,9 +497,9 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 activeOpacity={0.8}
               >
                 <LinearGradient
-                  colors={['#35A8F7', '#A8D8F7']}
+                  colors={['#35A8F7', '#FFFFFF']}
                   start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+                  end={{ x: 0.7, y: 3.6 }}
                   style={overlayStyles.postButton}
                 >
                   {overlaySubmitting ? (
