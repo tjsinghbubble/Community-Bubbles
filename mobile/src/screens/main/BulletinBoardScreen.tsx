@@ -374,133 +374,134 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
 
   const selectedOverlayType = postTypes.find(pt => pt.id === overlaySelectedTypeId);
 
-  const renderCreateOverlay = () => (
-    <Modal
-      visible={showCreateOverlay}
-      transparent
-      animationType="slide"
-      onRequestClose={handleOverlayCancel}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <TouchableOpacity
-          style={overlayStyles.backdrop}
-          activeOpacity={1}
-          onPress={handleOverlayCancel}
-        />
-        <View style={overlayStyles.sheet}>
-          <View style={overlayStyles.dragHandle} />
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 65;
 
-          <ScrollView
-            style={overlayStyles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <TouchableOpacity
-              style={overlayStyles.card}
-              onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
-              activeOpacity={0.7}
-              testID="overlay-category-selector"
+  const renderCreateOverlay = () => {
+    if (!showCreateOverlay) return null;
+    return (
+      <View style={[StyleSheet.absoluteFill, { zIndex: 999 }]}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={TAB_BAR_HEIGHT}
+        >
+          <TouchableOpacity
+            style={overlayStyles.backdrop}
+            activeOpacity={1}
+            onPress={handleOverlayCancel}
+          />
+          <View style={overlayStyles.sheet}>
+            <View style={overlayStyles.dragHandle} />
+
+            <ScrollView
+              style={overlayStyles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={[
-                overlayStyles.cardText,
-                !selectedOverlayType && { color: '#969696' },
-              ]}>
-                {selectedOverlayType ? selectedOverlayType.displayName : 'Select a category'}
-              </Text>
-              <Ionicons
-                name={showCategoryDropdown ? 'chevron-up' : 'chevron-down'}
-                size={22}
-                color="#4D4D4D"
-              />
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={overlayStyles.card}
+                onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                activeOpacity={0.7}
+                testID="overlay-category-selector"
+              >
+                <Text style={[
+                  overlayStyles.cardText,
+                  !selectedOverlayType && { color: '#969696' },
+                ]}>
+                  {selectedOverlayType ? selectedOverlayType.displayName : 'Select a category'}
+                </Text>
+                <Ionicons
+                  name={showCategoryDropdown ? 'chevron-up' : 'chevron-down'}
+                  size={22}
+                  color="#4D4D4D"
+                />
+              </TouchableOpacity>
 
-            {showCategoryDropdown && (
-              <View style={overlayStyles.dropdownList}>
-                {postTypes.map((pt) => {
-                  const disabled = pt.adminOnly && !overlayIsAdmin;
-                  return (
-                    <TouchableOpacity
-                      key={pt.id}
-                      style={[
-                        overlayStyles.dropdownItem,
-                        overlaySelectedTypeId === pt.id && { backgroundColor: pt.color + '15' },
-                        disabled && { opacity: 0.4 },
-                      ]}
-                      onPress={() => {
-                        if (!disabled) {
-                          setOverlaySelectedTypeId(pt.id);
-                          setShowCategoryDropdown(false);
-                        }
-                      }}
-                      disabled={disabled}
-                    >
-                      <View style={[overlayStyles.dropdownDot, { backgroundColor: pt.color }]} />
-                      <Text style={[
-                        overlayStyles.dropdownItemText,
-                        overlaySelectedTypeId === pt.id && { color: pt.color, fontWeight: Typography.weights.bold },
-                      ]}>
-                        {pt.displayName}
-                      </Text>
-                      {disabled && <Text style={overlayStyles.adminBadge}>Admin</Text>}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-
-            <Text style={overlayStyles.label}>Title</Text>
-            <View style={overlayStyles.card}>
-              <TextInput
-                style={overlayStyles.titleInput}
-                placeholder="What's happening in your bubble?"
-                placeholderTextColor="#969696"
-                value={overlayTitle}
-                onChangeText={setOverlayTitle}
-                maxLength={100}
-                testID="overlay-title-input"
-              />
-            </View>
-
-            <Text style={overlayStyles.label}>Message</Text>
-            <View style={[overlayStyles.card, overlayStyles.messageCard]}>
-              <TextInput
-                style={overlayStyles.messageInput}
-                placeholder="Share details, ask a question, or make an announcement..."
-                placeholderTextColor="#969696"
-                value={overlayBody}
-                onChangeText={setOverlayBody}
-                multiline
-                textAlignVertical="top"
-                maxLength={2000}
-                testID="overlay-body-input"
-              />
-            </View>
-          </ScrollView>
-
-          <View style={overlayStyles.buttonRow}>
-            <TouchableOpacity onPress={handleOverlayCancel} testID="overlay-cancel-button">
-              <BulletinCancelIcon width={156} height={52} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleOverlaySubmit}
-              disabled={!overlayCanSubmit}
-              testID="overlay-post-button"
-              style={{ opacity: overlayCanSubmit ? 1 : 0.4 }}
-            >
-              {overlaySubmitting ? (
-                <ActivityIndicator size="small" color={Colors.brand.primary} />
-              ) : (
-                <BulletinPostIcon width={156} height={52} />
+              {showCategoryDropdown && (
+                <View style={overlayStyles.dropdownList}>
+                  {postTypes.map((pt) => {
+                    const disabled = pt.adminOnly && !overlayIsAdmin;
+                    return (
+                      <TouchableOpacity
+                        key={pt.id}
+                        style={[
+                          overlayStyles.dropdownItem,
+                          overlaySelectedTypeId === pt.id && { backgroundColor: pt.color + '15' },
+                          disabled && { opacity: 0.4 },
+                        ]}
+                        onPress={() => {
+                          if (!disabled) {
+                            setOverlaySelectedTypeId(pt.id);
+                            setShowCategoryDropdown(false);
+                          }
+                        }}
+                        disabled={disabled}
+                      >
+                        <View style={[overlayStyles.dropdownDot, { backgroundColor: pt.color }]} />
+                        <Text style={[
+                          overlayStyles.dropdownItemText,
+                          overlaySelectedTypeId === pt.id && { color: pt.color, fontWeight: Typography.weights.bold },
+                        ]}>
+                          {pt.displayName}
+                        </Text>
+                        {disabled && <Text style={overlayStyles.adminBadge}>Admin</Text>}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               )}
-            </TouchableOpacity>
+
+              <Text style={overlayStyles.label}>Title</Text>
+              <View style={overlayStyles.card}>
+                <TextInput
+                  style={overlayStyles.titleInput}
+                  placeholder="What's happening in your bubble?"
+                  placeholderTextColor="#969696"
+                  value={overlayTitle}
+                  onChangeText={setOverlayTitle}
+                  maxLength={100}
+                  testID="overlay-title-input"
+                />
+              </View>
+
+              <Text style={overlayStyles.label}>Message</Text>
+              <View style={[overlayStyles.card, overlayStyles.messageCard]}>
+                <TextInput
+                  style={overlayStyles.messageInput}
+                  placeholder="Share details, ask a question, or make an announcement..."
+                  placeholderTextColor="#969696"
+                  value={overlayBody}
+                  onChangeText={setOverlayBody}
+                  multiline
+                  textAlignVertical="top"
+                  maxLength={2000}
+                  testID="overlay-body-input"
+                />
+              </View>
+            </ScrollView>
+
+            <View style={overlayStyles.buttonRow}>
+              <TouchableOpacity onPress={handleOverlayCancel} testID="overlay-cancel-button">
+                <BulletinCancelIcon width={156} height={52} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleOverlaySubmit}
+                disabled={!overlayCanSubmit}
+                testID="overlay-post-button"
+                style={{ opacity: overlayCanSubmit ? 1 : 0.4 }}
+              >
+                {overlaySubmitting ? (
+                  <ActivityIndicator size="small" color={Colors.brand.primary} />
+                ) : (
+                  <BulletinPostIcon width={156} height={52} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
+        </KeyboardAvoidingView>
+      </View>
+    );
+  };
 
   const renderKebabMenu = () => (
     <Modal
@@ -995,8 +996,7 @@ const overlayStyles = StyleSheet.create({
     backgroundColor: '#F5F6F8',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    maxHeight: Dimensions.get('window').height * 0.85,
+    paddingBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.25,
