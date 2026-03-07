@@ -27,3 +27,5 @@ export { default as BulletinNewIcon } from './BulletinNewIcon';
 export { default as BulletinPostIcon } from './BulletinPostIcon';
 export { default as BulletinCancelIcon } from './BulletinCancelIcon';
 export { default as BubbleLogoIcon } from './BubbleLogoIcon';
+export { default as CreateAPostIcon } from './CreateAPostIcon';
+export { default as NothingHereYetIcon } from './NothingHereYetIcon';

@@ -24,10 +24,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
-import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon } from '../../components/icons';
+import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, CreateAPostIcon, NothingHereYetIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = {
@@ -724,13 +723,12 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyText}>Nothing here yet. Start the conversation!</Text>
-      <BubbleButton
-        title="+ Create a post"
-        onPress={handleCreatePost}
-        style={styles.createPostButton}
-        testID="button-create-post-empty"
-      />
+      <NothingHereYetIcon />
+      <View style={{ marginTop: Spacing.md }}>
+        <TouchableOpacity onPress={handleCreatePost} testID="button-create-post-empty" activeOpacity={0.8}>
+          <CreateAPostIcon />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -820,16 +818,6 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
-    marginBottom: Spacing.xl,
-  },
-  createPostButton: {
-    paddingHorizontal: Spacing.xxl,
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.full,
   },
   postCard: {
     backgroundColor: Colors.background.primary,
