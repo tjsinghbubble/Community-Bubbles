@@ -23,6 +23,7 @@ import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, BulletinPillStyles } from '../../styles/theme';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
+import { BulletinPostIcon, BulletinCancelIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'CreatePost'>;
@@ -131,24 +132,27 @@ export default function CreatePostScreen({ navigation, route }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="close" size={24} color={Colors.text.primary} />
+          <TouchableOpacity onPress={() => navigation.goBack()} testID="button-cancel-post">
+            <BulletinCancelIcon width={100} height={33} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>New Post</Text>
-          <BubbleButton
-            title="Post"
+          <TouchableOpacity
             onPress={handleSubmit}
-            disabled={!canSubmit}
-            loading={submitting}
-            style={styles.postButton}
-            textStyle={styles.postButtonText}
+            disabled={!canSubmit || submitting}
             testID="button-post"
-          />
+            style={{ opacity: canSubmit && !submitting ? 1 : 0.4 }}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={Colors.brand.primary} />
+            ) : (
+              <BulletinPostIcon width={100} height={33} opacity={canSubmit ? 1 : 0.4} />
+            )}
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Category</Text>
-          <View style={[BulletinPillStyles.container, styles.typesContainer]}>
+          <View style={[BulletinPillStyles.container, styles.typesContainer, { justifyContent: 'center' }]}>
             {postTypes.map((pt) => {
               const disabled = pt.adminOnly && !isAdmin;
               return (

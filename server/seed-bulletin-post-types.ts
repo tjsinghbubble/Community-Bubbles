@@ -4,7 +4,7 @@ import { bulletinPostTypes } from "@shared/schema";
 const postTypes = [
   { name: "general", displayName: "General", color: "#0EADFF", adminOnly: false, displayOrder: 1 },
   { name: "announcements", displayName: "Announcements", color: "#F9AA2B", adminOnly: true, displayOrder: 2 },
-  { name: "help_exchange", displayName: "Community Help", color: "#34C759", adminOnly: false, displayOrder: 3 },
+  { name: "help_exchange", displayName: "Help", color: "#34C759", adminOnly: false, displayOrder: 3 },
   { name: "marketplace", displayName: "Marketplace", color: "#FF666B", adminOnly: false, displayOrder: 4 },
 ];
 

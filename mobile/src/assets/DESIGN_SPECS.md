@@ -90,7 +90,7 @@ This file maps each SVG design asset to its corresponding screen/component and d
 | All | `#4D4D4D` | 29 | 14.5 | `All.svg` |
 | General | `#0EADFF` | 26 | 13 | `General.svg` |
 | Announcements | `#F9AA2B` | 26 | 13 | `Announcements.svg` |
-| Community Help | `#34C759` | 26 | 13 | `Community Help.svg` |
+| Help | `#34C759` | 26 | 13 | `Community Help.svg` |
 | Marketplace | `#FF666B` | 26 | 13 | `Marketplace.svg` |
 | TopMenu (combined) | — | 29 | 14.5 | `TopMenu.svg` |
 

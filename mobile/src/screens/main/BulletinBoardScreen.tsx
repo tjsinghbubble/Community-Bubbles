@@ -24,7 +24,7 @@ import apiService from '../../services/api.service';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
-import { ChatBubbleIcon, ReactionFaceIcon } from '../../components/icons';
+import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -370,7 +370,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   );
 
   const renderFilterTabs = () => (
-    <View style={[BulletinPillStyles.container, styles.filterContainer]}>
+    <View style={[BulletinPillStyles.container, styles.filterContainer, { justifyContent: 'center' }]}>
       <TouchableOpacity
         style={[
           BulletinPillStyles.chip,
@@ -534,12 +534,9 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulletin Board</Text>
-        <BubbleButton
-          title="+ New"
-          onPress={handleCreatePost}
-          style={styles.newButton}
-          testID="button-new-post-header"
-        />
+        <TouchableOpacity onPress={handleCreatePost} testID="button-new-post-header">
+          <BulletinNewIcon />
+        </TouchableOpacity>
       </View>
 
       {renderFilterTabs()}

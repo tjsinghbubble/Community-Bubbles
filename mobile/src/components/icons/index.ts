@@ -23,3 +23,6 @@ export { default as ChevronRightIcon } from './ChevronRightIcon';
 export { default as ChevronLeftIcon } from './ChevronLeftIcon';
 export { default as CreateBubbleEventIcon } from './CreateBubbleEventIcon';
 export { default as ReactionFaceIcon } from './ReactionFaceIcon';
+export { default as BulletinNewIcon } from './BulletinNewIcon';
+export { default as BulletinPostIcon } from './BulletinPostIcon';
+export { default as BulletinCancelIcon } from './BulletinCancelIcon';
