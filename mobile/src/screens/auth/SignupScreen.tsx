@@ -216,7 +216,7 @@ export default function SignupScreen({ navigation }: Props) {
                 >
                   Terms of Service
                 </Text>
-                {' '}and{' '}
+                {' '}and acknowledge the{' '}
                 <Text
                   style={styles.termsLink}
                   onPress={() => navigation.navigate('PrivacyPolicy')}
