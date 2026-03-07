@@ -3,11 +3,15 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import PendingReviewsScreen from '../screens/main/PendingReviewsScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
+import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   PendingReviews: undefined;
   Notifications: undefined;
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -18,6 +22,8 @@ export default function ProfileNavigator() {
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="PendingReviews" component={PendingReviewsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>
   );
 }
