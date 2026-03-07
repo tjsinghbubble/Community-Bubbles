@@ -27,7 +27,8 @@ import apiService from '../../services/api.service';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
-import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, BulletinPostIcon, BulletinCancelIcon } from '../../components/icons';
+import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon } from '../../components/icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -481,20 +482,32 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             </ScrollView>
 
             <View style={overlayStyles.buttonRow}>
-              <TouchableOpacity onPress={handleOverlayCancel} style={{ flex: 1 }} testID="overlay-cancel-button">
-                <BulletinCancelIcon width={170} height={56} />
+              <TouchableOpacity
+                onPress={handleOverlayCancel}
+                style={overlayStyles.cancelButton}
+                testID="overlay-cancel-button"
+              >
+                <Text style={overlayStyles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleOverlaySubmit}
                 disabled={!overlayCanSubmit}
                 testID="overlay-post-button"
                 style={{ flex: 1, opacity: overlayCanSubmit ? 1 : 0.4 }}
+                activeOpacity={0.8}
               >
-                {overlaySubmitting ? (
-                  <ActivityIndicator size="small" color={Colors.brand.primary} />
-                ) : (
-                  <BulletinPostIcon width={170} height={56} />
-                )}
+                <LinearGradient
+                  colors={['#35A8F7', '#A8D8F7']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={overlayStyles.postButton}
+                >
+                  {overlaySubmitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={overlayStyles.postButtonText}>Post</Text>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
@@ -1061,10 +1074,35 @@ const overlayStyles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     paddingHorizontal: 24,
     paddingTop: 16,
-    gap: 12,
+    gap: 16,
+  },
+  cancelButton: {
+    flex: 1,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  cancelButtonText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: '#FF3B30',
+  },
+  postButton: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postButtonText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: '#1E1F26',
   },
   dropdownList: {
     backgroundColor: '#FFFFFF',
