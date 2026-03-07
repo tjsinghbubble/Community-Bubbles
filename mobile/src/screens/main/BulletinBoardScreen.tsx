@@ -13,6 +13,9 @@ import {
   Modal,
   Alert,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,7 +27,7 @@ import apiService from '../../services/api.service';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
-import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon } from '../../components/icons';
+import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, BulletinPostIcon, BulletinCancelIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -127,6 +130,14 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const kebabRefs = useRef<Record<string, View | null>>({});
   const emojiRefs = useRef<Record<string, View | null>>({});
 
+  const [showCreateOverlay, setShowCreateOverlay] = useState(false);
+  const [overlaySelectedTypeId, setOverlaySelectedTypeId] = useState<number | null>(null);
+  const [overlayTitle, setOverlayTitle] = useState('');
+  const [overlayBody, setOverlayBody] = useState('');
+  const [overlaySubmitting, setOverlaySubmitting] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [overlayUserRole, setOverlayUserRole] = useState<string | null>(null);
+
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
 
   const openKebab = (postId: string) => {
@@ -179,13 +190,66 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     setSelectedTypeId(typeId);
   };
 
-  const handleCreatePost = () => {
-    navigation.navigate('CreatePost', {
-      bubbleId,
-      bubbleTitle,
-      preselectedTypeId: selectedTypeId ?? undefined,
-    });
+  const handleCreatePost = async () => {
+    setOverlayTitle('');
+    setOverlayBody('');
+    setShowCategoryDropdown(false);
+    setOverlaySubmitting(false);
+    try {
+      const memberships = await apiService.getBubbleMembers(bubbleId);
+      const myMembership = (memberships as any[]).find?.((m: any) => m.userId === user?.id);
+      setOverlayUserRole(myMembership?.role || null);
+      const isAdminUser = myMembership?.role === 'admin' || user?.isSuperAdmin;
+      if (selectedTypeId) {
+        const selected = postTypes.find(pt => pt.id === selectedTypeId);
+        if (selected && (!selected.adminOnly || isAdminUser)) {
+          setOverlaySelectedTypeId(selectedTypeId);
+        } else {
+          const first = postTypes.find(pt => !pt.adminOnly || isAdminUser);
+          setOverlaySelectedTypeId(first?.id ?? null);
+        }
+      } else {
+        const first = postTypes.find(pt => !pt.adminOnly || isAdminUser);
+        setOverlaySelectedTypeId(first?.id ?? null);
+      }
+    } catch {
+      setOverlaySelectedTypeId(postTypes[0]?.id ?? null);
+      setOverlayUserRole(null);
+    }
+    setShowCreateOverlay(true);
   };
+
+  const handleOverlayCancel = () => {
+    setShowCreateOverlay(false);
+    setOverlayTitle('');
+    setOverlayBody('');
+    setOverlaySelectedTypeId(null);
+    setShowCategoryDropdown(false);
+  };
+
+  const handleOverlaySubmit = async () => {
+    if (!overlayTitle.trim() || !overlayBody.trim() || !overlaySelectedTypeId || overlaySubmitting) return;
+    try {
+      setOverlaySubmitting(true);
+      await apiService.createBulletinPost(bubbleId, {
+        postTypeId: overlaySelectedTypeId,
+        title: overlayTitle.trim(),
+        body: overlayBody.trim(),
+      });
+      setShowCreateOverlay(false);
+      setOverlayTitle('');
+      setOverlayBody('');
+      setOverlaySelectedTypeId(null);
+      fetchData();
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to create post');
+    } finally {
+      setOverlaySubmitting(false);
+    }
+  };
+
+  const overlayCanSubmit = overlayTitle.trim() && overlayBody.trim() && overlaySelectedTypeId && !overlaySubmitting;
+  const overlayIsAdmin = overlayUserRole === 'admin' || user?.isSuperAdmin;
 
   const handlePinPost = async () => {
     if (!kebabPost) return;
@@ -307,6 +371,136 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       Alert.alert('Error', err?.message || 'Failed to react');
     }
   };
+
+  const selectedOverlayType = postTypes.find(pt => pt.id === overlaySelectedTypeId);
+
+  const renderCreateOverlay = () => (
+    <Modal
+      visible={showCreateOverlay}
+      transparent
+      animationType="slide"
+      onRequestClose={handleOverlayCancel}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <TouchableOpacity
+          style={overlayStyles.backdrop}
+          activeOpacity={1}
+          onPress={handleOverlayCancel}
+        />
+        <View style={overlayStyles.sheet}>
+          <View style={overlayStyles.dragHandle} />
+
+          <ScrollView
+            style={overlayStyles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <TouchableOpacity
+              style={overlayStyles.card}
+              onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              activeOpacity={0.7}
+              testID="overlay-category-selector"
+            >
+              <Text style={[
+                overlayStyles.cardText,
+                !selectedOverlayType && { color: '#969696' },
+              ]}>
+                {selectedOverlayType ? selectedOverlayType.displayName : 'Select a category'}
+              </Text>
+              <Ionicons
+                name={showCategoryDropdown ? 'chevron-up' : 'chevron-down'}
+                size={22}
+                color="#4D4D4D"
+              />
+            </TouchableOpacity>
+
+            {showCategoryDropdown && (
+              <View style={overlayStyles.dropdownList}>
+                {postTypes.map((pt) => {
+                  const disabled = pt.adminOnly && !overlayIsAdmin;
+                  return (
+                    <TouchableOpacity
+                      key={pt.id}
+                      style={[
+                        overlayStyles.dropdownItem,
+                        overlaySelectedTypeId === pt.id && { backgroundColor: pt.color + '15' },
+                        disabled && { opacity: 0.4 },
+                      ]}
+                      onPress={() => {
+                        if (!disabled) {
+                          setOverlaySelectedTypeId(pt.id);
+                          setShowCategoryDropdown(false);
+                        }
+                      }}
+                      disabled={disabled}
+                    >
+                      <View style={[overlayStyles.dropdownDot, { backgroundColor: pt.color }]} />
+                      <Text style={[
+                        overlayStyles.dropdownItemText,
+                        overlaySelectedTypeId === pt.id && { color: pt.color, fontWeight: Typography.weights.bold },
+                      ]}>
+                        {pt.displayName}
+                      </Text>
+                      {disabled && <Text style={overlayStyles.adminBadge}>Admin</Text>}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            <Text style={overlayStyles.label}>Title</Text>
+            <View style={overlayStyles.card}>
+              <TextInput
+                style={overlayStyles.titleInput}
+                placeholder="What's happening in your bubble?"
+                placeholderTextColor="#969696"
+                value={overlayTitle}
+                onChangeText={setOverlayTitle}
+                maxLength={100}
+                testID="overlay-title-input"
+              />
+            </View>
+
+            <Text style={overlayStyles.label}>Message</Text>
+            <View style={[overlayStyles.card, overlayStyles.messageCard]}>
+              <TextInput
+                style={overlayStyles.messageInput}
+                placeholder="Share details, ask a question, or make an announcement..."
+                placeholderTextColor="#969696"
+                value={overlayBody}
+                onChangeText={setOverlayBody}
+                multiline
+                textAlignVertical="top"
+                maxLength={2000}
+                testID="overlay-body-input"
+              />
+            </View>
+          </ScrollView>
+
+          <View style={overlayStyles.buttonRow}>
+            <TouchableOpacity onPress={handleOverlayCancel} testID="overlay-cancel-button">
+              <BulletinCancelIcon width={156} height={52} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleOverlaySubmit}
+              disabled={!overlayCanSubmit}
+              testID="overlay-post-button"
+              style={{ opacity: overlayCanSubmit ? 1 : 0.4 }}
+            >
+              {overlaySubmitting ? (
+                <ActivityIndicator size="small" color={Colors.brand.primary} />
+              ) : (
+                <BulletinPostIcon width={156} height={52} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
 
   const renderKebabMenu = () => (
     <Modal
@@ -552,6 +746,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           ListEmptyComponent={renderEmpty}
         />
       )}
+      {renderCreateOverlay()}
       {renderKebabMenu()}
       {renderEmojiPicker()}
     </SafeAreaView>
@@ -788,5 +983,117 @@ const styles = StyleSheet.create({
   },
   emojiPickerEmoji: {
     fontSize: 28,
+  },
+});
+
+const overlayStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheet: {
+    backgroundColor: '#F5F6F8',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    maxHeight: Dimensions.get('window').height * 0.85,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 10,
+  },
+  dragHandle: {
+    width: 80,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#969696',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#969696',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 57,
+    marginBottom: 16,
+  },
+  messageCard: {
+    minHeight: 101,
+    alignItems: 'flex-start',
+  },
+  cardText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    flex: 1,
+  },
+  label: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    marginBottom: 8,
+  },
+  titleInput: {
+    flex: 1,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    padding: 0,
+  },
+  messageInput: {
+    flex: 1,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    padding: 0,
+    minHeight: 70,
+    width: '100%',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    gap: 12,
+  },
+  dropdownList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#969696',
+    marginTop: -12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  dropdownDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dropdownItemText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    flex: 1,
+  },
+  adminBadge: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    fontStyle: 'italic',
   },
 });
