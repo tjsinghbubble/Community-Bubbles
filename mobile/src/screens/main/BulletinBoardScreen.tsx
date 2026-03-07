@@ -406,14 +406,14 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               >
                 <Text style={[
                   overlayStyles.cardText,
-                  !selectedOverlayType && { color: '#969696' },
+                  selectedOverlayType && { color: Colors.text.primary, fontWeight: Typography.weights.semiBold },
                 ]}>
-                  {selectedOverlayType ? selectedOverlayType.displayName : 'Select a category'}
+                  {selectedOverlayType ? selectedOverlayType.displayName : 'Select a Category'}
                 </Text>
                 <Ionicons
                   name={showCategoryDropdown ? 'chevron-up' : 'chevron-down'}
                   size={22}
-                  color="#4D4D4D"
+                  color="#969696"
                 />
               </TouchableOpacity>
 
@@ -451,11 +451,11 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 </View>
               )}
 
-              <Text style={overlayStyles.label}>Title</Text>
+              <Text style={overlayStyles.label}>Title *</Text>
               <View style={overlayStyles.card}>
                 <TextInput
                   style={overlayStyles.titleInput}
-                  placeholder="What's happening in your bubble?"
+                  placeholder="What's this about?"
                   placeholderTextColor="#969696"
                   value={overlayTitle}
                   onChangeText={setOverlayTitle}
@@ -464,11 +464,11 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 />
               </View>
 
-              <Text style={overlayStyles.label}>Message</Text>
+              <Text style={overlayStyles.label}>Message *</Text>
               <View style={[overlayStyles.card, overlayStyles.messageCard]}>
                 <TextInput
                   style={overlayStyles.messageInput}
-                  placeholder="Share details, ask a question, or make an announcement..."
+                  placeholder="Share the details..."
                   placeholderTextColor="#969696"
                   value={overlayBody}
                   onChangeText={setOverlayBody}
@@ -481,19 +481,19 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             </ScrollView>
 
             <View style={overlayStyles.buttonRow}>
-              <TouchableOpacity onPress={handleOverlayCancel} testID="overlay-cancel-button">
-                <BulletinCancelIcon width={156} height={52} />
+              <TouchableOpacity onPress={handleOverlayCancel} style={{ flex: 1 }} testID="overlay-cancel-button">
+                <BulletinCancelIcon width={170} height={56} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleOverlaySubmit}
                 disabled={!overlayCanSubmit}
                 testID="overlay-post-button"
-                style={{ opacity: overlayCanSubmit ? 1 : 0.4 }}
+                style={{ flex: 1, opacity: overlayCanSubmit ? 1 : 0.4 }}
               >
                 {overlaySubmitting ? (
                   <ActivityIndicator size="small" color={Colors.brand.primary} />
                 ) : (
-                  <BulletinPostIcon width={156} height={52} />
+                  <BulletinPostIcon width={170} height={56} />
                 )}
               </TouchableOpacity>
             </View>
@@ -786,6 +786,7 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     paddingHorizontal: Spacing.lg,
+    marginTop: 5,
     marginBottom: Spacing.sm,
   },
   loadingContainer: {
@@ -1019,7 +1020,7 @@ const overlayStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#969696',
+    borderColor: '#D9D9D9',
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -1034,8 +1035,8 @@ const overlayStyles = StyleSheet.create({
   },
   cardText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    fontWeight: Typography.weights.regular,
+    color: '#969696',
     flex: 1,
   },
   label: {
@@ -1069,7 +1070,7 @@ const overlayStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#969696',
+    borderColor: '#D9D9D9',
     marginTop: -12,
     marginBottom: 16,
     overflow: 'hidden',
