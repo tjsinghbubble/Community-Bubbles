@@ -25,7 +25,7 @@ const GRID_IMAGES = [
   require('../../assets/images/LandingPage/group_cheers.jpg'),
   require('../../assets/images/LandingPage/fitness_class.jpg'),
   require('../../assets/images/LandingPage/picnic.jpg'),
-  require('../../assets/images/LandingPage/group_craft.png'),
+  require('../../assets/images/LandingPage/group_craft.jpg'),
   require('../../assets/images/LandingPage/badminton.jpg'),
   require('../../assets/images/LandingPage/mask_group.jpg'),
 ];
