@@ -42,20 +42,22 @@ export default function ImageCarousel({
   };
 
   const renderItem = ({ item }: { item: string }) => (
-    <Image
-      source={{ uri: item }}
-      style={[styles.image, { height, width: imageWidth }]}
-      resizeMode="cover"
-    />
+    <View style={[styles.imageContainer, { height, width: imageWidth }]}>
+      <Image
+        source={{ uri: item }}
+        style={[styles.image, { height, width: imageWidth }]}
+        resizeMode="contain"
+      />
+    </View>
   );
 
   if (displayImages.length === 1) {
     return (
-      <View style={[{ borderRadius, overflow: 'hidden' as const }]}>
+      <View style={[styles.imageContainer, { height, width: imageWidth, borderRadius, overflow: 'hidden' as const }]}>
         <Image
           source={{ uri: displayImages[0] }}
           style={[styles.image, { height, width: imageWidth }]}
-          resizeMode="cover"
+          resizeMode="contain"
         />
       </View>
     );
@@ -93,9 +95,12 @@ const styles = StyleSheet.create({
   container: {
     position: 'relative',
   },
-  image: {
-    backgroundColor: '#f0f0f0',
+  imageContainer: {
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  image: {},
   pagination: {
     position: 'absolute',
     bottom: 12,
