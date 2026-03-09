@@ -28,6 +28,7 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
 import ImageCarousel from '../../components/ImageCarousel';
+import MultiImagePicker from '../../components/MultiImagePicker';
 import { BubbleDetailsSkeleton } from '../../components/SkeletonLoader';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -681,6 +682,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     </View>
   );
 
+  const handleAttachmentsChange = async (updatedAttachments: string[]) => {
+    try {
+      await apiService.updateBubble(bubble.id, { attachments: updatedAttachments });
+      await fetchBubbleDetails();
+    } catch (error) {
+      console.error('Failed to update attachments:', error);
+      Alert.alert('Error', 'Failed to update attachments. Please try again.');
+    }
+  };
+
   const renderAttachmentsSection = () => {
     const attachments: string[] = bubbleDetails?.attachments || [];
     return (
@@ -691,20 +702,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         {attachmentsExpanded && (
           <View>
-            {attachments.length === 0 ? (
+            {isBubbleAdmin ? (
+              <MultiImagePicker
+                images={attachments}
+                onImagesChange={handleAttachmentsChange}
+                maxImages={5}
+                acceptAllFiles
+              />
+            ) : attachments.length === 0 ? (
               <Text style={styles.emptyText}>No attachments yet</Text>
             ) : (
               attachments.map((item, index) => (
                 <View key={index} style={styles.attachmentItem}>
                   <Ionicons name="attach" size={18} color={Colors.text.tertiary} />
-                  <Text style={styles.attachmentText}>{item}</Text>
+                  <Text style={styles.attachmentText} numberOfLines={1}>{item.split('/').pop() || 'File'}</Text>
                 </View>
               ))
-            )}
-            {isBubbleAdmin && (
-              <TouchableOpacity style={styles.addButton}>
-                <Text style={styles.addButtonText}>+ Add</Text>
-              </TouchableOpacity>
             )}
           </View>
         )}
