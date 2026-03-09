@@ -40,6 +40,7 @@ import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
+const COVER_IMAGE_HEIGHT = Math.round(COVER_IMAGE_WIDTH * 9 / 16);
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
@@ -606,7 +607,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <View style={styles.coverPhotoContainer}>
         <ImageCarousel
           images={bubbleDetails?.images || (bubble.image ? [bubble.image] : [])}
-          height={220}
+          height={COVER_IMAGE_HEIGHT}
           width={COVER_IMAGE_WIDTH}
           fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
           borderRadius={Radius.md}

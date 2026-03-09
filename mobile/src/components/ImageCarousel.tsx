@@ -45,7 +45,7 @@ export default function ImageCarousel({
     <Image
       source={{ uri: item }}
       style={[styles.image, { height, width: imageWidth }]}
-      resizeMode="contain"
+      resizeMode="cover"
     />
   );
 
@@ -55,7 +55,7 @@ export default function ImageCarousel({
         <Image
           source={{ uri: displayImages[0] }}
           style={[styles.image, { height, width: imageWidth }]}
-          resizeMode="contain"
+          resizeMode="cover"
         />
       </View>
     );
