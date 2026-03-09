@@ -23,6 +23,7 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
+import { API_URL } from '../../config/api';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import SuccessModal from '../../components/SuccessModal';
@@ -65,7 +66,7 @@ const MOCK_ATTACHMENTS = [
 
 export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
@@ -91,6 +92,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [bubbleReportReason, setBubbleReportReason] = useState<string | null>(null);
   const [bubbleReportFreeText, setBubbleReportFreeText] = useState('');
   const [bubbleReportSubmitting, setBubbleReportSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
@@ -540,19 +542,65 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   );
 
   const handleCameraPress = async () => {
+    const currentImages = bubbleDetails?.images || [];
+    if (currentImages.length >= 20) {
+      Alert.alert('Limit Reached', 'This bubble already has the maximum of 20 photos.');
+      return;
+    }
+
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photo library to add images.');
       return;
     }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.8,
     });
+
     if (!result.canceled && result.assets?.[0]?.uri) {
-      Alert.alert('Photo Selected', 'Image upload will be available soon.');
+      setImageUploading(true);
+      try {
+        const uri = result.assets[0].uri;
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const fileName = uri.split('/').pop() || 'photo.jpg';
+        const contentType = blob.type || 'image/jpeg';
+
+        const uploadUrlResponse = await fetch(`${API_URL}/api/uploads/request-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: fileName, size: blob.size, contentType }),
+        });
+
+        if (!uploadUrlResponse.ok) throw new Error('Failed to get upload URL');
+        const { uploadURL, objectPath } = await uploadUrlResponse.json();
+
+        const uploadResponse = await fetch(uploadURL, {
+          method: 'PUT',
+          body: blob,
+          headers: { 'Content-Type': contentType },
+        });
+
+        if (!uploadResponse.ok) throw new Error('Failed to upload image');
+
+        const imageUrl = `${API_URL}${objectPath}`;
+        const updatedImages = [...currentImages, imageUrl];
+
+        await apiService.updateBubble(bubble.id, { images: updatedImages });
+        await fetchBubbleDetails();
+      } catch (error) {
+        console.error('Image upload error:', error);
+        Alert.alert('Upload Failed', 'Failed to upload photo. Please try again.');
+      } finally {
+        setImageUploading(false);
+      }
     }
   };
 
@@ -566,9 +614,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
           borderRadius={Radius.md}
         />
-        <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
-          <Ionicons name="camera" size={20} color={Colors.brand.primary} />
-        </TouchableOpacity>
+        {isMember && (
+          <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress} disabled={imageUploading} testID="button-add-photo">
+            {imageUploading ? (
+              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
+            ) : (
+              <Ionicons name="camera" size={20} color={Colors.brand.bubbleBlue} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
       <Text style={styles.tagline}>
         {bubble.tagline || bubble.category || 'Community Bubble'}
