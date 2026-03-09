@@ -40,7 +40,7 @@ import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
-const COVER_IMAGE_HEIGHT = Math.round(COVER_IMAGE_WIDTH * 9 / 16);
+const COVER_IMAGE_HEIGHT = Math.round(COVER_IMAGE_WIDTH * 3 / 4);
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleDetails'>;
