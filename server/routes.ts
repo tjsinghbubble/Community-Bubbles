@@ -461,6 +461,41 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/bubbles/:id/photos", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.id;
+      const bubble = await storage.getBubble(bubbleId);
+
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+
+      const memberStatus = await storage.getMembershipStatus(req.userId!, bubbleId);
+      if (memberStatus !== 'approved') {
+        return res.status(403).json({ error: "Only members can add photos" });
+      }
+
+      const { imageUrl } = req.body;
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ error: "imageUrl is required" });
+      }
+
+      const maxPhotosValue = await storage.getAppConfigValue('max_bubble_photos');
+      const maxPhotos = parseInt(maxPhotosValue || '20', 10);
+
+      const currentImages = bubble.images || [];
+      if (currentImages.length >= maxPhotos) {
+        return res.status(400).json({ error: `This bubble already has the maximum of ${maxPhotos} photos` });
+      }
+
+      const updatedImages = [...currentImages, imageUrl];
+      const updatedBubble = await storage.updateBubble(bubbleId, { images: updatedImages });
+      res.json(updatedBubble);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/bubbles/:id", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.id;

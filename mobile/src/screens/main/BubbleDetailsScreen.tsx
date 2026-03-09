@@ -58,12 +58,6 @@ type Event = {
   creatorId: string;
 };
 
-const MOCK_ATTACHMENTS = [
-  'Google sheet for equipment',
-  'Tournament schedule',
-  'Score sheet',
-];
-
 export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
   const { user, token } = useAuth();
@@ -595,9 +589,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         if (!uploadResponse.ok) throw new Error('Failed to upload image');
 
         const imageUrl = `${API_URL}${objectPath}`;
-        const updatedImages = [...currentImages, imageUrl];
 
-        await apiService.updateBubble(bubble.id, { images: updatedImages });
+        await apiService.addBubblePhoto(bubble.id, imageUrl);
         await fetchBubbleDetails();
       } catch (error) {
         console.error('Image upload error:', error);
@@ -687,27 +680,36 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     </View>
   );
 
-  const renderAttachmentsSection = () => (
-    <View style={styles.section}>
-      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
-        <Text style={styles.sectionHeading}>Attachments</Text>
-        {attachmentsExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
-      </TouchableOpacity>
-      {attachmentsExpanded && (
-        <View>
-          {MOCK_ATTACHMENTS.map((item, index) => (
-            <View key={index} style={styles.attachmentItem}>
-              <Ionicons name="attach" size={18} color={Colors.text.tertiary} />
-              <Text style={styles.attachmentText}>{item}</Text>
-            </View>
-          ))}
-          <TouchableOpacity style={styles.addButton}>
-            <Text style={styles.addButtonText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
+  const renderAttachmentsSection = () => {
+    const attachments: string[] = bubbleDetails?.attachments || [];
+    return (
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
+          <Text style={styles.sectionHeading}>Attachments</Text>
+          {attachmentsExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
+        </TouchableOpacity>
+        {attachmentsExpanded && (
+          <View>
+            {attachments.length === 0 ? (
+              <Text style={styles.emptyText}>No attachments yet</Text>
+            ) : (
+              attachments.map((item, index) => (
+                <View key={index} style={styles.attachmentItem}>
+                  <Ionicons name="attach" size={18} color={Colors.text.tertiary} />
+                  <Text style={styles.attachmentText}>{item}</Text>
+                </View>
+              ))
+            )}
+            {isBubbleAdmin && (
+              <TouchableOpacity style={styles.addButton}>
+                <Text style={styles.addButtonText}>+ Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderMembersRow = () => (
     <View style={styles.section}>
@@ -1209,6 +1211,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.secondary,
     lineHeight: Typography.lineHeight.base,
+  },
+  emptyText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   attachmentItem: {
     flexDirection: 'row',

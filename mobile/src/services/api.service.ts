@@ -511,6 +511,13 @@ class ApiService {
     });
   }
 
+  async addBubblePhoto(bubbleId: string, imageUrl: string): Promise<any> {
+    return this.request<any>(`/api/bubbles/${bubbleId}/photos`, {
+      method: "POST",
+      body: JSON.stringify({ imageUrl }),
+    });
+  }
+
   async getAppConfig(key: string): Promise<{ key: string; value: string }> {
     return this.request<{ key: string; value: string }>(`/api/config/app?key=${encodeURIComponent(key)}`);
   }
