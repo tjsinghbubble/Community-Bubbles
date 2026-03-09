@@ -8,6 +8,7 @@ import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { seedData } from "./seed-data";
+import { seedAppConfig } from "./seed-app-config";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
@@ -2284,6 +2285,7 @@ export async function registerRoutes(
   seedBulletinPostTypes().catch(console.error).then(() => {
     seedData().catch(console.error);
   });
+  seedAppConfig().catch(console.error);
   storage.backfillBubbleShortIds().catch(console.error);
 
   // Bulletin Board - Post Types
@@ -2488,6 +2490,23 @@ export async function registerRoutes(
   app.get("/api/config/share-base-url", (_req, res) => {
     const baseUrl = process.env.SHARE_BASE_URL || "https://mybubble.trybubble.io";
     res.json({ baseUrl });
+  });
+
+  app.get("/api/config/app", async (req, res) => {
+    try {
+      const key = req.query.key as string | undefined;
+      if (key) {
+        const value = await storage.getAppConfigValue(key);
+        if (value === undefined) {
+          return res.status(404).json({ error: `Config key '${key}' not found` });
+        }
+        return res.json({ key, value });
+      }
+      const all = await storage.getAllAppConfig();
+      res.json(all);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   });
 
   return httpServer;

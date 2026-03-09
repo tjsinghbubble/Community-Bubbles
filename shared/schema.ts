@@ -445,3 +445,13 @@ export type BulletinReply = typeof bulletinReplies.$inferSelect;
 export type InsertBulletinReply = z.infer<typeof insertBulletinReplySchema>;
 
 export type BulletinPostReaction = typeof bulletinPostReactions.$inferSelect;
+
+export const appConfig = pgTable("app_config", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertAppConfigSchema = createInsertSchema(appConfig);
+export type AppConfig = typeof appConfig.$inferSelect;
+export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;

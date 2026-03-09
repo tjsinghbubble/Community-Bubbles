@@ -93,12 +93,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [bubbleReportFreeText, setBubbleReportFreeText] = useState('');
   const [bubbleReportSubmitting, setBubbleReportSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [maxBubblePhotos, setMaxBubblePhotos] = useState(20);
   const [announcements, setAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
     checkMembership();
     fetchBubbleDetails();
     fetchMemberCount();
+    apiService.getAppConfig('max_bubble_photos')
+      .then(({ value }) => setMaxBubblePhotos(parseInt(value, 10) || 20))
+      .catch(() => {});
   }, [bubble.id]);
 
   useFocusEffect(
@@ -543,8 +547,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const handleCameraPress = async () => {
     const currentImages = bubbleDetails?.images || [];
-    if (currentImages.length >= 20) {
-      Alert.alert('Limit Reached', 'This bubble already has the maximum of 20 photos.');
+    if (currentImages.length >= maxBubblePhotos) {
+      Alert.alert('Limit Reached', `This bubble already has the maximum of ${maxBubblePhotos} photos.`);
       return;
     }
 

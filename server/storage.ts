@@ -54,6 +54,8 @@ import {
   type BulletinReply,
   type InsertBulletinReply,
   bulletinPostReactions,
+  appConfig,
+  type AppConfig,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -210,6 +212,9 @@ export interface IStorage {
   getBulletinPostCount(bubbleId: string): Promise<number>;
   toggleBulletinReaction(postId: string, userId: string, emoji?: string): Promise<{ added: boolean; emoji: string }>;
   getBulletinPostReactionSummaries(postIds: string[], currentUserId?: string): Promise<Record<string, { reactions: { emoji: string; count: number }[]; userEmojis: string[] }>>;
+
+  getAppConfigValue(key: string): Promise<string | undefined>;
+  getAllAppConfig(): Promise<AppConfig[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1542,6 +1547,15 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  async getAppConfigValue(key: string): Promise<string | undefined> {
+    const result = await db.select().from(appConfig).where(eq(appConfig.key, key)).limit(1);
+    return result[0]?.value;
+  }
+
+  async getAllAppConfig(): Promise<AppConfig[]> {
+    return db.select().from(appConfig);
   }
 }
 

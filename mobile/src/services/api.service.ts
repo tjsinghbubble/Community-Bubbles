@@ -510,6 +510,10 @@ class ApiService {
       body: JSON.stringify({ body }),
     });
   }
+
+  async getAppConfig(key: string): Promise<{ key: string; value: string }> {
+    return this.request<{ key: string; value: string }>(`/api/config/app?key=${encodeURIComponent(key)}`);
+  }
 }
 
 export const apiService = new ApiService();
