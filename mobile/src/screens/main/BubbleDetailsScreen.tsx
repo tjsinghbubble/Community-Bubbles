@@ -486,14 +486,18 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         onPress={() => setShowKebabMenu(false)}
       >
         <View style={styles.kebabDropdown}>
-          <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
-            <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
-            <Text style={styles.kebabItemText}>Share Bubble</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.kebabItem} onPress={handleShowQRCode} data-testid="button-qr-code">
-            <Ionicons name="qr-code-outline" size={20} color={Colors.text.primary} />
-            <Text style={styles.kebabItemText}>QR Code</Text>
-          </TouchableOpacity>
+          {(bubbleDetails?.privacy || bubble.privacy) === 'Public' && (
+            <>
+              <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
+                <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
+                <Text style={styles.kebabItemText}>Share Bubble</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.kebabItem} onPress={handleShowQRCode} data-testid="button-qr-code">
+                <Ionicons name="qr-code-outline" size={20} color={Colors.text.primary} />
+                <Text style={styles.kebabItemText}>QR Code</Text>
+              </TouchableOpacity>
+            </>
+          )}
           <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Bubble Chat</Text>
@@ -745,7 +749,10 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
     let title = 'Join Bubble';
     let variant: 'primary' | 'outline' = 'primary';
+    let disabled = false;
     const privacy = bubbleDetails?.privacy || bubble.privacy;
+    const limit = bubbleDetails?.memberLimit || bubble.memberLimit;
+    const isFull = limit != null && memberCount >= limit;
 
     if (isMember) {
       title = 'Leave Bubble';
@@ -753,6 +760,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     } else if (membershipStatus === 'pending') {
       title = 'Request Pending';
       variant = 'outline';
+    } else if (isFull) {
+      title = 'Bubble Full';
+      disabled = true;
     } else if (privacy === 'Request to Join' || privacy === 'Private') {
       title = 'Request to Join';
     }
@@ -763,6 +773,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         onPress={handleJoinLeave}
         variant={variant}
         loading={isJoining}
+        disabled={disabled}
         testID="button-join-leave"
       />
     );
