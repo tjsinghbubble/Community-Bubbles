@@ -645,6 +645,13 @@ export async function registerRoutes(
         }
       }
 
+      if (bubble.memberLimit != null) {
+        const currentCount = await storage.getRealMemberCount(bubbleId);
+        if (currentCount >= bubble.memberLimit) {
+          return res.status(400).json({ error: "This bubble has reached its member limit" });
+        }
+      }
+
       const hasExisting = await storage.hasAnyMembership(req.userId!, bubbleId);
       if (hasExisting) {
         const status = await storage.getMembershipStatus(req.userId!, bubbleId);
