@@ -42,6 +42,7 @@ export default function RootNavigator() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [linkingConfig, setLinkingConfig] = useState(() => buildLinking());
+  const pendingShortIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     apiService.getShareBaseUrl()
@@ -53,33 +54,52 @@ export default function RootNavigator() {
       .catch(() => {});
   }, []);
 
+  const navigateToBubble = async (shortId: string) => {
+    try {
+      const bubble = await apiService.getBubbleByShortId(shortId);
+      if (!bubble) {
+        Alert.alert('Bubble Not Found', 'This bubble no longer exists or may have been removed.');
+        return;
+      }
+
+      if (bubble.deletedAt) {
+        Alert.alert('Bubble Removed', 'This bubble no longer exists or may have been removed.');
+        return;
+      }
+
+      const nav = navigationRef.current;
+      if (nav) {
+        (nav as any).navigate('Main', {
+          screen: 'Explore',
+          params: {
+            screen: 'BubbleDetails',
+            params: { bubble },
+          },
+        });
+      }
+    } catch (error: any) {
+      if (error?.message?.includes('404') || error?.status === 404) {
+        Alert.alert('Bubble Not Found', 'This bubble no longer exists or may have been removed.');
+      } else {
+        console.error('Deep link error:', error);
+        Alert.alert('Error', 'Unable to open this bubble link. Please try again.');
+      }
+    }
+  };
+
   useEffect(() => {
     const handleDeepLink = async (url: string) => {
       const shortIdMatch = url.match(/\/b\/([a-zA-Z0-9]+)/);
       if (!shortIdMatch) return;
 
       const shortId = shortIdMatch[1];
-      try {
-        const bubble = await apiService.getBubbleByShortId(shortId);
-        if (!bubble) {
-          Alert.alert('Not Found', 'This bubble could not be found.');
-          return;
-        }
 
-        const nav = navigationRef.current;
-        if (nav && isAuthenticated) {
-          (nav as any).navigate('Main', {
-            screen: 'Explore',
-            params: {
-              screen: 'BubbleDetails',
-              params: { bubble },
-            },
-          });
-        }
-      } catch (error) {
-        console.error('Deep link error:', error);
-        Alert.alert('Error', 'Unable to open this bubble link.');
+      if (!isAuthenticated) {
+        pendingShortIdRef.current = shortId;
+        return;
       }
+
+      await navigateToBubble(shortId);
     };
 
     const subscription = Linking.addEventListener('url', (event) => {
@@ -91,6 +111,16 @@ export default function RootNavigator() {
     });
 
     return () => subscription.remove();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && pendingShortIdRef.current) {
+      const shortId = pendingShortIdRef.current;
+      pendingShortIdRef.current = null;
+      setTimeout(() => {
+        navigateToBubble(shortId);
+      }, 500);
+    }
   }, [isAuthenticated]);
 
   if (isLoading) {
