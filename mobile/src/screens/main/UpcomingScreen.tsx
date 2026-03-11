@@ -250,7 +250,7 @@ export default function UpcomingScreen() {
                       style={styles.eventImage}
                     />
                     <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 10 ? event.title.substring(0, 10) + '...' : event.title}</Text>
+                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}</Text>
                       <Text style={styles.eventDateTime}>
                         {formatEventDate(event.date)} | {event.endTime
                           ? (crossesMidnight(event.startTime, event.endTime)
