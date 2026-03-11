@@ -302,6 +302,25 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/users/me", authMiddleware, async (req, res) => {
+    try {
+      const { profilePhoto, name } = req.body;
+      const updated = await storage.updateUserProfile(req.userId!, { profilePhoto, name });
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        interests: updated.interests,
+        profilePhoto: updated.profilePhoto,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/bubbles", async (req, res) => {
     try {
       // Return only public bubbles (excludes campus-specific ones)

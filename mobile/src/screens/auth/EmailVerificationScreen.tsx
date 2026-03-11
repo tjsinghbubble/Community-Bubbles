@@ -25,7 +25,7 @@ type Props = {
 };
 
 export default function EmailVerificationScreen({ navigation, route }: Props) {
-  const { email, name, password, gender, dateOfBirth } = route.params;
+  const { email, name, password, gender, dateOfBirth, profilePhotoUri } = route.params;
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -78,6 +78,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
         password,
         gender,
         dateOfBirth,
+        profilePhotoUri,
       });
     } catch (error: any) {
       Alert.alert('Error', 'Failed to verify code. Please try again.');
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.skyWhite,
   },
   verifyButton: {
-    backgroundColor: Colors.neutral.coolMist,
+    backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: Radius.full,
     paddingVertical: 16,
     paddingHorizontal: 80,

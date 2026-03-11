@@ -13,9 +13,9 @@ export type AuthStackParamList = {
   Welcome: undefined;
   Signup: undefined;
   Login: undefined;
-  EmailVerification: { email: string; name: string; password: string; gender: string; dateOfBirth: string };
-  Interests: { name: string; email: string; password: string; gender: string; dateOfBirth: string };
-  Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[] };
+  EmailVerification: { email: string; name: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string };
+  Interests: { name: string; email: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string };
+  Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[]; profilePhotoUri?: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };

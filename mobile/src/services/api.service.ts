@@ -20,6 +20,10 @@ class ApiService {
     this.token = token;
   }
 
+  getToken(): string | null {
+    return this.token;
+  }
+
   private async request<T>(
     endpoint: string,
     options?: RequestInit,

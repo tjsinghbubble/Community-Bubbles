@@ -15,6 +15,8 @@ import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
+import apiService from '../../services/api.service';
+import { API_URL } from '../../config/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Guidelines'>;
@@ -70,8 +72,53 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
   const handleAgree = async () => {
     setIsLoading(true);
     try {
-      const { name, email, password, interests } = route.params;
+      const { name, email, password, interests, profilePhotoUri } = route.params;
       await signup(name, email, password, interests);
+
+      if (profilePhotoUri) {
+        try {
+          const photoResponse = await fetch(profilePhotoUri);
+          const blob = await photoResponse.blob();
+          const ext = profilePhotoUri.split('.').pop()?.toLowerCase() || 'jpg';
+          const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+          const token = apiService.getToken();
+
+          const uploadRes = await fetch(`${API_URL}/api/uploads/request-url`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              name: `profile.${ext}`,
+              contentType: mimeType,
+            }),
+          });
+          const uploadData = await uploadRes.json();
+
+          if (uploadData.uploadURL) {
+            await fetch(uploadData.uploadURL, {
+              method: 'PUT',
+              headers: { 'Content-Type': mimeType },
+              body: blob,
+            });
+
+            const photoUrl = uploadData.objectPath.startsWith('http')
+              ? uploadData.objectPath
+              : `${API_URL}${uploadData.objectPath}`;
+            await fetch(`${API_URL}/api/users/me`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ profilePhoto: photoUrl }),
+            });
+          }
+        } catch (photoErr) {
+          console.log('Profile photo upload failed (non-blocking):', photoErr);
+        }
+      }
     } catch (error: any) {
       Alert.alert('Signup Failed', error.message || 'Something went wrong');
     } finally {

@@ -50,7 +50,7 @@ const PROGRESS_STEP = 0.75;
 
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
-  const { name, email, password, gender, dateOfBirth } = route.params;
+  const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
 
   const toggleInterest = (id: string) => {
     setSelected((prev) =>
@@ -67,6 +67,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
         gender,
         dateOfBirth,
         interests: selected,
+        profilePhotoUri,
       });
     }
   };
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_SIZE,
     height: CARD_SIZE,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
     borderWidth: 3,

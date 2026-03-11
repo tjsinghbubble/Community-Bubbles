@@ -133,6 +133,7 @@ export interface IStorage {
   getCampus(id: string): Promise<Campus | undefined>;
   getCampusByDomain(domain: string): Promise<Campus | undefined>;
   createCampus(campus: InsertCampus): Promise<Campus>;
+  updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string }): Promise<User | undefined>;
   updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void>;
   dismissCampusPrompt(userId: string): Promise<void>;
   getPublicBubbles(): Promise<Bubble[]>;
@@ -802,6 +803,14 @@ export class DatabaseStorage implements IStorage {
       domain: insertCampus.domain.toLowerCase(),
     }).returning();
     return result[0];
+  }
+
+  async updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string }): Promise<User | undefined> {
+    const setObj: Record<string, any> = { updatedAt: new Date(), updatedBy: userId };
+    if (updates.profilePhoto !== undefined) setObj.profilePhoto = updates.profilePhoto;
+    if (updates.name !== undefined) setObj.name = updates.name;
+    const [updated] = await db.update(users).set(setObj).where(eq(users.id, userId)).returning();
+    return updated;
   }
 
   async updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void> {

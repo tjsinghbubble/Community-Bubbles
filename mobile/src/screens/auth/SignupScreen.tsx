@@ -12,11 +12,12 @@ import {
   StatusBar,
   Modal,
   Alert,
-  Keyboard,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
@@ -27,6 +28,17 @@ type Props = {
 };
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
+const DAYS_OF_WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function getCalendarDays(year: number, month: number) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  return days;
+}
 
 export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
@@ -39,15 +51,31 @@ export default function SignupScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthDay, setBirthDay] = useState('');
-  const [birthYear, setBirthYear] = useState('');
+  const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
 
-  const dayRef = useRef<TextInput>(null);
-  const yearRef = useRef<TextInput>(null);
+  const today = new Date();
+  const [calYear, setCalYear] = useState(today.getFullYear() - 20);
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please allow access to your photo library to add a profile picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setProfilePhotoUri(result.assets[0].uri);
+    }
+  };
 
   const handleContinue = async () => {
     if (!isFormValid) return;
@@ -81,6 +109,7 @@ export default function SignupScreen({ navigation }: Props) {
         password,
         gender,
         dateOfBirth,
+        profilePhotoUri: profilePhotoUri || undefined,
       });
     } catch (error) {
       Alert.alert('Error', 'Failed to send verification code. Please try again.');
@@ -89,11 +118,59 @@ export default function SignupScreen({ navigation }: Props) {
     }
   };
 
-  const handleDateConfirm = () => {
-    if (birthMonth && birthDay && birthYear) {
-      setDateOfBirth(`${birthMonth}/${birthDay}/${birthYear}`);
-      setShowDatePicker(false);
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear(calYear - 1);
+    } else {
+      setCalMonth(calMonth - 1);
     }
+  };
+
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear(calYear + 1);
+    } else {
+      setCalMonth(calMonth + 1);
+    }
+  };
+
+  const handleDaySelect = (day: number) => {
+    const dob = new Date(calYear, calMonth, day);
+    const todayDate = new Date();
+
+    if (dob > todayDate) {
+      Alert.alert('Invalid Date', 'Date of birth cannot be in the future.');
+      return;
+    }
+
+    let age = todayDate.getFullYear() - dob.getFullYear();
+    const monthDiff = todayDate.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < dob.getDate())) {
+      age--;
+    }
+
+    if (age < 18) {
+      Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
+      return;
+    }
+
+    setSelectedDate(dob);
+    const mm = String(calMonth + 1).padStart(2, '0');
+    const dd = String(day).padStart(2, '0');
+    setDateOfBirth(`${mm}/${dd}/${calYear}`);
+    setTimeout(() => setShowDatePicker(false), 300);
+  };
+
+  const calendarDays = getCalendarDays(calYear, calMonth);
+  const isSelectedDay = (day: number) => {
+    if (!selectedDate) return false;
+    return selectedDate.getFullYear() === calYear && selectedDate.getMonth() === calMonth && selectedDate.getDate() === day;
+  };
+
+  const isTodayDay = (day: number) => {
+    return today.getFullYear() === calYear && today.getMonth() === calMonth && today.getDate() === day;
   };
 
   return (
@@ -118,6 +195,19 @@ export default function SignupScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.form}>
+            <TouchableOpacity style={styles.photoPickerContainer} onPress={handlePickPhoto} testID="button-pick-photo">
+              {profilePhotoUri ? (
+                <Image source={{ uri: profilePhotoUri }} style={styles.profilePhoto} />
+              ) : (
+                <View style={styles.photoPlaceholder}>
+                  <Ionicons name="person" size={40} color={Colors.neutral.coolMist} />
+                </View>
+              )}
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={14} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Legal name</Text>
               <TextInput
@@ -290,114 +380,57 @@ export default function SignupScreen({ navigation }: Props) {
           activeOpacity={1}
           onPress={() => setShowDatePicker(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.modalContent} onPress={() => {}}>
-
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Date of Birth</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                <Ionicons name="close" size={24} color={Colors.brand.midnight} />
+          <TouchableOpacity activeOpacity={1} style={styles.calendarModalContent} onPress={() => {}}>
+            <View style={styles.calendarHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calendarBackButton}>
+                <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
+              <Text style={styles.calendarTitle}>Date of Birth</Text>
+              <View style={{ width: 32 }} />
             </View>
-            <View style={styles.dateInputRow}>
-              <TextInput
-                style={styles.dateInput}
-                placeholder="MM"
-                placeholderTextColor="#969696"
-                value={birthMonth}
-                onChangeText={(text) => {
-                  const val = text.replace(/[^0-9]/g, '').slice(0, 2);
-                  setBirthMonth(val);
-                  if (val.length === 2) {
-                    Keyboard.dismiss();
-                    const m = parseInt(val, 10);
-                    if (m < 1 || m > 12) {
-                      Alert.alert('Invalid Month', 'Month must be between 01 and 12.');
-                      setBirthMonth('');
-                    }
-                  }
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              <TextInput
-                ref={dayRef}
-                style={styles.dateInput}
-                placeholder="DD"
-                placeholderTextColor="#969696"
-                value={birthDay}
-                onChangeText={(text) => {
-                  const val = text.replace(/[^0-9]/g, '').slice(0, 2);
-                  setBirthDay(val);
-                  if (val.length === 2) {
-                    Keyboard.dismiss();
-                    const d = parseInt(val, 10);
-                    const m = birthMonth ? parseInt(birthMonth, 10) : 0;
-                    const maxDays = m >= 1 && m <= 12 ? new Date(2000, m, 0).getDate() : 31;
-                    if (d < 1 || d > maxDays) {
-                      Alert.alert('Invalid Day', `Day must be between 01 and ${maxDays}.`);
-                      setBirthDay('');
-                    }
-                  }
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
-              <TextInput
-                ref={yearRef}
-                style={[styles.dateInput, { flex: 1.5 }]}
-                placeholder="YYYY"
-                placeholderTextColor="#969696"
-                value={birthYear}
-                onChangeText={(text) => {
-                  const val = text.replace(/[^0-9]/g, '').slice(0, 4);
-                  setBirthYear(val);
-                  if (val.length === 4) {
-                    Keyboard.dismiss();
-                    const y = parseInt(val, 10);
-                    const m = parseInt(birthMonth, 10);
-                    const d = parseInt(birthDay, 10);
 
-                    if (y < 1900) {
-                      Alert.alert('Invalid Year', 'Year must be 1900 or later.');
-                      setBirthYear('');
-                      return;
-                    }
+            <View style={styles.calendarNav}>
+              <TouchableOpacity onPress={handlePrevMonth}>
+                <Text style={styles.calendarMonthLabel}>{MONTH_NAMES[calMonth]} {calYear} {'>'}</Text>
+              </TouchableOpacity>
+              <View style={styles.calendarArrows}>
+                <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarArrowButton}>
+                  <Ionicons name="chevron-back" size={20} color={Colors.brand.bubbleBlue} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleNextMonth} style={styles.calendarArrowButton}>
+                  <Ionicons name="chevron-forward" size={20} color={Colors.brand.bubbleBlue} />
+                </TouchableOpacity>
+              </View>
+            </View>
 
-                    const today = new Date();
-                    const dob = new Date(y, m - 1, d);
-
-                    if (dob > today) {
-                      Alert.alert('Invalid Date', 'Date of birth cannot be in the future.');
-                      setBirthYear('');
-                      return;
-                    }
-
-                    const daysInMonth = new Date(y, m, 0).getDate();
-                    if (d > daysInMonth) {
-                      Alert.alert('Invalid Day', `${birthMonth}/${birthDay} is not a valid date in ${val}.`);
-                      setBirthDay('');
-                      return;
-                    }
-
-                    let age = today.getFullYear() - dob.getFullYear();
-                    const monthDiff = today.getMonth() - dob.getMonth();
-                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-                      age--;
-                    }
-
-                    if (age < 18) {
-                      Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
-                      setBirthYear('');
-                      return;
-                    }
-
-                    setDateOfBirth(`${birthMonth}/${birthDay}/${val}`);
-                    setTimeout(() => setShowDatePicker(false), 2000);
-                  }
-                }}
-                keyboardType="number-pad"
-                maxLength={4}
-              />
+            <View style={styles.calendarGrid}>
+              {DAYS_OF_WEEK.map((d) => (
+                <View key={d} style={styles.calendarDayHeader}>
+                  <Text style={styles.calendarDayHeaderText}>{d}</Text>
+                </View>
+              ))}
+              {calendarDays.map((day, idx) => (
+                <View key={idx} style={styles.calendarDayCell}>
+                  {day !== null ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.calendarDay,
+                        isSelectedDay(day) && styles.calendarDaySelected,
+                        isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayToday,
+                      ]}
+                      onPress={() => handleDaySelect(day)}
+                    >
+                      <Text style={[
+                        styles.calendarDayText,
+                        isSelectedDay(day) && styles.calendarDayTextSelected,
+                        isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayTextToday,
+                      ]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ))}
             </View>
           </TouchableOpacity>
         </TouchableOpacity>
@@ -441,6 +474,41 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 24,
+  },
+  photoPickerContainer: {
+    alignSelf: 'center',
+    width: 100,
+    height: 100,
+    marginBottom: 8,
+  },
+  profilePhoto: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+  },
+  photoPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: Colors.neutral.cloudGrey,
+    borderWidth: 2,
+    borderColor: Colors.neutral.coolMist,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cameraBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.brand.bubbleBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.brand.skyWhite,
   },
   inputGroup: {
     gap: 8,
@@ -523,20 +591,6 @@ const styles = StyleSheet.create({
     color: Colors.brand.bubbleBlue,
     textDecorationLine: 'underline',
   },
-  button: {
-    borderRadius: Radius.full,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -576,26 +630,87 @@ const styles = StyleSheet.create({
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
-  dateInputRow: {
+  calendarModalContent: {
+    backgroundColor: '#FAFAFA',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  calendarHeader: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  dateInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#969696',
-    borderRadius: 8,
-    height: 57,
-    paddingHorizontal: 8,
-    fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: Colors.brand.midnight,
-    textAlign: 'center',
+  calendarBackButton: {
+    padding: 4,
   },
-  modalButton: {
-    borderRadius: Radius.full,
-    padding: 16,
+  calendarTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.brand.midnight,
+  },
+  calendarNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarMonthLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.brand.midnight,
+  },
+  calendarArrows: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  calendarArrowButton: {
+    padding: 4,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarDayHeader: {
+    width: '14.28%',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  calendarDayHeaderText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.neutral.coolMist,
+  },
+  calendarDayCell: {
+    width: '14.28%',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  calendarDay: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarDaySelected: {
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  calendarDayToday: {
+    backgroundColor: Colors.brand.bubbleBlue + '20',
+  },
+  calendarDayText: {
+    fontSize: 15,
+    color: Colors.brand.midnight,
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  calendarDayTextToday: {
+    color: Colors.brand.bubbleBlue,
+    fontWeight: '600',
   },
 });
