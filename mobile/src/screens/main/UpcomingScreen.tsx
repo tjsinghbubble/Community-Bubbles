@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   },
   timelineSeparator: {
     alignItems: 'flex-start',
-    marginVertical: 24,
+    marginVertical: 20,
   },
   timelineLine: {
     display: 'none',
