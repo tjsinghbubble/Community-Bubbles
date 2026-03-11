@@ -250,7 +250,7 @@ export default function UpcomingScreen() {
                       style={styles.eventImage}
                     />
                     <View style={styles.eventInfo}>
-                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}</Text>
+                      <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 10 ? event.title.substring(0, 10) + '...' : event.title}</Text>
                       <Text style={styles.eventDateTime}>
                         {formatEventDate(event.date)} | {event.endTime
                           ? (crossesMidnight(event.startTime, event.endTime)
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: EventCardTokens.padding,
-    fontSize: 12,
+    fontSize: 11,
     color: EventCardTokens.colors.label,
   },
   eventCardInner: {
@@ -396,17 +396,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eventTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     color: EventCardTokens.colors.title,
+    marginBottom: 8,
+    marginTop: 4,
   },
   eventDateTime: {
-    fontSize: 13,
+    fontSize: 12,
     color: EventCardTokens.colors.subtitle,
-    marginTop: 2,
   },
   eventLocation: {
-    fontSize: 13,
+    fontSize: 12,
     color: EventCardTokens.colors.subtitle,
   },
 });
