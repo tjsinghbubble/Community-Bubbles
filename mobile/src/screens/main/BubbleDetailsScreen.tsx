@@ -486,7 +486,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         onPress={() => setShowKebabMenu(false)}
       >
         <View style={styles.kebabDropdown}>
-          {(bubbleDetails?.privacy || bubble.privacy) === 'Public' && (
+          {((bubbleDetails?.privacy || bubble.privacy) === 'Public' || isMember) && (
             <>
               <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
                 <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
