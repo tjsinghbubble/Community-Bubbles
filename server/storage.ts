@@ -205,6 +205,7 @@ export interface IStorage {
   getBulletinPosts(boardId: string, postTypeId?: number, currentUserId?: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType; replyCount: number; reactionCount: number; userReacted: boolean })[]>;
   getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined>;
   createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost>;
+  updateBulletinPost(postId: string, data: { title?: string; body?: string; postTypeId?: number; imageUrl?: string | null }, userId?: string): Promise<BulletinPost | undefined>;
   deleteBulletinPost(postId: string): Promise<void>;
   toggleBulletinPostPin(postId: string, userId?: string): Promise<BulletinPost | undefined>;
   getBulletinReplies(postId: string): Promise<(BulletinReply & { author: User })[]>;
@@ -1436,6 +1437,18 @@ export class DatabaseStorage implements IStorage {
       createdBy: post.authorId,
       updatedBy: post.authorId,
     }).returning();
+    return result[0];
+  }
+
+  async updateBulletinPost(postId: string, data: { title?: string; body?: string; postTypeId?: number; imageUrl?: string | null }, userId?: string): Promise<BulletinPost | undefined> {
+    const result = await db.update(bulletinPosts)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+        updatedBy: userId || null,
+      })
+      .where(eq(bulletinPosts.id, postId))
+      .returning();
     return result[0];
   }
 

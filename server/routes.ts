@@ -2419,6 +2419,38 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/bulletin/posts/:postId", authMiddleware, async (req, res) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.userId!;
+      const post = await storage.getBulletinPost(postId);
+      if (!post) return res.status(404).json({ error: "Post not found" });
+
+      const isAuthor = post.post.authorId === userId;
+      const user = await storage.getUser(userId);
+      if (!isAuthor && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only the author or an admin can edit this post" });
+      }
+
+      if (req.body.title || req.body.body) {
+        const modResult = moderateText({ title: req.body.title || post.post.title, body: req.body.body || post.post.body });
+        if (modResult.flagged) {
+          return res.status(400).json({ error: modResult.message });
+        }
+      }
+
+      const updated = await storage.updateBulletinPost(postId, {
+        title: req.body.title,
+        body: req.body.body,
+        postTypeId: req.body.postTypeId,
+        imageUrl: req.body.imageUrl,
+      }, userId);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Bulletin Board - Get single post
   app.get("/api/bulletin/posts/:postId", authMiddleware, async (req, res) => {
     try {

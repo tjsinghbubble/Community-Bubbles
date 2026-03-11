@@ -477,6 +477,13 @@ class ApiService {
     });
   }
 
+  async updateBulletinPost(postId: string, data: { postTypeId?: number; title?: string; body?: string; imageUrl?: string }): Promise<any> {
+    return this.request<any>(`/api/bulletin/posts/${postId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteBulletinPost(postId: string): Promise<any> {
     return this.request<any>(`/api/bulletin/posts/${postId}`, { method: "DELETE" });
   }

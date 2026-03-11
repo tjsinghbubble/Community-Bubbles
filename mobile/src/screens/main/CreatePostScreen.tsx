@@ -39,12 +39,13 @@ type PostType = {
 };
 
 export default function CreatePostScreen({ navigation, route }: Props) {
-  const { bubbleId, preselectedTypeId } = route.params;
+  const { bubbleId, preselectedTypeId, editPostId, editTitle, editBody } = route.params as any;
+  const isEditing = !!editPostId;
   const { token, user } = useAuth();
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [title, setTitle] = useState(editTitle || '');
+  const [body, setBody] = useState(editBody || '');
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -98,15 +99,24 @@ export default function CreatePostScreen({ navigation, route }: Props) {
 
     try {
       setSubmitting(true);
-      await apiService.createBulletinPost(bubbleId, {
-        postTypeId: selectedTypeId,
-        title: title.trim(),
-        body: body.trim(),
-        imageUrl: images[0] || undefined,
-      });
+      if (isEditing) {
+        await apiService.updateBulletinPost(editPostId, {
+          postTypeId: selectedTypeId,
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: images[0] || undefined,
+        });
+      } else {
+        await apiService.createBulletinPost(bubbleId, {
+          postTypeId: selectedTypeId,
+          title: title.trim(),
+          body: body.trim(),
+          imageUrl: images[0] || undefined,
+        });
+      }
       navigation.goBack();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create post');
+      Alert.alert('Error', err.message || (isEditing ? 'Failed to save post' : 'Failed to create post'));
     } finally {
       setSubmitting(false);
     }
@@ -135,7 +145,7 @@ export default function CreatePostScreen({ navigation, route }: Props) {
           <TouchableOpacity onPress={() => navigation.goBack()} testID="button-cancel-post">
             <BulletinCancelIcon width={100} height={33} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Post</Text>
+          <Text style={styles.headerTitle}>{isEditing ? 'Edit Post' : 'New Post'}</Text>
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={!canSubmit || submitting}
@@ -144,6 +154,10 @@ export default function CreatePostScreen({ navigation, route }: Props) {
           >
             {submitting ? (
               <ActivityIndicator size="small" color={Colors.brand.primary} />
+            ) : isEditing ? (
+              <View style={styles.saveButton}>
+                <Text style={styles.saveButtonText}>Save</Text>
+              </View>
             ) : (
               <BulletinPostIcon width={100} height={33} opacity={canSubmit ? 1 : 0.4} />
             )}
@@ -152,7 +166,7 @@ export default function CreatePostScreen({ navigation, route }: Props) {
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Category</Text>
-          <View style={[BulletinPillStyles.container, styles.typesContainer, { justifyContent: 'center' }]}>
+          <View style={[BulletinPillStyles.container, styles.typesContainer, { justifyContent: 'flex-start' }]}>
             {postTypes.map((pt) => {
               const disabled = pt.adminOnly && !isAdmin;
               return (
@@ -299,5 +313,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.light,
     marginBottom: Spacing.xl,
+  },
+  saveButton: {
+    backgroundColor: Colors.brand.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+  },
+  saveButtonText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.background.primary,
   },
 });

@@ -63,7 +63,7 @@ export type ExploreStackParamList = {
   Notifications: undefined;
   BulletinBoard: { bubbleId: string; bubbleTitle: string };
   PostDetail: { postId: string; bubbleId: string };
-  CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number };
+  CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number; editPostId?: string; editTitle?: string; editBody?: string };
   JoinBubble: { bubble: BubbleData };
 };
 
