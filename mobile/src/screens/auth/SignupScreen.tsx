@@ -44,9 +44,25 @@ export default function SignupScreen({ navigation }: Props) {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [tosViewed, setTosViewed] = useState(false);
   const [privacyViewed, setPrivacyViewed] = useState(false);
+  const pendingTosView = useRef(false);
+  const pendingPrivacyView = useRef(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
 
   const canCheckBox = tosViewed && privacyViewed;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (pendingTosView.current) {
+        setTosViewed(true);
+        pendingTosView.current = false;
+      }
+      if (pendingPrivacyView.current) {
+        setPrivacyViewed(true);
+        pendingPrivacyView.current = false;
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const today = new Date();
   const [pickerDay, setPickerDay] = useState(15);
@@ -355,14 +371,14 @@ export default function SignupScreen({ navigation }: Props) {
                 I agree to the{' '}
                 <Text
                   style={[styles.termsLink, tosViewed && styles.termsLinkViewed]}
-                  onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
+                  onPress={() => { pendingTosView.current = true; navigation.navigate('TermsOfService'); }}
                 >
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
                 <Text
                   style={[styles.termsLink, privacyViewed && styles.termsLinkViewed]}
-                  onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
+                  onPress={() => { pendingPrivacyView.current = true; navigation.navigate('PrivacyPolicy'); }}
                 >
                   Privacy Policy
                 </Text>

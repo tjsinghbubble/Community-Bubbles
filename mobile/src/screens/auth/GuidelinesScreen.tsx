@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -70,9 +70,25 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
   const [tosViewed, setTosViewed] = useState(false);
   const [privacyViewed, setPrivacyViewed] = useState(false);
   const [tosAccepted, setTosAccepted] = useState(false);
+  const pendingTosView = useRef(false);
+  const pendingPrivacyView = useRef(false);
   const { signup } = useAuth();
 
   const canCheckBox = tosViewed && privacyViewed;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (pendingTosView.current) {
+        setTosViewed(true);
+        pendingTosView.current = false;
+      }
+      if (pendingPrivacyView.current) {
+        setPrivacyViewed(true);
+        pendingPrivacyView.current = false;
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handleAgree = async () => {
     setIsLoading(true);
@@ -201,14 +217,14 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
             {'I agree to the '}
             <Text
               style={[styles.checkboxLink, tosViewed && styles.checkboxLinkViewed]}
-              onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
+              onPress={() => { pendingTosView.current = true; navigation.navigate('TermsOfService'); }}
             >
               Terms of Service
             </Text>
             {' and acknowledge the '}
             <Text
               style={[styles.checkboxLink, privacyViewed && styles.checkboxLinkViewed]}
-              onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
+              onPress={() => { pendingPrivacyView.current = true; navigation.navigate('PrivacyPolicy'); }}
             >
               Privacy Policy
             </Text>
