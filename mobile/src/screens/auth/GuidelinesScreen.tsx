@@ -186,10 +186,37 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.checkboxRow}
+          onPress={() => { if (canCheckBox) setTosAccepted(!tosAccepted); }}
+          activeOpacity={canCheckBox ? 0.7 : 1}
+          data-testid="checkbox-tos"
+        >
+          <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
+            {tosAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+          </View>
+          <Text style={styles.checkboxLabel}>
+            {'I agree to the '}
+            <Text
+              style={[styles.checkboxLink, tosViewed && styles.checkboxLinkViewed]}
+              onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
+            >
+              Terms of Service
+            </Text>
+            {' and acknowledge the '}
+            <Text
+              style={[styles.checkboxLink, privacyViewed && styles.checkboxLinkViewed]}
+              onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
+            >
+              Privacy Policy
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
         <BubbleButton
           title="I Agree"
           onPress={handleAgree}
-          disabled={isLoading}
+          disabled={isLoading || !tosAccepted}
           loading={isLoading}
           testID="button-agree"
         />
@@ -300,6 +327,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 16,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: Colors.brand.bubbleBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  checkboxDisabled: {
+    borderColor: Colors.neutral.coolMist,
+    opacity: 0.5,
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text.primary,
+    lineHeight: 18,
+  },
+  checkboxLink: {
+    color: Colors.brand.bubbleBlue,
+    textDecorationLine: 'underline',
+  },
+  checkboxLinkViewed: {
+    color: '#2B8AD0',
   },
   button: {
     height: 56,
