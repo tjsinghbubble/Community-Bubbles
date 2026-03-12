@@ -57,6 +57,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [calYear, setCalYear] = useState(today.getFullYear() - 20);
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [yearRangeStart, setYearRangeStart] = useState(today.getFullYear() - 20 - 8);
 
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
 
@@ -382,7 +384,7 @@ export default function SignupScreen({ navigation }: Props) {
         >
           <TouchableOpacity activeOpacity={1} style={styles.calendarModalContent} onPress={() => {}}>
             <View style={styles.calendarHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calendarBackButton}>
+              <TouchableOpacity onPress={() => { if (showYearPicker) { setShowYearPicker(false); } else { setShowDatePicker(false); } }} style={styles.calendarBackButton}>
                 <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
               <Text style={styles.calendarTitle}>Date of Birth</Text>
@@ -390,48 +392,89 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.calendarNav}>
-              <TouchableOpacity onPress={handlePrevMonth}>
-                <Text style={styles.calendarMonthLabel}>{MONTH_NAMES[calMonth]} {calYear} {'>'}</Text>
+              <TouchableOpacity onPress={() => { setYearRangeStart(calYear - 8); setShowYearPicker(!showYearPicker); }} style={styles.calendarMonthButton}>
+                <Text style={styles.calendarMonthLabel}>{MONTH_NAMES[calMonth]} {calYear}</Text>
+                <Ionicons name={showYearPicker ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.brand.bubbleBlue} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
-              <View style={styles.calendarArrows}>
-                <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarArrowButton}>
-                  <Ionicons name="chevron-back" size={20} color={Colors.brand.bubbleBlue} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleNextMonth} style={styles.calendarArrowButton}>
-                  <Ionicons name="chevron-forward" size={20} color={Colors.brand.bubbleBlue} />
-                </TouchableOpacity>
-              </View>
+              {!showYearPicker && (
+                <View style={styles.calendarArrows}>
+                  <TouchableOpacity onPress={handlePrevMonth} style={styles.calendarArrowButton}>
+                    <Ionicons name="chevron-back" size={20} color={Colors.brand.bubbleBlue} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleNextMonth} style={styles.calendarArrowButton}>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.brand.bubbleBlue} />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
 
-            <View style={styles.calendarGrid}>
-              {DAYS_OF_WEEK.map((d) => (
-                <View key={d} style={styles.calendarDayHeader}>
-                  <Text style={styles.calendarDayHeaderText}>{d}</Text>
+            {showYearPicker ? (
+              <View>
+                <View style={styles.yearNavRow}>
+                  <TouchableOpacity onPress={() => setYearRangeStart(yearRangeStart - 16)} style={styles.calendarArrowButton}>
+                    <Ionicons name="chevron-back" size={20} color={Colors.brand.bubbleBlue} />
+                  </TouchableOpacity>
+                  <Text style={styles.yearRangeLabel}>{yearRangeStart} – {yearRangeStart + 15}</Text>
+                  <TouchableOpacity onPress={() => setYearRangeStart(yearRangeStart + 16)} style={styles.calendarArrowButton}>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.brand.bubbleBlue} />
+                  </TouchableOpacity>
                 </View>
-              ))}
-              {calendarDays.map((day, idx) => (
-                <View key={idx} style={styles.calendarDayCell}>
-                  {day !== null ? (
+                <View style={styles.yearGrid}>
+                  {Array.from({ length: 16 }, (_, i) => yearRangeStart + i).map((yr) => (
                     <TouchableOpacity
+                      key={yr}
                       style={[
-                        styles.calendarDay,
-                        isSelectedDay(day) && styles.calendarDaySelected,
-                        isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayToday,
+                        styles.yearCell,
+                        yr === calYear && styles.yearCellSelected,
+                        yr === today.getFullYear() && yr !== calYear && styles.yearCellToday,
                       ]}
-                      onPress={() => handleDaySelect(day)}
+                      onPress={() => {
+                        setCalYear(yr);
+                        setShowYearPicker(false);
+                      }}
                     >
                       <Text style={[
-                        styles.calendarDayText,
-                        isSelectedDay(day) && styles.calendarDayTextSelected,
-                        isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayTextToday,
+                        styles.yearCellText,
+                        yr === calYear && styles.yearCellTextSelected,
+                        yr === today.getFullYear() && yr !== calYear && styles.yearCellTextToday,
                       ]}>
-                        {day}
+                        {yr}
                       </Text>
                     </TouchableOpacity>
-                  ) : null}
+                  ))}
                 </View>
-              ))}
-            </View>
+              </View>
+            ) : (
+              <View style={styles.calendarGrid}>
+                {DAYS_OF_WEEK.map((d) => (
+                  <View key={d} style={styles.calendarDayHeader}>
+                    <Text style={styles.calendarDayHeaderText}>{d}</Text>
+                  </View>
+                ))}
+                {calendarDays.map((day, idx) => (
+                  <View key={idx} style={styles.calendarDayCell}>
+                    {day !== null ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.calendarDay,
+                          isSelectedDay(day) && styles.calendarDaySelected,
+                          isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayToday,
+                        ]}
+                        onPress={() => handleDaySelect(day)}
+                      >
+                        <Text style={[
+                          styles.calendarDayText,
+                          isSelectedDay(day) && styles.calendarDayTextSelected,
+                          isTodayDay(day) && !isSelectedDay(day) && styles.calendarDayTextToday,
+                        ]}>
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -668,6 +711,54 @@ const styles = StyleSheet.create({
   },
   calendarArrowButton: {
     padding: 4,
+  },
+  calendarMonthButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  yearNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 8,
+  },
+  yearRangeLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.brand.midnight,
+  },
+  yearGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  yearCell: {
+    width: '25%',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  yearCellSelected: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 20,
+    marginHorizontal: 4,
+  },
+  yearCellToday: {
+    backgroundColor: Colors.brand.bubbleBlue + '20',
+    borderRadius: 20,
+    marginHorizontal: 4,
+  },
+  yearCellText: {
+    fontSize: 15,
+    color: Colors.brand.midnight,
+  },
+  yearCellTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  yearCellTextToday: {
+    color: Colors.brand.bubbleBlue,
+    fontWeight: '600',
   },
   calendarGrid: {
     flexDirection: 'row',
