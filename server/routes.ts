@@ -2445,14 +2445,14 @@ export async function registerRoutes(
       const post = await storage.getBulletinPost(postId);
       if (!post) return res.status(404).json({ error: "Post not found" });
 
-      const isAuthor = post.post.authorId === userId;
+      const isAuthor = post.authorId === userId;
       const user = await storage.getUser(userId);
       if (!isAuthor && !user?.isSuperAdmin) {
         return res.status(403).json({ error: "Only the author or an admin can edit this post" });
       }
 
       if (req.body.title || req.body.body) {
-        const modResult = moderateText({ title: req.body.title || post.post.title, body: req.body.body || post.post.body });
+        const modResult = moderateText({ title: req.body.title || post.title, body: req.body.body || post.body });
         if (modResult.flagged) {
           return res.status(400).json({ error: modResult.message });
         }
