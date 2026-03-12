@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import BubbleButton from '../../components/BubbleButton';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDownIcon, ChevronUpIcon, BubblesIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
@@ -318,24 +318,46 @@ export default function PendingReviewsScreen() {
       <Text style={styles.cardSubtitle}>{bubble.tagline}</Text>
       
       <View style={styles.cardActions}>
-        <BubbleButton
-          title="Reject"
+        <TouchableOpacity
           onPress={() => handleRejectBubble(bubble.id)}
-          variant="destructive"
-          style={[styles.actionButton, { flex: 1 }]}
-          loading={actionLoading === bubble.id}
-          icon={<Ionicons name="close" size={18} color={Colors.state.error} />}
+          disabled={actionLoading === bubble.id}
+          style={[styles.inlineBtn, styles.inlineBtnDestructive]}
+          activeOpacity={0.7}
           testID={`button-reject-bubble-${bubble.id}`}
-        />
-        
-        <BubbleButton
-          title="Approve"
+        >
+          {actionLoading === bubble.id ? (
+            <ActivityIndicator size="small" color={Colors.state.error} />
+          ) : (
+            <>
+              <Ionicons name="close" size={16} color={Colors.state.error} />
+              <Text style={styles.inlineBtnTextDestructive}>Reject</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={() => handleApproveBubble(bubble.id)}
-          style={[styles.actionButton, { flex: 1 }]}
-          loading={actionLoading === bubble.id}
-          icon={<Ionicons name="checkmark" size={18} color={'#FFFFFF'} />}
+          disabled={actionLoading === bubble.id}
+          activeOpacity={0.7}
+          style={{ flex: 1 }}
           testID={`button-approve-bubble-${bubble.id}`}
-        />
+        >
+          <LinearGradient
+            colors={['#35A8F7', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.7, y: 3.6 }}
+            style={styles.inlineBtnPrimary}
+          >
+            {actionLoading === bubble.id ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={16} color="#1E1F26" />
+                <Text style={styles.inlineBtnTextPrimary}>Approve</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -357,24 +379,46 @@ export default function PendingReviewsScreen() {
       </View>
       
       <View style={styles.cardActions}>
-        <BubbleButton
-          title="Reject"
+        <TouchableOpacity
           onPress={() => handleRejectEvent(event.id)}
-          variant="destructive"
-          style={[styles.actionButton, { flex: 1 }]}
-          loading={actionLoading === event.id}
-          icon={<Ionicons name="close" size={18} color={Colors.state.error} />}
+          disabled={actionLoading === event.id}
+          style={[styles.inlineBtn, styles.inlineBtnDestructive]}
+          activeOpacity={0.7}
           testID={`button-reject-event-${event.id}`}
-        />
-        
-        <BubbleButton
-          title="Approve"
+        >
+          {actionLoading === event.id ? (
+            <ActivityIndicator size="small" color={Colors.state.error} />
+          ) : (
+            <>
+              <Ionicons name="close" size={16} color={Colors.state.error} />
+              <Text style={styles.inlineBtnTextDestructive}>Reject</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
           onPress={() => handleApproveEvent(event.id)}
-          style={[styles.actionButton, { flex: 1 }]}
-          loading={actionLoading === event.id}
-          icon={<Ionicons name="checkmark" size={18} color={'#FFFFFF'} />}
+          disabled={actionLoading === event.id}
+          activeOpacity={0.7}
+          style={{ flex: 1 }}
           testID={`button-approve-event-${event.id}`}
-        />
+        >
+          <LinearGradient
+            colors={['#35A8F7', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.7, y: 3.6 }}
+            style={styles.inlineBtnPrimary}
+          >
+            {actionLoading === event.id ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark" size={16} color="#1E1F26" />
+                <Text style={styles.inlineBtnTextPrimary}>Approve</Text>
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -439,26 +483,39 @@ export default function PendingReviewsScreen() {
         </View>
 
         <View style={styles.cardActions}>
-          <BubbleButton
-            title="Dismiss"
+          <TouchableOpacity
             onPress={() => handleDismissReport(report.id)}
-            variant="ghost"
-            style={[styles.actionButton, { flex: 1 }]}
-            loading={actionLoading === report.id}
-            icon={<Ionicons name="close-circle-outline" size={18} color={Colors.neutral.coolMist} />}
+            disabled={actionLoading === report.id}
+            style={[styles.inlineBtn, styles.inlineBtnGhost]}
+            activeOpacity={0.7}
             testID={`button-dismiss-report-${report.id}`}
-          />
-          
-          <BubbleButton
-            title="Resolve"
+          >
+            {actionLoading === report.id ? (
+              <ActivityIndicator size="small" color={Colors.neutral.coolMist} />
+            ) : (
+              <>
+                <Ionicons name="close-circle-outline" size={16} color={Colors.neutral.coolMist} />
+                <Text style={styles.inlineBtnTextGhost}>Dismiss</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => handleResolveReport(report.id)}
-            variant="outline"
-            style={[styles.actionButton, { flex: 1, borderColor: "#34C759" }]}
-            textStyle={{ color: "#34C759" }}
-            loading={actionLoading === report.id}
-            icon={<Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />}
+            disabled={actionLoading === report.id}
+            style={[styles.inlineBtn, styles.inlineBtnResolve]}
+            activeOpacity={0.7}
             testID={`button-resolve-report-${report.id}`}
-          />
+          >
+            {actionLoading === report.id ? (
+              <ActivityIndicator size="small" color="#34C759" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={16} color="#34C759" />
+                <Text style={styles.inlineBtnTextResolve}>Resolve</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -753,51 +810,59 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
+    gap: 12,
+    marginTop: 8,
   },
-  actionButton: {
+  inlineBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
     gap: 6,
   },
-  rejectButton: {
-    flex: 1,
-    backgroundColor: '#FEE2E2',
+  inlineBtnDestructive: {
+    borderWidth: 1.5,
+    borderColor: '#FF3B30',
+    backgroundColor: 'transparent',
   },
-  rejectText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.state.error,
+  inlineBtnPrimary: {
+    height: 44,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
-  approveButton: {
-    flex: 1,
+  inlineBtnTextDestructive: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#FF3B30',
   },
-  approveText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  inlineBtnTextPrimary: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#1E1F26',
   },
-  dismissButton: {
-    flex: 1,
-    backgroundColor: Colors.neutral.cloudGrey,
+  inlineBtnGhost: {
+    borderWidth: 1.5,
+    borderColor: Colors.neutral.coolMist,
+    backgroundColor: 'transparent',
   },
-  dismissText: {
-    fontSize: 14,
-    fontWeight: '600',
+  inlineBtnTextGhost: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
     color: Colors.neutral.coolMist,
   },
-  resolveButton: {
-    flex: 1,
-    backgroundColor: '#DCFCE7',
+  inlineBtnResolve: {
+    borderWidth: 1.5,
+    borderColor: '#34C759',
+    backgroundColor: 'transparent',
   },
-  resolveText: {
-    fontSize: 14,
-    fontWeight: '600',
+  inlineBtnTextResolve: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
     color: '#34C759',
   },
   reportHeader: {
