@@ -2446,9 +2446,8 @@ export async function registerRoutes(
       if (!post) return res.status(404).json({ error: "Post not found" });
 
       const isAuthor = post.authorId === userId;
-      const user = await storage.getUser(userId);
-      if (!isAuthor && !user?.isSuperAdmin) {
-        return res.status(403).json({ error: "Only the author or an admin can edit this post" });
+      if (!isAuthor) {
+        return res.status(403).json({ error: "Only the author can edit this post" });
       }
 
       if (req.body.title || req.body.body) {
@@ -2481,14 +2480,18 @@ export async function registerRoutes(
     }
   });
 
-  // Bulletin Board - Delete post
+  // Bulletin Board - Delete post (author or bubble admin/super admin only)
   app.delete("/api/bulletin/posts/:postId", authMiddleware, async (req, res) => {
     try {
       const post = await storage.getBulletinPost(req.params.postId);
       if (!post) return res.status(404).json({ error: "Post not found" });
 
       const user = await storage.getUser(req.userId!);
-      if (post.authorId !== req.userId && !user?.isSuperAdmin) {
+      const board = await storage.getBulletinBoardById(post.boardId);
+      const bubbleRole = board ? await storage.getMemberRole(req.userId!, board.bubbleId) : null;
+      const isBubbleAdmin = bubbleRole === 'admin';
+
+      if (post.authorId !== req.userId && !user?.isSuperAdmin && !isBubbleAdmin) {
         return res.status(403).json({ error: "Not authorized to delete this post" });
       }
 
@@ -2499,13 +2502,21 @@ export async function registerRoutes(
     }
   });
 
-  // Bulletin Board - Toggle pin
+  // Bulletin Board - Toggle pin (bubble admin/super admin only)
   app.patch("/api/bulletin/posts/:postId/pin", authMiddleware, async (req, res) => {
     try {
       const post = await storage.getBulletinPost(req.params.postId);
       if (!post) return res.status(404).json({ error: "Post not found" });
 
-      const board = await storage.getBulletinBoard(req.params.postId);
+      const user = await storage.getUser(req.userId!);
+      const board = await storage.getBulletinBoardById(post.boardId);
+      const bubbleRole = board ? await storage.getMemberRole(req.userId!, board.bubbleId) : null;
+      const isBubbleAdmin = bubbleRole === 'admin';
+
+      if (!user?.isSuperAdmin && !isBubbleAdmin) {
+        return res.status(403).json({ error: "Only admins can pin or unpin posts" });
+      }
+
       const result = await storage.toggleBulletinPostPin(req.params.postId, req.userId);
       res.json(result);
     } catch (error: any) {

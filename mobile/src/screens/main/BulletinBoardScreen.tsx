@@ -138,8 +138,11 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [overlayUserRole, setOverlayUserRole] = useState<string | null>(null);
   const [overlayEditPostId, setOverlayEditPostId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
+  const isAdmin = currentUserRole === 'admin' || user?.isSuperAdmin;
+  const isKebabPostAuthor = kebabPost?.authorId === user?.id;
 
   const openKebab = (postId: string) => {
     const ref = kebabRefs.current[postId];
@@ -168,12 +171,15 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [typesRes, postsRes] = await Promise.all([
+      const [typesRes, postsRes, memberships] = await Promise.all([
         apiService.getBulletinPostTypes(),
         apiService.getBulletinPosts(bubbleId, selectedTypeId ?? undefined),
+        apiService.getBubbleMembers(bubbleId),
       ]);
       setPostTypes(typesRes);
       setPosts(postsRes);
+      const myMembership = (memberships as any[]).find?.((m: any) => m.userId === user?.id);
+      setCurrentUserRole(myMembership?.role || null);
     } catch (err) {
       console.error('Failed to load bulletin board:', err);
     } finally {
@@ -411,6 +417,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           />
           <View style={overlayStyles.sheet}>
             <View style={overlayStyles.dragHandle} />
+            <Text style={overlayStyles.sheetTitle}>{overlayEditPostId ? 'Edit Post' : 'New Post'}</Text>
 
             <ScrollView
               style={overlayStyles.scrollContent}
@@ -547,22 +554,34 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         onPress={() => setKebabPostId(null)}
       >
         <View style={[styles.kebabDropdown, { top: menuPosition.y, right: Spacing.lg }]}>
-          <TouchableOpacity style={styles.kebabItem} onPress={handlePinPost}>
-            <Ionicons name="pin-outline" size={20} color={Colors.brand.primary} />
-            <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>
-              {kebabPost?.isPinned ? 'Unpin Post' : 'Pin Post'}
-            </Text>
-          </TouchableOpacity>
-          <View style={styles.kebabSeparatorLight} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleEditPost}>
-            <Ionicons name="create-outline" size={20} color={Colors.brand.primary} />
-            <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Edit Post</Text>
-          </TouchableOpacity>
-          <View style={styles.kebabSeparatorLight} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleDeletePost}>
-            <Ionicons name="trash-outline" size={20} color={Colors.status.error} />
-            <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Delete Post</Text>
-          </TouchableOpacity>
+          {isAdmin && (
+            <>
+              <TouchableOpacity style={styles.kebabItem} onPress={handlePinPost}>
+                <Ionicons name="pin-outline" size={20} color={Colors.brand.primary} />
+                <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>
+                  {kebabPost?.isPinned ? 'Unpin Post' : 'Pin Post'}
+                </Text>
+              </TouchableOpacity>
+              <View style={styles.kebabSeparatorLight} />
+            </>
+          )}
+          {isKebabPostAuthor && (
+            <>
+              <TouchableOpacity style={styles.kebabItem} onPress={handleEditPost}>
+                <Ionicons name="create-outline" size={20} color={Colors.brand.primary} />
+                <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Edit Post</Text>
+              </TouchableOpacity>
+              <View style={styles.kebabSeparatorLight} />
+            </>
+          )}
+          {(isKebabPostAuthor || isAdmin) && (
+            <TouchableOpacity style={styles.kebabItem} onPress={handleDeletePost}>
+              <Ionicons name="trash-outline" size={20} color={Colors.status.error} />
+              <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>
+                {isAdmin && !isKebabPostAuthor ? 'Remove Post' : 'Delete Post'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     </Modal>
@@ -645,14 +664,16 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               <Ionicons name="pin" size={16} color={Colors.brand.primary} />
             )}
           </View>
-          <View ref={(r) => { kebabRefs.current[item.id] = r; }} collapsable={false}>
-            <TouchableOpacity
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              onPress={(e) => { e.stopPropagation(); openKebab(item.id); }}
-            >
-              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
-            </TouchableOpacity>
-          </View>
+          {(item.authorId === user?.id || isAdmin) && (
+            <View ref={(r) => { kebabRefs.current[item.id] = r; }} collapsable={false}>
+              <TouchableOpacity
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                onPress={(e) => { e.stopPropagation(); openKebab(item.id); }}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
         <Text style={styles.postTitle}>{item.title}</Text>
         <Text style={styles.postBody} numberOfLines={3}>{item.body}</Text>
@@ -1023,6 +1044,13 @@ const overlayStyles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 10,
+  },
+  sheetTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
   },
   dragHandle: {
     width: 80,
