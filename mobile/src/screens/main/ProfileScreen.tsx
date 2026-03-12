@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,14 @@ import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { ClockIcon } from '../../components/icons';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
+const CARD_SHADOW = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 12,
+  elevation: 4,
+};
+
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
   const navigation = useNavigation<any>();
@@ -30,31 +38,37 @@ export default function ProfileScreen() {
   const [deleting, setDeleting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [myBubbles, setMyBubbles] = useState<any[]>([]);
   const isSuperAdmin = user?.isSuperAdmin === true;
+  const isBubbleAdmin = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       checkAdminItems();
+      fetchBubbles();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [user])
   );
 
-  const isBubbleAdmin = useRef(false);
+  const fetchBubbles = async () => {
+    try {
+      const bubbles: any[] = await apiService.getMyBubbles() as any[];
+      setMyBubbles(bubbles);
+    } catch (error) {
+      setMyBubbles([]);
+    }
+  };
 
   const checkAdminItems = async () => {
     if (!user) return;
-    
     try {
       const { count } = await apiService.getAdminPendingCount();
       setPendingCount(count);
-
       if (!isSuperAdmin) {
-        const myBubbles: any[] = await apiService.getMyBubbles() as any[];
-        isBubbleAdmin.current = myBubbles.some((b: any) => b.role === 'admin');
+        const bubbles: any[] = await apiService.getMyBubbles() as any[];
+        isBubbleAdmin.current = bubbles.some((b: any) => b.role === 'admin');
       }
-
       setHasAdminItems(count > 0 || isSuperAdmin || isBubbleAdmin.current);
     } catch (error) {
       setHasAdminItems(isSuperAdmin || isBubbleAdmin.current);
@@ -103,19 +117,21 @@ export default function ProfileScreen() {
           'Authorization': `Bearer ${token}`,
         },
       });
-
       if (!response.ok) {
         const data = await response.json();
         Alert.alert('Error', data.error || 'Failed to delete account');
         return;
       }
-
       setShowSuccessModal(true);
     } catch (error) {
       Alert.alert('Error', 'Failed to delete account. Please try again.');
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleNavigateToBubbles = () => {
+    navigation.getParent()?.navigate('MyBubbles', { screen: 'MyBubblesList' });
   };
 
   if (!user) {
@@ -128,10 +144,17 @@ export default function ProfileScreen() {
     );
   }
 
+  const bubbleImages = myBubbles
+    .filter((b: any) => b.coverImage)
+    .slice(0, 3)
+    .map((b: any) => b.coverImage);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity style={styles.editButton} onPress={() => {}} testID="button-edit-profile">
+          <Ionicons name="pencil-outline" size={22} color={Colors.neutral.charcoal} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
           <View>
@@ -145,8 +168,8 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.avatarSection}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.profileCard} testID="card-profile">
           {user.profilePhoto ? (
             <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
           ) : (
@@ -158,22 +181,67 @@ export default function ProfileScreen() {
           )}
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
-          <Text style={{ fontSize: Typography.sizes.xs, color: Colors.neutral.coolMist, marginTop: Spacing.xs }}>Version 2.4.3</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          <View style={styles.interestsContainer}>
-            {user.interests && user.interests.length > 0 ? (
-              user.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
+        <View style={styles.cardsRow}>
+          <View style={styles.halfCard} testID="card-interests">
+            <Text style={styles.cardTitle}>Interests</Text>
+            <View style={styles.interestsContainer}>
+              {user.interests && user.interests.length > 0 ? (
+                user.interests.slice(0, 6).map((interest, index) => (
+                  <View key={index} style={styles.interestTag}>
+                    <Text style={styles.interestText}>{interest}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.emptyText}>No interests selected</Text>
+              )}
+              {user.interests && user.interests.length > 6 && (
+                <View style={styles.interestTag}>
+                  <Text style={styles.interestText}>+{user.interests.length - 6}</Text>
                 </View>
-              ))
-            ) : (
-              <Text style={styles.noInterests}>No interests selected</Text>
-            )}
+              )}
+            </View>
           </View>
+
+          <AnimatedPressable
+            style={styles.halfCard}
+            scaleValue={0.97}
+            onPress={handleNavigateToBubbles}
+            testID="card-bubbles"
+          >
+            <Text style={styles.cardTitle}>Bubbles</Text>
+            {myBubbles.length > 0 ? (
+              <>
+                <View style={styles.bubblePreview}>
+                  {bubbleImages.length > 0 ? (
+                    <View style={styles.stackedImages}>
+                      {bubbleImages.map((img: string, idx: number) => (
+                        <Image
+                          key={idx}
+                          source={{ uri: img }}
+                          style={[
+                            styles.stackedImage,
+                            { marginLeft: idx > 0 ? -10 : 0, zIndex: 3 - idx },
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.bubbleIconCircle}>
+                      <Ionicons name="people" size={24} color={Colors.brand.bubbleBlue} />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.bubbleCount}>{myBubbles.length} {myBubbles.length === 1 ? 'bubble' : 'bubbles'}</Text>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>No bubbles yet</Text>
+            )}
+            <View style={styles.cardChevron}>
+              <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+            </View>
+          </AnimatedPressable>
         </View>
 
         {hasAdminItems && (
@@ -185,7 +253,6 @@ export default function ProfileScreen() {
                 <Text style={styles.adminBadgeText}>{isSuperAdmin ? 'Super Admin' : 'Admin'}</Text>
               </View>
             </View>
-            
             <AnimatedPressable 
               style={styles.menuItem}
               scaleValue={0.97}
@@ -207,7 +274,6 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          
           <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
@@ -215,7 +281,6 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
-
           <AnimatedPressable 
             style={[styles.menuItem, styles.deleteItem]}
             scaleValue={0.97}
@@ -236,7 +301,6 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal</Text>
-
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
@@ -249,7 +313,6 @@ export default function ProfileScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
-
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
@@ -296,12 +359,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
   },
-  headerSpacer: {
+  editButton: {
     width: 40,
     height: 40,
+    borderRadius: Radius.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: Typography.sizes.md,
@@ -337,26 +401,34 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  avatarSection: {
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
+  profileCard: {
     backgroundColor: Colors.background.primary,
+    borderRadius: 20,
     alignItems: 'center',
-    paddingVertical: Spacing.xxxl,
-    marginBottom: Spacing.lg,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+    ...CARD_SHADOW,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.brand.primary,
+    backgroundColor: Colors.brand.midnight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg,
+    marginBottom: 14,
   },
   avatarImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: Spacing.lg,
+    marginBottom: 14,
   },
   avatarText: {
     fontSize: Typography.sizes.hero,
@@ -367,17 +439,95 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xxl,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
   userEmail: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
+  },
+  cardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  halfCard: {
+    flex: 1,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 20,
+    padding: 16,
+    minHeight: 140,
+    ...CARD_SHADOW,
+  },
+  cardTitle: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+    marginBottom: 10,
+  },
+  interestsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  interestTag: {
+    backgroundColor: Colors.background.brandTint,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Radius.md,
+  },
+  interestText: {
+    color: Colors.brand.primary,
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.medium,
+  },
+  emptyText: {
+    color: Colors.text.tertiary,
+    fontSize: Typography.sizes.sm,
+    fontStyle: 'italic',
+  },
+  bubblePreview: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  stackedImages: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stackedImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: Colors.background.primary,
+  },
+  bubbleIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.background.brandTint,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bubbleCount: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  },
+  cardChevron: {
+    position: 'absolute',
+    top: 16,
+    right: 14,
   },
   section: {
     backgroundColor: Colors.background.primary,
-    marginBottom: Spacing.lg,
+    borderRadius: 20,
+    marginBottom: 12,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
+    ...CARD_SHADOW,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -408,27 +558,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold,
     color: Colors.brand.skyWhite,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  interestTag: {
-    backgroundColor: Colors.background.brandTint,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.lg,
-  },
-  interestText: {
-    color: Colors.brand.primary,
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
-  },
-  noInterests: {
-    color: Colors.text.tertiary,
-    fontSize: Typography.sizes.base,
-    fontStyle: 'italic',
   },
   menuItem: {
     flexDirection: 'row',
