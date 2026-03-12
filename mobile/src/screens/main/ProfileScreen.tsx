@@ -16,8 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect, NavigationProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { API_URL } from '../../config/api';
-import SuccessModal from '../../components/SuccessModal';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { ClockIcon } from '../../components/icons';
@@ -35,8 +33,6 @@ export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
   const navigation = useNavigation<any>();
   const [hasAdminItems, setHasAdminItems] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [myBubbles, setMyBubbles] = useState<any[]>([]);
@@ -90,44 +86,6 @@ export default function ProfileScreen() {
         },
       ]
     );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently removed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: () => confirmDeleteAccount()
-        },
-      ]
-    );
-  };
-
-  const confirmDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      const response = await fetch(`${API_URL}/api/auth/delete-account`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        Alert.alert('Error', data.error || 'Failed to delete account');
-        return;
-      }
-      setShowSuccessModal(true);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to delete account. Please try again.');
-    } finally {
-      setDeleting(false);
-    }
   };
 
   const handleNavigateToBubbles = () => {
@@ -274,28 +232,23 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('Settings')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
           <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Log Out</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-          </AnimatedPressable>
-          <AnimatedPressable 
-            style={[styles.menuItem, styles.deleteItem]}
-            scaleValue={0.97}
-            onPress={handleDeleteAccount}
-            disabled={deleting}
-          >
-            <View style={styles.menuItemLeft}>
-              {deleting ? (
-                <ActivityIndicator size="small" color={Colors.status.error} />
-              ) : (
-                <Ionicons name="trash-outline" size={24} color={Colors.status.error} />
-              )}
-              <Text style={styles.deleteText}>Delete Account</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.status.error} />
           </AnimatedPressable>
         </View>
 
@@ -328,15 +281,6 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      <SuccessModal
-        visible={showSuccessModal}
-        title="Account Deleted"
-        subtitle="Your account has been successfully deleted"
-        onClose={async () => {
-          setShowSuccessModal(false);
-          await logout();
-        }}
-      />
     </SafeAreaView>
   );
 }
@@ -538,9 +482,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: Colors.text.primary,
   },
   adminBadge: {
     flexDirection: 'row',
@@ -572,14 +514,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: Typography.sizes.md,
-    color: Colors.text.primary,
-  },
-  deleteItem: {
-    borderBottomWidth: 0,
-  },
-  deleteText: {
-    fontSize: Typography.sizes.md,
-    color: Colors.status.error,
+    color: Colors.text.tertiary,
   },
   badge: {
     backgroundColor: Colors.brand.primary,
