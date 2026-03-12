@@ -186,15 +186,17 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => { if (canCheckBox) setTosAccepted(!tosAccepted); }}
-          activeOpacity={canCheckBox ? 0.7 : 1}
-          data-testid="checkbox-tos"
-        >
-          <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
-            {tosAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-          </View>
+        <View style={styles.checkboxRow}>
+          <TouchableOpacity
+            onPress={() => setTosAccepted(!tosAccepted)}
+            disabled={!canCheckBox}
+            activeOpacity={0.7}
+            testID="checkbox-tos"
+          >
+            <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
+              {tosAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            </View>
+          </TouchableOpacity>
           <Text style={styles.checkboxLabel}>
             {'I agree to the '}
             <Text
@@ -211,7 +213,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
               Privacy Policy
             </Text>
           </Text>
-        </TouchableOpacity>
+        </View>
 
         <BubbleButton
           title="I Agree"
@@ -341,7 +343,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.brand.bubbleBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    marginTop: 5,
     marginRight: 10,
   },
   checkboxChecked: {
