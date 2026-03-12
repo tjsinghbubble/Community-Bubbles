@@ -1,0 +1,25 @@
+Unify Card Shadows Across Four Screens
+What & Why
+Apply the same Airbnb-inspired card styling (soft drop shadow, rounded corners, no hard 1px borders) from the redesigned Profile page to four other screens. This creates a consistent visual language across the app.
+
+Done looks like
+Notifications: Each notification row uses the soft drop shadow and borderRadius: 20, with the 1px border removed. Unread items keep their tinted background.
+Upcoming Events: Event cards use the unified shadow (shadowOpacity: 0.08, shadowRadius: 12) and borderRadius: 20, with the 1px border removed. Layout and content unchanged.
+Bulletin Board: Post cards use the unified shadow and borderRadius: 20, with the 1px border removed. The colored left border strip for post category is kept.
+Bubble Details > Bulletin Board: Announcement cards are laid out two per row (side by side, like the Profile page's Interests/Bubbles cards) with the unified shadow, borderRadius: 20. Each card shows title and truncated body. Tapping a card navigates to PostDetail. "No announcements" shows a single full-width card.
+Out of scope
+Changing card content, data fetching, or navigation behavior
+Updating Explore, My Bubbles, or other screens
+Changing the EventCardTokens design-tokens file (shadow overrides are done in the screen style)
+Tasks
+Add shared CARD_SHADOW constant — Extract the shadow config used in ProfileScreen into a shared location (or duplicate per screen) so all four screens use identical values.
+Update Notifications cards — Replace borderWidth: 1 / borderColor on notifRow with the unified shadow, increase borderRadius to 20.
+Update Upcoming Events cards — Replace the current shadow and remove borderWidth/borderColor on eventCard, increase borderRadius to 20.
+Update Bulletin Board post cards — Replace borderWidth: 1 / borderColor on postCard with the unified shadow, increase borderRadius to 20, keep the category left-border strip.
+Update Bubble Details Bulletin section — Change the announcements layout from a vertical list to a two-per-row horizontal grid (like the Profile's cardsRow), apply unified shadow and borderRadius: 20 to each card.
+Relevant files
+mobile/src/screens/main/ProfileScreen.tsx:27-32
+mobile/src/screens/main/NotificationsScreen.tsx:325-336
+mobile/src/screens/main/UpcomingScreen.tsx:366-379
+mobile/src/screens/main/BulletinBoardScreen.tsx:862-868
+mobile/src/screens/main/BubbleDetailsScreen.tsx:644-671,1210-1232

@@ -665,7 +665,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ))}
         </View>
       ) : (
-        <View style={styles.bulletinCard}>
+        <View style={[styles.bulletinCard, { width: '100%' }]}>
           <Text style={styles.bulletinBody}>No announcements yet.</Text>
         </View>
       )}
@@ -1209,11 +1209,23 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.brand.primary,
   },
+  bulletinGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+  },
   bulletinCard: {
     backgroundColor: Colors.background.surface,
-    borderRadius: Radius.md,
+    borderRadius: 20,
     padding: Spacing.lg,
     position: 'relative',
+    width: '48%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   pinIcon: {
     position: 'absolute',
