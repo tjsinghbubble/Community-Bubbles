@@ -4,6 +4,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -422,11 +423,8 @@ export default function SignupScreen({ navigation }: Props) {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowDatePicker(false)}
-        >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.wheelBackdrop} onPress={() => setShowDatePicker(false)} />
           <View style={styles.wheelModalContent}>
             <View style={styles.wheelHeader}>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.wheelHeaderButton}>
@@ -469,7 +467,7 @@ export default function SignupScreen({ navigation }: Props) {
               )}
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -665,6 +663,9 @@ const styles = StyleSheet.create({
   modalOptionSelected: {
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
+  },
+  wheelBackdrop: {
+    flex: 1,
   },
   wheelModalContent: {
     backgroundColor: '#FAFAFA',
