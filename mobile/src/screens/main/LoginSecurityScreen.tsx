@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -24,16 +24,9 @@ const CARD_SHADOW = {
   elevation: 4,
 };
 
-const DEACTIVATE_REASONS = [
-  'I no longer use Bubble.',
-  "I can't join Bubbles and Events anymore.",
-  'Other',
-];
-
 export default function LoginSecurityScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
-  const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
   const handleEditPassword = () => {
     Alert.alert('Coming Soon', 'Password change will be available in a future update.');
@@ -45,14 +38,6 @@ export default function LoginSecurityScreen() {
 
   const handleDeleteData = () => {
     Alert.alert('Coming Soon', 'Delete my data will be available in a future update.');
-  };
-
-  const handleDeactivate = () => {
-    if (!selectedReason) {
-      Alert.alert('Select a reason', 'Please select why you want to deactivate your account.');
-      return;
-    }
-    navigation.navigate('DeactivateConfirm', { reason: selectedReason });
   };
 
   const passwordLastUpdated = user?.updatedAt
@@ -115,32 +100,20 @@ export default function LoginSecurityScreen() {
           </AnimatedPressable>
         </View>
 
-        <View style={styles.deactivateSection}>
-          <Text style={styles.deactivateTitle}>Deactivate your account</Text>
-
-          <Text style={styles.reasonLabel}>Why are you choosing this action?</Text>
-          {DEACTIVATE_REASONS.map((reason) => (
-            <TouchableOpacity
-              key={reason}
-              style={styles.radioRow}
-              onPress={() => setSelectedReason(reason)}
-              testID={`radio-${reason.toLowerCase().replace(/[^a-z]/g, '-')}`}
-            >
-              <View style={[styles.radioOuter, selectedReason === reason && styles.radioOuterSelected]}>
-                {selectedReason === reason && <View style={styles.radioInner} />}
-              </View>
-              <Text style={styles.radioText}>{reason}</Text>
-            </TouchableOpacity>
-          ))}
-
-          <TouchableOpacity
-            style={[styles.deactivateButton, !selectedReason && styles.deactivateButtonDisabled]}
-            onPress={handleDeactivate}
-            disabled={!selectedReason}
-            testID="button-deactivate"
+        <Text style={styles.sectionHeader}>Deactivate</Text>
+        <View style={styles.section}>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('DeactivateReason')}
+            testID="button-deactivate-account"
           >
-            <Text style={styles.deactivateButtonText}>Deactivate</Text>
-          </TouchableOpacity>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="close-circle-outline" size={24} color={Colors.status.error} />
+              <Text style={styles.deactivateText}>Deactivate your account</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.status.error} />
+          </AnimatedPressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -236,65 +209,8 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
   },
-  deactivateSection: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: '#D9D9D9',
-  },
-  deactivateTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
-    marginBottom: Spacing.lg,
-  },
-  reasonLabel: {
+  deactivateText: {
     fontSize: Typography.sizes.base,
-    color: Colors.neutral.charcoal,
-    marginBottom: Spacing.md,
-  },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    gap: Spacing.md,
-  },
-  radioOuter: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.neutral.coolMist,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioOuterSelected: {
-    borderColor: Colors.brand.bubbleBlue,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.brand.bubbleBlue,
-  },
-  radioText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
-    flex: 1,
-  },
-  deactivateButton: {
-    marginTop: Spacing.xl,
-    backgroundColor: Colors.status.error,
-    borderRadius: 100,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  deactivateButtonDisabled: {
-    opacity: 0.5,
-  },
-  deactivateButtonText: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: '#FFFFFF',
+    color: Colors.status.error,
   },
 });
