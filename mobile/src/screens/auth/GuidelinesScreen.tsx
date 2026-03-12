@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -67,28 +67,7 @@ const WARNING = {
 
 export default function GuidelinesScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const [tosViewed, setTosViewed] = useState(false);
-  const [privacyViewed, setPrivacyViewed] = useState(false);
-  const [tosAccepted, setTosAccepted] = useState(false);
-  const pendingTosView = useRef(false);
-  const pendingPrivacyView = useRef(false);
   const { signup } = useAuth();
-
-  const canCheckBox = tosViewed && privacyViewed;
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (pendingTosView.current) {
-        setTosViewed(true);
-        pendingTosView.current = false;
-      }
-      if (pendingPrivacyView.current) {
-        setPrivacyViewed(true);
-        pendingPrivacyView.current = false;
-      }
-    });
-    return unsubscribe;
-  }, [navigation]);
 
   const handleAgree = async () => {
     setIsLoading(true);
@@ -202,39 +181,10 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.checkboxRow}>
-          <TouchableOpacity
-            onPress={() => setTosAccepted(!tosAccepted)}
-            disabled={!canCheckBox}
-            activeOpacity={0.7}
-            testID="checkbox-tos"
-          >
-            <View style={[styles.checkbox, tosAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
-              {tosAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-            </View>
-          </TouchableOpacity>
-          <Text style={styles.checkboxLabel}>
-            {'I agree to the '}
-            <Text
-              style={[styles.checkboxLink, tosViewed && styles.checkboxLinkViewed]}
-              onPress={() => { pendingTosView.current = true; navigation.navigate('TermsOfService'); }}
-            >
-              Terms of Service
-            </Text>
-            {' and acknowledge the '}
-            <Text
-              style={[styles.checkboxLink, privacyViewed && styles.checkboxLinkViewed]}
-              onPress={() => { pendingPrivacyView.current = true; navigation.navigate('PrivacyPolicy'); }}
-            >
-              Privacy Policy
-            </Text>
-          </Text>
-        </View>
-
         <BubbleButton
           title="I Agree"
           onPress={handleAgree}
-          disabled={isLoading || !tosAccepted}
+          disabled={isLoading}
           loading={isLoading}
           testID="button-agree"
         />
@@ -345,56 +295,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 16,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: Colors.brand.bubbleBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 5,
-    marginRight: 10,
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.brand.bubbleBlue,
-  },
-  checkboxDisabled: {
-    borderColor: Colors.neutral.coolMist,
-    opacity: 0.5,
-  },
-  checkboxLabel: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.text.primary,
-    lineHeight: 18,
-  },
-  checkboxLink: {
-    color: Colors.brand.bubbleBlue,
-    textDecorationLine: 'underline',
-  },
-  checkboxLinkViewed: {
-    color: '#2B8AD0',
-  },
-  button: {
-    height: 56,
-    borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 80,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E1F26',
   },
 });

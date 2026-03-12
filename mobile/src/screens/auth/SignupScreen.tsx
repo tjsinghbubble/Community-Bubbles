@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -66,12 +66,9 @@ export default function SignupScreen({ navigation }: Props) {
   }, [navigation]);
 
   const today = new Date();
-  const [pickerDay, setPickerDay] = useState(15);
-  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
-  const [pickerYear, setPickerYear] = useState(today.getFullYear() - 20);
-  const dayScrollRef = useRef<ScrollView>(null);
-  const monthScrollRef = useRef<ScrollView>(null);
-  const yearScrollRef = useRef<ScrollView>(null);
+  const [calMonth, setCalMonth] = useState(today.getMonth());
+  const [calYear, setCalYear] = useState(today.getFullYear() - 20);
+  const [selectedDate, setSelectedDate] = useState<{ day: number; month: number; year: number } | null>(null);
 
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
 
@@ -130,48 +127,43 @@ export default function SignupScreen({ navigation }: Props) {
     }
   };
 
-  const PICKER_ITEM_HEIGHT = 36;
-  const PICKER_VISIBLE_COUNT = 5;
-  const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
-  const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
   const YEAR_MIN = 1910;
   const YEAR_MAX = today.getFullYear() - 18;
+  const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
-  const daysList = Array.from({ length: 31 }, (_, i) => i + 1);
-  const yearsList = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
+  const getCalendarDays = (month: number, year: number) => {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (number | null)[] = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return cells;
+  };
 
-  const clampDay = useCallback((day: number, month: number, year: number) => {
-    const maxDay = new Date(year, month + 1, 0).getDate();
-    return Math.min(day, maxDay);
-  }, []);
-
-  const scrollToValue = useCallback((ref: React.RefObject<ScrollView>, index: number) => {
-    setTimeout(() => {
-      ref.current?.scrollTo({ y: index * PICKER_ITEM_HEIGHT, animated: false });
-    }, 50);
-  }, []);
-
-  useEffect(() => {
-    if (showDatePicker) {
-      scrollToValue(dayScrollRef as React.RefObject<ScrollView>, pickerDay - 1);
-      scrollToValue(monthScrollRef as React.RefObject<ScrollView>, pickerMonth);
-      scrollToValue(yearScrollRef as React.RefObject<ScrollView>, pickerYear - YEAR_MIN);
+  const handlePrevMonth = () => {
+    if (calMonth === 0) {
+      if (calYear > YEAR_MIN) { setCalMonth(11); setCalYear(calYear - 1); }
+    } else {
+      setCalMonth(calMonth - 1);
     }
-  }, [showDatePicker]);
+  };
 
-  const handlePickerScroll = useCallback((
-    e: any,
-    setter: (v: number) => void,
-    offset: number,
-  ) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const idx = Math.round(y / PICKER_ITEM_HEIGHT);
-    setter(idx + offset);
-  }, []);
+  const handleNextMonth = () => {
+    if (calMonth === 11) {
+      if (calYear < YEAR_MAX) { setCalMonth(0); setCalYear(calYear + 1); }
+    } else {
+      setCalMonth(calMonth + 1);
+    }
+  };
+
+  const handleSelectDay = (day: number) => {
+    setSelectedDate({ day, month: calMonth, year: calYear });
+  };
 
   const handleConfirmDate = () => {
-    const day = clampDay(pickerDay, pickerMonth, pickerYear);
-    const dob = new Date(pickerYear, pickerMonth, day);
+    if (!selectedDate) return;
+    const { day, month, year } = selectedDate;
+    const dob = new Date(year, month, day);
     const todayDate = new Date();
 
     if (dob > todayDate) {
@@ -190,53 +182,13 @@ export default function SignupScreen({ navigation }: Props) {
       return;
     }
 
-    const mm = String(pickerMonth + 1).padStart(2, '0');
+    const mm = String(month + 1).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
-    setDateOfBirth(`${mm}/${dd}/${pickerYear}`);
+    setDateOfBirth(`${mm}/${dd}/${year}`);
     setShowDatePicker(false);
   };
 
-  const renderWheelColumn = (
-    data: (string | number)[],
-    selectedIndex: number,
-    scrollRef: React.RefObject<ScrollView>,
-    onSelect: (e: any) => void,
-    flex: number,
-    align: 'flex-start' | 'center' | 'flex-end' = 'center',
-  ) => (
-    <View style={[styles.wheelColumn, { flex }]}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={PICKER_ITEM_HEIGHT}
-        decelerationRate="fast"
-        nestedScrollEnabled
-        onMomentumScrollEnd={onSelect}
-        onScrollEndDrag={onSelect}
-        contentContainerStyle={{ paddingVertical: PICKER_PADDING }}
-        style={{ height: PICKER_HEIGHT }}
-      >
-        {data.map((item, idx) => {
-          const isSelected = idx === selectedIndex;
-          const distance = Math.abs(idx - selectedIndex);
-          const opacity = isSelected ? 1 : distance === 1 ? 0.5 : 0.25;
-          return (
-            <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
-              <Text style={{
-                fontSize: isSelected ? 16 : 14,
-                fontWeight: isSelected ? '600' : '400',
-                color: Colors.brand.midnight,
-                opacity,
-                fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-              }}>
-                {item}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
+  const calendarDays = getCalendarDays(calMonth, calYear);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -439,52 +391,62 @@ export default function SignupScreen({ navigation }: Props) {
       <Modal
         visible={showDatePicker}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.wheelOverlay}>
-          <Pressable style={styles.wheelBackdrop} onPress={() => setShowDatePicker(false)} />
-          <View style={styles.wheelModalContent}>
-            <View style={styles.wheelHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.wheelHeaderButton}>
-                <Text style={styles.wheelCancelText}>Cancel</Text>
+        <View style={styles.calOverlay}>
+          <Pressable style={styles.calBackdrop} onPress={() => setShowDatePicker(false)} />
+          <View style={styles.calModal}>
+            <View style={styles.calHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calBackBtn}>
+                <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
-              <Text style={styles.wheelTitle}>Date of Birth</Text>
-              <TouchableOpacity onPress={handleConfirmDate} style={styles.wheelHeaderButton}>
-                <Text style={styles.wheelDoneText}>Done</Text>
+              <Text style={styles.calTitle}>Date of Birth</Text>
+              <View style={{ width: 38 }} />
+            </View>
+
+            <View style={styles.calNav}>
+              <TouchableOpacity onPress={handlePrevMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="chevron-back" size={22} color={Colors.brand.midnight} />
+              </TouchableOpacity>
+              <Text style={styles.calMonthYear}>{MONTH_NAMES[calMonth]} {calYear}</Text>
+              <TouchableOpacity onPress={handleNextMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="chevron-forward" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.wheelContainer}>
-              <View style={[styles.wheelHighlight, { top: PICKER_PADDING + 3 }]} pointerEvents="none" />
-
-              {renderWheelColumn(
-                daysList,
-                pickerDay - 1,
-                dayScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, setPickerDay, 1),
-                1,
-                'flex-start',
-              )}
-
-              {renderWheelColumn(
-                MONTH_NAMES,
-                pickerMonth,
-                monthScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, setPickerMonth, 0),
-                2,
-                'center',
-              )}
-
-              {renderWheelColumn(
-                yearsList,
-                pickerYear - YEAR_MIN,
-                yearScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, (v: number) => setPickerYear(v + YEAR_MIN), 0),
-                1.2,
-                'flex-end',
-              )}
+            <View style={styles.calDayHeaders}>
+              {DAY_LABELS.map((d) => (
+                <Text key={d} style={styles.calDayHeaderText}>{d}</Text>
+              ))}
             </View>
+
+            <View style={styles.calGrid}>
+              {calendarDays.map((day, idx) => {
+                if (day === null) {
+                  return <View key={`empty-${idx}`} style={styles.calCell} />;
+                }
+                const isSelected = selectedDate && selectedDate.day === day && selectedDate.month === calMonth && selectedDate.year === calYear;
+                return (
+                  <TouchableOpacity
+                    key={`day-${day}`}
+                    style={[styles.calCell, isSelected && styles.calCellSelected]}
+                    onPress={() => handleSelectDay(day)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.calDayText, isSelected && styles.calDayTextSelected]}>{day}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.calConfirmBtn, !selectedDate && styles.calConfirmBtnDisabled]}
+              onPress={handleConfirmDate}
+              disabled={!selectedDate}
+            >
+              <Text style={styles.calConfirmText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -690,76 +652,104 @@ const styles = StyleSheet.create({
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
-  wheelOverlay: {
+  calOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  wheelBackdrop: {
+  calBackdrop: {
     ...StyleSheet.absoluteFillObject,
   },
-  wheelModalContent: {
+  calModal: {
     backgroundColor: '#FAFAFA',
-    borderRadius: 20,
-    marginHorizontal: 24,
+    borderRadius: 24,
+    marginHorizontal: 20,
     alignSelf: 'stretch',
     paddingBottom: 20,
   },
-  wheelHeader: {
+  calHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
-  wheelHeaderButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 4,
+  calBackBtn: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  wheelCancelText: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
-    fontWeight: '500',
-  },
-  wheelTitle: {
+  calTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: Colors.brand.midnight,
   },
-  wheelDoneText: {
-    fontSize: 14,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
+  calNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
-  wheelContainer: {
+  calMonthYear: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.brand.midnight,
+  },
+  calDayHeaders: {
     flexDirection: 'row',
     paddingHorizontal: 12,
-    paddingTop: 8,
+    marginBottom: 4,
   },
-  wheelColumn: {
-    overflow: 'hidden',
-    paddingHorizontal: 2,
+  calDayHeaderText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.neutral.coolMist,
   },
-  wheelItem: {
-    height: 36,
+  calGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+  },
+  calCell: {
+    width: '14.28%',
+    aspectRatio: 1,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignContent: 'center',
-    paddingHorizontal: 8,
   },
-  wheelHighlight: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    height: 36,
-    backgroundColor: Colors.brand.bubbleBlue + '20',
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
+  calCellSelected: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 100,
+  },
+  calDayText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.brand.midnight,
+  },
+  calDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  calConfirmBtn: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 100,
+    paddingVertical: 14,
+    marginHorizontal: 20,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  calConfirmBtnDisabled: {
+    backgroundColor: Colors.neutral.coolMist,
+  },
+  calConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
