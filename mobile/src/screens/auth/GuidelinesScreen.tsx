@@ -67,7 +67,12 @@ const WARNING = {
 
 export default function GuidelinesScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(false);
+  const [tosViewed, setTosViewed] = useState(false);
+  const [privacyViewed, setPrivacyViewed] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
   const { signup } = useAuth();
+
+  const canCheckBox = tosViewed && privacyViewed;
 
   const handleAgree = async () => {
     setIsLoading(true);
