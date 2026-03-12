@@ -210,8 +210,6 @@ export default function SignupScreen({ navigation }: Props) {
                 color: Colors.brand.midnight,
                 opacity,
                 fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-                lineHeight: 36,
-                textAlignVertical: 'center',
               }}>
                 {item}
               </Text>
@@ -726,17 +724,15 @@ const styles = StyleSheet.create({
   },
   wheelHighlight: {
     position: 'absolute',
-    left: 8,
-    right: 8,
+    left: 16,
+    right: 16,
     height: 36,
-    backgroundColor: Colors.brand.bubbleBlue + '30',
+    backgroundColor: Colors.brand.bubbleBlue + '20',
     borderRadius: 18,
-    shadowColor: Colors.brand.bubbleBlue,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 6,
-    borderWidth: 0.5,
-    borderColor: Colors.brand.bubbleBlue + '40',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
