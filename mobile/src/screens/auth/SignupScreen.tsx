@@ -199,16 +199,21 @@ export default function SignupScreen({ navigation }: Props) {
         style={{ height: PICKER_HEIGHT }}
       >
         {data.map((item, idx) => {
+          const isSelected = idx === selectedIndex;
           const distance = Math.abs(idx - selectedIndex);
-          const opacity = distance === 0 ? 1 : distance === 1 ? 0.5 : 0.25;
-          const scale = distance === 0 ? 14 : distance === 1 ? 12 : 11;
-          const weight = distance === 0 ? '600' as const : '400' as const;
+          const opacity = isSelected ? 1 : distance === 1 ? 0.5 : 0.25;
+          const scale = isSelected ? 16 : distance === 1 ? 13 : 12;
+          const weight = isSelected ? '600' as const : '400' as const;
           return (
-            <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
+            <View key={idx} style={[
+              styles.wheelItem,
+              { alignItems: align },
+              isSelected && styles.wheelItemSelected,
+            ]}>
               <Text style={{
                 fontSize: scale,
                 fontWeight: weight,
-                color: Colors.brand.midnight,
+                color: isSelected ? Colors.brand.midnight : Colors.brand.midnight,
                 opacity,
                 fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
               }}>
@@ -423,7 +428,7 @@ export default function SignupScreen({ navigation }: Props) {
         animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.wheelOverlay}>
           <Pressable style={styles.wheelBackdrop} onPress={() => setShowDatePicker(false)} />
           <View style={styles.wheelModalContent}>
             <View style={styles.wheelHeader}>
@@ -664,14 +669,20 @@ const styles = StyleSheet.create({
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
-  wheelBackdrop: {
+  wheelOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  wheelBackdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
   wheelModalContent: {
     backgroundColor: '#FAFAFA',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 28,
+    borderRadius: 20,
+    width: '70%',
+    paddingBottom: 20,
   },
   wheelHeader: {
     flexDirection: 'row',
@@ -703,7 +714,7 @@ const styles = StyleSheet.create({
   },
   wheelContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingTop: 8,
   },
   wheelColumn: {
@@ -713,12 +724,17 @@ const styles = StyleSheet.create({
   wheelItem: {
     height: 34,
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
+    marginHorizontal: 2,
+  },
+  wheelItemSelected: {
+    backgroundColor: Colors.brand.bubbleBlue + '15',
+    borderRadius: 17,
   },
   wheelHighlight: {
     position: 'absolute',
-    left: 24,
-    right: 24,
+    left: 12,
+    right: 12,
     height: 34,
     borderTopWidth: 1,
     borderBottomWidth: 1,
