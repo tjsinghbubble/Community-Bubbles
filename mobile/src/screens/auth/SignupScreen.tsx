@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Modal,
   Alert,
   Image,
+  FlatList,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -58,7 +59,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showYearPicker, setShowYearPicker] = useState(false);
-  const [yearRangeStart, setYearRangeStart] = useState(today.getFullYear() - 20 - 8);
+  const yearListRef = useRef<FlatList<number>>(null);
 
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
 
@@ -164,6 +165,20 @@ export default function SignupScreen({ navigation }: Props) {
     setDateOfBirth(`${mm}/${dd}/${calYear}`);
     setTimeout(() => setShowDatePicker(false), 300);
   };
+
+  const YEAR_MIN = 1920;
+  const YEAR_MAX = today.getFullYear();
+  const YEAR_LIST = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
+  const YEAR_ITEM_WIDTH = 72;
+
+  useEffect(() => {
+    if (showYearPicker && yearListRef.current) {
+      const idx = calYear - YEAR_MIN;
+      setTimeout(() => {
+        yearListRef.current?.scrollToIndex({ index: Math.max(0, idx - 2), animated: false });
+      }, 50);
+    }
+  }, [showYearPicker]);
 
   const calendarDays = getCalendarDays(calYear, calMonth);
   const isSelectedDay = (day: number) => {
@@ -392,7 +407,7 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.calendarNav}>
-              <TouchableOpacity onPress={() => { setYearRangeStart(calYear - 8); setShowYearPicker(!showYearPicker); }} style={styles.calendarMonthButton}>
+              <TouchableOpacity onPress={() => setShowYearPicker(!showYearPicker)} style={styles.calendarMonthButton}>
                 <Text style={styles.calendarMonthLabel}>{MONTH_NAMES[calMonth]} {calYear}</Text>
                 <Ionicons name={showYearPicker ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.brand.bubbleBlue} style={{ marginLeft: 4 }} />
               </TouchableOpacity>
@@ -410,35 +425,53 @@ export default function SignupScreen({ navigation }: Props) {
 
             {showYearPicker ? (
               <View>
-                <View style={styles.yearNavRow}>
-                  <TouchableOpacity onPress={() => setYearRangeStart(yearRangeStart - 16)} style={styles.calendarArrowButton}>
-                    <Ionicons name="chevron-back" size={20} color={Colors.brand.bubbleBlue} />
-                  </TouchableOpacity>
-                  <Text style={styles.yearRangeLabel}>{yearRangeStart} – {yearRangeStart + 15}</Text>
-                  <TouchableOpacity onPress={() => setYearRangeStart(yearRangeStart + 16)} style={styles.calendarArrowButton}>
-                    <Ionicons name="chevron-forward" size={20} color={Colors.brand.bubbleBlue} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.yearGrid}>
-                  {Array.from({ length: 16 }, (_, i) => yearRangeStart + i).map((yr) => (
+                <Text style={styles.pickerSectionLabel}>Year</Text>
+                <FlatList
+                  ref={yearListRef}
+                  data={YEAR_LIST}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item.toString()}
+                  getItemLayout={(_, index) => ({ length: YEAR_ITEM_WIDTH, offset: YEAR_ITEM_WIDTH * index, index })}
+                  contentContainerStyle={{ paddingHorizontal: 8 }}
+                  style={{ marginBottom: 20 }}
+                  renderItem={({ item: yr }) => (
                     <TouchableOpacity
-                      key={yr}
                       style={[
-                        styles.yearCell,
-                        yr === calYear && styles.yearCellSelected,
-                        yr === today.getFullYear() && yr !== calYear && styles.yearCellToday,
+                        styles.yearDialItem,
+                        yr === calYear && styles.yearDialItemSelected,
+                      ]}
+                      onPress={() => setCalYear(yr)}
+                    >
+                      <Text style={[
+                        styles.yearDialText,
+                        yr === calYear && styles.yearDialTextSelected,
+                      ]}>
+                        {yr}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+
+                <Text style={styles.pickerSectionLabel}>Month</Text>
+                <View style={styles.monthGrid}>
+                  {MONTH_NAMES.map((month, idx) => (
+                    <TouchableOpacity
+                      key={month}
+                      style={[
+                        styles.monthCell,
+                        idx === calMonth && styles.monthCellSelected,
                       ]}
                       onPress={() => {
-                        setCalYear(yr);
+                        setCalMonth(idx);
                         setShowYearPicker(false);
                       }}
                     >
                       <Text style={[
-                        styles.yearCellText,
-                        yr === calYear && styles.yearCellTextSelected,
-                        yr === today.getFullYear() && yr !== calYear && styles.yearCellTextToday,
+                        styles.monthCellText,
+                        idx === calMonth && styles.monthCellTextSelected,
                       ]}>
-                        {yr}
+                        {month.slice(0, 3)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -716,49 +749,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  yearNavRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  yearRangeLabel: {
-    fontSize: 15,
+  pickerSectionLabel: {
+    fontSize: 13,
     fontWeight: '600',
+    color: Colors.neutral.coolMist,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  yearDialItem: {
+    width: 72,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 4,
+  },
+  yearDialItemSelected: {
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  yearDialText: {
+    fontSize: 16,
     color: Colors.brand.midnight,
   },
-  yearGrid: {
+  yearDialTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  monthGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  yearCell: {
-    width: '25%',
-    alignItems: 'center',
+  monthCell: {
+    width: '24%',
     paddingVertical: 12,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  yearCellSelected: {
+  monthCellSelected: {
     backgroundColor: Colors.brand.bubbleBlue,
-    borderRadius: 20,
-    marginHorizontal: 4,
   },
-  yearCellToday: {
-    backgroundColor: Colors.brand.bubbleBlue + '20',
-    borderRadius: 20,
-    marginHorizontal: 4,
-  },
-  yearCellText: {
+  monthCellText: {
     fontSize: 15,
     color: Colors.brand.midnight,
+    fontWeight: '500',
   },
-  yearCellTextSelected: {
+  monthCellTextSelected: {
     color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  yearCellTextToday: {
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   calendarGrid: {
     flexDirection: 'row',
