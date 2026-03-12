@@ -197,7 +197,7 @@ export default function SignupScreen({ navigation }: Props) {
         {data.map((item, idx) => {
           const distance = Math.abs(idx - selectedIndex);
           const opacity = distance === 0 ? 1 : distance === 1 ? 0.4 : 0.2;
-          const scale = distance === 0 ? 18 : distance === 1 ? 15 : 14;
+          const scale = distance === 0 ? 22 : distance === 1 ? 18 : 16;
           const weight = distance === 0 ? '600' as const : '400' as const;
           return (
             <View key={idx} style={styles.wheelItem}>
@@ -206,6 +206,7 @@ export default function SignupScreen({ navigation }: Props) {
                 fontWeight: weight,
                 color: Colors.brand.midnight,
                 opacity,
+                fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
               }}>
                 {item}
               </Text>
@@ -695,12 +696,13 @@ const styles = StyleSheet.create({
   },
   wheelContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingTop: 8,
   },
   wheelColumn: {
     alignItems: 'center',
     overflow: 'hidden',
+    marginHorizontal: -3,
   },
   wheelItem: {
     height: 44,
