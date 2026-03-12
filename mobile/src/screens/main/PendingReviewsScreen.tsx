@@ -322,7 +322,7 @@ export default function PendingReviewsScreen() {
           title="Reject"
           onPress={() => handleRejectBubble(bubble.id)}
           variant="destructive"
-          style={[styles.actionButton, { flex: 1, height: 44 }]}
+          style={[styles.actionButton, { flex: 1 }]}
           loading={actionLoading === bubble.id}
           icon={<Ionicons name="close" size={18} color={Colors.state.error} />}
           testID={`button-reject-bubble-${bubble.id}`}
@@ -331,7 +331,7 @@ export default function PendingReviewsScreen() {
         <BubbleButton
           title="Approve"
           onPress={() => handleApproveBubble(bubble.id)}
-          style={[styles.actionButton, { flex: 1, height: 44 }]}
+          style={[styles.actionButton, { flex: 1 }]}
           loading={actionLoading === bubble.id}
           icon={<Ionicons name="checkmark" size={18} color={'#FFFFFF'} />}
           testID={`button-approve-bubble-${bubble.id}`}
@@ -361,7 +361,7 @@ export default function PendingReviewsScreen() {
           title="Reject"
           onPress={() => handleRejectEvent(event.id)}
           variant="destructive"
-          style={[styles.actionButton, { flex: 1, height: 44 }]}
+          style={[styles.actionButton, { flex: 1 }]}
           loading={actionLoading === event.id}
           icon={<Ionicons name="close" size={18} color={Colors.state.error} />}
           testID={`button-reject-event-${event.id}`}
@@ -370,7 +370,7 @@ export default function PendingReviewsScreen() {
         <BubbleButton
           title="Approve"
           onPress={() => handleApproveEvent(event.id)}
-          style={[styles.actionButton, { flex: 1, height: 44 }]}
+          style={[styles.actionButton, { flex: 1 }]}
           loading={actionLoading === event.id}
           icon={<Ionicons name="checkmark" size={18} color={'#FFFFFF'} />}
           testID={`button-approve-event-${event.id}`}
@@ -443,7 +443,7 @@ export default function PendingReviewsScreen() {
             title="Dismiss"
             onPress={() => handleDismissReport(report.id)}
             variant="ghost"
-            style={[styles.actionButton, { flex: 1, height: 44 }]}
+            style={[styles.actionButton, { flex: 1 }]}
             loading={actionLoading === report.id}
             icon={<Ionicons name="close-circle-outline" size={18} color={Colors.neutral.coolMist} />}
             testID={`button-dismiss-report-${report.id}`}
@@ -453,7 +453,7 @@ export default function PendingReviewsScreen() {
             title="Resolve"
             onPress={() => handleResolveReport(report.id)}
             variant="outline"
-            style={[styles.actionButton, { flex: 1, height: 44, borderColor: "#34C759" }]}
+            style={[styles.actionButton, { flex: 1, borderColor: "#34C759" }]}
             textStyle={{ color: "#34C759" }}
             loading={actionLoading === report.id}
             icon={<Ionicons name="checkmark-circle-outline" size={18} color="#34C759" />}
