@@ -37,6 +37,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from '../../components/icons';
 import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
+import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -552,11 +553,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photo library to add images.');
-      return;
-    }
+    const granted = await requestPhotoLibraryAccess();
+    if (!granted) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],

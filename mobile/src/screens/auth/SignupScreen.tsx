@@ -23,6 +23,7 @@ import { API_URL } from '../../config/api';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
+import { requestPhotoLibraryAccess } from '../../utils/permissions';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -75,11 +76,8 @@ export default function SignupScreen({ navigation }: Props) {
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
 
   const handlePickPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your photo library to add a profile picture.');
-      return;
-    }
+    const granted = await requestPhotoLibraryAccess();
+    if (!granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,

@@ -45,6 +45,7 @@ The project comprises a monorepo structure with distinct frontend (web and mobil
 - **Design Decisions**: Separate package, connects to the same backend API, features a multi-step "Create Bubble" wizard and robust authentication flow. Uses `react-native-safe-area-context` for UI consistency.
 - **BubbleButton**: Reusable button component at `mobile/src/components/BubbleButton.tsx`. Uses SVG backgrounds from `assets/icons/Buttons/` via `react-native-svg`. Variants: `primary` (gradient blue), `outline` (blue border), `destructive` (red border), `ghost` (muted border). Supports `disabled`, `loading`, `icon`, `testID` props. Used across all auth and main screens.
 - **Design Tokens**: SVG-derived dimensions and colors are exported from `mobile/src/styles/design-tokens.ts` and imported by screens/components. Human-readable spec mapping lives in `mobile/src/assets/DESIGN_SPECS.md`. Both files are Git-tracked and portable.
+- **Permissions Utility**: Centralized photo/camera permission handling in `mobile/src/utils/permissions.ts`. Exports `requestPhotoLibraryAccess()` and `requestCameraAccess()`. Shows a friendly pre-prompt before the OS dialog, tracks "hasAsked" state in AsyncStorage, and guides users to Settings if previously denied. All photo upload workflows use this utility instead of calling `ImagePicker.requestMediaLibraryPermissionsAsync()` directly.
 
 ### Feature Specifications
 

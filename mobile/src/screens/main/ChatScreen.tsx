@@ -28,6 +28,7 @@ import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { PeopleIcon } from '../../components/icons';
+import { requestPhotoLibraryAccess, requestCameraAccess } from '../../utils/permissions';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -368,11 +369,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const pickImageFromGallery = async () => {
     setShowAttachmentModal(false);
     
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('Media library permission denied');
-      return;
-    }
+    const granted = await requestPhotoLibraryAccess();
+    if (!granted) return;
     
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -388,11 +386,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const takePhoto = async () => {
     setShowAttachmentModal(false);
     
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('Camera permission denied');
-      return;
-    }
+    const granted = await requestCameraAccess();
+    if (!granted) return;
 
     const result = await ImagePicker.launchCameraAsync({
       quality: 0.8,

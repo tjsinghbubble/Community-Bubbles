@@ -14,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/AuthContext';
+import { requestPhotoLibraryAccess, requestCameraAccess } from '../utils/permissions';
 
 interface MultiImagePickerProps {
   images: string[];
@@ -61,11 +62,8 @@ export default function MultiImagePicker({
       return;
     }
 
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow access to your camera');
-      return;
-    }
+    const granted = await requestCameraAccess();
+    if (!granted) return;
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
@@ -85,11 +83,8 @@ export default function MultiImagePicker({
       return;
     }
 
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
-      return;
-    }
+    const granted = await requestPhotoLibraryAccess();
+    if (!granted) return;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
