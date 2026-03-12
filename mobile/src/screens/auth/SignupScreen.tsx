@@ -116,8 +116,8 @@ export default function SignupScreen({ navigation }: Props) {
   const PICKER_VISIBLE_COUNT = 5;
   const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
   const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
-  const YEAR_MIN = 1920;
-  const YEAR_MAX = today.getFullYear();
+  const YEAR_MIN = 1910;
+  const YEAR_MAX = today.getFullYear() - 18;
 
   const daysList = Array.from({ length: 31 }, (_, i) => i + 1);
   const yearsList = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
