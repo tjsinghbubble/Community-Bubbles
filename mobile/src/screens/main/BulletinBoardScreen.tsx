@@ -596,7 +596,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   );
 
   const renderFilterTabs = () => (
-    <View style={[BulletinPillStyles.container, styles.filterContainer, { justifyContent: 'flex-start' }]}>
+    <View style={[BulletinPillStyles.container, styles.filterContainer, { justifyContent: 'center' }]}>
       <TouchableOpacity
         style={[
           BulletinPillStyles.chip,
