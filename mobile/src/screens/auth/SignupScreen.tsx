@@ -202,18 +202,12 @@ export default function SignupScreen({ navigation }: Props) {
           const isSelected = idx === selectedIndex;
           const distance = Math.abs(idx - selectedIndex);
           const opacity = isSelected ? 1 : distance === 1 ? 0.5 : 0.25;
-          const scale = isSelected ? 16 : distance === 1 ? 13 : 12;
-          const weight = isSelected ? '600' as const : '400' as const;
           return (
-            <View key={idx} style={[
-              styles.wheelItem,
-              { alignItems: align },
-              isSelected && styles.wheelItemSelected,
-            ]}>
+            <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
               <Text style={{
-                fontSize: scale,
-                fontWeight: weight,
-                color: isSelected ? Colors.brand.midnight : Colors.brand.midnight,
+                fontSize: isSelected ? 14 : 12,
+                fontWeight: isSelected ? '600' : '400',
+                color: Colors.brand.midnight,
                 opacity,
                 fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
               }}>
@@ -681,7 +675,8 @@ const styles = StyleSheet.create({
   wheelModalContent: {
     backgroundColor: '#FAFAFA',
     borderRadius: 20,
-    width: '70%',
+    marginHorizontal: 24,
+    alignSelf: 'stretch',
     paddingBottom: 20,
   },
   wheelHeader: {
@@ -725,19 +720,13 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: 'center',
     paddingHorizontal: 8,
-    marginHorizontal: 2,
-  },
-  wheelItemSelected: {
-    backgroundColor: Colors.brand.bubbleBlue + '15',
-    borderRadius: 17,
   },
   wheelHighlight: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 8,
+    right: 8,
     height: 34,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#D9D9D9',
+    backgroundColor: Colors.brand.bubbleBlue + '15',
+    borderRadius: 17,
   },
 });
