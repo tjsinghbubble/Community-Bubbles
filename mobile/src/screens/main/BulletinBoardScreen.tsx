@@ -137,6 +137,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const [overlaySubmitting, setOverlaySubmitting] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [overlayUserRole, setOverlayUserRole] = useState<string | null>(null);
+  const [overlayEditPostId, setOverlayEditPostId] = useState<string | null>(null);
 
   const kebabPost = posts.find(p => p.id === kebabPostId) ?? null;
 
@@ -191,6 +192,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   };
 
   const handleCreatePost = async () => {
+    setOverlayEditPostId(null);
     setOverlayTitle('');
     setOverlayBody('');
     setShowCategoryDropdown(false);
@@ -225,24 +227,34 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     setOverlayBody('');
     setOverlaySelectedTypeId(null);
     setShowCategoryDropdown(false);
+    setOverlayEditPostId(null);
   };
 
   const handleOverlaySubmit = async () => {
     if (!overlayTitle.trim() || !overlayBody.trim() || !overlaySelectedTypeId || overlaySubmitting) return;
     try {
       setOverlaySubmitting(true);
-      await apiService.createBulletinPost(bubbleId, {
-        postTypeId: overlaySelectedTypeId,
-        title: overlayTitle.trim(),
-        body: overlayBody.trim(),
-      });
+      if (overlayEditPostId) {
+        await apiService.updateBulletinPost(overlayEditPostId, {
+          postTypeId: overlaySelectedTypeId,
+          title: overlayTitle.trim(),
+          body: overlayBody.trim(),
+        });
+      } else {
+        await apiService.createBulletinPost(bubbleId, {
+          postTypeId: overlaySelectedTypeId,
+          title: overlayTitle.trim(),
+          body: overlayBody.trim(),
+        });
+      }
       setShowCreateOverlay(false);
       setOverlayTitle('');
       setOverlayBody('');
       setOverlaySelectedTypeId(null);
+      setOverlayEditPostId(null);
       fetchData();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create post');
+      Alert.alert('Error', err.message || (overlayEditPostId ? 'Failed to save post' : 'Failed to create post'));
     } finally {
       setOverlaySubmitting(false);
     }
@@ -264,17 +276,24 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleEditPost = () => {
+  const handleEditPost = async () => {
     if (!kebabPost) return;
+    const editPost = kebabPost;
     setKebabPostId(null);
-    navigation.navigate('CreatePost', {
-      bubbleId,
-      bubbleTitle,
-      editPostId: kebabPost.id,
-      editTitle: kebabPost.title,
-      editBody: kebabPost.body,
-      preselectedTypeId: kebabPost.postTypeId,
-    } as any);
+    setOverlayEditPostId(editPost.id);
+    setOverlayTitle(editPost.title);
+    setOverlayBody(editPost.body);
+    setOverlaySelectedTypeId(editPost.postTypeId);
+    setShowCategoryDropdown(false);
+    setOverlaySubmitting(false);
+    try {
+      const memberships = await apiService.getBubbleMembers(bubbleId);
+      const myMembership = (memberships as any[]).find?.((m: any) => m.userId === user?.id);
+      setOverlayUserRole(myMembership?.role || null);
+    } catch {
+      setOverlayUserRole(null);
+    }
+    setShowCreateOverlay(true);
   };
 
   const handleDeletePost = () => {
@@ -504,7 +523,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                   {overlaySubmitting ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={overlayStyles.postButtonText}>Post</Text>
+                    <Text style={overlayStyles.postButtonText}>{overlayEditPostId ? 'Save' : 'Post'}</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
