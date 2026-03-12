@@ -229,3 +229,58 @@ Each SVG is a full 393×90 navbar mockup showing all 5 tabs, with the active tab
 | Bubbles | `BubblesIcon` | `-3 0 24 24` | Yes (0.4) |
 | Messages | `MessagesIcon` | `0 0 20 22` | No |
 | Profile | `ProfileIcon` | `0 0 24 24` | No |
+
+---
+
+## Icons Library
+
+**SVG Source**: `icons/Icons/` (18 icon types × 4 color variants each)
+**Used By**: Available as a design-system icon set for use across screens and components
+
+Each icon follows the naming convention `Type={name}, Color={color}.svg` and is provided in four color variants:
+
+### Color Variants
+| Color | Hex Value |
+|---|---|
+| Black | `#1E1F26` |
+| Blue | `#35A8F7` |
+| Grey | `#969696` |
+| Red | `#FF3B30` |
+
+### Available Icons
+| Icon Name | Description |
+|---|---|
+| `add_2` | Plus / add |
+| `alarm` | Alarm / reminder |
+| `arrow_back_ios` | Back arrow |
+| `arrow_forward_ios` | Forward arrow |
+| `calendar_today` | Calendar / date |
+| `chat` | Chat / messaging |
+| `check` | Checkmark |
+| `close` | Close / dismiss |
+| `crown` | Crown / admin |
+| `delete` | Delete / trash |
+| `edit` | Edit / pencil |
+| `flag_2` | Flag / report |
+| `group` | Group / members |
+| `group_remove` | Remove from group |
+| `location_on` | Location pin |
+| `more_horiz` | More options (horizontal dots) |
+| `Notification` | Notification bell (Black variant only) |
+| `visibility_off` | Hide / eye off |
+
+---
+
+## Standalone Icons
+
+**SVG/PNG Source**: `icons/` (top-level loose files)
+**Used By**: Various screens and components
+
+| File | Format | Used By | Description |
+|---|---|---|---|
+| `createBubbleEvent.svg` | SVG | Create flows | Illustration for bubble/event creation |
+| `clock.png` | PNG | `components/CustomIcons.tsx` | Clock icon for time displays |
+| `directions-diamond.png` | PNG | `screens/main/EventDetailsScreen.tsx` | Directions diamond icon |
+| `limit.png` | PNG | `components/CustomIcons.tsx` | Member limit icon |
+| `Event Cards.svg` | SVG | Design reference | Event card layout reference (documented above) |
+| `NavBar.svg` | SVG | Design reference | NavBar layout reference (documented above) |
