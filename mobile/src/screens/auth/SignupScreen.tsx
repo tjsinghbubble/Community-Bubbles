@@ -183,6 +183,7 @@ export default function SignupScreen({ navigation }: Props) {
     scrollRef: React.RefObject<ScrollView>,
     onSelect: (e: any) => void,
     flex: number,
+    align: 'flex-start' | 'center' | 'flex-end' = 'center',
   ) => (
     <View style={[styles.wheelColumn, { flex }]}>
       <ScrollView
@@ -190,17 +191,19 @@ export default function SignupScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         snapToInterval={PICKER_ITEM_HEIGHT}
         decelerationRate="fast"
+        nestedScrollEnabled
         onMomentumScrollEnd={onSelect}
+        onScrollEndDrag={onSelect}
         contentContainerStyle={{ paddingVertical: PICKER_PADDING }}
         style={{ height: PICKER_HEIGHT }}
       >
         {data.map((item, idx) => {
           const distance = Math.abs(idx - selectedIndex);
-          const opacity = distance === 0 ? 1 : distance === 1 ? 0.4 : 0.2;
-          const scale = distance === 0 ? 22 : distance === 1 ? 18 : 16;
+          const opacity = distance === 0 ? 1 : distance === 1 ? 0.5 : 0.25;
+          const scale = distance === 0 ? 14 : distance === 1 ? 12 : 11;
           const weight = distance === 0 ? '600' as const : '400' as const;
           return (
-            <View key={idx} style={styles.wheelItem}>
+            <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
               <Text style={{
                 fontSize: scale,
                 fontWeight: weight,
@@ -424,7 +427,7 @@ export default function SignupScreen({ navigation }: Props) {
           activeOpacity={1}
           onPress={() => setShowDatePicker(false)}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.wheelModalContent} onPress={() => {}}>
+          <View style={styles.wheelModalContent}>
             <View style={styles.wheelHeader}>
               <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.wheelHeaderButton}>
                 <Text style={styles.wheelCancelText}>Cancel</Text>
@@ -444,6 +447,7 @@ export default function SignupScreen({ navigation }: Props) {
                 dayScrollRef as React.RefObject<ScrollView>,
                 (e: any) => handlePickerScroll(e, setPickerDay, 1),
                 1,
+                'flex-start',
               )}
 
               {renderWheelColumn(
@@ -452,6 +456,7 @@ export default function SignupScreen({ navigation }: Props) {
                 monthScrollRef as React.RefObject<ScrollView>,
                 (e: any) => handlePickerScroll(e, setPickerMonth, 0),
                 2,
+                'center',
               )}
 
               {renderWheelColumn(
@@ -460,9 +465,10 @@ export default function SignupScreen({ navigation }: Props) {
                 yearScrollRef as React.RefObject<ScrollView>,
                 (e: any) => handlePickerScroll(e, (v: number) => setPickerYear(v + YEAR_MIN), 0),
                 1.2,
+                'flex-end',
               )}
             </View>
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>
@@ -696,18 +702,17 @@ const styles = StyleSheet.create({
   },
   wheelContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     paddingTop: 8,
   },
   wheelColumn: {
-    alignItems: 'center',
     overflow: 'hidden',
-    marginHorizontal: -3,
+    paddingHorizontal: 4,
   },
   wheelItem: {
     height: 44,
-    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   wheelHighlight: {
     position: 'absolute',
