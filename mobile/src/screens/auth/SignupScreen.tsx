@@ -112,7 +112,7 @@ export default function SignupScreen({ navigation }: Props) {
     }
   };
 
-  const PICKER_ITEM_HEIGHT = 34;
+  const PICKER_ITEM_HEIGHT = 36;
   const PICKER_VISIBLE_COUNT = 5;
   const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
   const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
@@ -205,7 +205,7 @@ export default function SignupScreen({ navigation }: Props) {
           return (
             <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
               <Text style={{
-                fontSize: isSelected ? 14 : 12,
+                fontSize: isSelected ? 16 : 14,
                 fontWeight: isSelected ? '600' : '400',
                 color: Colors.brand.midnight,
                 opacity,
@@ -693,17 +693,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   wheelCancelText: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.neutral.coolMist,
     fontWeight: '500',
   },
   wheelTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.brand.midnight,
   },
   wheelDoneText: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
@@ -717,16 +717,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   wheelItem: {
-    height: 34,
+    height: 36,
     justifyContent: 'center',
+    alignContent: 'center',
     paddingHorizontal: 8,
   },
   wheelHighlight: {
     position: 'absolute',
     left: 8,
     right: 8,
-    height: 34,
+    height: 36,
     backgroundColor: Colors.brand.bubbleBlue + '15',
-    borderRadius: 17,
+    borderRadius: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
