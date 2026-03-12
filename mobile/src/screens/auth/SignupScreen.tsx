@@ -42,7 +42,11 @@ export default function SignupScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [tosViewed, setTosViewed] = useState(false);
+  const [privacyViewed, setPrivacyViewed] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
+
+  const canCheckBox = tosViewed && privacyViewed;
 
   const today = new Date();
   const [pickerDay, setPickerDay] = useState(15);
@@ -336,32 +340,34 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.termsRow}
-              onPress={() => setTermsAccepted(!termsAccepted)}
-              activeOpacity={0.7}
-              testID="checkbox-terms"
-            >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-                {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-              </View>
+            <View style={styles.termsRow}>
+              <TouchableOpacity
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                disabled={!canCheckBox}
+                activeOpacity={0.7}
+                testID="checkbox-terms"
+              >
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
+                  {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+              </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
                 <Text
-                  style={styles.termsLink}
-                  onPress={() => navigation.navigate('TermsOfService')}
+                  style={[styles.termsLink, tosViewed && styles.termsLinkViewed]}
+                  onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
                 >
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
                 <Text
-                  style={styles.termsLink}
-                  onPress={() => navigation.navigate('PrivacyPolicy')}
+                  style={[styles.termsLink, privacyViewed && styles.termsLinkViewed]}
+                  onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
                 >
                   Privacy Policy
                 </Text>
               </Text>
-            </TouchableOpacity>
+            </View>
 
             <BubbleButton
               title="Continue"
@@ -608,11 +614,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
-    marginTop: 1,
+    marginTop: 4,
   },
   checkboxChecked: {
     backgroundColor: Colors.brand.bubbleBlue,
     borderColor: Colors.brand.bubbleBlue,
+  },
+  checkboxDisabled: {
+    opacity: 0.5,
+    borderColor: Colors.neutral.coolMist,
   },
   termsText: {
     flex: 1,
@@ -623,6 +633,9 @@ const styles = StyleSheet.create({
   termsLink: {
     color: Colors.brand.bubbleBlue,
     textDecorationLine: 'underline',
+  },
+  termsLinkViewed: {
+    color: '#2B8AD0',
   },
   modalOverlay: {
     flex: 1,
