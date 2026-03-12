@@ -861,11 +861,14 @@ const styles = StyleSheet.create({
   },
   postCard: {
     backgroundColor: Colors.background.primary,
-    borderRadius: Radius.lg,
+    borderRadius: 20,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border.light,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   postTypeRow: {
     flexDirection: 'row',

@@ -650,18 +650,20 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
       {announcements.length > 0 ? (
-        announcements.map((post: any) => (
-          <TouchableOpacity
-            key={post.id}
-            style={[styles.bulletinCard, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: '#FF9800' }]}
-            onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id, bubbleId: bubble.id })}
-            activeOpacity={0.7}
-          >
-            {post.isPinned && <Text style={styles.pinIcon}>📌</Text>}
-            <Text style={styles.bulletinTitle}>{post.title}</Text>
-            <Text style={styles.bulletinBody} numberOfLines={2}>{post.body}</Text>
-          </TouchableOpacity>
-        ))
+        <View style={styles.bulletinGrid}>
+          {announcements.slice(0, 4).map((post: any) => (
+            <TouchableOpacity
+              key={post.id}
+              style={styles.bulletinCard}
+              onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id, bubbleId: bubble.id })}
+              activeOpacity={0.7}
+            >
+              {post.isPinned && <Text style={styles.pinIcon}>📌</Text>}
+              <Text style={styles.bulletinTitle} numberOfLines={1}>{post.title}</Text>
+              <Text style={styles.bulletinBody} numberOfLines={3}>{post.body}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       ) : (
         <View style={styles.bulletinCard}>
           <Text style={styles.bulletinBody}>No announcements yet.</Text>
