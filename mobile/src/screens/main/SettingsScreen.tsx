@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     ...CARD_SHADOW,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
     marginBottom: 12,
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   menuItemText: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
   },
   deleteText: {

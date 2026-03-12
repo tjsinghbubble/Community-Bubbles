@@ -231,28 +231,6 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <AnimatedPressable
-            style={styles.menuItem}
-            scaleValue={0.97}
-            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('Settings')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Settings</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-          </AnimatedPressable>
-          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Log Out</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-          </AnimatedPressable>
-        </View>
-
-        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal</Text>
           <AnimatedPressable
             style={styles.menuItem}
@@ -275,6 +253,28 @@ export default function ProfileScreen() {
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('Settings')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Log Out</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: Typography.sizes.base,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
   },
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   menuItemText: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
   },
   badge: {
