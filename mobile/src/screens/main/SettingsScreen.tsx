@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
+    color: Colors.neutral.charcoal,
     marginBottom: 12,
   },
   menuItem: {
