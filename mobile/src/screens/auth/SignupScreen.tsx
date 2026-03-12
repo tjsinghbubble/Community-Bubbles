@@ -436,7 +436,7 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.wheelContainer}>
-              <View style={[styles.wheelHighlight, { top: PICKER_PADDING }]} pointerEvents="none" />
+              <View style={[styles.wheelHighlight, { top: PICKER_PADDING + 3 }]} pointerEvents="none" />
 
               {renderWheelColumn(
                 daysList,
