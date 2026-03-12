@@ -112,7 +112,7 @@ export default function SignupScreen({ navigation }: Props) {
     }
   };
 
-  const PICKER_ITEM_HEIGHT = 44;
+  const PICKER_ITEM_HEIGHT = 34;
   const PICKER_VISIBLE_COUNT = 5;
   const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
   const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
@@ -671,14 +671,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 40,
+    paddingBottom: 28,
   },
   wheelHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
@@ -687,17 +687,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   wheelCancelText: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.neutral.coolMist,
     fontWeight: '500',
   },
   wheelTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.brand.midnight,
   },
   wheelDoneText: {
-    fontSize: 16,
+    fontSize: 14,
     color: Colors.brand.bubbleBlue,
     fontWeight: '600',
   },
@@ -708,18 +708,18 @@ const styles = StyleSheet.create({
   },
   wheelColumn: {
     overflow: 'hidden',
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
   },
   wheelItem: {
-    height: 44,
+    height: 34,
     justifyContent: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   wheelHighlight: {
     position: 'absolute',
     left: 24,
     right: 24,
-    height: 44,
+    height: 34,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: '#D9D9D9',
