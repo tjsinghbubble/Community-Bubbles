@@ -263,7 +263,7 @@ export default function ProfileScreen() {
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
-            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('Settings')}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('AccountSettings')}
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
