@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   Image,
   Dimensions,
 } from 'react-native';
@@ -42,8 +42,9 @@ const INTERESTS = [
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_PADDING = 8;
 const CARD_GAP = 8;
-const TOTAL_GAPS = CARD_GAP * 2;
-const CARD_SIZE = Math.floor((SCREEN_WIDTH - GRID_PADDING * 2 - TOTAL_GAPS) / 3);
+const NUM_COLUMNS = 3;
+const AVAILABLE_WIDTH = SCREEN_WIDTH - GRID_PADDING * 2;
+const CARD_SIZE = Math.floor((AVAILABLE_WIDTH - CARD_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS);
 
 const MIN_SELECTIONS = 3;
 const PROGRESS_STEP = 0.75;
@@ -98,15 +99,17 @@ export default function InterestsScreen({ navigation, route }: Props) {
         Select at least 3 to continue
       </Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.gridContainer}
+      <FlatList
+        data={INTERESTS}
+        keyExtractor={(item) => item.id}
+        numColumns={NUM_COLUMNS}
         showsVerticalScrollIndicator={false}
-      >
-        {INTERESTS.map((interest) => {
+        contentContainerStyle={styles.gridContainer}
+        columnWrapperStyle={styles.columnWrapper}
+        renderItem={({ item: interest }) => {
           const isSelected = selected.includes(interest.id);
           return (
-            <View key={interest.id} style={styles.cardWrapper}>
+            <View style={styles.cardWrapper}>
               <TouchableOpacity
                 style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => toggleInterest(interest.id)}
@@ -134,8 +137,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
               </Text>
             </View>
           );
-        })}
-      </ScrollView>
+        }}
+      />
 
       <View style={styles.footer}>
         <BubbleButton
@@ -198,21 +201,16 @@ const styles = StyleSheet.create({
     marginTop: 34,
     marginBottom: 8,
   },
-  scroll: {
-    flex: 1,
-  },
   gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingLeft: GRID_PADDING,
-    paddingRight: GRID_PADDING,
-    paddingTop: 0,
+    paddingHorizontal: GRID_PADDING,
     paddingBottom: 120,
-    gap: CARD_GAP,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: CARD_GAP,
   },
   cardWrapper: {
     width: CARD_SIZE,
-    marginBottom: 4,
     alignItems: 'center',
   },
   card: {

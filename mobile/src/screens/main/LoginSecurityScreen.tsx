@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,16 @@ import {
   Platform,
   StatusBar,
   Alert,
+  ActivityIndicator,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
+import apiService from '../../services/api.service';
+import { API_URL } from '../../config/api';
 
 const CARD_SHADOW = {
   shadowColor: '#000',
@@ -26,18 +30,102 @@ const CARD_SHADOW = {
 
 export default function LoginSecurityScreen() {
   const navigation = useNavigation<any>();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const getAuthHeaders = () => {
+    const token = apiService.getToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
 
   const handleEditPassword = () => {
     Alert.alert('Coming Soon', 'Password change will be available in a future update.');
   };
 
-  const handleDownloadData = () => {
-    Alert.alert('Coming Soon', 'Download my data will be available in a future update.');
+  const handleDownloadData = async () => {
+    Alert.alert(
+      'Download My Data',
+      'This will export all your personal data as a JSON file. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            setDownloading(true);
+            try {
+              const response = await fetch(`${API_URL}/api/auth/export-data`, {
+                headers: getAuthHeaders(),
+              });
+              if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to export data');
+              }
+              const data = await response.json();
+              const jsonString = JSON.stringify(data, null, 2);
+              await Share.share({
+                message: jsonString,
+                title: 'Bubble Data Export',
+              });
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to download data');
+            } finally {
+              setDownloading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleDeleteData = () => {
-    Alert.alert('Coming Soon', 'Delete my data will be available in a future update.');
+    Alert.alert(
+      'Delete My Data',
+      'This will permanently delete all your data including your profile, posts, messages, and activity history. This action cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Final Confirmation',
+              'Are you absolutely sure? All your data will be permanently erased.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete All My Data',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeleting(true);
+                    try {
+                      const response = await fetch(`${API_URL}/api/auth/delete-data`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders(),
+                      });
+                      if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Failed to delete data');
+                      }
+                      Alert.alert('Done', 'All your data has been deleted.', [
+                        { text: 'OK', onPress: () => logout() },
+                      ]);
+                    } catch (error: any) {
+                      Alert.alert('Error', error.message || 'Failed to delete data');
+                    } finally {
+                      setDeleting(false);
+                    }
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
   };
 
   const passwordLastUpdated = user?.updatedAt
@@ -78,10 +166,15 @@ export default function LoginSecurityScreen() {
             style={styles.menuItem}
             scaleValue={0.97}
             onPress={handleDownloadData}
+            disabled={downloading}
             testID="button-download-data"
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="download-outline" size={24} color={Colors.text.secondary} />
+              {downloading ? (
+                <ActivityIndicator size={24} color={Colors.text.secondary} />
+              ) : (
+                <Ionicons name="download-outline" size={24} color={Colors.text.secondary} />
+              )}
               <Text style={styles.menuItemText}>Download my data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
@@ -90,10 +183,15 @@ export default function LoginSecurityScreen() {
             style={styles.menuItem}
             scaleValue={0.97}
             onPress={handleDeleteData}
+            disabled={deleting}
             testID="button-delete-data"
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="trash-bin-outline" size={24} color={Colors.text.secondary} />
+              {deleting ? (
+                <ActivityIndicator size={24} color={Colors.text.secondary} />
+              ) : (
+                <Ionicons name="trash-bin-outline" size={24} color={Colors.text.secondary} />
+              )}
               <Text style={styles.menuItemText}>Delete my data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />

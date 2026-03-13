@@ -64,6 +64,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  deleteUserData(id: string): Promise<void>;
+  exportUserData(id: string): Promise<Record<string, any>>;
   getSuperAdmins(): Promise<User[]>;
 
   getBubbles(): Promise<Bubble[]>;
@@ -240,6 +242,109 @@ export class DatabaseStorage implements IStorage {
   async deleteUser(id: string): Promise<void> {
     await db.delete(memberships).where(eq(memberships.userId, id));
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  async deleteUserData(id: string): Promise<void> {
+    const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!user[0]) return;
+
+    await db.transaction(async (tx) => {
+      const userBubbles = await tx.select({ id: bubbles.id }).from(bubbles).where(eq(bubbles.creatorId, id));
+      const bubbleIds = userBubbles.map(b => b.id);
+
+      const userEvents = await tx.select({ id: events.id }).from(events).where(eq(events.creatorId, id));
+      const eventIds = userEvents.map(e => e.id);
+
+      const userPosts = await tx.select({ id: bulletinPosts.id }).from(bulletinPosts).where(eq(bulletinPosts.authorId, id));
+      const postIds = userPosts.map(p => p.id);
+
+      if (postIds.length > 0) {
+        await tx.delete(bulletinPostReactions).where(inArray(bulletinPostReactions.postId, postIds));
+        await tx.delete(bulletinReplies).where(inArray(bulletinReplies.postId, postIds));
+      }
+      await tx.delete(bulletinPostReactions).where(eq(bulletinPostReactions.userId, id));
+      await tx.delete(bulletinReplies).where(eq(bulletinReplies.authorId, id));
+      await tx.delete(bulletinPosts).where(eq(bulletinPosts.authorId, id));
+
+      if (eventIds.length > 0) {
+        await tx.delete(eventAttendees).where(inArray(eventAttendees.eventId, eventIds));
+        await tx.delete(events).where(inArray(events.id, eventIds));
+      }
+      await tx.delete(eventAttendees).where(eq(eventAttendees.userId, id));
+
+      if (bubbleIds.length > 0) {
+        const bubblePosts = await tx.select({ id: bulletinPosts.id }).from(bulletinPosts)
+          .innerJoin(bulletinBoards, eq(bulletinPosts.boardId, bulletinBoards.id))
+          .where(inArray(bulletinBoards.bubbleId, bubbleIds));
+        const bPostIds = bubblePosts.map(p => p.id);
+        if (bPostIds.length > 0) {
+          await tx.delete(bulletinPostReactions).where(inArray(bulletinPostReactions.postId, bPostIds));
+          await tx.delete(bulletinReplies).where(inArray(bulletinReplies.postId, bPostIds));
+          await tx.delete(bulletinPosts).where(inArray(bulletinPosts.id, bPostIds));
+        }
+        await tx.delete(bulletinBoards).where(inArray(bulletinBoards.bubbleId, bubbleIds));
+
+        const bubbleEvents = await tx.select({ id: events.id }).from(events).where(inArray(events.bubbleId, bubbleIds));
+        const bEventIds = bubbleEvents.map(e => e.id);
+        if (bEventIds.length > 0) {
+          await tx.delete(eventAttendees).where(inArray(eventAttendees.eventId, bEventIds));
+          await tx.delete(events).where(inArray(events.id, bEventIds));
+        }
+
+        await tx.delete(bubbleChats).where(inArray(bubbleChats.bubbleId, bubbleIds));
+        await tx.delete(adminMemberChats).where(inArray(adminMemberChats.bubbleId, bubbleIds));
+        await tx.delete(bubbleVisits).where(inArray(bubbleVisits.bubbleId, bubbleIds));
+        await tx.delete(reports).where(inArray(reports.bubbleId, bubbleIds));
+        await tx.delete(memberships).where(inArray(memberships.bubbleId, bubbleIds));
+        await tx.delete(bubbles).where(inArray(bubbles.id, bubbleIds));
+      }
+
+      await tx.delete(notifications).where(eq(notifications.recipientId, id));
+      await tx.delete(devicePushTokens).where(eq(devicePushTokens.userId, id));
+      await tx.delete(userSessions).where(eq(userSessions.userId, id));
+      await tx.delete(bubbleVisits).where(eq(bubbleVisits.userId, id));
+      await tx.delete(adminMemberChats).where(eq(adminMemberChats.memberId, id));
+      await tx.delete(reports).where(eq(reports.reporterUserId, id));
+      await tx.update(reports).set({ reportedUserId: null }).where(eq(reports.reportedUserId, id));
+      if (user[0].email) {
+        await tx.delete(verificationCodes).where(eq(verificationCodes.email, user[0].email));
+      }
+      await tx.delete(memberships).where(eq(memberships.userId, id));
+      await tx.delete(users).where(eq(users.id, id));
+    });
+  }
+
+  async exportUserData(id: string): Promise<Record<string, any>> {
+    const user = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!user[0]) return {};
+
+    const { password, ...safeUser } = user[0];
+
+    const userMemberships = await db.select().from(memberships).where(eq(memberships.userId, id));
+    const userEvents = await db.select().from(events).where(eq(events.creatorId, id));
+    const userAttendances = await db.select().from(eventAttendees).where(eq(eventAttendees.userId, id));
+    const userPosts = await db.select().from(bulletinPosts).where(eq(bulletinPosts.authorId, id));
+    const userReplies = await db.select().from(bulletinReplies).where(eq(bulletinReplies.authorId, id));
+    const userReactions = await db.select().from(bulletinPostReactions).where(eq(bulletinPostReactions.userId, id));
+    const userNotifications = await db.select().from(notifications).where(eq(notifications.recipientId, id));
+    const userSess = await db.select().from(userSessions).where(eq(userSessions.userId, id));
+    const userVisits = await db.select().from(bubbleVisits).where(eq(bubbleVisits.userId, id));
+    const userReports = await db.select().from(reports).where(eq(reports.reporterUserId, id));
+
+    return {
+      exportDate: new Date().toISOString(),
+      profile: safeUser,
+      memberships: userMemberships,
+      eventsCreated: userEvents,
+      eventAttendances: userAttendances,
+      bulletinPosts: userPosts,
+      bulletinReplies: userReplies,
+      bulletinReactions: userReactions,
+      notifications: userNotifications,
+      sessions: userSess,
+      bubbleVisits: userVisits,
+      reports: userReports,
+    };
   }
 
   async getSuperAdmins(): Promise<User[]> {

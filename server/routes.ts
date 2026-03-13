@@ -239,6 +239,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/auth/export-data", authMiddleware, async (req, res) => {
+    try {
+      const data = await storage.exportUserData(req.userId!);
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="bubble-data-export.json"');
+      res.json(data);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/auth/delete-data", authMiddleware, async (req, res) => {
+    try {
+      await storage.deleteUserData(req.userId!);
+      res.json({ success: true, message: "All user data deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;
