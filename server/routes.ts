@@ -296,6 +296,7 @@ export async function registerRoutes(
         dismissedCampusPrompt: user.dismissedCampusPrompt,
         isSuperAdmin: user.isSuperAdmin,
         profilePhoto: user.profilePhoto,
+        aboutMe: user.aboutMe,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -304,8 +305,8 @@ export async function registerRoutes(
 
   app.patch("/api/users/me", authMiddleware, async (req, res) => {
     try {
-      const { profilePhoto, name } = req.body;
-      const updated = await storage.updateUserProfile(req.userId!, { profilePhoto, name });
+      const { profilePhoto, name, aboutMe, interests } = req.body;
+      const updated = await storage.updateUserProfile(req.userId!, { profilePhoto, name, aboutMe, interests });
       if (!updated) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -315,6 +316,7 @@ export async function registerRoutes(
         email: updated.email,
         interests: updated.interests,
         profilePhoto: updated.profilePhoto,
+        aboutMe: updated.aboutMe,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

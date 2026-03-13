@@ -10,6 +10,7 @@ type User = {
   email: string;
   interests: string[];
   profilePhoto?: string | null;
+  aboutMe?: string | null;
   campusId?: string | null;
   campusEmail?: string | null;
   campusVerified?: boolean;

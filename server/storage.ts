@@ -133,7 +133,7 @@ export interface IStorage {
   getCampus(id: string): Promise<Campus | undefined>;
   getCampusByDomain(domain: string): Promise<Campus | undefined>;
   createCampus(campus: InsertCampus): Promise<Campus>;
-  updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string }): Promise<User | undefined>;
+  updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string; aboutMe?: string; interests?: string[] }): Promise<User | undefined>;
   updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void>;
   dismissCampusPrompt(userId: string): Promise<void>;
   getPublicBubbles(): Promise<Bubble[]>;
@@ -805,10 +805,12 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string }): Promise<User | undefined> {
+  async updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string; aboutMe?: string; interests?: string[] }): Promise<User | undefined> {
     const setObj: Record<string, any> = { updatedAt: new Date(), updatedBy: userId };
     if (updates.profilePhoto !== undefined) setObj.profilePhoto = updates.profilePhoto;
     if (updates.name !== undefined) setObj.name = updates.name;
+    if (updates.aboutMe !== undefined) setObj.aboutMe = updates.aboutMe;
+    if (updates.interests !== undefined) setObj.interests = updates.interests;
     const [updated] = await db.update(users).set(setObj).where(eq(users.id, userId)).returning();
     return updated;
   }

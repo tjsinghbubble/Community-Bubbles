@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
   isSuperAdmin: boolean("is_super_admin").notNull().default(false),
   profilePhoto: text("profile_photo"),
+  aboutMe: text("about_me"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by"),

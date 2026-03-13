@@ -96,6 +96,13 @@ class ApiService {
     return this.request("/api/auth/me");
   }
 
+  async updateProfile(updates: { aboutMe?: string; interests?: string[]; profilePhoto?: string; name?: string }) {
+    return this.request("/api/users/me", {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  }
+
   async getBubbles() {
     return this.request("/api/bubbles", {
       method: "GET",
