@@ -279,8 +279,8 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 | File | Format | Used By | Description |
 |---|---|---|---|
 | `createBubbleEvent.svg` | SVG | Create flows | Illustration for bubble/event creation |
-| `clock.png` | PNG | `components/CustomIcons.tsx` | Clock icon for time displays |
+| `Icons/Type=alarm, Color=Black.svg` | SVG | — | Clock/alarm icon (Black). Variants: Blue, Grey, Red |
 | `directions-diamond.png` | PNG | `screens/main/EventDetailsScreen.tsx` | Directions diamond icon |
-| `limit.png` | PNG | `components/CustomIcons.tsx` | Member limit icon |
+| `Icons/Type=group_remove, Color=Black.svg` | SVG | — | Member limit icon (Black). Variants: Blue, Grey, Red |
 | `Event Cards.svg` | SVG | Design reference | Event card layout reference (documented above) |
 | `NavBar.svg` | SVG | Design reference | NavBar layout reference (documented above) |
