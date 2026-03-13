@@ -18,9 +18,12 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { requestPhotoLibraryAccess } from '../../utils/permissions';
+import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography } from '../../styles/theme';
 
 type Props = {
@@ -67,6 +70,54 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
+  const [editingInterests, setEditingInterests] = useState(false);
+
+  const handlePickPhoto = async () => {
+    const granted = await requestPhotoLibraryAccess();
+    if (!granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      try {
+        const photoUri = result.assets[0].uri;
+        const photoResponse = await fetch(photoUri);
+        const blob = await photoResponse.blob();
+        const ext = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+        apiService.setToken(token);
+        const uploadRes = await fetch(`${API_URL}/api/uploads/request-url`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ name: `profile.${ext}`, contentType: mimeType }),
+        });
+        const uploadData = await uploadRes.json();
+
+        if (uploadData.uploadURL) {
+          await fetch(uploadData.uploadURL, {
+            method: 'PUT',
+            headers: { 'Content-Type': mimeType },
+            body: blob,
+          });
+
+          const photoUrl = uploadData.objectPath.startsWith('http')
+            ? uploadData.objectPath
+            : `${API_URL}${uploadData.objectPath}`;
+          await apiService.updateProfile({ profilePhoto: photoUrl });
+          if (refreshUser) await refreshUser();
+        }
+      } catch (err) {
+        Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      }
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +182,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.avatarSection}>
-            <View style={styles.avatarWrapper}>
+            <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickPhoto} activeOpacity={0.7} testID="button-edit-photo">
               {user.profilePhoto ? (
                 <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
               ) : (
@@ -144,8 +195,8 @@ export default function EditProfileScreen({ navigation }: Props) {
               <View style={styles.cameraIconOverlay}>
                 <Ionicons name="camera" size={16} color={Colors.background.primary} />
               </View>
-            </View>
-            <Text style={styles.addLabel}>Add</Text>
+            </TouchableOpacity>
+            <Text style={styles.addLabel}>{user.profilePhoto ? 'Edit' : 'Add'}</Text>
             <Text style={styles.avatarName}>{user.name}</Text>
           </View>
 
@@ -157,7 +208,12 @@ export default function EditProfileScreen({ navigation }: Props) {
           </View>
 
           <View style={[styles.sectionCard, CARD_SHADOW]}>
-            <Text style={styles.sectionTitle}>About Me</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>About Me</Text>
+              <TouchableOpacity onPress={() => setEditingAbout(!editingAbout)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-about">
+                <Ionicons name={editingAbout ? 'checkmark' : 'create-outline'} size={20} color={Colors.brand.bubbleBlue} />
+              </TouchableOpacity>
+            </View>
             {editingAbout ? (
               <TextInput
                 style={styles.aboutInput}
@@ -193,36 +249,58 @@ export default function EditProfileScreen({ navigation }: Props) {
           </View>
 
           <View style={[styles.sectionCard, CARD_SHADOW]}>
-            <Text style={styles.sectionTitle}>My Interests</Text>
-            <View style={styles.interestsGrid}>
-              {INTERESTS.map((interest) => {
-                const isSelected = selectedInterests.includes(interest.label);
-                return (
-                  <TouchableOpacity
-                    key={interest.id}
-                    style={[
-                      styles.interestChip,
-                      isSelected && styles.interestChipSelected,
-                    ]}
-                    onPress={() => toggleInterest(interest.label)}
-                    testID={`chip-interest-${interest.id}`}
-                  >
-                    <Text
-                      style={[
-                        styles.interestChipText,
-                        isSelected && styles.interestChipTextSelected,
-                      ]}
-                    >
-                      {interest.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Interests</Text>
+              <TouchableOpacity onPress={() => setEditingInterests(!editingInterests)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-interests">
+                <Ionicons name={editingInterests ? 'checkmark' : 'create-outline'} size={20} color={Colors.brand.bubbleBlue} />
+              </TouchableOpacity>
             </View>
+            {editingInterests ? (
+              <View style={styles.interestsGrid}>
+                {INTERESTS.map((interest) => {
+                  const isSelected = selectedInterests.includes(interest.label);
+                  return (
+                    <TouchableOpacity
+                      key={interest.id}
+                      style={[
+                        styles.interestChip,
+                        isSelected && styles.interestChipSelected,
+                      ]}
+                      onPress={() => toggleInterest(interest.label)}
+                      testID={`chip-interest-${interest.id}`}
+                    >
+                      <Text
+                        style={[
+                          styles.interestChipText,
+                          isSelected && styles.interestChipTextSelected,
+                        ]}
+                      >
+                        {interest.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.interestsGrid}>
+                {selectedInterests.length > 0 ? (
+                  selectedInterests.map((label) => (
+                    <View key={label} style={[styles.interestChip, styles.interestChipSelected]}>
+                      <Text style={[styles.interestChipText, styles.interestChipTextSelected]}>{label}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>Tap the edit icon to select interests.</Text>
+                )}
+              </View>
+            )}
           </View>
 
           <View style={[styles.sectionCard, CARD_SHADOW]}>
-            <Text style={styles.sectionTitle}>My Bubbles</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Bubbles</Text>
+              <Ionicons name="chevron-forward" size={18} color={Colors.text.tertiary} />
+            </View>
             {myBubbles.length === 0 ? (
               <Text style={styles.emptyText}>You haven't joined any bubbles yet.</Text>
             ) : (
@@ -366,11 +444,16 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold as any,
     color: Colors.neutral.charcoal,
-    marginBottom: 8,
   },
   sectionDescription: {
     fontSize: Typography.sizes.sm,

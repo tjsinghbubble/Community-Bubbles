@@ -138,7 +138,9 @@ export default function ProfileScreen() {
             </View>
           )}
           <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userRole}>Member</Text>
+          <Text style={styles.userRole}>
+            {isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member'}
+          </Text>
         </View>
 
         <View style={styles.cardsRow}>

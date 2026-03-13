@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import ViewProfileScreen from '../screens/main/ViewProfileScreen';
 import EditProfileScreen from '../screens/main/EditProfileScreen';
+import MyBubblesFromProfileScreen from '../screens/main/MyBubblesFromProfileScreen';
 import PendingReviewsScreen from '../screens/main/PendingReviewsScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import AccountSettingsScreen from '../screens/main/AccountSettingsScreen';
@@ -17,6 +18,7 @@ export type ProfileStackParamList = {
   ProfileMain: undefined;
   ViewProfile: undefined;
   EditProfile: undefined;
+  MyBubblesFromProfile: undefined;
   PendingReviews: undefined;
   Notifications: undefined;
   AccountSettings: undefined;
@@ -36,6 +38,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="MyBubblesFromProfile" component={MyBubblesFromProfileScreen} />
       <Stack.Screen name="PendingReviews" component={PendingReviewsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} />
