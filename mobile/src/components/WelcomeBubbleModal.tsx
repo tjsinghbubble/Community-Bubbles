@@ -63,18 +63,16 @@ export default function WelcomeBubbleModal({
 
   const formatNextEventTime = () => {
     if (!nextEvent) return null;
-    const eventDate = new Date(nextEvent.date);
+    const eventDate = new Date(nextEvent.date + 'T00:00:00');
     const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
 
-    const startDate = new Date(nextEvent.startTime);
-    const hours = startDate.getHours();
-    const minutes = startDate.getMinutes();
+    const [hoursStr, minutesStr] = nextEvent.startTime.split(':');
+    const hours = parseInt(hoursStr);
     const ampm = hours >= 12 ? 'PM' : 'AM';
     const h = hours % 12 || 12;
-    const m = minutes === 0 ? '' : `:${minutes.toString().padStart(2, '0')}`;
-    const timeStr = `${h}${m} ${ampm}`;
+    const timeStr = `${h}:${minutesStr} ${ampm}`;
 
     let dayStr = '';
     if (eventDate.toDateString() === today.toDateString()) {
@@ -90,7 +88,6 @@ export default function WelcomeBubbleModal({
   };
 
   const hasRules = rules.length > 0;
-  const rulesOverflow = rules.length > 4;
 
   return (
     <Modal
@@ -112,85 +109,76 @@ export default function WelcomeBubbleModal({
             <Ionicons name="close" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
 
-          <Text style={styles.title} data-testid="text-welcome-title">
-            Welcome to {bubbleName}
-          </Text>
-          <Text style={styles.category} data-testid="text-welcome-category">
-            {category}
-          </Text>
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <Text style={styles.title} data-testid="text-welcome-title">
+              Welcome to {bubbleName}
+            </Text>
+            <Text style={styles.category} data-testid="text-welcome-category">
+              {category}
+            </Text>
 
-          <View style={styles.separator} />
+            <View style={styles.separator} />
 
-          {hasRules && (
-            <>
-              <Text style={styles.sectionTitle}>Bubble Rules</Text>
-              <Text style={styles.sectionSubtitle}>Tap each rule to confirm</Text>
+            {hasRules && (
+              <>
+                <Text style={styles.sectionTitle}>Bubble Rules</Text>
+                <Text style={styles.sectionSubtitle}>Tap each rule to confirm</Text>
 
-              <View style={rulesOverflow ? styles.rulesScrollContainer : undefined}>
-                <ScrollView
-                  style={rulesOverflow ? styles.rulesScroll : undefined}
-                  showsVerticalScrollIndicator={rulesOverflow}
-                  scrollEnabled={rulesOverflow}
-                  contentContainerStyle={styles.rulesContent}
-                >
-                  {rules.map((rule, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.ruleRow}
-                      onPress={() => toggleRule(index)}
-                      activeOpacity={0.7}
-                      data-testid={`button-rule-${index}`}
+                {rules.map((rule, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.ruleRow}
+                    onPress={() => toggleRule(index)}
+                    activeOpacity={0.7}
+                    data-testid={`button-rule-${index}`}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        checkedRules.has(index) && styles.checkboxChecked,
+                      ]}
                     >
-                      <View
-                        style={[
-                          styles.checkbox,
-                          checkedRules.has(index) && styles.checkboxChecked,
-                        ]}
-                      >
-                        {checkedRules.has(index) && (
-                          <Ionicons name="checkmark" size={14} color={Colors.status.success} />
-                        )}
-                      </View>
-                      <Text style={styles.ruleText}>{rule}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                {rulesOverflow && (
-                  <View style={styles.scrollIndicator}>
-                    <Ionicons name="chevron-down" size={16} color={Colors.neutral.coolMist} />
-                  </View>
+                      {checkedRules.has(index) && (
+                        <Ionicons name="checkmark" size={14} color={Colors.status.success} />
+                      )}
+                    </View>
+                    <Text style={styles.ruleText}>{rule}</Text>
+                  </TouchableOpacity>
+                ))}
+
+                <View style={styles.separator} />
+              </>
+            )}
+
+            <Text style={styles.sectionTitle}>Next Steps</Text>
+
+            <View style={styles.nextStepRow}>
+              <Text style={styles.nextStepEmoji}>👋</Text>
+              <View style={styles.nextStepContent}>
+                <Text style={styles.nextStepTitle}>Introduce Yourself</Text>
+                <Text style={styles.nextStepSubtitle}>
+                  Say hi in the group chat — everyone's friendly.
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.nextStepRow}>
+              <Text style={styles.nextStepEmoji}>🎯</Text>
+              <View style={styles.nextStepContent}>
+                <Text style={styles.nextStepTitle}>RSVP to an Upcoming Event</Text>
+                {nextEvent ? (
+                  <Text style={styles.nextStepSubtitle}>{formatNextEventTime()}</Text>
+                ) : (
+                  <Text style={styles.nextStepSubtitle}>
+                    Check the events tab for upcoming activities.
+                  </Text>
                 )}
               </View>
-
-              <View style={styles.separator} />
-            </>
-          )}
-
-          <Text style={styles.sectionTitle}>Next Steps</Text>
-
-          <View style={styles.nextStepRow}>
-            <Text style={styles.nextStepEmoji}>👋</Text>
-            <View style={styles.nextStepContent}>
-              <Text style={styles.nextStepTitle}>Introduce Yourself</Text>
-              <Text style={styles.nextStepSubtitle}>
-                Say hi in the group chat — everyone's friendly.
-              </Text>
             </View>
-          </View>
-
-          <View style={styles.nextStepRow}>
-            <Text style={styles.nextStepEmoji}>🎯</Text>
-            <View style={styles.nextStepContent}>
-              <Text style={styles.nextStepTitle}>RSVP to an Upcoming Event</Text>
-              {nextEvent ? (
-                <Text style={styles.nextStepSubtitle}>{formatNextEventTime()}</Text>
-              ) : (
-                <Text style={styles.nextStepSubtitle}>
-                  Check the events tab for upcoming activities.
-                </Text>
-              )}
-            </View>
-          </View>
+          </ScrollView>
 
           <View style={styles.buttonContainer}>
             <BubbleButton
@@ -220,6 +208,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingBottom: Spacing.xxxl,
     maxHeight: SCREEN_HEIGHT * 0.97,
+    flex: 0,
+  },
+  scrollContent: {
+    paddingBottom: Spacing.xs,
   },
   handleBar: {
     width: 40,
@@ -270,15 +262,6 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     marginBottom: Spacing.md,
   },
-  rulesScrollContainer: {
-    position: 'relative',
-  },
-  rulesScroll: {
-    maxHeight: SCREEN_HEIGHT * 0.28,
-  },
-  rulesContent: {
-    paddingBottom: Spacing.xs,
-  },
   ruleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -304,14 +287,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.md,
-  },
-  scrollIndicator: {
-    position: 'absolute',
-    right: -Spacing.md,
-    top: '50%',
-    backgroundColor: Colors.background.secondary,
-    borderRadius: 12,
-    padding: 2,
   },
   nextStepRow: {
     flexDirection: 'row',
