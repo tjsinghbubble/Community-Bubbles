@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
-import BubbleButton from '../../components/BubbleButton';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
@@ -171,13 +171,22 @@ export default function MyBubblesScreen() {
           <Text style={styles.emptySubtitle}>
             Join some bubbles from the Explore tab or create your own!
           </Text>
-          <BubbleButton
-            title="Create a Bubble"
+          <TouchableOpacity
             onPress={handleCreateBubble}
+            activeOpacity={0.7}
             style={styles.createFirstButton}
-            icon={<Ionicons name="add" size={20} color={'#FFFFFF'} />}
             testID="button-create-bubble-empty"
-          />
+          >
+            <LinearGradient
+              colors={['#35A8F7', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.7, y: 3.6 }}
+              style={styles.createFirstBtnGradient}
+            >
+              <Ionicons name="add" size={18} color="#1E1F26" />
+              <Text style={styles.createFirstBtnText}>Create a Bubble</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       ) : (
         <ScrollView
@@ -393,13 +402,21 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
   },
   createFirstButton: {
+    width: '100%',
+    marginTop: 20,
+  },
+  createFirstBtnGradient: {
+    height: 44,
+    borderRadius: 22,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: Radius.full,
-    marginTop: 20,
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  createFirstBtnText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#1E1F26',
   },
   fab: {
     position: 'absolute',
