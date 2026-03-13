@@ -114,7 +114,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   };
 
   const formatEventDate = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = new Date(dateStr + 'T00:00:00');
     const today = new Date();
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
@@ -132,13 +132,11 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   };
 
   const formatTime = (timeStr: string) => {
-    const date = new Date(timeStr);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const h = hours % 12 || 12;
-    const m = minutes === 0 ? '' : `:${minutes.toString().padStart(2, '0')}`;
-    return `${h}${m} ${ampm}`;
+    const [hours, minutes] = timeStr.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
   };
 
   const formatTimeRange = (start: string, end: string | null) => {
