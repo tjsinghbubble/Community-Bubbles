@@ -138,6 +138,7 @@ export default function ProfileScreen() {
             </View>
           )}
           <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userRole}>Member</Text>
         </View>
 
         <View style={styles.cardsRow}>
@@ -230,6 +231,33 @@ export default function ProfileScreen() {
         )}
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('ViewProfile')}
+            testID="link-view-profile"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="person-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>View Profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('AccountSettings')}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Legal</Text>
           <AnimatedPressable
             style={styles.menuItem}
@@ -258,30 +286,6 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <AnimatedPressable
-            style={styles.menuItem}
-            scaleValue={0.97}
-            onPress={() => navigation.navigate('ViewProfile')}
-            testID="link-view-profile"
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="person-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>View Profile</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={styles.menuItem}
-            scaleValue={0.97}
-            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('AccountSettings')}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Settings</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-          </AnimatedPressable>
           <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
@@ -366,8 +370,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     paddingVertical: 28,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     marginBottom: 12,
+    aspectRatio: 1.15,
+    justifyContent: 'center',
     ...CARD_SHADOW,
   },
   avatar: {
@@ -395,6 +401,11 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
     marginBottom: 2,
+  },
+  userRole: {
+    fontSize: 12,
+    color: Colors.neutral.coolMist,
+    marginTop: 2,
   },
   userEmail: {
     fontSize: Typography.sizes.sm,

@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   avatarImage: {
     width: 80,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   completeTitle: {
     fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold as any,
+    fontWeight: Typography.weights.regular as any,
     color: Colors.neutral.charcoal,
     textAlign: 'center',
     marginBottom: 12,
