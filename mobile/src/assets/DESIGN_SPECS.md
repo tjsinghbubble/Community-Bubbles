@@ -280,7 +280,7 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 |---|---|---|---|
 | `createBubbleEvent.svg` | SVG | Create flows | Illustration for bubble/event creation |
 | `Icons/Type=alarm, Color=Black.svg` | SVG | — | Clock/alarm icon (Black). Variants: Blue, Grey, Red |
-| `directions-diamond.png` | PNG | `screens/main/EventDetailsScreen.tsx` | Directions diamond icon |
+| `Icons/directions-diamond.png` | PNG | `screens/main/EventDetailsScreen.tsx` | Directions diamond icon |
 | `Icons/Type=group_remove, Color=Black.svg` | SVG | — | Member limit icon (Black). Variants: Blue, Grey, Red |
 | `Event Cards.svg` | SVG | Design reference | Event card layout reference (documented above) |
 | `NavBar.svg` | SVG | Design reference | NavBar layout reference (documented above) |

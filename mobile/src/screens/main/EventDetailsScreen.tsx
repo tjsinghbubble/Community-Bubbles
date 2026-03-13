@@ -30,7 +30,7 @@ import { EventDetailsSkeleton } from '../../components/SkeletonLoader';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
-const directionsIcon = require('../../assets/icons/directions-diamond.png');
+const directionsIcon = require('../../assets/icons/Icons/directions-diamond.png');
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;
