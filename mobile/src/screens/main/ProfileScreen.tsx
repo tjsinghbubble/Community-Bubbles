@@ -18,7 +18,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
-import { ClockIcon } from '../../components/icons';
+import { ClockIcon, EditIcon } from '../../components/icons';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 const CARD_SHADOW = {
@@ -111,7 +111,7 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.editButton} onPress={() => {}} testID="button-edit-profile">
-          <Ionicons name="pencil-outline" size={22} color={Colors.neutral.charcoal} />
+          <EditIcon size={22} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>

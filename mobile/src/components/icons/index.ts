@@ -29,3 +29,4 @@ export { default as BulletinCancelIcon } from './BulletinCancelIcon';
 export { default as BubbleLogoIcon } from './BubbleLogoIcon';
 export { default as CreateAPostIcon } from './CreateAPostIcon';
 export { default as NothingHereYetIcon } from './NothingHereYetIcon';
+export { default as EditIcon } from './EditIcon';
