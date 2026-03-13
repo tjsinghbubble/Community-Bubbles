@@ -141,8 +141,8 @@ class CometChatService {
       await CometChat.leaveGroup(guid);
       console.log('Left group:', guid);
     } catch (error: any) {
-      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
-        console.log('User was not in CometChat group (already left):', guid);
+      if (error?.code === 'ERR_GROUP_NOT_JOINED' || error?.code === 'ERR_GUID_NOT_FOUND') {
+        console.log('User was not in CometChat group (already left or group does not exist):', guid);
         return;
       }
       console.error('Failed to leave group:', error);
