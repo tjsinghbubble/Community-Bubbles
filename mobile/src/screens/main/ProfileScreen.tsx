@@ -110,7 +110,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.editButton} onPress={() => {}} testID="button-edit-profile">
+        <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')} testID="button-edit-profile">
           <EditIcon size={22} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -259,6 +259,18 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('ViewProfile')}
+            testID="link-view-profile"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="person-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>View Profile</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
