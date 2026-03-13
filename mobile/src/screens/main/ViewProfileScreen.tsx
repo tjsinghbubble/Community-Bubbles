@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,18 +36,22 @@ type BubbleItem = {
   title: string;
   category?: string;
   coverImage?: string | null;
+  role?: string;
 };
 
 export default function ViewProfileScreen({ navigation }: Props) {
   const { user, token } = useAuth();
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
+  const isBubbleAdmin = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
       if (token) {
         apiService.setToken(token);
         apiService.getMyBubbles().then((bubbles: any) => {
-          setMyBubbles(bubbles || []);
+          const list = bubbles || [];
+          setMyBubbles(list);
+          isBubbleAdmin.current = list.some((b: any) => b.role === 'admin');
         }).catch(() => {});
       }
     }, [token])
@@ -55,6 +59,8 @@ export default function ViewProfileScreen({ navigation }: Props) {
 
   if (!user) return null;
 
+  const isSuperAdmin = user.isSuperAdmin === true;
+  const roleLabel = isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member';
   const previewBubbles = myBubbles.slice(0, 3);
 
   return (
@@ -90,6 +96,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
             </View>
           )}
           <Text style={styles.userName}>{user.name}</Text>
+          <Text style={styles.userRole}>{roleLabel}</Text>
         </View>
 
         <View style={styles.completeSection}>
@@ -203,34 +210,43 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
-    padding: 24,
     alignItems: 'center',
-    marginBottom: 12,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
+    marginBottom: 15,
+    aspectRatio: 1.15,
+    justifyContent: 'center',
   },
   avatarImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   avatar: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: Colors.brand.bubbleBlue + '20',
+    backgroundColor: Colors.brand.midnight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.brand.bubbleBlue,
+    fontSize: Typography.sizes.hero,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.skyWhite,
   },
   userName: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.neutral.charcoal,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  userRole: {
+    fontSize: 12,
+    color: Colors.neutral.coolMist,
+    marginTop: 2,
   },
   completeSection: {
     alignItems: 'center',
