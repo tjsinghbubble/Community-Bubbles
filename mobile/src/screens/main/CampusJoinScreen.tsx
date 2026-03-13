@@ -8,14 +8,15 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
 
 type Props = {
@@ -88,41 +89,59 @@ export default function CampusJoinScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.iconContainer}>
+            <Text style={styles.graduationIcon}>🎓</Text>
+          </View>
 
-        <View style={styles.iconContainer}>
-          <Text style={styles.graduationIcon}>🎓</Text>
-        </View>
+          <Text style={styles.title}>Join your campus community!</Text>
+          <Text style={styles.subtitle}>
+            Find bubbles for classes, clubs, and common interests shared by people at your school.
+          </Text>
 
-        <Text style={styles.title}>Join your campus community!</Text>
-        <Text style={styles.subtitle}>
-          Find bubbles for classes, clubs, and common interests shared by people at your school.
-        </Text>
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Enter school email address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="School email address"
+              placeholderTextColor={Colors.neutral.coolMist}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+          </View>
 
-        <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>Enter school email address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="School email address"
-            placeholderTextColor={Colors.neutral.coolMist}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-        </View>
+          <TouchableOpacity
+            onPress={handleVerifyEmail}
+            disabled={isLoading}
+            activeOpacity={0.7}
+            style={styles.verifyButton}
+            testID="button-verify-edu-email"
+          >
+            <LinearGradient
+              colors={['#35A8F7', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.7, y: 3.6 }}
+              style={styles.verifyBtnGradient}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.verifyBtnText}>Verify My .edu Email</Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
 
-        <BubbleButton
-          title="Verify My .edu Email"
-          onPress={handleVerifyEmail}
-          loading={isLoading}
-          style={styles.verifyButton}
-          testID="button-verify-edu-email"
-        />
-
-        <Text style={styles.disclaimer}>
-          Bubble is not managed by or affiliated with your school
-        </Text>
+          <Text style={styles.disclaimer}>
+            Bubble is not managed by or affiliated with your school
+          </Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -144,7 +163,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  scrollContent: {
     padding: 24,
+    flexGrow: 1,
   },
   backButton: {
     width: 40,
@@ -190,10 +212,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
   },
   verifyButton: {
-    borderRadius: Radius.full,
-    padding: 16,
-    alignItems: 'center',
+    width: '100%',
     marginBottom: 16,
+  },
+  verifyBtnGradient: {
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verifyBtnText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#1E1F26',
   },
   disclaimer: {
     fontSize: 12,
