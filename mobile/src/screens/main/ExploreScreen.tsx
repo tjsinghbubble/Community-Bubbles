@@ -29,7 +29,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
-import BubbleButton from '../../components/BubbleButton';
+import { LinearGradient } from 'expo-linear-gradient';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
 
@@ -268,12 +268,21 @@ export default function ExploreScreen() {
         <Text style={styles.studentPromptSubtitle}>
           Unlock exclusive campus events, verified student communities, and connect with classmates
         </Text>
-        <BubbleButton 
-          title="Join a campus"
+        <TouchableOpacity
           onPress={handleJoinCampus}
+          activeOpacity={0.7}
           style={styles.joinCampusButton}
           testID="button-join-campus"
-        />
+        >
+          <LinearGradient
+            colors={['#35A8F7', '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.7, y: 3.6 }}
+            style={styles.joinCampusBtnGradient}
+          >
+            <Text style={styles.joinCampusBtnText}>Join a campus</Text>
+          </LinearGradient>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
         </TouchableOpacity>
@@ -731,17 +740,19 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   joinCampusButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginBottom: 12,
     width: '100%',
-    alignItems: 'center',
+    marginBottom: 12,
   },
-  joinCampusButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+  joinCampusBtnGradient: {
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  joinCampusBtnText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#1E1F26',
   },
   notStudentButton: {
     paddingVertical: 8,
