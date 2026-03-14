@@ -58,7 +58,8 @@ const PRIVACY_OPTIONS = [
 
 type RuleEntry = {
   ruleId: number | null;
-  text: string;
+  name: string;
+  description: string;
   level: 'app' | 'category' | 'bubble';
 };
 
@@ -100,7 +101,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
-  const [ruleText, setRuleText] = useState('');
+  const [ruleName, setRuleName] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [expandAbout, setExpandAbout] = useState(true);
@@ -113,7 +115,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   useEffect(() => {
     const fetchRules = async () => {
       try {
-        type EffectiveRule = { ruleId: number; text: string; level: string; hidden: boolean };
+        type EffectiveRule = { ruleId: number; name: string; description: string; text: string; level: string; hidden: boolean };
         type BubbleRuleData = { ruleId: number };
         const [effectiveResult, bubbleRulesData] = await Promise.all([
           apiService.getEffectiveRules(bubble.id).catch((): EffectiveRule[] => []),
@@ -132,17 +134,18 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             .filter(r => !r.hidden)
             .map(r => ({
               ruleId: r.ruleId,
-              text: r.text,
+              name: r.name || '',
+              description: r.description || '',
               level: r.level as RuleEntry['level'],
             }));
           setRuleEntries(entries);
         } else if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
-          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, text, level: 'bubble' as const })));
+          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, name: text, description: '', level: 'bubble' as const })));
         }
       } catch (e) {
         console.error('Failed to fetch rules:', e);
         if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
-          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, text, level: 'bubble' as const })));
+          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, name: text, description: '', level: 'bubble' as const })));
         }
       } finally {
         setRulesLoaded(true);
@@ -153,7 +156,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  const allRuleTexts = ruleEntries.map(r => r.text);
+  const allRuleTexts = ruleEntries.map(r => `${r.name}. ${r.description}`);
 
   const handleSliderLayout = (e: LayoutChangeEvent) => {
     sliderWidth.current = e.nativeEvent.layout.width;
@@ -212,7 +215,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   const openAddRule = () => {
     setEditingRuleIndex(null);
-    setRuleText('');
+    setRuleName('');
+    setRuleDescription('');
     setShowRuleModal(true);
   };
 
@@ -220,22 +224,25 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
     const entry = ruleEntries[index];
     if (entry.level !== 'bubble') return;
     setEditingRuleIndex(index);
-    setRuleText(entry.text);
+    setRuleName(entry.name);
+    setRuleDescription(entry.description);
     setShowRuleModal(true);
   };
 
   const saveRule = () => {
-    const trimmed = ruleText.trim();
-    if (!trimmed) return;
+    const trimmedName = ruleName.trim();
+    if (!trimmedName) return;
+    const trimmedDesc = ruleDescription.trim();
     if (editingRuleIndex !== null) {
       const updated = [...ruleEntries];
-      updated[editingRuleIndex] = { ...updated[editingRuleIndex], text: trimmed };
+      updated[editingRuleIndex] = { ...updated[editingRuleIndex], name: trimmedName, description: trimmedDesc };
       setRuleEntries(updated);
     } else {
-      setRuleEntries([{ ruleId: null, text: trimmed, level: 'bubble' }, ...ruleEntries]);
+      setRuleEntries([{ ruleId: null, name: trimmedName, description: trimmedDesc, level: 'bubble' }, ...ruleEntries]);
     }
     setShowRuleModal(false);
-    setRuleText('');
+    setRuleName('');
+    setRuleDescription('');
   };
 
   const deleteRule = (index: number) => {
@@ -301,7 +308,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         }
         const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
         for (let i = 0; i < bubbleOnlyRules.length; i++) {
-          await apiService.addBubbleRule(bubble.id, bubbleOnlyRules[i].text, i + 1).catch(err =>
+          await apiService.addBubbleRule(bubble.id, bubbleOnlyRules[i].name, bubbleOnlyRules[i].description, i + 1).catch(err =>
             console.log('Failed to save bubble rule:', err)
           );
         }
@@ -556,7 +563,10 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               >
                 <View style={styles.ruleContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{entry.text}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{entry.name}</Text>
+                      {entry.description ? <Text style={styles.ruleDescription} numberOfLines={isExpanded ? undefined : 1}>{entry.description}</Text> : null}
+                    </View>
                     {isInherited && (
                       <View style={{ backgroundColor: Colors.brand.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                         <Text style={{ fontSize: 10, color: Colors.brand.primary }}>{entry.level}</Text>
@@ -773,11 +783,19 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
             <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
               <TextInput
                 style={[styles.fieldInput, styles.ruleModalInput]}
-                placeholder="Enter your rule..."
+                placeholder="Rule name..."
                 placeholderTextColor={Colors.text.tertiary}
-                value={ruleText}
-                onChangeText={setRuleText}
+                value={ruleName}
+                onChangeText={setRuleName}
                 autoFocus
+              />
+              <TextInput
+                style={[styles.fieldInput, styles.ruleModalInput, { marginTop: 12 }]}
+                placeholder="Description (optional)..."
+                placeholderTextColor={Colors.text.tertiary}
+                value={ruleDescription}
+                onChangeText={setRuleDescription}
+                multiline
               />
               <View style={styles.modalFooter}>
                 <BubbleButton
@@ -790,7 +808,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 <BubbleButton
                   title="Save"
                   onPress={saveRule}
-                  disabled={!ruleText.trim()}
+                  disabled={!ruleName.trim()}
                   style={{ flex: 1 }}
                   testID="button-save-rule"
                 />
@@ -1049,9 +1067,15 @@ const styles = StyleSheet.create({
   },
   ruleText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.base,
+  },
+  ruleDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.sm,
+    marginTop: 2,
   },
   ruleActions: {
     flexDirection: 'row',

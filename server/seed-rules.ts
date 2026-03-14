@@ -2,14 +2,14 @@ import { db } from "./db";
 import { rules, appRules } from "@shared/schema";
 
 const APP_LEVEL_RULES = [
-  "Be Kind. Treat all members with kindness and courtesy.",
-  "Respect Privacy. Don't share anyone's personal info without permission.",
-  "Keep It Safe. No threats, dangerous behavior, or anything that could harm others.",
-  "No Scams or Spam. No fraud, promotions, or unwanted selling unless the Bubble allows it.",
-  "Be Real. Use your real identity and be honest in your interactions.",
-  "Respect the Vibe. Follow each Bubble's unique guidelines and culture.",
-  "Show Up. Honor your commitments, whether you're hosting or attending.",
-  "Act Like You're in Public. Keep content appropriate for a community setting.",
+  { name: "Be Kind", description: "Treat all members with kindness and courtesy." },
+  { name: "Respect Privacy", description: "Don't share anyone's personal info without permission." },
+  { name: "Keep It Safe", description: "No threats, dangerous behavior, or anything that could harm others." },
+  { name: "No Scams or Spam", description: "No fraud, promotions, or unwanted selling unless the Bubble allows it." },
+  { name: "Be Real", description: "Use your real identity and be honest in your interactions." },
+  { name: "Respect the Vibe", description: "Follow each Bubble's unique guidelines and culture." },
+  { name: "Show Up", description: "Honor your commitments, whether you're hosting or attending." },
+  { name: "Act Like You're in Public", description: "Keep content appropriate for a community setting." },
 ];
 
 export async function seedRules() {
@@ -20,8 +20,12 @@ export async function seedRules() {
   }
 
   for (let i = 0; i < APP_LEVEL_RULES.length; i++) {
+    const { name, description } = APP_LEVEL_RULES[i];
+    const text = `${name}. ${description}`;
     const [rule] = await db.insert(rules).values({
-      text: APP_LEVEL_RULES[i],
+      text,
+      name,
+      description,
     }).returning();
 
     await db.insert(appRules).values({

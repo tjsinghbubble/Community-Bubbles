@@ -20,13 +20,18 @@ interface NextEventInfo {
   startTime: string;
 }
 
+interface RuleDisplay {
+  name: string;
+  description: string;
+}
+
 interface WelcomeBubbleModalProps {
   visible: boolean;
   onClose: () => void;
   onLetsGo: () => void;
   bubbleName: string;
   category: string;
-  rules: string[];
+  rules: RuleDisplay[];
   nextEvent?: NextEventInfo | null;
 }
 
@@ -145,7 +150,10 @@ export default function WelcomeBubbleModal({
                         <Ionicons name="checkmark" size={14} color={Colors.status.success} />
                       )}
                     </View>
-                    <Text style={styles.ruleText}>{rule}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ruleText}>{rule.name}</Text>
+                      {rule.description ? <Text style={styles.ruleDescriptionText}>{rule.description}</Text> : null}
+                    </View>
                   </TouchableOpacity>
                 ))}
 
@@ -283,11 +291,16 @@ const styles = StyleSheet.create({
     backgroundColor: `${Colors.status.success}1A`,
   },
   ruleText: {
-    flex: 1,
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.md,
+  },
+  ruleDescriptionText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.sm,
+    marginTop: 2,
   },
   nextStepRow: {
     flexDirection: 'row',

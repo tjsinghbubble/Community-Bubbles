@@ -228,9 +228,9 @@ export interface IStorage {
   getAppConfigValue(key: string): Promise<string | undefined>;
   getAllAppConfig(): Promise<AppConfig[]>;
 
-  createRule(text: string): Promise<Rule>;
+  createRule(name: string, description: string): Promise<Rule>;
   getRule(id: number): Promise<Rule | undefined>;
-  updateRule(id: number, text: string): Promise<Rule | undefined>;
+  updateRule(id: number, name: string, description: string): Promise<Rule | undefined>;
   deleteRule(id: number): Promise<void>;
 
   getAppRules(): Promise<(AppRule & { rule: Rule })[]>;
@@ -252,7 +252,7 @@ export interface IStorage {
   setBubbleRuleOverride(bubbleId: string, ruleId: number, hidden: boolean): Promise<BubbleRuleOverride>;
   removeBubbleRuleOverride(bubbleId: string, ruleId: number): Promise<void>;
 
-  getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]>;
+  getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; name: string; description: string; text: string; position: number; hidden: boolean }[]>;
 
   isBubbleRuleLinked(bubbleId: string, ruleId: number): Promise<boolean>;
   isCategoryRuleLinked(categoryId: number, ruleId: number): Promise<boolean>;
@@ -1623,8 +1623,9 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(appConfig);
   }
 
-  async createRule(text: string): Promise<Rule> {
-    const [rule] = await db.insert(rules).values({ text }).returning();
+  async createRule(name: string, description: string): Promise<Rule> {
+    const text = description ? `${name}. ${description}` : name;
+    const [rule] = await db.insert(rules).values({ text, name, description }).returning();
     return rule;
   }
 
@@ -1633,8 +1634,9 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateRule(id: number, newText: string): Promise<Rule | undefined> {
-    const result = await db.update(rules).set({ text: newText }).where(eq(rules.id, id)).returning();
+  async updateRule(id: number, name: string, description: string): Promise<Rule | undefined> {
+    const text = description ? `${name}. ${description}` : name;
+    const result = await db.update(rules).set({ text, name, description }).where(eq(rules.id, id)).returning();
     return result[0];
   }
 
@@ -1738,7 +1740,7 @@ export class DatabaseStorage implements IStorage {
     await db.delete(bubbleRuleOverrides).where(and(eq(bubbleRuleOverrides.bubbleId, bubbleId), eq(bubbleRuleOverrides.ruleId, ruleId)));
   }
 
-  async getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]> {
+  async getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; name: string; description: string; text: string; position: number; hidden: boolean }[]> {
     const bubble = await this.getBubble(bubbleId);
     if (!bubble) return [];
 
@@ -1746,12 +1748,14 @@ export class DatabaseStorage implements IStorage {
     const overrideMap = new Map(overrides.map(o => [o.ruleId, o.hidden]));
 
     const appRuleRows = await this.getAppRules();
-    const result: { level: string; ruleId: number; text: string; position: number; hidden: boolean }[] = [];
+    const result: { level: string; ruleId: number; name: string; description: string; text: string; position: number; hidden: boolean }[] = [];
 
     for (const ar of appRuleRows) {
       result.push({
         level: 'app',
         ruleId: ar.ruleId,
+        name: ar.rule.name,
+        description: ar.rule.description,
         text: ar.rule.text,
         position: ar.position,
         hidden: overrideMap.get(ar.ruleId) ?? false,
@@ -1764,6 +1768,8 @@ export class DatabaseStorage implements IStorage {
         result.push({
           level: 'category',
           ruleId: cr.ruleId,
+          name: cr.rule.name,
+          description: cr.rule.description,
           text: cr.rule.text,
           position: cr.position,
           hidden: overrideMap.get(cr.ruleId) ?? false,
@@ -1776,6 +1782,8 @@ export class DatabaseStorage implements IStorage {
       result.push({
         level: 'bubble',
         ruleId: br.ruleId,
+        name: br.rule.name,
+        description: br.rule.description,
         text: br.rule.text,
         position: br.position,
         hidden: overrideMap.get(br.ruleId) ?? false,

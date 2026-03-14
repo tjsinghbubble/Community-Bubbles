@@ -72,14 +72,15 @@ interface CategoryGroup {
 
 type RuleEntry = {
   ruleId: number | null;
-  text: string;
+  name: string;
+  description: string;
   level: 'app' | 'category' | 'bubble';
 };
 
 const FALLBACK_RULES: RuleEntry[] = [
-  { ruleId: null, text: 'Be Respectful. Treat all members with kindness and courtesy.', level: 'bubble' },
-  { ruleId: null, text: 'Stay On Topic. Keep posts relevant to the bubble\'s purpose.', level: 'bubble' },
-  { ruleId: null, text: 'Have fun and be yourself!', level: 'bubble' },
+  { ruleId: null, name: 'Be Respectful', description: 'Treat all members with kindness and courtesy.', level: 'bubble' },
+  { ruleId: null, name: 'Stay On Topic', description: 'Keep posts relevant to the bubble\'s purpose.', level: 'bubble' },
+  { ruleId: null, name: 'Have Fun', description: 'Be yourself and enjoy the community!', level: 'bubble' },
 ];
 
 const PRIVACY_OPTIONS = [
@@ -120,7 +121,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
-  const [ruleText, setRuleText] = useState('');
+  const [ruleName, setRuleName] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [expandAbout, setExpandAbout] = useState(true);
@@ -152,9 +154,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const result = await apiService.getAppRules();
         if (result && result.length > 0) {
-          const entries: RuleEntry[] = result.map((r: { ruleId: number; rule?: { text: string }; text?: string }) => ({
+          const entries: RuleEntry[] = result.map((r: any) => ({
             ruleId: r.ruleId,
-            text: r.rule?.text || r.text || '',
+            name: r.rule?.name || r.name || '',
+            description: r.rule?.description || r.description || '',
             level: 'app' as const,
           }));
           setAppRuleEntries(entries);
@@ -181,9 +184,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const result = await apiService.getCategoryRules(selectedCategoryItem.id);
         if (result && result.length > 0) {
-          const catEntries: RuleEntry[] = result.map((r: { ruleId: number; rule?: { text: string }; text?: string }) => ({
+          const catEntries: RuleEntry[] = result.map((r: any) => ({
             ruleId: r.ruleId,
-            text: r.rule?.text || r.text || '',
+            name: r.rule?.name || r.name || '',
+            description: r.rule?.description || r.description || '',
             level: 'category' as const,
           }));
           const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
@@ -226,7 +230,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  const allRuleTexts = ruleEntries.map(r => r.text);
+  const allRuleTexts = ruleEntries.map(r => `${r.name}. ${r.description}`);
 
   const handleLocationSelect = (location: { name: string; address: string; latitude?: number; longitude?: number; placeId?: string }) => {
     setLocationName(location.name);
@@ -265,7 +269,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   const openAddRule = () => {
     setEditingRuleIndex(null);
-    setRuleText('');
+    setRuleName('');
+    setRuleDescription('');
     setShowRuleModal(true);
   };
 
@@ -273,22 +278,25 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     const entry = ruleEntries[index];
     if (entry.level !== 'bubble') return;
     setEditingRuleIndex(index);
-    setRuleText(entry.text);
+    setRuleName(entry.name);
+    setRuleDescription(entry.description);
     setShowRuleModal(true);
   };
 
   const saveRule = () => {
-    const trimmed = ruleText.trim();
-    if (!trimmed) return;
+    const trimmedName = ruleName.trim();
+    if (!trimmedName) return;
+    const trimmedDesc = ruleDescription.trim();
     if (editingRuleIndex !== null) {
       const updated = [...ruleEntries];
-      updated[editingRuleIndex] = { ...updated[editingRuleIndex], text: trimmed };
+      updated[editingRuleIndex] = { ...updated[editingRuleIndex], name: trimmedName, description: trimmedDesc };
       setRuleEntries(updated);
     } else {
-      setRuleEntries([{ ruleId: null, text: trimmed, level: 'bubble' }, ...ruleEntries]);
+      setRuleEntries([{ ruleId: null, name: trimmedName, description: trimmedDesc, level: 'bubble' }, ...ruleEntries]);
     }
     setShowRuleModal(false);
-    setRuleText('');
+    setRuleName('');
+    setRuleDescription('');
   };
 
   const deleteRule = (index: number) => {
@@ -367,7 +375,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
         for (let i = 0; i < bubbleOnlyRules.length; i++) {
-          await apiService.addBubbleRule(data.id, bubbleOnlyRules[i].text, i + 1).catch(err =>
+          await apiService.addBubbleRule(data.id, bubbleOnlyRules[i].name, bubbleOnlyRules[i].description, i + 1).catch(err =>
             console.log('Failed to save bubble rule:', err)
           );
         }
@@ -717,7 +725,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               >
                 <View style={styles.ruleContent}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{entry.text}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{entry.name}</Text>
+                      {entry.description ? <Text style={styles.ruleDescription} numberOfLines={isExpanded ? undefined : 1}>{entry.description}</Text> : null}
+                    </View>
                     {isInherited && (
                       <View style={{ backgroundColor: Colors.brand.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
                         <Text style={{ fontSize: 10, color: Colors.brand.primary }}>{entry.level}</Text>
@@ -934,11 +945,19 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
               <TextInput
                 style={[styles.fieldInput, styles.ruleModalInput]}
-                placeholder="Enter your rule..."
+                placeholder="Rule name..."
                 placeholderTextColor={Colors.text.tertiary}
-                value={ruleText}
-                onChangeText={setRuleText}
+                value={ruleName}
+                onChangeText={setRuleName}
                 autoFocus
+              />
+              <TextInput
+                style={[styles.fieldInput, styles.ruleModalInput, { marginTop: 12 }]}
+                placeholder="Description (optional)..."
+                placeholderTextColor={Colors.text.tertiary}
+                value={ruleDescription}
+                onChangeText={setRuleDescription}
+                multiline
               />
               <View style={styles.modalFooter}>
                 <BubbleButton
@@ -951,7 +970,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 <BubbleButton
                   title="Save"
                   onPress={saveRule}
-                  disabled={!ruleText.trim()}
+                  disabled={!ruleName.trim()}
                   style={{ flex: 1, height: 56 }}
                   testID="button-save-rule"
                 />
@@ -1244,9 +1263,15 @@ const styles = StyleSheet.create({
   },
   ruleText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.base,
+  },
+  ruleDescription: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.sm,
+    marginTop: 2,
   },
   ruleBadge: {
     flexDirection: 'row',

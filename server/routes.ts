@@ -2639,9 +2639,9 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
-      const { text, position } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const rule = await storage.createRule(text);
+      const { name, description, position } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const rule = await storage.createRule(name, description || '');
       const appRule = await storage.addAppRule(rule.id, position || 0);
       res.json({ ...appRule, rule });
     } catch (error: any) {
@@ -2667,9 +2667,9 @@ export async function registerRoutes(
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const ruleId = parseInt(req.params.ruleId);
-      const { text } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const updated = await storage.updateRule(ruleId, text);
+      const { name, description } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const updated = await storage.updateRule(ruleId, name, description || '');
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
@@ -2710,9 +2710,9 @@ export async function registerRoutes(
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const categoryId = parseInt(req.params.categoryId);
-      const { text, position } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const rule = await storage.createRule(text);
+      const { name, description, position } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const rule = await storage.createRule(name, description || '');
       const catRule = await storage.addCategoryRule(categoryId, rule.id, position || 0);
       res.json({ ...catRule, rule });
     } catch (error: any) {
@@ -2742,9 +2742,9 @@ export async function registerRoutes(
       const ruleId = parseInt(req.params.ruleId);
       const linked = await storage.isCategoryRuleLinked(categoryId, ruleId);
       if (!linked) return res.status(404).json({ error: "Rule not linked to this category" });
-      const { text } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const updated = await storage.updateRule(ruleId, text);
+      const { name, description } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const updated = await storage.updateRule(ruleId, name, description || '');
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
@@ -2788,9 +2788,9 @@ export async function registerRoutes(
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
       if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
-      const { text, position } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const rule = await storage.createRule(text);
+      const { name, description, position } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const rule = await storage.createRule(name, description || '');
       const bubbleRule = await storage.addBubbleRule(bubbleId, rule.id, position || 0);
       res.json({ ...bubbleRule, rule });
     } catch (error: any) {
@@ -2826,9 +2826,9 @@ export async function registerRoutes(
       const ruleId = parseInt(req.params.ruleId);
       const linked = await storage.isBubbleRuleLinked(bubbleId, ruleId);
       if (!linked) return res.status(404).json({ error: "Rule not linked to this bubble" });
-      const { text } = req.body;
-      if (!text) return res.status(400).json({ error: "text is required" });
-      const updated = await storage.updateRule(ruleId, text);
+      const { name, description } = req.body;
+      if (!name) return res.status(400).json({ error: "name is required" });
+      const updated = await storage.updateRule(ruleId, name, description || '');
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {

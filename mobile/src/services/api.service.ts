@@ -552,19 +552,19 @@ class ApiService {
     return this.request<any[]>(`/api/rules/bubble/${bubbleId}`);
   }
 
-  async addBubbleRule(bubbleId: string, text: string, position: number): Promise<any> {
+  async addBubbleRule(bubbleId: string, name: string, description: string, position: number): Promise<any> {
     return this.request<any>(`/api/rules/bubble/${bubbleId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, position }),
+      body: JSON.stringify({ name, description, position }),
     });
   }
 
-  async updateBubbleRule(bubbleId: string, ruleId: number, text: string): Promise<any> {
+  async updateBubbleRule(bubbleId: string, ruleId: number, name: string, description: string): Promise<any> {
     return this.request<any>(`/api/rules/bubble/${bubbleId}/${ruleId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ name, description }),
     });
   }
 
@@ -594,19 +594,19 @@ class ApiService {
     return this.request<any[]>(`/api/rules/category/${categoryId}`);
   }
 
-  async addCategoryRule(categoryId: number, text: string, position: number): Promise<any> {
+  async addCategoryRule(categoryId: number, name: string, description: string, position: number): Promise<any> {
     return this.request<any>(`/api/rules/category/${categoryId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, position }),
+      body: JSON.stringify({ name, description, position }),
     });
   }
 
-  async updateCategoryRule(categoryId: number, ruleId: number, text: string): Promise<any> {
+  async updateCategoryRule(categoryId: number, ruleId: number, name: string, description: string): Promise<any> {
     return this.request<any>(`/api/rules/category/${categoryId}/${ruleId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ name, description }),
     });
   }
 
@@ -624,19 +624,19 @@ class ApiService {
     });
   }
 
-  async addAppRule(text: string, position: number): Promise<any> {
+  async addAppRule(name: string, description: string, position: number): Promise<any> {
     return this.request<any>('/api/rules/app', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, position }),
+      body: JSON.stringify({ name, description, position }),
     });
   }
 
-  async updateAppRule(ruleId: number, text: string): Promise<any> {
+  async updateAppRule(ruleId: number, name: string, description: string): Promise<any> {
     return this.request<any>(`/api/rules/app/${ruleId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ name, description }),
     });
   }
 

@@ -24,7 +24,8 @@ type Props = {
 type RuleItem = {
   id: number;
   ruleId: number;
-  text: string;
+  name: string;
+  description: string;
   position: number;
 };
 
@@ -45,7 +46,8 @@ export default function ManageRulesScreen({ navigation }: Props) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRule, setEditingRule] = useState<RuleItem | null>(null);
-  const [ruleText, setRuleText] = useState('');
+  const [ruleName, setRuleName] = useState('');
+  const [ruleDescription, setRuleDescription] = useState('');
 
   useEffect(() => {
     fetchAppRules();
@@ -65,7 +67,8 @@ export default function ManageRulesScreen({ navigation }: Props) {
       setAppRules((rules || []).map((r: any) => ({
         id: r.id,
         ruleId: r.ruleId,
-        text: r.rule?.text || r.text,
+        name: r.rule?.name || r.name || '',
+        description: r.rule?.description || r.description || '',
         position: r.position,
       })));
     } catch (e) {
@@ -90,7 +93,8 @@ export default function ManageRulesScreen({ navigation }: Props) {
       setCategoryRules((rules || []).map((r: any) => ({
         id: r.id,
         ruleId: r.ruleId,
-        text: r.rule?.text || r.text,
+        name: r.rule?.name || r.name || '',
+        description: r.rule?.description || r.description || '',
         position: r.position,
       })));
     } catch (e) {
@@ -100,18 +104,20 @@ export default function ManageRulesScreen({ navigation }: Props) {
   };
 
   const handleAddRule = async () => {
-    const trimmed = ruleText.trim();
-    if (!trimmed) return;
+    const trimmedName = ruleName.trim();
+    if (!trimmedName) return;
+    const trimmedDesc = ruleDescription.trim();
 
     try {
       if (activeTab === 'app') {
-        await apiService.addAppRule(trimmed, appRules.length + 1);
+        await apiService.addAppRule(trimmedName, trimmedDesc, appRules.length + 1);
         await fetchAppRules();
       } else if (selectedCategoryId) {
-        await apiService.addCategoryRule(selectedCategoryId, trimmed, categoryRules.length + 1);
+        await apiService.addCategoryRule(selectedCategoryId, trimmedName, trimmedDesc, categoryRules.length + 1);
         await fetchCategoryRules(selectedCategoryId);
       }
-      setRuleText('');
+      setRuleName('');
+      setRuleDescription('');
       setShowAddModal(false);
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to add rule');
@@ -120,18 +126,20 @@ export default function ManageRulesScreen({ navigation }: Props) {
 
   const handleEditRule = async () => {
     if (!editingRule) return;
-    const trimmed = ruleText.trim();
-    if (!trimmed) return;
+    const trimmedName = ruleName.trim();
+    if (!trimmedName) return;
+    const trimmedDesc = ruleDescription.trim();
 
     try {
       if (activeTab === 'app') {
-        await apiService.updateAppRule(editingRule.ruleId, trimmed);
+        await apiService.updateAppRule(editingRule.ruleId, trimmedName, trimmedDesc);
         await fetchAppRules();
       } else if (selectedCategoryId) {
-        await apiService.updateCategoryRule(selectedCategoryId, editingRule.ruleId, trimmed);
+        await apiService.updateCategoryRule(selectedCategoryId, editingRule.ruleId, trimmedName, trimmedDesc);
         await fetchCategoryRules(selectedCategoryId);
       }
-      setRuleText('');
+      setRuleName('');
+      setRuleDescription('');
       setEditingRule(null);
       setShowEditModal(false);
     } catch (e: any) {
@@ -204,7 +212,10 @@ export default function ManageRulesScreen({ navigation }: Props) {
     <View style={styles.ruleCard} data-testid={`rule-card-${item.ruleId}`}>
       <View style={styles.ruleContent}>
         <Text style={styles.rulePosition}>{index + 1}.</Text>
-        <Text style={styles.ruleText}>{item.text}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ruleText}>{item.name}</Text>
+          {item.description ? <Text style={styles.ruleDescriptionText}>{item.description}</Text> : null}
+        </View>
       </View>
       <View style={styles.ruleActions}>
         <TouchableOpacity
@@ -227,7 +238,8 @@ export default function ManageRulesScreen({ navigation }: Props) {
           style={styles.actionButton}
           onPress={() => {
             setEditingRule(item);
-            setRuleText(item.text);
+            setRuleName(item.name);
+            setRuleDescription(item.description);
             setShowEditModal(true);
           }}
           data-testid={`button-edit-${item.ruleId}`}
@@ -323,7 +335,8 @@ export default function ManageRulesScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.fab}
           onPress={() => {
-            setRuleText('');
+            setRuleName('');
+            setRuleDescription('');
             setShowAddModal(true);
           }}
           data-testid="button-add-rule"
@@ -338,18 +351,26 @@ export default function ManageRulesScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>Add Rule</Text>
             <TextInput
               style={styles.modalInput}
-              value={ruleText}
-              onChangeText={setRuleText}
-              placeholder="Enter rule text..."
+              value={ruleName}
+              onChangeText={setRuleName}
+              placeholder="Rule name..."
+              placeholderTextColor={Colors.neutral.coolMist}
+              data-testid="input-rule-name"
+            />
+            <TextInput
+              style={[styles.modalInput, { minHeight: 80 }]}
+              value={ruleDescription}
+              onChangeText={setRuleDescription}
+              placeholder="Description (optional)..."
               placeholderTextColor={Colors.neutral.coolMist}
               multiline
-              data-testid="input-rule-text"
+              data-testid="input-rule-description"
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowAddModal(false)} data-testid="button-cancel-add">
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={handleAddRule} data-testid="button-save-rule">
+              <TouchableOpacity style={[styles.modalSave, !ruleName.trim() && { opacity: 0.5 }]} onPress={handleAddRule} disabled={!ruleName.trim()} data-testid="button-save-rule">
                 <Text style={styles.modalSaveText}>Add</Text>
               </TouchableOpacity>
             </View>
@@ -363,18 +384,26 @@ export default function ManageRulesScreen({ navigation }: Props) {
             <Text style={styles.modalTitle}>Edit Rule</Text>
             <TextInput
               style={styles.modalInput}
-              value={ruleText}
-              onChangeText={setRuleText}
-              placeholder="Enter rule text..."
+              value={ruleName}
+              onChangeText={setRuleName}
+              placeholder="Rule name..."
+              placeholderTextColor={Colors.neutral.coolMist}
+              data-testid="input-edit-rule-name"
+            />
+            <TextInput
+              style={[styles.modalInput, { minHeight: 80 }]}
+              value={ruleDescription}
+              onChangeText={setRuleDescription}
+              placeholder="Description (optional)..."
               placeholderTextColor={Colors.neutral.coolMist}
               multiline
-              data-testid="input-edit-rule-text"
+              data-testid="input-edit-rule-description"
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowEditModal(false)} data-testid="button-cancel-edit">
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalSave} onPress={handleEditRule} data-testid="button-update-rule">
+              <TouchableOpacity style={[styles.modalSave, !ruleName.trim() && { opacity: 0.5 }]} onPress={handleEditRule} disabled={!ruleName.trim()} data-testid="button-update-rule">
                 <Text style={styles.modalSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -509,11 +538,16 @@ const styles = StyleSheet.create({
     minWidth: 20,
   },
   ruleText: {
-    flex: 1,
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.md,
+  },
+  ruleDescriptionText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.secondary,
+    lineHeight: Typography.lineHeight.sm,
+    marginTop: 2,
   },
   ruleActions: {
     flexDirection: 'row',
@@ -581,7 +615,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     fontSize: Typography.sizes.sm,
     color: Colors.text.primary,
-    minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: Spacing.md,
   },

@@ -460,6 +460,8 @@ export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;
 export const rules = pgTable("rules", {
   id: serial("id").primaryKey(),
   text: text("text").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(''),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
