@@ -59,7 +59,7 @@ export default function HelpCenterScreen() {
 
         <View style={styles.divider} />
 
-        <Text style={styles.subHeader}>For emergencies</Text>
+        <Text style={styles.subHeaderRegular}>For emergencies</Text>
         <Text style={styles.emergencyHeading}>
           If you feel unsafe or are concerned about your or someone else's well-being, please contact local emergency services immediately.
         </Text>
@@ -115,7 +115,7 @@ export default function HelpCenterScreen() {
         <AnimatedPressable
           style={styles.reportButton}
           scaleValue={0.97}
-          onPress={() => Alert.alert('Coming Soon', 'Report a new issue will be available in a future update.')}
+          onPress={() => navigation.navigate('ReportConcern')}
           testID="button-report-new-issue"
         >
           <Text style={styles.reportButtonText}>Report a new issue</Text>
@@ -162,6 +162,12 @@ const styles = StyleSheet.create({
   subHeader: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
+    color: Colors.neutral.charcoal,
+    marginBottom: 8,
+  },
+  subHeaderRegular: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.regular,
     color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
