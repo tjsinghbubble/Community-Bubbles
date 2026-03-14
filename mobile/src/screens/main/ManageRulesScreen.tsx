@@ -64,13 +64,15 @@ export default function ManageRulesScreen({ navigation }: Props) {
     try {
       setLoading(true);
       const rules = await apiService.getAppRules();
-      setAppRules((rules || []).map((r: any) => ({
-        id: r.id,
-        ruleId: r.ruleId,
-        name: r.rule?.name || r.name || '',
-        description: r.rule?.description || r.description || '',
-        position: r.position,
-      })));
+      setAppRules((rules || []).map((r: any) => {
+        const rName = r.rule?.name || r.name || '';
+        const rDesc = r.rule?.description || r.description || '';
+        const rText = r.rule?.text || r.text || '';
+        if (rName) return { id: r.id, ruleId: r.ruleId, name: rName, description: rDesc, position: r.position };
+        const dotIdx = rText.indexOf('. ');
+        if (dotIdx > 0) return { id: r.id, ruleId: r.ruleId, name: rText.substring(0, dotIdx), description: rText.substring(dotIdx + 2), position: r.position };
+        return { id: r.id, ruleId: r.ruleId, name: rText, description: '', position: r.position };
+      }));
     } catch (e) {
       console.error('Failed to fetch app rules:', e);
     } finally {
@@ -90,13 +92,15 @@ export default function ManageRulesScreen({ navigation }: Props) {
   const fetchCategoryRules = async (categoryId: number) => {
     try {
       const rules = await apiService.getCategoryRules(categoryId);
-      setCategoryRules((rules || []).map((r: any) => ({
-        id: r.id,
-        ruleId: r.ruleId,
-        name: r.rule?.name || r.name || '',
-        description: r.rule?.description || r.description || '',
-        position: r.position,
-      })));
+      setCategoryRules((rules || []).map((r: any) => {
+        const rName = r.rule?.name || r.name || '';
+        const rDesc = r.rule?.description || r.description || '';
+        const rText = r.rule?.text || r.text || '';
+        if (rName) return { id: r.id, ruleId: r.ruleId, name: rName, description: rDesc, position: r.position };
+        const dotIdx = rText.indexOf('. ');
+        if (dotIdx > 0) return { id: r.id, ruleId: r.ruleId, name: rText.substring(0, dotIdx), description: rText.substring(dotIdx + 2), position: r.position };
+        return { id: r.id, ruleId: r.ruleId, name: rText, description: '', position: r.position };
+      }));
     } catch (e) {
       console.error('Failed to fetch category rules:', e);
       setCategoryRules([]);

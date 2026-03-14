@@ -66,10 +66,12 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       setBubbleDetails(details);
       setEvents(eventsData as Event[]);
       setMemberCount((members as any[]).length);
-      const visibleRules = (rulesData as any[]).filter((r: any) => !r.hidden).map((r: any) => ({
-        name: r.name || '',
-        description: r.description || '',
-      }));
+      const visibleRules = (rulesData as any[]).filter((r: any) => !r.hidden).map((r: any) => {
+        if (r.name) return { name: r.name, description: r.description || '' };
+        const dotIdx = (r.text || '').indexOf('. ');
+        if (dotIdx > 0) return { name: r.text.substring(0, dotIdx), description: r.text.substring(dotIdx + 2) };
+        return { name: r.text || '', description: '' };
+      });
       setEffectiveRules(visibleRules);
     } catch (error) {
       console.error('Failed to fetch bubble data:', error);

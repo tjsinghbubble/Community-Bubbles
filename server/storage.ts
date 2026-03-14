@@ -1747,15 +1747,23 @@ export class DatabaseStorage implements IStorage {
     const overrides = await this.getBubbleRuleOverrides(bubbleId);
     const overrideMap = new Map(overrides.map(o => [o.ruleId, o.hidden]));
 
+    const deriveNameDesc = (rule: { name: string; description: string; text: string }) => {
+      if (rule.name) return { name: rule.name, description: rule.description };
+      const dotIdx = rule.text.indexOf('. ');
+      if (dotIdx > 0) return { name: rule.text.substring(0, dotIdx), description: rule.text.substring(dotIdx + 2) };
+      return { name: rule.text, description: '' };
+    };
+
     const appRuleRows = await this.getAppRules();
     const result: { level: string; ruleId: number; name: string; description: string; text: string; position: number; hidden: boolean }[] = [];
 
     for (const ar of appRuleRows) {
+      const { name, description } = deriveNameDesc(ar.rule);
       result.push({
         level: 'app',
         ruleId: ar.ruleId,
-        name: ar.rule.name,
-        description: ar.rule.description,
+        name,
+        description,
         text: ar.rule.text,
         position: ar.position,
         hidden: overrideMap.get(ar.ruleId) ?? false,
@@ -1765,11 +1773,12 @@ export class DatabaseStorage implements IStorage {
     if (bubble.categoryId) {
       const catRuleRows = await this.getCategoryRules(bubble.categoryId);
       for (const cr of catRuleRows) {
+        const { name, description } = deriveNameDesc(cr.rule);
         result.push({
           level: 'category',
           ruleId: cr.ruleId,
-          name: cr.rule.name,
-          description: cr.rule.description,
+          name,
+          description,
           text: cr.rule.text,
           position: cr.position,
           hidden: overrideMap.get(cr.ruleId) ?? false,
@@ -1779,11 +1788,12 @@ export class DatabaseStorage implements IStorage {
 
     const bubbleRuleRows = await this.getBubbleRules(bubbleId);
     for (const br of bubbleRuleRows) {
+      const { name, description } = deriveNameDesc(br.rule);
       result.push({
         level: 'bubble',
         ruleId: br.ruleId,
-        name: br.rule.name,
-        description: br.rule.description,
+        name,
+        description,
         text: br.rule.text,
         position: br.position,
         hidden: overrideMap.get(br.ruleId) ?? false,

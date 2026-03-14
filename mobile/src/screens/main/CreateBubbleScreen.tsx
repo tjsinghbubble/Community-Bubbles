@@ -154,12 +154,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const result = await apiService.getAppRules();
         if (result && result.length > 0) {
-          const entries: RuleEntry[] = result.map((r: any) => ({
-            ruleId: r.ruleId,
-            name: r.rule?.name || r.name || '',
-            description: r.rule?.description || r.description || '',
-            level: 'app' as const,
-          }));
+          const entries: RuleEntry[] = result.map((r: any) => {
+            const ruleName = r.rule?.name || r.name || '';
+            const ruleDesc = r.rule?.description || r.description || '';
+            const ruleText = r.rule?.text || r.text || '';
+            if (ruleName) return { ruleId: r.ruleId, name: ruleName, description: ruleDesc, level: 'app' as const };
+            const dotIdx = ruleText.indexOf('. ');
+            if (dotIdx > 0) return { ruleId: r.ruleId, name: ruleText.substring(0, dotIdx), description: ruleText.substring(dotIdx + 2), level: 'app' as const };
+            return { ruleId: r.ruleId, name: ruleText, description: '', level: 'app' as const };
+          });
           setAppRuleEntries(entries);
           setRuleEntries(entries);
         } else {
@@ -184,12 +187,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const result = await apiService.getCategoryRules(selectedCategoryItem.id);
         if (result && result.length > 0) {
-          const catEntries: RuleEntry[] = result.map((r: any) => ({
-            ruleId: r.ruleId,
-            name: r.rule?.name || r.name || '',
-            description: r.rule?.description || r.description || '',
-            level: 'category' as const,
-          }));
+          const catEntries: RuleEntry[] = result.map((r: any) => {
+            const ruleName = r.rule?.name || r.name || '';
+            const ruleDesc = r.rule?.description || r.description || '';
+            const ruleText = r.rule?.text || r.text || '';
+            if (ruleName) return { ruleId: r.ruleId, name: ruleName, description: ruleDesc, level: 'category' as const };
+            const dotIdx = ruleText.indexOf('. ');
+            if (dotIdx > 0) return { ruleId: r.ruleId, name: ruleText.substring(0, dotIdx), description: ruleText.substring(dotIdx + 2), level: 'category' as const };
+            return { ruleId: r.ruleId, name: ruleText, description: '', level: 'category' as const };
+          });
           const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
           setRuleEntries([...appRuleEntries, ...catEntries, ...bubbleOnlyRules]);
         } else {
@@ -729,11 +735,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                       <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{entry.name}</Text>
                       {entry.description ? <Text style={styles.ruleDescription} numberOfLines={isExpanded ? undefined : 1}>{entry.description}</Text> : null}
                     </View>
-                    {isInherited && (
-                      <View style={{ backgroundColor: Colors.brand.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ fontSize: 10, color: Colors.brand.primary }}>{entry.level}</Text>
-                      </View>
-                    )}
                   </View>
                   {isExpanded && (
                     <View style={styles.ruleActions}>

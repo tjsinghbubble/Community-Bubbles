@@ -132,12 +132,12 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         if (effective.length > 0) {
           const entries: RuleEntry[] = effective
             .filter(r => !r.hidden)
-            .map(r => ({
-              ruleId: r.ruleId,
-              name: r.name || '',
-              description: r.description || '',
-              level: r.level as RuleEntry['level'],
-            }));
+            .map(r => {
+              if (r.name) return { ruleId: r.ruleId, name: r.name, description: r.description || '', level: r.level as RuleEntry['level'] };
+              const dotIdx = (r.text || '').indexOf('. ');
+              if (dotIdx > 0) return { ruleId: r.ruleId, name: r.text.substring(0, dotIdx), description: r.text.substring(dotIdx + 2), level: r.level as RuleEntry['level'] };
+              return { ruleId: r.ruleId, name: r.text || '', description: '', level: r.level as RuleEntry['level'] };
+            });
           setRuleEntries(entries);
         } else if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
           setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, name: text, description: '', level: 'bubble' as const })));
@@ -567,11 +567,6 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                       <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 1}>{entry.name}</Text>
                       {entry.description ? <Text style={styles.ruleDescription} numberOfLines={isExpanded ? undefined : 1}>{entry.description}</Text> : null}
                     </View>
-                    {isInherited && (
-                      <View style={{ backgroundColor: Colors.brand.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ fontSize: 10, color: Colors.brand.primary }}>{entry.level}</Text>
-                      </View>
-                    )}
                   </View>
                   {isExpanded && (
                     <View style={styles.ruleActions}>
