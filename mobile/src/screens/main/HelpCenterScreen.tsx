@@ -46,21 +46,46 @@ export default function HelpCenterScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <AnimatedPressable
-          style={styles.contactCard}
-          scaleValue={0.97}
-          onPress={() => Alert.alert('Coming Soon', 'Contact support will be available in a future update.')}
-          testID="button-contact-us"
-        >
-          <View style={styles.contactLeft}>
-            <Ionicons name="mail-outline" size={24} color={Colors.text.secondary} />
-            <Text style={styles.contactText}>Contact us</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
-        </AnimatedPressable>
+        <Text style={styles.subHeader}>Get help or support</Text>
+        <Text style={styles.bodyText}>
+          You can report a Bubble or Event concern here. For help with a Bubble, Event, or your account,{' '}
+          <Text
+            style={styles.link}
+            onPress={() => Alert.alert('Coming Soon', 'This feature will be available in a future update.')}
+          >
+            start here
+          </Text>
+        </Text>
 
-        <Text style={styles.sectionHeader}>Need help with an issue we're already working on?</Text>
-        <Text style={styles.sectionSub}>Select an open issue to add more details or ask for an update.</Text>
+        <View style={styles.divider} />
+
+        <Text style={styles.subHeader}>For emergencies</Text>
+        <Text style={styles.emergencyHeading}>
+          If you feel unsafe or are concerned about your or someone else's well-being, please contact local emergency services immediately.
+        </Text>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.subHeader}>Urgent Event situations</Text>
+        <Text style={styles.bodyText}>
+          Reach out to Event Admins if there's a issue or disturbance happening nearby.
+        </Text>
+
+        <View style={styles.divider} />
+
+        <AnimatedPressable
+          style={styles.openIssuesLink}
+          scaleValue={0.98}
+          onPress={() => {}}
+          testID="link-open-issues"
+        >
+          <Text style={styles.openIssuesLinkText}>
+            Need help with an issue we're already working on?
+          </Text>
+        </AnimatedPressable>
+        <Text style={styles.bodyText}>
+          Select an open issue to add more details or ask for an update.
+        </Text>
 
         <View style={styles.issuesCard}>
           {OPEN_ISSUES.map((issue, index) => (
@@ -130,47 +155,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.lg,
     paddingBottom: 40,
   },
-  contactCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: 20,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xl,
-    ...CARD_SHADOW,
-  },
-  contactLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  contactText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
-  },
-  sectionHeader: {
+  subHeader: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: Colors.neutral.charcoal,
     marginBottom: 8,
   },
-  sectionSub: {
+  bodyText: {
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
+    lineHeight: 22,
+  },
+  link: {
+    color: Colors.brand.bubbleBlue,
+    textDecorationLine: 'underline',
+  },
+  emergencyHeading: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.midnight,
+    lineHeight: 22,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+    marginVertical: Spacing.lg,
+  },
+  openIssuesLink: {
+    marginBottom: 6,
+  },
+  openIssuesLinkText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.bubbleBlue,
+    lineHeight: 22,
+    textDecorationLine: 'underline',
   },
   issuesCard: {
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
+    marginTop: Spacing.lg,
     marginBottom: Spacing.xl,
     ...CARD_SHADOW,
   },
