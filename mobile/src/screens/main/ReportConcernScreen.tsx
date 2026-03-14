@@ -42,7 +42,7 @@ export default function ReportConcernScreen() {
   const canProceed = feedbackType !== null && hasLink !== null;
   const canSubmit = name.trim() && date.trim() && description.trim() && fullName.trim() && email.trim();
 
-  const nameLabel = feedbackType === 'Event' ? 'Event name' : 'Bubble name';
+  const nameLabel = feedbackType === 'Event' ? 'Event name' : feedbackType === 'Other' ? 'Name' : 'Bubble name';
 
   const handleSubmit = () => {
     Alert.alert('Submitted', 'Your concern has been submitted. We will review it shortly.', [
