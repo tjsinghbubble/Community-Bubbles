@@ -285,6 +285,7 @@ const styles = StyleSheet.create({
   ruleText: {
     flex: 1,
     fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.md,
   },

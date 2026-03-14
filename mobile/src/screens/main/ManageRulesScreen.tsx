@@ -511,6 +511,7 @@ const styles = StyleSheet.create({
   ruleText: {
     flex: 1,
     fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.md,
   },
