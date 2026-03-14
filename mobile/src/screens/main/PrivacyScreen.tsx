@@ -25,9 +25,10 @@ const CARD_SHADOW = {
 
 export default function PrivacyScreen() {
   const navigation = useNavigation<any>();
-  const [showProfile, setShowProfile] = useState(true);
-  const [showActivity, setShowActivity] = useState(true);
-  const [showLocation, setShowLocation] = useState(false);
+  const [showBio, setShowBio] = useState(true);
+  const [showInterests, setShowInterests] = useState(true);
+  const [showBubbles, setShowBubbles] = useState(true);
+  const [showPastEvents, setShowPastEvents] = useState(true);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -48,43 +49,53 @@ export default function PrivacyScreen() {
         <View style={styles.section}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Show Profile</Text>
-              <Text style={styles.toggleSub}>Allow others to see your profile</Text>
+              <Text style={styles.toggleLabel}>Show my Bio</Text>
             </View>
             <Switch
-              value={showProfile}
-              onValueChange={setShowProfile}
+              value={showBio}
+              onValueChange={setShowBio}
               trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
               thumbColor="#FFFFFF"
-              testID="switch-show-profile"
+              testID="switch-show-bio"
             />
           </View>
           <View style={styles.separator} />
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Show Activity</Text>
-              <Text style={styles.toggleSub}>Let others see your recent activity</Text>
+              <Text style={styles.toggleLabel}>Show my Interests</Text>
             </View>
             <Switch
-              value={showActivity}
-              onValueChange={setShowActivity}
+              value={showInterests}
+              onValueChange={setShowInterests}
               trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
               thumbColor="#FFFFFF"
-              testID="switch-show-activity"
+              testID="switch-show-interests"
             />
           </View>
           <View style={styles.separator} />
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Show Location</Text>
-              <Text style={styles.toggleSub}>Display your general location</Text>
+              <Text style={styles.toggleLabel}>Show my Bubbles</Text>
             </View>
             <Switch
-              value={showLocation}
-              onValueChange={setShowLocation}
+              value={showBubbles}
+              onValueChange={setShowBubbles}
               trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
               thumbColor="#FFFFFF"
-              testID="switch-show-location"
+              testID="switch-show-bubbles"
+            />
+          </View>
+          <View style={styles.separator} />
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Show my Past Events</Text>
+            </View>
+            <Switch
+              value={showPastEvents}
+              onValueChange={setShowPastEvents}
+              trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
+              thumbColor="#FFFFFF"
+              testID="switch-show-past-events"
             />
           </View>
         </View>
@@ -99,7 +110,7 @@ export default function PrivacyScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="download-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Request My Data</Text>
+              <Text style={styles.menuItemText}>Request My Personal Data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -112,7 +123,7 @@ export default function PrivacyScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="trash-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Delete My Data</Text>
+              <Text style={styles.menuItemText}>Delete My Personal Data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -203,12 +214,6 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.neutral.charcoal,
-    marginBottom: 2,
-  },
-  toggleSub: {
-    fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
   },
   menuItem: {

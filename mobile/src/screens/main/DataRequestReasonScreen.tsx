@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
+  ScrollView,
   TouchableOpacity,
   Platform,
   StatusBar,
@@ -16,15 +17,12 @@ type DataRequestReasonParams = {
   DataRequestReason: { flow: 'request' | 'delete' };
 };
 
-const REQUEST_REASONS = [
-  'I want a copy of my personal data.',
-  'I need it for another service.',
-  'Other',
-];
-
-const DELETE_REASONS = [
-  'I no longer want my data stored.',
-  'Privacy concerns.',
+const REASONS = [
+  'I want to know what Bubble knows about me',
+  'I want to file a support ticket',
+  'I want to move my data to another service',
+  'I plan to delete or deactivate my account soon',
+  'I need to access specific data for legal reasons',
   'Other',
 ];
 
@@ -34,12 +32,14 @@ export default function DataRequestReasonScreen() {
   const { flow } = route.params;
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
-  const reasons = flow === 'request' ? REQUEST_REASONS : DELETE_REASONS;
-  const title = flow === 'request' ? 'Request My Data' : 'Delete My Data';
+  const title = flow === 'request' ? 'Request My Personal Data' : 'Delete My Personal Data';
+  const question =
+    flow === 'request'
+      ? 'Why are you requesting a copy of your data?'
+      : 'Why do you want to delete your data?';
 
   const handleContinue = () => {
-    if (!selectedReason) return;
-    navigation.navigate('DataConfirmAccount', { flow, reason: selectedReason });
+    navigation.navigate('DataConfirmAccount', { flow, reason: selectedReason || '' });
   };
 
   return (
@@ -56,18 +56,18 @@ export default function DataRequestReasonScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.subtitle}>
-          {flow === 'request'
-            ? 'Why do you want to request your data?'
-            : 'Why do you want to delete your data?'}
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.heading}>
+          Before we get you a copy of your data, we will just need you to answer a few questions
         </Text>
 
-        {reasons.map((reason) => (
+        <Text style={styles.question}>{question}</Text>
+
+        {REASONS.map((reason) => (
           <TouchableOpacity
             key={reason}
             style={styles.radioRow}
-            onPress={() => setSelectedReason(reason)}
+            onPress={() => setSelectedReason(selectedReason === reason ? null : reason)}
             testID={`radio-${reason.toLowerCase().replace(/[^a-z]/g, '-')}`}
           >
             <View style={[styles.radioOuter, selectedReason === reason && styles.radioOuterSelected]}>
@@ -78,17 +78,13 @@ export default function DataRequestReasonScreen() {
         ))}
 
         <TouchableOpacity
-          style={[
-            styles.continueButton,
-            !selectedReason && styles.continueButtonDisabled,
-          ]}
+          style={styles.continueButton}
           onPress={handleContinue}
-          disabled={!selectedReason}
           testID="button-continue"
         >
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -119,16 +115,26 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  content: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
+    paddingBottom: 40,
   },
-  subtitle: {
+  heading: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: Colors.neutral.charcoal,
-    marginBottom: Spacing.lg,
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+  question: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.neutral.charcoal,
+    marginBottom: Spacing.md,
   },
   radioRow: {
     flexDirection: 'row',
@@ -165,9 +171,6 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     paddingVertical: 14,
     alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    backgroundColor: Colors.neutral.coolMist,
   },
   continueButtonText: {
     fontSize: Typography.sizes.md,

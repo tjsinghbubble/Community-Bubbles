@@ -10,7 +10,6 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -33,21 +32,25 @@ type DataConfirmAccountParams = {
 export default function DataConfirmAccountScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<DataConfirmAccountParams, 'DataConfirmAccount'>>();
-  const { flow, reason } = route.params;
+  const { flow } = route.params;
   const { user } = useAuth();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showMethodDropdown, setShowMethodDropdown] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
   const isCodeComplete = code.every((digit) => digit !== '');
-  const title = flow === 'request' ? 'Confirm Your Account' : 'Confirm Your Account';
 
   const maskedEmail = user?.email
-    ? user.email.replace(/^(.{2})(.*)(@.*)$/, (_, start, middle, domain) => {
-        return start + '*'.repeat(Math.min(middle.length, 6)) + domain;
-      })
+    ? (() => {
+        const [local, domain] = (user.email as string).split('@');
+        const [domainName, tld] = domain.split('.');
+        const maskedLocal = local.substring(0, 2) + '****';
+        const maskedDomain = domainName.substring(0, 2) + '***';
+        return `${maskedLocal}@${maskedDomain}.${tld}`;
+      })()
     : '';
 
   const handleCodeChange = (value: string, index: number) => {
@@ -102,35 +105,39 @@ export default function DataConfirmAccountScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{title}</Text>
         <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Confirm Account</Text>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => navigation.goBack()}
+          testID="button-close"
+        >
+          <Ionicons name="close" size={24} color={Colors.brand.midnight} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.profileCard}>
-          {user?.profilePhoto ? (
-            <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
-          ) : (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user?.name?.charAt(0).toUpperCase() || '?'}
-              </Text>
-            </View>
-          )}
-          <Text style={styles.userName}>{user?.name}</Text>
-          <Text style={styles.userEmail}>{maskedEmail}</Text>
-        </View>
-
         <Text style={styles.description}>
-          Enter the 6-digit verification code sent to {maskedEmail} to confirm.
+          To continue, you'll need to confirm your account through one of the following option
         </Text>
+
+        <TouchableOpacity
+          style={styles.methodDropdown}
+          onPress={() => setShowMethodDropdown(!showMethodDropdown)}
+          testID="button-method-dropdown"
+        >
+          <View style={styles.methodLeft}>
+            <Ionicons name="mail-outline" size={20} color={Colors.neutral.charcoal} />
+            <Text style={styles.methodText}>Email</Text>
+          </View>
+          <Ionicons
+            name={showMethodDropdown ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={Colors.neutral.coolMist}
+          />
+        </TouchableOpacity>
+
+        <Text style={styles.maskedEmail}>{maskedEmail}</Text>
 
         <View style={styles.codeContainer}>
           {code.map((digit, index) => (
@@ -160,22 +167,30 @@ export default function DataConfirmAccountScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.confirmButtonText}>Confirm</Text>
+            <Text style={styles.confirmButtonText}>Continue</Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.resendButton}
-          onPress={handleResend}
-          disabled={resending}
-          testID="button-resend"
-        >
-          {resending ? (
-            <ActivityIndicator color={Colors.brand.bubbleBlue} />
-          ) : (
-            <Text style={styles.resendText}>Resend Code</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.linksContainer}>
+          <TouchableOpacity
+            onPress={handleResend}
+            disabled={resending}
+            testID="button-resend"
+          >
+            {resending ? (
+              <ActivityIndicator color={Colors.brand.bubbleBlue} size="small" />
+            ) : (
+              <Text style={styles.linkText}>Didn't get an email? Send again</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => Alert.alert('Coming Soon', 'Additional verification methods will be available in a future update.')}
+            testID="button-try-another"
+          >
+            <Text style={styles.linkText}>Try another option</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <SuccessModal
@@ -206,7 +221,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#D9D9D9',
   },
-  backButton: {
+  closeButton: {
     padding: 8,
   },
   headerTitle: {
@@ -219,57 +234,44 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
     alignItems: 'center',
-  },
-  profileCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: 20,
-    paddingVertical: Spacing.xl,
-    paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    ...CARD_SHADOW,
-  },
-  avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: Spacing.md,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: Colors.brand.bubbleBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  userName: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.primary,
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
   },
   description: {
     fontSize: Typography.sizes.base,
     color: Colors.neutral.charcoal,
     textAlign: 'center',
     lineHeight: 22,
-    marginTop: Spacing.xl,
     marginBottom: Spacing.xl,
     paddingHorizontal: Spacing.md,
+  },
+  methodDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    backgroundColor: Colors.background.primary,
+    borderRadius: 12,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    marginBottom: Spacing.lg,
+    ...CARD_SHADOW,
+  },
+  methodLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  methodText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium,
+    color: Colors.neutral.charcoal,
+  },
+  maskedEmail: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
+    marginBottom: Spacing.xl,
   },
   codeContainer: {
     flexDirection: 'row',
@@ -308,13 +310,13 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: '#FFFFFF',
   },
-  resendButton: {
-    marginTop: Spacing.md,
-    paddingVertical: 12,
+  linksContainer: {
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+    gap: Spacing.md,
   },
-  resendText: {
+  linkText: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
     color: Colors.brand.bubbleBlue,
     textDecorationLine: 'underline',
   },
