@@ -273,7 +273,7 @@ export default function ProfileScreen() {
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
-            onPress={() => Alert.alert('Coming Soon', 'Get help will be available in a future update.')}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('GetHelp')}
             testID="link-get-help"
           >
             <View style={styles.menuItemLeft}>

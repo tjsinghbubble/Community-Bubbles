@@ -14,6 +14,9 @@ import DeactivateConfirmScreen from '../screens/main/DeactivateConfirmScreen';
 import PrivacyScreen from '../screens/main/PrivacyScreen';
 import DataRequestReasonScreen from '../screens/main/DataRequestReasonScreen';
 import DataConfirmAccountScreen from '../screens/main/DataConfirmAccountScreen';
+import GetHelpScreen from '../screens/main/GetHelpScreen';
+import GiveFeedbackScreen from '../screens/main/GiveFeedbackScreen';
+import HelpCenterScreen from '../screens/main/HelpCenterScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
@@ -32,6 +35,9 @@ export type ProfileStackParamList = {
   PrivacySettings: undefined;
   DataRequestReason: { flow: 'request' | 'delete' };
   DataConfirmAccount: { flow: 'request' | 'delete'; reason: string };
+  GetHelp: undefined;
+  GiveFeedback: undefined;
+  HelpCenter: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
@@ -55,6 +61,9 @@ export default function ProfileNavigator() {
       <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
       <Stack.Screen name="DataRequestReason" component={DataRequestReasonScreen} />
       <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
+      <Stack.Screen name="GetHelp" component={GetHelpScreen} />
+      <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
+      <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>
