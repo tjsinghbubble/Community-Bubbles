@@ -237,6 +237,30 @@ export default function ProfileScreen() {
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('AccountSettings')}
+            testID="link-settings"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => Alert.alert('Coming Soon', 'Get help will be available in a future update.')}
+            testID="link-get-help"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="help-circle-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Get help</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
             onPress={() => navigation.navigate('ViewProfile')}
             testID="link-view-profile"
           >
@@ -249,11 +273,12 @@ export default function ProfileScreen() {
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
-            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('AccountSettings')}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('PrivacySettings')}
+            testID="link-privacy"
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="settings-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Settings</Text>
+              <Ionicons name="shield-checkmark-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Privacy</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
