@@ -56,6 +56,16 @@ import {
   bulletinPostReactions,
   appConfig,
   type AppConfig,
+  rules,
+  appRules,
+  categoryRules,
+  bubbleRules,
+  bubbleRuleOverrides,
+  type Rule,
+  type AppRule,
+  type CategoryRule,
+  type BubbleRule,
+  type BubbleRuleOverride,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -217,6 +227,32 @@ export interface IStorage {
 
   getAppConfigValue(key: string): Promise<string | undefined>;
   getAllAppConfig(): Promise<AppConfig[]>;
+
+  createRule(text: string): Promise<Rule>;
+  getRule(id: number): Promise<Rule | undefined>;
+  updateRule(id: number, text: string): Promise<Rule | undefined>;
+  deleteRule(id: number): Promise<void>;
+
+  getAppRules(): Promise<(AppRule & { rule: Rule })[]>;
+  addAppRule(ruleId: number, position: number): Promise<AppRule>;
+  removeAppRule(ruleId: number): Promise<void>;
+  reorderAppRules(ruleIds: number[]): Promise<void>;
+
+  getCategoryRules(categoryId: number): Promise<(CategoryRule & { rule: Rule })[]>;
+  addCategoryRule(categoryId: number, ruleId: number, position: number): Promise<CategoryRule>;
+  removeCategoryRule(categoryId: number, ruleId: number): Promise<void>;
+  reorderCategoryRules(categoryId: number, ruleIds: number[]): Promise<void>;
+
+  getBubbleRules(bubbleId: string): Promise<(BubbleRule & { rule: Rule })[]>;
+  addBubbleRule(bubbleId: string, ruleId: number, position: number): Promise<BubbleRule>;
+  removeBubbleRule(bubbleId: string, ruleId: number): Promise<void>;
+  reorderBubbleRules(bubbleId: string, ruleIds: number[]): Promise<void>;
+
+  getBubbleRuleOverrides(bubbleId: string): Promise<BubbleRuleOverride[]>;
+  setBubbleRuleOverride(bubbleId: string, ruleId: number, hidden: boolean): Promise<BubbleRuleOverride>;
+  removeBubbleRuleOverride(bubbleId: string, ruleId: number): Promise<void>;
+
+  getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1580,6 +1616,168 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAppConfig(): Promise<AppConfig[]> {
     return db.select().from(appConfig);
+  }
+
+  async createRule(text: string): Promise<Rule> {
+    const [rule] = await db.insert(rules).values({ text }).returning();
+    return rule;
+  }
+
+  async getRule(id: number): Promise<Rule | undefined> {
+    const result = await db.select().from(rules).where(eq(rules.id, id)).limit(1);
+    return result[0];
+  }
+
+  async updateRule(id: number, newText: string): Promise<Rule | undefined> {
+    const result = await db.update(rules).set({ text: newText }).where(eq(rules.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteRule(id: number): Promise<void> {
+    await db.delete(rules).where(eq(rules.id, id));
+  }
+
+  async getAppRules(): Promise<(AppRule & { rule: Rule })[]> {
+    const rows = await db
+      .select({ appRule: appRules, rule: rules })
+      .from(appRules)
+      .innerJoin(rules, eq(appRules.ruleId, rules.id))
+      .orderBy(appRules.position);
+    return rows.map(r => ({ ...r.appRule, rule: r.rule }));
+  }
+
+  async addAppRule(ruleId: number, position: number): Promise<AppRule> {
+    const [row] = await db.insert(appRules).values({ ruleId, position }).returning();
+    return row;
+  }
+
+  async removeAppRule(ruleId: number): Promise<void> {
+    await db.delete(appRules).where(eq(appRules.ruleId, ruleId));
+  }
+
+  async reorderAppRules(ruleIds: number[]): Promise<void> {
+    for (let i = 0; i < ruleIds.length; i++) {
+      await db.update(appRules).set({ position: i + 1 }).where(eq(appRules.ruleId, ruleIds[i]));
+    }
+  }
+
+  async getCategoryRules(categoryId: number): Promise<(CategoryRule & { rule: Rule })[]> {
+    const rows = await db
+      .select({ categoryRule: categoryRules, rule: rules })
+      .from(categoryRules)
+      .innerJoin(rules, eq(categoryRules.ruleId, rules.id))
+      .where(eq(categoryRules.categoryId, categoryId))
+      .orderBy(categoryRules.position);
+    return rows.map(r => ({ ...r.categoryRule, rule: r.rule }));
+  }
+
+  async addCategoryRule(categoryId: number, ruleId: number, position: number): Promise<CategoryRule> {
+    const [row] = await db.insert(categoryRules).values({ categoryId, ruleId, position }).returning();
+    return row;
+  }
+
+  async removeCategoryRule(categoryId: number, ruleId: number): Promise<void> {
+    await db.delete(categoryRules).where(and(eq(categoryRules.categoryId, categoryId), eq(categoryRules.ruleId, ruleId)));
+  }
+
+  async reorderCategoryRules(categoryId: number, ruleIds: number[]): Promise<void> {
+    for (let i = 0; i < ruleIds.length; i++) {
+      await db.update(categoryRules).set({ position: i + 1 }).where(and(eq(categoryRules.categoryId, categoryId), eq(categoryRules.ruleId, ruleIds[i])));
+    }
+  }
+
+  async getBubbleRules(bubbleId: string): Promise<(BubbleRule & { rule: Rule })[]> {
+    const rows = await db
+      .select({ bubbleRule: bubbleRules, rule: rules })
+      .from(bubbleRules)
+      .innerJoin(rules, eq(bubbleRules.ruleId, rules.id))
+      .where(eq(bubbleRules.bubbleId, bubbleId))
+      .orderBy(bubbleRules.position);
+    return rows.map(r => ({ ...r.bubbleRule, rule: r.rule }));
+  }
+
+  async addBubbleRule(bubbleId: string, ruleId: number, position: number): Promise<BubbleRule> {
+    const [row] = await db.insert(bubbleRules).values({ bubbleId, ruleId, position }).returning();
+    return row;
+  }
+
+  async removeBubbleRule(bubbleId: string, ruleId: number): Promise<void> {
+    await db.delete(bubbleRules).where(and(eq(bubbleRules.bubbleId, bubbleId), eq(bubbleRules.ruleId, ruleId)));
+  }
+
+  async reorderBubbleRules(bubbleId: string, ruleIds: number[]): Promise<void> {
+    for (let i = 0; i < ruleIds.length; i++) {
+      await db.update(bubbleRules).set({ position: i + 1 }).where(and(eq(bubbleRules.bubbleId, bubbleId), eq(bubbleRules.ruleId, ruleIds[i])));
+    }
+  }
+
+  async getBubbleRuleOverrides(bubbleId: string): Promise<BubbleRuleOverride[]> {
+    return db.select().from(bubbleRuleOverrides).where(eq(bubbleRuleOverrides.bubbleId, bubbleId));
+  }
+
+  async setBubbleRuleOverride(bubbleId: string, ruleId: number, hidden: boolean): Promise<BubbleRuleOverride> {
+    const existing = await db.select().from(bubbleRuleOverrides)
+      .where(and(eq(bubbleRuleOverrides.bubbleId, bubbleId), eq(bubbleRuleOverrides.ruleId, ruleId)))
+      .limit(1);
+    if (existing.length > 0) {
+      const [row] = await db.update(bubbleRuleOverrides).set({ hidden })
+        .where(and(eq(bubbleRuleOverrides.bubbleId, bubbleId), eq(bubbleRuleOverrides.ruleId, ruleId)))
+        .returning();
+      return row;
+    }
+    const [row] = await db.insert(bubbleRuleOverrides).values({ bubbleId, ruleId, hidden }).returning();
+    return row;
+  }
+
+  async removeBubbleRuleOverride(bubbleId: string, ruleId: number): Promise<void> {
+    await db.delete(bubbleRuleOverrides).where(and(eq(bubbleRuleOverrides.bubbleId, bubbleId), eq(bubbleRuleOverrides.ruleId, ruleId)));
+  }
+
+  async getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]> {
+    const bubble = await this.getBubble(bubbleId);
+    if (!bubble) return [];
+
+    const overrides = await this.getBubbleRuleOverrides(bubbleId);
+    const overrideMap = new Map(overrides.map(o => [o.ruleId, o.hidden]));
+
+    const appRuleRows = await this.getAppRules();
+    const result: { level: string; ruleId: number; text: string; position: number; hidden: boolean }[] = [];
+
+    for (const ar of appRuleRows) {
+      result.push({
+        level: 'app',
+        ruleId: ar.ruleId,
+        text: ar.rule.text,
+        position: ar.position,
+        hidden: overrideMap.get(ar.ruleId) ?? false,
+      });
+    }
+
+    if (bubble.categoryId) {
+      const catRuleRows = await this.getCategoryRules(bubble.categoryId);
+      for (const cr of catRuleRows) {
+        result.push({
+          level: 'category',
+          ruleId: cr.ruleId,
+          text: cr.rule.text,
+          position: cr.position,
+          hidden: overrideMap.get(cr.ruleId) ?? false,
+        });
+      }
+    }
+
+    const bubbleRuleRows = await this.getBubbleRules(bubbleId);
+    for (const br of bubbleRuleRows) {
+      result.push({
+        level: 'bubble',
+        ruleId: br.ruleId,
+        text: br.rule.text,
+        position: br.position,
+        hidden: overrideMap.get(br.ruleId) ?? false,
+      });
+    }
+
+    return result;
   }
 }
 

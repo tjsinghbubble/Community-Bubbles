@@ -49,6 +49,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [effectiveRules, setEffectiveRules] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -56,14 +57,17 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
   const fetchData = async () => {
     try {
-      const [details, eventsData, members] = await Promise.all([
+      const [details, eventsData, members, rulesData] = await Promise.all([
         apiService.getBubble(bubble.id),
         apiService.getBubbleEvents(bubble.id).catch(() => []),
         apiService.getBubbleMembers(bubble.id).catch(() => []),
+        apiService.getEffectiveRules(bubble.id).catch(() => []),
       ]);
       setBubbleDetails(details);
       setEvents(eventsData as Event[]);
       setMemberCount((members as any[]).length);
+      const visibleRules = (rulesData as any[]).filter((r: any) => !r.hidden).map((r: any) => r.text);
+      setEffectiveRules(visibleRules);
     } catch (error) {
       console.error('Failed to fetch bubble data:', error);
     } finally {
@@ -305,7 +309,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         onLetsGo={handleLetsGo}
         bubbleName={bubble.title}
         category={bubble.category}
-        rules={bubbleDetails?.rules || []}
+        rules={effectiveRules}
         nextEvent={
           events.length > 0
             ? { title: events[0].title, date: events[0].date, startTime: events[0].startTime }

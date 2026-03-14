@@ -539,6 +539,56 @@ class ApiService {
   async getAppConfig(key: string): Promise<{ key: string; value: string }> {
     return this.request<{ key: string; value: string }>(`/api/config/app?key=${encodeURIComponent(key)}`);
   }
+
+  async getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]> {
+    return this.request<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]>(`/api/rules/effective/${bubbleId}`);
+  }
+
+  async getAppRules(): Promise<any[]> {
+    return this.request<any[]>('/api/rules/app');
+  }
+
+  async getBubbleCustomRules(bubbleId: string): Promise<any[]> {
+    return this.request<any[]>(`/api/rules/bubble/${bubbleId}`);
+  }
+
+  async addBubbleRule(bubbleId: string, text: string, position: number): Promise<any> {
+    return this.request<any>(`/api/rules/bubble/${bubbleId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, position }),
+    });
+  }
+
+  async updateBubbleRule(bubbleId: string, ruleId: number, text: string): Promise<any> {
+    return this.request<any>(`/api/rules/bubble/${bubbleId}/${ruleId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  async deleteBubbleRule(bubbleId: string, ruleId: number): Promise<any> {
+    return this.request<any>(`/api/rules/bubble/${bubbleId}/${ruleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderBubbleRules(bubbleId: string, ruleIds: number[]): Promise<any> {
+    return this.request<any>(`/api/rules/bubble/${bubbleId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleIds }),
+    });
+  }
+
+  async setBubbleRuleOverride(bubbleId: string, ruleId: number, hidden: boolean): Promise<any> {
+    return this.request<any>(`/api/rules/bubble/${bubbleId}/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleId, hidden }),
+    });
+  }
 }
 
 export const apiService = new ApiService();

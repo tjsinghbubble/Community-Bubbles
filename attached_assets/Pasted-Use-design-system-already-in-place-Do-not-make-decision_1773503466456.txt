@@ -1,0 +1,110 @@
+Use design system already in place.
+Do not make decisions by yourself.
+We are working on the rules of the bubbles.
+
+Below is a clean, production-ready but still minimal model for your platform that supports:
+
+App-level rules
+
+Category rules
+
+Community rules
+
+Category hierarchy (Active → Yoga / Running / etc.)
+
+Rule inheritance
+
+Community overrides (future-ready)
+
+The system follows this rule inheritance order:
+
+App Rules
+     ↓
+Category Rules
+     ↓
+Community Rules
+
+Overrides work like this:
+Global rule
+   ↓
+Category override
+   ↓
+Community override
+
+
+create table rules (
+  id uuid primary key default gen_random_uuid(),
+
+  title text not null,
+  description text not null,
+
+  rule_level text check (
+    rule_level in ('app','category','community')
+  ),
+
+  mandatory boolean default false,
+  overridable boolean default false,
+
+  created_at timestamp default now()
+);
+
+create table category_rules (
+  id uuid primary key default gen_random_uuid(),
+
+  category_id uuid references categories(id) on delete cascade,
+  rule_id uuid references rules(id) on delete cascade,
+
+  position integer default 0,
+
+  created_at timestamp default now(),
+
+  unique(category_id, rule_id)
+);
+
+create table bubble_rules (
+  id uuid primary key default gen_random_uuid(),
+
+  bubble_id uuid references communities(id) on delete cascade,
+  rule_id uuid references rules(id) on delete cascade,
+
+  position integer default 0,
+
+  created_at timestamp default now(),
+
+  unique(bubble_id, rule_id)
+);
+
+create table bubble_rule_overrides (
+  id uuid primary key default gen_random_uuid(),
+
+  bubble_id uuid references bubble(id) on delete cascade,
+  rule_id uuid references rules(id) on delete cascade,
+
+  override_title text,
+  override_description text,
+
+  created_at timestamp default now(),
+
+  unique(bubble_id, rule_id)
+);
+
+
+create table app_rules (
+  id uuid primary key default gen_random_uuid(),
+
+  rule_id uuid references rules(id) on delete cascade,
+
+  position integer default 0
+);
+
+App level rules are as follows:
+Be Kind: No bullying, harassment, or hateful behavior.
+2. Respect Privacy: Don’t share anyone’s personal info, screenshots, or messages without permission.
+3. Keep It Safe: No threats, dangerous behavior, or anything that could harm others.
+4. No Scams or Spam: No fraud, promotions, or unwanted selling unless the Bubble allows it.
+5. Be Real: Use your real identity: no impersonation or fake accounts.
+6. Respect the Vibe: Follow the lead of your Bubble's Organizers; they set the tone and can remove members who don't jive.
+7. Show Up: Honor your commitments, whether you're hosting or attending
+8. Act like you're in public. Imagine other people you know and respect seeing what you post or add to a group: a comment, a photo, anything. If it would make them uncomfortable, re-consider your behavior.  
+
+Bubble rules should be fetched from this design. Bubble level rules should be stored in bubble_rules table.

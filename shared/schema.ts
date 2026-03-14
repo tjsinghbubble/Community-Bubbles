@@ -456,3 +456,42 @@ export const appConfig = pgTable("app_config", {
 export const insertAppConfigSchema = createInsertSchema(appConfig);
 export type AppConfig = typeof appConfig.$inferSelect;
 export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;
+
+export const rules = pgTable("rules", {
+  id: serial("id").primaryKey(),
+  text: text("text").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const appRules = pgTable("app_rules", {
+  id: serial("id").primaryKey(),
+  ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+});
+
+export const categoryRules = pgTable("category_rules", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+});
+
+export const bubbleRules = pgTable("bubble_rules", {
+  id: serial("id").primaryKey(),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
+  position: integer("position").notNull().default(0),
+});
+
+export const bubbleRuleOverrides = pgTable("bubble_rule_overrides", {
+  id: serial("id").primaryKey(),
+  bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
+  hidden: boolean("hidden").notNull().default(true),
+});
+
+export type Rule = typeof rules.$inferSelect;
+export type AppRule = typeof appRules.$inferSelect;
+export type CategoryRule = typeof categoryRules.$inferSelect;
+export type BubbleRule = typeof bubbleRules.$inferSelect;
+export type BubbleRuleOverride = typeof bubbleRuleOverrides.$inferSelect;

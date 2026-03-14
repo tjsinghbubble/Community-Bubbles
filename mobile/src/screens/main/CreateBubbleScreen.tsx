@@ -26,6 +26,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
+import apiService from '../../services/api.service';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { CalendarIcon, LocationPinIcon, RadioIcon, ChevronDownIcon, ChevronUpIcon, PeopleIcon } from '../../components/icons';
 import LocationPickerModal from '../../components/LocationPickerModal';
@@ -69,7 +70,7 @@ interface CategoryGroup {
   children: CategoryItem[];
 }
 
-const DEFAULT_RULES = [
+const FALLBACK_RULES = [
   'Be Respectful. Treat all members with kindness and courtesy.',
   'Stay On Topic. Keep posts relevant to the bubble\'s purpose.',
   'Have fun and be yourself!',
@@ -103,7 +104,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [radiusMiles, setRadiusMiles] = useState(15);
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
-  const [customRules, setCustomRules] = useState<string[]>([...DEFAULT_RULES]);
+  const [customRules, setCustomRules] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
   const [campusOnly, setCampusOnly] = useState(false);
@@ -139,7 +140,21 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         setCategoriesLoading(false);
       }
     };
+    const fetchAppRules = async () => {
+      try {
+        const appRules = await apiService.getAppRules();
+        if (appRules && appRules.length > 0) {
+          setCustomRules(appRules.map((r: any) => r.rule?.text || r.text));
+        } else {
+          setCustomRules([...FALLBACK_RULES]);
+        }
+      } catch (e) {
+        console.error('Failed to fetch app rules:', e);
+        setCustomRules([...FALLBACK_RULES]);
+      }
+    };
     fetchCategories();
+    fetchAppRules();
   }, [token]);
 
   const selectedSubcategory = categoryGroups

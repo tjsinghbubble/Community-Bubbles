@@ -9,6 +9,7 @@ import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { seedData } from "./seed-data";
 import { seedAppConfig } from "./seed-app-config";
+import { seedRules } from "./seed-rules";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
@@ -2349,6 +2350,7 @@ export async function registerRoutes(
     seedData().catch(console.error);
   });
   seedAppConfig().catch(console.error);
+  seedRules().catch(console.error);
   storage.backfillBubbleShortIds().catch(console.error);
 
   // Bulletin Board - Post Types
@@ -2610,6 +2612,215 @@ export async function registerRoutes(
       }
       const all = await storage.getAllAppConfig();
       res.json(all);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rules/effective/:bubbleId", authMiddleware, async (req, res) => {
+    try {
+      const effectiveRules = await storage.getEffectiveRules(req.params.bubbleId);
+      res.json(effectiveRules);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rules/app", authMiddleware, async (_req, res) => {
+    try {
+      const appRulesList = await storage.getAppRules();
+      res.json(appRulesList);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rules/app", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const { text, position } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const rule = await storage.createRule(text);
+      const appRule = await storage.addAppRule(rule.id, position || 0);
+      res.json({ ...appRule, rule });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/rules/app/reorder", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const { ruleIds } = req.body;
+      if (!Array.isArray(ruleIds)) return res.status(400).json({ error: "ruleIds array required" });
+      await storage.reorderAppRules(ruleIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/rules/app/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const ruleId = parseInt(req.params.ruleId);
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const updated = await storage.updateRule(ruleId, text);
+      if (!updated) return res.status(404).json({ error: "Rule not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/rules/app/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const ruleId = parseInt(req.params.ruleId);
+      await storage.removeAppRule(ruleId);
+      await storage.deleteRule(ruleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rules/category/:categoryId", authMiddleware, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      const catRules = await storage.getCategoryRules(categoryId);
+      res.json(catRules);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rules/category/:categoryId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const categoryId = parseInt(req.params.categoryId);
+      const { text, position } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const rule = await storage.createRule(text);
+      const catRule = await storage.addCategoryRule(categoryId, rule.id, position || 0);
+      res.json({ ...catRule, rule });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/rules/category/:categoryId/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const categoryId = parseInt(req.params.categoryId);
+      const ruleId = parseInt(req.params.ruleId);
+      await storage.removeCategoryRule(categoryId, ruleId);
+      await storage.deleteRule(ruleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/rules/bubble/:bubbleId", authMiddleware, async (req, res) => {
+    try {
+      const bubbleRulesList = await storage.getBubbleRules(req.params.bubbleId);
+      res.json(bubbleRulesList);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rules/bubble/:bubbleId", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.bubbleId;
+      const userId = (req as any).userId;
+      const role = await storage.getMemberRole(userId, bubbleId);
+      const user = await storage.getUser(userId);
+      const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
+      if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
+      const { text, position } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const rule = await storage.createRule(text);
+      const bubbleRule = await storage.addBubbleRule(bubbleId, rule.id, position || 0);
+      res.json({ ...bubbleRule, rule });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/rules/bubble/:bubbleId/reorder", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.bubbleId;
+      const userId = (req as any).userId;
+      const role = await storage.getMemberRole(userId, bubbleId);
+      const user = await storage.getUser(userId);
+      const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
+      if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
+      const { ruleIds } = req.body;
+      if (!Array.isArray(ruleIds)) return res.status(400).json({ error: "ruleIds array required" });
+      await storage.reorderBubbleRules(bubbleId, ruleIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/rules/bubble/:bubbleId/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.bubbleId;
+      const userId = (req as any).userId;
+      const role = await storage.getMemberRole(userId, bubbleId);
+      const user = await storage.getUser(userId);
+      const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
+      if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
+      const ruleId = parseInt(req.params.ruleId);
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const updated = await storage.updateRule(ruleId, text);
+      if (!updated) return res.status(404).json({ error: "Rule not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/rules/bubble/:bubbleId/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.bubbleId;
+      const userId = (req as any).userId;
+      const role = await storage.getMemberRole(userId, bubbleId);
+      const user = await storage.getUser(userId);
+      const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
+      if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
+      const ruleId = parseInt(req.params.ruleId);
+      await storage.removeBubbleRule(bubbleId, ruleId);
+      await storage.deleteRule(ruleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/rules/bubble/:bubbleId/override", authMiddleware, async (req, res) => {
+    try {
+      const bubbleId = req.params.bubbleId;
+      const userId = (req as any).userId;
+      const role = await storage.getMemberRole(userId, bubbleId);
+      const user = await storage.getUser(userId);
+      const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
+      if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
+      const { ruleId, hidden } = req.body;
+      if (ruleId === undefined || hidden === undefined) return res.status(400).json({ error: "ruleId and hidden required" });
+      const override = await storage.setBubbleRuleOverride(bubbleId, ruleId, hidden);
+      res.json(override);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

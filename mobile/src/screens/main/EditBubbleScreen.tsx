@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -80,9 +80,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const [attachments, setAttachments] = useState<string[]>(
     Array.isArray(bubble.attachments) ? [...bubble.attachments] : []
   );
-  const [customRules, setCustomRules] = useState<string[]>(
-    Array.isArray(bubble.rules) ? [...bubble.rules] : []
-  );
+  const [customRules, setCustomRules] = useState<string[]>([]);
+  const [rulesLoaded, setRulesLoaded] = useState(false);
   const [privacy, setPrivacy] = useState(bubble.privacy || 'Public');
   const [memberLimit, setMemberLimit] = useState(
     bubble.memberLimit ? String(bubble.memberLimit) : ''
@@ -101,6 +100,28 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
 
   const sliderWidth = useRef(0);
+
+  useEffect(() => {
+    const fetchRules = async () => {
+      try {
+        const effectiveRules = await apiService.getEffectiveRules(bubble.id);
+        if (effectiveRules && effectiveRules.length > 0) {
+          const visibleRules = effectiveRules.filter((r: any) => !r.hidden).map((r: any) => r.text);
+          setCustomRules(visibleRules);
+        } else if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
+          setCustomRules([...bubble.rules]);
+        }
+      } catch (e) {
+        console.error('Failed to fetch rules:', e);
+        if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
+          setCustomRules([...bubble.rules]);
+        }
+      } finally {
+        setRulesLoaded(true);
+      }
+    };
+    fetchRules();
+  }, [bubble.id]);
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
