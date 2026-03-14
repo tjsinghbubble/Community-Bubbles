@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
-  Platform,
-  StatusBar,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -103,114 +103,136 @@ export default function DataConfirmAccountScreen() {
       : 'Your data deletion request has been submitted. This process may take up to 30 days.';
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>Confirm Account</Text>
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => navigation.goBack()}
-          testID="button-close"
-        >
-          <Ionicons name="close" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
+    <TouchableWithoutFeedback onPress={() => navigation.goBack()}>
+      <View style={styles.overlay}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardView}>
+          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+            <View style={styles.card}>
+              <View style={styles.header}>
+                <View style={styles.headerSpacer} />
+                <Text style={styles.headerTitle}>Confirm Account</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => navigation.goBack()}
+                  testID="button-close"
+                >
+                  <Ionicons name="close" size={24} color={Colors.brand.midnight} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.content}>
+                <Text style={styles.description}>
+                  To continue, you'll need to confirm your account through one of the following option
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.methodDropdown}
+                  onPress={() => setShowMethodDropdown(!showMethodDropdown)}
+                  testID="button-method-dropdown"
+                >
+                  <View style={styles.methodLeft}>
+                    <Ionicons name="mail-outline" size={20} color={Colors.neutral.charcoal} />
+                    <Text style={styles.methodText}>Email</Text>
+                  </View>
+                  <Ionicons
+                    name={showMethodDropdown ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={Colors.neutral.coolMist}
+                  />
+                </TouchableOpacity>
+
+                <Text style={styles.maskedEmail}>{maskedEmail}</Text>
+
+                <View style={styles.codeContainer}>
+                  {code.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(ref) => {
+                        inputRefs.current[index] = ref;
+                      }}
+                      style={[styles.codeInput, digit && styles.codeInputFilled]}
+                      value={digit}
+                      onChangeText={(value) => handleCodeChange(value, index)}
+                      onKeyPress={(e) => handleKeyPress(e, index)}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      selectTextOnFocus
+                      testID={`input-code-${index}`}
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.confirmButton, !isCodeComplete && styles.confirmButtonDisabled]}
+                  onPress={handleConfirm}
+                  disabled={!isCodeComplete || loading}
+                  testID="button-confirm"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.confirmButtonText}>Continue</Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.linksContainer}>
+                  <TouchableOpacity
+                    onPress={handleResend}
+                    disabled={resending}
+                    testID="button-resend"
+                  >
+                    {resending ? (
+                      <ActivityIndicator color={Colors.brand.bubbleBlue} size="small" />
+                    ) : (
+                      <Text style={styles.linkText}>Didn't get an email? Send again</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => Alert.alert('Coming Soon', 'Additional verification methods will be available in a future update.')}
+                    testID="button-try-another"
+                  >
+                    <Text style={styles.linkText}>Try another option</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+
+        <SuccessModal
+          visible={showSuccessModal}
+          title={successTitle}
+          subtitle={successSubtitle}
+          onClose={() => {
+            setShowSuccessModal(false);
+            navigation.popToTop();
+          }}
+        />
       </View>
-
-      <View style={styles.content}>
-        <Text style={styles.description}>
-          To continue, you'll need to confirm your account through one of the following option
-        </Text>
-
-        <TouchableOpacity
-          style={styles.methodDropdown}
-          onPress={() => setShowMethodDropdown(!showMethodDropdown)}
-          testID="button-method-dropdown"
-        >
-          <View style={styles.methodLeft}>
-            <Ionicons name="mail-outline" size={20} color={Colors.neutral.charcoal} />
-            <Text style={styles.methodText}>Email</Text>
-          </View>
-          <Ionicons
-            name={showMethodDropdown ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={Colors.neutral.coolMist}
-          />
-        </TouchableOpacity>
-
-        <Text style={styles.maskedEmail}>{maskedEmail}</Text>
-
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              ref={(ref) => {
-                inputRefs.current[index] = ref;
-              }}
-              style={[styles.codeInput, digit && styles.codeInputFilled]}
-              value={digit}
-              onChangeText={(value) => handleCodeChange(value, index)}
-              onKeyPress={(e) => handleKeyPress(e, index)}
-              keyboardType="number-pad"
-              maxLength={1}
-              selectTextOnFocus
-              testID={`input-code-${index}`}
-            />
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.confirmButton, !isCodeComplete && styles.confirmButtonDisabled]}
-          onPress={handleConfirm}
-          disabled={!isCodeComplete || loading}
-          testID="button-confirm"
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.confirmButtonText}>Continue</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.linksContainer}>
-          <TouchableOpacity
-            onPress={handleResend}
-            disabled={resending}
-            testID="button-resend"
-          >
-            {resending ? (
-              <ActivityIndicator color={Colors.brand.bubbleBlue} size="small" />
-            ) : (
-              <Text style={styles.linkText}>Didn't get an email? Send again</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => Alert.alert('Coming Soon', 'Additional verification methods will be available in a future update.')}
-            testID="button-try-another"
-          >
-            <Text style={styles.linkText}>Try another option</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <SuccessModal
-        visible={showSuccessModal}
-        title={successTitle}
-        subtitle={successSubtitle}
-        onClose={() => {
-          setShowSuccessModal(false);
-          navigation.popToTop();
-        }}
-      />
-    </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyboardView: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  card: {
     backgroundColor: '#FAFAFA',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    borderRadius: 24,
+    marginHorizontal: 20,
+    alignSelf: 'stretch',
+    overflow: 'hidden',
+    ...CARD_SHADOW,
   },
   header: {
     flexDirection: 'row',
@@ -233,9 +255,9 @@ const styles = StyleSheet.create({
     width: 40,
   },
   content: {
-    flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xl,
     alignItems: 'center',
   },
   description: {
@@ -256,7 +278,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: 14,
     marginBottom: Spacing.lg,
-    ...CARD_SHADOW,
+    borderWidth: 1,
+    borderColor: '#D9D9D9',
   },
   methodLeft: {
     flexDirection: 'row',
@@ -280,12 +303,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   codeInput: {
-    width: 46,
-    height: 56,
+    width: 42,
+    height: 52,
     borderWidth: 1,
     borderColor: Colors.neutral.coolMist,
     borderRadius: 12,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '600',
     textAlign: 'center',
     backgroundColor: Colors.neutral.cloudGrey,
@@ -298,7 +321,7 @@ const styles = StyleSheet.create({
   confirmButton: {
     backgroundColor: Colors.brand.bubbleBlue,
     borderRadius: 100,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
     alignSelf: 'stretch',
   },

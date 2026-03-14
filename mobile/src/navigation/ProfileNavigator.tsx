@@ -54,7 +54,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreen} />
       <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
       <Stack.Screen name="DataRequestReason" component={DataRequestReasonScreen} />
-      <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreen} />
+      <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>
