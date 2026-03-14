@@ -272,10 +272,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     }
   };
 
+  const splitRuleText = (text: string) => {
+    const dotIdx = text.indexOf('. ');
+    if (dotIdx > 0) return { name: text.substring(0, dotIdx), description: text.substring(dotIdx + 2) };
+    return { name: text, description: '' };
+  };
+
   const openAddRule = () => {
     setEditingRuleIndex(null);
-    setRuleName('');
-    setRuleDescription('');
+    setRuleText('');
     setShowRuleModal(true);
   };
 
@@ -283,25 +288,24 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     const entry = ruleEntries[index];
     if (entry.level !== 'bubble') return;
     setEditingRuleIndex(index);
-    setRuleName(entry.name);
-    setRuleDescription(entry.description);
+    const combined = entry.description ? `${entry.name}. ${entry.description}` : entry.name;
+    setRuleText(combined);
     setShowRuleModal(true);
   };
 
   const saveRule = () => {
-    const trimmedName = ruleName.trim();
-    if (!trimmedName) return;
-    const trimmedDesc = ruleDescription.trim();
+    const trimmed = ruleText.trim();
+    if (!trimmed) return;
+    const { name, description } = splitRuleText(trimmed);
     if (editingRuleIndex !== null) {
       const updated = [...ruleEntries];
-      updated[editingRuleIndex] = { ...updated[editingRuleIndex], name: trimmedName, description: trimmedDesc };
+      updated[editingRuleIndex] = { ...updated[editingRuleIndex], name, description };
       setRuleEntries(updated);
     } else {
-      setRuleEntries([{ ruleId: null, name: trimmedName, description: trimmedDesc, level: 'bubble' }, ...ruleEntries]);
+      setRuleEntries([{ ruleId: null, name, description, level: 'bubble' }, ...ruleEntries]);
     }
     setShowRuleModal(false);
-    setRuleName('');
-    setRuleDescription('');
+    setRuleText('');
   };
 
   const deleteRule = (index: number) => {
@@ -945,19 +949,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
               <TextInput
                 style={[styles.fieldInput, styles.ruleModalInput]}
-                placeholder="Rule name..."
+                placeholder="Enter your rule..."
                 placeholderTextColor={Colors.text.tertiary}
-                value={ruleName}
-                onChangeText={setRuleName}
+                value={ruleText}
+                onChangeText={setRuleText}
                 autoFocus
-              />
-              <TextInput
-                style={[styles.fieldInput, styles.ruleModalInput, { marginTop: 12 }]}
-                placeholder="Description (optional)..."
-                placeholderTextColor={Colors.text.tertiary}
-                value={ruleDescription}
-                onChangeText={setRuleDescription}
-                multiline
               />
               <View style={styles.modalFooter}>
                 <BubbleButton
@@ -970,7 +966,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 <BubbleButton
                   title="Save"
                   onPress={saveRule}
-                  disabled={!ruleName.trim()}
+                  disabled={!ruleText.trim()}
                   style={{ flex: 1, height: 56 }}
                   testID="button-save-rule"
                 />
