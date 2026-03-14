@@ -11,6 +11,9 @@ import PersonalInformationScreen from '../screens/main/PersonalInformationScreen
 import LoginSecurityScreen from '../screens/main/LoginSecurityScreen';
 import DeactivateReasonScreen from '../screens/main/DeactivateReasonScreen';
 import DeactivateConfirmScreen from '../screens/main/DeactivateConfirmScreen';
+import PrivacyScreen from '../screens/main/PrivacyScreen';
+import DataRequestReasonScreen from '../screens/main/DataRequestReasonScreen';
+import DataConfirmAccountScreen from '../screens/main/DataConfirmAccountScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
@@ -26,6 +29,9 @@ export type ProfileStackParamList = {
   LoginSecurity: undefined;
   DeactivateReason: undefined;
   DeactivateConfirm: { reason: string };
+  PrivacySettings: undefined;
+  DataRequestReason: { flow: 'request' | 'delete' };
+  DataConfirmAccount: { flow: 'request' | 'delete'; reason: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
@@ -46,6 +52,9 @@ export default function ProfileNavigator() {
       <Stack.Screen name="LoginSecurity" component={LoginSecurityScreen} />
       <Stack.Screen name="DeactivateReason" component={DeactivateReasonScreen} />
       <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreen} />
+      <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
+      <Stack.Screen name="DataRequestReason" component={DataRequestReasonScreen} />
+      <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>

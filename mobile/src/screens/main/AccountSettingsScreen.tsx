@@ -64,6 +64,21 @@ export default function AccountSettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('PrivacySettings')}
+            testID="button-privacy"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="shield-checkmark-outline" size={24} color={Colors.text.secondary} />
+              <View>
+                <Text style={styles.menuItemText}>Privacy</Text>
+                <Text style={styles.menuItemSub}>Control how your information is shared with others on Bubble</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
         </View>
       </View>
     </SafeAreaView>
@@ -122,5 +137,11 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
+  },
+  menuItemSub: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    marginTop: 2,
+    maxWidth: 220,
   },
 });
