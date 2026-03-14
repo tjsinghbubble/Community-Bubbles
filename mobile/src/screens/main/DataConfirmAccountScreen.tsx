@@ -32,7 +32,7 @@ type DataConfirmAccountParams = {
 export default function DataConfirmAccountScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<DataConfirmAccountParams, 'DataConfirmAccount'>>();
-  const { flow } = route.params;
+  const { flow, reason } = route.params;
   const { user } = useAuth();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -206,7 +206,7 @@ export default function DataConfirmAccountScreen() {
           subtitle={successSubtitle}
           onClose={() => {
             setShowSuccessModal(false);
-            navigation.popToTop();
+            navigation.navigate('PrivacySettings');
           }}
         />
       </View>
