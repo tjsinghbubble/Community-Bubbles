@@ -40,7 +40,7 @@ export default function PrivacyScreen() {
         >
           <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Settings</Text>
+        <Text style={styles.headerTitle}>Privacy</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -59,10 +59,9 @@ export default function PrivacyScreen() {
               testID="switch-show-bio"
             />
           </View>
-          <View style={styles.separator} />
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Show my Interests</Text>
+              <Text style={styles.toggleLabel}>Show my interests</Text>
             </View>
             <Switch
               value={showInterests}
@@ -72,7 +71,6 @@ export default function PrivacyScreen() {
               testID="switch-show-interests"
             />
           </View>
-          <View style={styles.separator} />
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
               <Text style={styles.toggleLabel}>Show my Bubbles</Text>
@@ -85,10 +83,9 @@ export default function PrivacyScreen() {
               testID="switch-show-bubbles"
             />
           </View>
-          <View style={styles.separator} />
           <View style={styles.toggleRow}>
             <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Show my Past Events</Text>
+              <Text style={styles.toggleLabel}>Show my past events</Text>
             </View>
             <Switch
               value={showPastEvents}
@@ -110,7 +107,7 @@ export default function PrivacyScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="download-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Request My Personal Data</Text>
+              <Text style={styles.menuItemText}>Download my data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -123,23 +120,23 @@ export default function PrivacyScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="trash-outline" size={24} color={Colors.text.secondary} />
-              <Text style={styles.menuItemText}>Delete My Personal Data</Text>
+              <Text style={styles.menuItemText}>Delete my data</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
         </View>
 
-        <Text style={styles.sectionHeader}>Delete My Account</Text>
+        <Text style={styles.sectionHeader}>Deactivate My Account</Text>
         <View style={styles.section}>
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
             onPress={() => navigation.navigate('DeactivateReason')}
-            testID="button-delete-account"
+            testID="button-deactivate-account"
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="close-circle-outline" size={24} color={Colors.status.error} />
-              <Text style={styles.deleteText}>Delete My Account</Text>
+              <Text style={styles.deleteText}>Deactivate my account</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.status.error} />
           </AnimatedPressable>

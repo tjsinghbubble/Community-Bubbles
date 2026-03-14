@@ -32,7 +32,7 @@ export default function DataRequestReasonScreen() {
   const { flow } = route.params;
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
-  const title = flow === 'request' ? 'Request My Personal Data' : 'Delete My Personal Data';
+  const title = flow === 'request' ? 'Download My Data' : 'Delete My Data';
   const question =
     flow === 'request'
       ? 'Why are you requesting a copy of your data?'

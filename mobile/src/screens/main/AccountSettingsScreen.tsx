@@ -21,6 +21,9 @@ const CARD_SHADOW = {
   elevation: 4,
 };
 
+const APP_VERSION = '26.01';
+const APP_STAGE = 'alpha';
+
 export default function AccountSettingsScreen() {
   const navigation = useNavigation<any>();
 
@@ -72,14 +75,17 @@ export default function AccountSettingsScreen() {
           >
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={24} color={Colors.text.secondary} />
-              <View>
-                <Text style={styles.menuItemText}>Privacy</Text>
-                <Text style={styles.menuItemSub}>Control how your information is shared with others on Bubble</Text>
-              </View>
+              <Text style={styles.menuItemText}>Privacy</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
         </View>
+
+        <View style={styles.versionSeparator} />
+
+        <Text style={styles.versionText} testID="text-version">
+          Version {APP_VERSION}, {APP_STAGE}
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -138,10 +144,15 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
   },
-  menuItemSub: {
+  versionSeparator: {
+    height: 1,
+    backgroundColor: '#D9D9D9',
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
+  },
+  versionText: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
-    marginTop: 2,
-    maxWidth: 220,
+    textAlign: 'center',
   },
 });
