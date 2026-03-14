@@ -2637,7 +2637,7 @@ export async function registerRoutes(
 
   app.post("/api/rules/app", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const { text, position } = req.body;
       if (!text) return res.status(400).json({ error: "text is required" });
@@ -2651,7 +2651,7 @@ export async function registerRoutes(
 
   app.put("/api/rules/app/reorder", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const { ruleIds } = req.body;
       if (!Array.isArray(ruleIds)) return res.status(400).json({ error: "ruleIds array required" });
@@ -2664,7 +2664,7 @@ export async function registerRoutes(
 
   app.put("/api/rules/app/:ruleId", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const ruleId = parseInt(req.params.ruleId);
       const { text } = req.body;
@@ -2679,7 +2679,7 @@ export async function registerRoutes(
 
   app.delete("/api/rules/app/:ruleId", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const ruleId = parseInt(req.params.ruleId);
       await storage.removeAppRule(ruleId);
@@ -2702,7 +2702,7 @@ export async function registerRoutes(
 
   app.post("/api/rules/category/:categoryId", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const categoryId = parseInt(req.params.categoryId);
       const { text, position } = req.body;
@@ -2717,7 +2717,7 @@ export async function registerRoutes(
 
   app.put("/api/rules/category/:categoryId/reorder", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const categoryId = parseInt(req.params.categoryId);
       const { ruleIds } = req.body;
@@ -2731,7 +2731,7 @@ export async function registerRoutes(
 
   app.put("/api/rules/category/:categoryId/:ruleId", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const ruleId = parseInt(req.params.ruleId);
       const { text } = req.body;
@@ -2746,7 +2746,7 @@ export async function registerRoutes(
 
   app.delete("/api/rules/category/:categoryId/:ruleId", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser((req as any).userId);
+      const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const categoryId = parseInt(req.params.categoryId);
       const ruleId = parseInt(req.params.ruleId);
@@ -2770,7 +2770,7 @@ export async function registerRoutes(
   app.post("/api/rules/bubble/:bubbleId", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.bubbleId;
-      const userId = (req as any).userId;
+      const userId = req.userId!;
       const role = await storage.getMemberRole(userId, bubbleId);
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
@@ -2788,7 +2788,7 @@ export async function registerRoutes(
   app.put("/api/rules/bubble/:bubbleId/reorder", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.bubbleId;
-      const userId = (req as any).userId;
+      const userId = req.userId!;
       const role = await storage.getMemberRole(userId, bubbleId);
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
@@ -2805,7 +2805,7 @@ export async function registerRoutes(
   app.put("/api/rules/bubble/:bubbleId/:ruleId", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.bubbleId;
-      const userId = (req as any).userId;
+      const userId = req.userId!;
       const role = await storage.getMemberRole(userId, bubbleId);
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
@@ -2824,7 +2824,7 @@ export async function registerRoutes(
   app.delete("/api/rules/bubble/:bubbleId/:ruleId", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.bubbleId;
-      const userId = (req as any).userId;
+      const userId = req.userId!;
       const role = await storage.getMemberRole(userId, bubbleId);
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
@@ -2841,7 +2841,7 @@ export async function registerRoutes(
   app.post("/api/rules/bubble/:bubbleId/override", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.bubbleId;
-      const userId = (req as any).userId;
+      const userId = req.userId!;
       const role = await storage.getMemberRole(userId, bubbleId);
       const user = await storage.getUser(userId);
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;

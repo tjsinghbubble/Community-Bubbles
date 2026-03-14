@@ -56,6 +56,12 @@ const PRIVACY_OPTIONS = [
   { value: 'Private', label: 'Private', subtitle: 'Invite-only, hidden from explore' },
 ];
 
+type RuleEntry = {
+  ruleId: number | null;
+  text: string;
+  level: 'app' | 'category' | 'bubble';
+};
+
 const STEP_TITLES = ['Bubble Details', 'Rules', 'Privacy & Settings', 'Preview'];
 
 export default function EditBubbleScreen({ navigation, route }: Props) {
@@ -80,8 +86,9 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const [attachments, setAttachments] = useState<string[]>(
     Array.isArray(bubble.attachments) ? [...bubble.attachments] : []
   );
-  const [customRules, setCustomRules] = useState<string[]>([]);
-  const [appRuleTexts, setAppRuleTexts] = useState<string[]>([]);
+  const [ruleEntries, setRuleEntries] = useState<RuleEntry[]>([]);
+  const [hiddenInheritedRuleIds, setHiddenInheritedRuleIds] = useState<number[]>([]);
+  const [originalHiddenRuleIds, setOriginalHiddenRuleIds] = useState<number[]>([]);
   const [existingBubbleRuleIds, setExistingBubbleRuleIds] = useState<number[]>([]);
   const [rulesLoaded, setRulesLoaded] = useState(false);
   const [privacy, setPrivacy] = useState(bubble.privacy || 'Public');
@@ -106,25 +113,36 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   useEffect(() => {
     const fetchRules = async () => {
       try {
-        const [effectiveRules, bubbleRulesData] = await Promise.all([
-          apiService.getEffectiveRules(bubble.id).catch(() => []),
-          apiService.getBubbleCustomRules(bubble.id).catch(() => []),
+        type EffectiveRule = { ruleId: number; text: string; level: string; hidden: boolean };
+        type BubbleRuleData = { ruleId: number };
+        const [effectiveResult, bubbleRulesData] = await Promise.all([
+          apiService.getEffectiveRules(bubble.id).catch((): EffectiveRule[] => []),
+          apiService.getBubbleCustomRules(bubble.id).catch((): BubbleRuleData[] => []),
         ]);
-        const appTexts = (effectiveRules as any[])
-          .filter((r: any) => r.level === 'app' || r.level === 'category')
-          .map((r: any) => r.text);
-        setAppRuleTexts(appTexts);
-        setExistingBubbleRuleIds((bubbleRulesData as any[]).map((r: any) => r.ruleId));
-        if (effectiveRules && effectiveRules.length > 0) {
-          const visibleRules = (effectiveRules as any[]).filter((r: any) => !r.hidden).map((r: any) => r.text);
-          setCustomRules(visibleRules);
+        const effective = effectiveResult as EffectiveRule[];
+        const bubbleData = bubbleRulesData as BubbleRuleData[];
+        setExistingBubbleRuleIds(bubbleData.map(r => r.ruleId));
+        const alreadyHidden = effective
+          .filter(r => r.hidden && (r.level === 'app' || r.level === 'category'))
+          .map(r => r.ruleId);
+        setOriginalHiddenRuleIds(alreadyHidden);
+        setHiddenInheritedRuleIds(alreadyHidden);
+        if (effective.length > 0) {
+          const entries: RuleEntry[] = effective
+            .filter(r => !r.hidden)
+            .map(r => ({
+              ruleId: r.ruleId,
+              text: r.text,
+              level: r.level as RuleEntry['level'],
+            }));
+          setRuleEntries(entries);
         } else if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
-          setCustomRules([...bubble.rules]);
+          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, text, level: 'bubble' as const })));
         }
       } catch (e) {
         console.error('Failed to fetch rules:', e);
         if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
-          setCustomRules([...bubble.rules]);
+          setRuleEntries(bubble.rules.map((text: string) => ({ ruleId: null, text, level: 'bubble' as const })));
         }
       } finally {
         setRulesLoaded(true);
@@ -135,7 +153,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
-  const allRules = [...customRules];
+  const allRuleTexts = ruleEntries.map(r => r.text);
 
   const handleSliderLayout = (e: LayoutChangeEvent) => {
     sliderWidth.current = e.nativeEvent.layout.width;
@@ -199,8 +217,10 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   };
 
   const openEditRule = (index: number) => {
+    const entry = ruleEntries[index];
+    if (entry.level !== 'bubble') return;
     setEditingRuleIndex(index);
-    setRuleText(customRules[index]);
+    setRuleText(entry.text);
     setShowRuleModal(true);
   };
 
@@ -208,18 +228,22 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
     const trimmed = ruleText.trim();
     if (!trimmed) return;
     if (editingRuleIndex !== null) {
-      const updated = [...customRules];
-      updated[editingRuleIndex] = trimmed;
-      setCustomRules(updated);
+      const updated = [...ruleEntries];
+      updated[editingRuleIndex] = { ...updated[editingRuleIndex], text: trimmed };
+      setRuleEntries(updated);
     } else {
-      setCustomRules([trimmed, ...customRules]);
+      setRuleEntries([{ ruleId: null, text: trimmed, level: 'bubble' }, ...ruleEntries]);
     }
     setShowRuleModal(false);
     setRuleText('');
   };
 
   const deleteRule = (index: number) => {
-    setCustomRules(customRules.filter((_, i) => i !== index));
+    const entry = ruleEntries[index];
+    if (entry.level !== 'bubble' && entry.ruleId !== null) {
+      setHiddenInheritedRuleIds(prev => [...prev, entry.ruleId!]);
+    }
+    setRuleEntries(ruleEntries.filter((_, i) => i !== index));
     if (expandedRuleIndex === index) {
       setExpandedRuleIndex(null);
     } else if (expandedRuleIndex !== null && expandedRuleIndex > index) {
@@ -229,18 +253,18 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   const moveRuleUp = (index: number) => {
     if (index <= 0) return;
-    const updated = [...customRules];
+    const updated = [...ruleEntries];
     [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-    setCustomRules(updated);
+    setRuleEntries(updated);
     if (expandedRuleIndex === index) setExpandedRuleIndex(index - 1);
     else if (expandedRuleIndex === index - 1) setExpandedRuleIndex(index);
   };
 
   const moveRuleDown = (index: number) => {
-    if (index >= customRules.length - 1) return;
-    const updated = [...customRules];
+    if (index >= ruleEntries.length - 1) return;
+    const updated = [...ruleEntries];
     [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-    setCustomRules(updated);
+    setRuleEntries(updated);
     if (expandedRuleIndex === index) setExpandedRuleIndex(index + 1);
     else if (expandedRuleIndex === index + 1) setExpandedRuleIndex(index);
   };
@@ -257,7 +281,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         tagline: tagline || title,
         category,
         description,
-        rules: allRules,
+        rules: allRuleTexts,
         privacy,
         coverImage: images.length > 0 ? images[0] : null,
         images,
@@ -275,10 +299,22 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         for (const ruleId of existingBubbleRuleIds) {
           await apiService.deleteBubbleRule(bubble.id, ruleId).catch(() => {});
         }
-        const bubbleOnlyRules = allRules.filter(r => !appRuleTexts.includes(r));
+        const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
         for (let i = 0; i < bubbleOnlyRules.length; i++) {
-          await apiService.addBubbleRule(bubble.id, bubbleOnlyRules[i], i + 1).catch(err =>
+          await apiService.addBubbleRule(bubble.id, bubbleOnlyRules[i].text, i + 1).catch(err =>
             console.log('Failed to save bubble rule:', err)
+          );
+        }
+        const newlyHidden = hiddenInheritedRuleIds.filter(id => !originalHiddenRuleIds.includes(id));
+        for (const ruleId of newlyHidden) {
+          await apiService.setBubbleRuleOverride(bubble.id, ruleId, true).catch(err =>
+            console.log('Failed to save rule override:', err)
+          );
+        }
+        const unhidden = originalHiddenRuleIds.filter(id => !hiddenInheritedRuleIds.includes(id));
+        for (const ruleId of unhidden) {
+          await apiService.setBubbleRuleOverride(bubble.id, ruleId, false).catch(err =>
+            console.log('Failed to remove rule override:', err)
           );
         }
       } catch (ruleError) {
@@ -496,8 +532,9 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           </View>
         </TouchableOpacity>
 
-        {customRules.map((rule, index) => {
+        {ruleEntries.map((entry, index) => {
           const isExpanded = expandedRuleIndex === index;
+          const isInherited = entry.level !== 'bubble';
           return (
             <Swipeable
               key={`rule-${index}`}
@@ -507,7 +544,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                   onPress={() => deleteRule(index)}
                 >
                   <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
-                  <Text style={styles.swipeDeleteText}>Delete</Text>
+                  <Text style={styles.swipeDeleteText}>{isInherited ? 'Hide' : 'Delete'}</Text>
                 </TouchableOpacity>
               )}
               overshootRight={false}
@@ -518,7 +555,14 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 activeOpacity={0.7}
               >
                 <View style={styles.ruleContent}>
-                  <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{entry.text}</Text>
+                    {isInherited && (
+                      <View style={{ backgroundColor: Colors.brand.primary + '20', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        <Text style={{ fontSize: 10, color: Colors.brand.primary }}>{entry.level}</Text>
+                      </View>
+                    )}
+                  </View>
                   {isExpanded && (
                     <View style={styles.ruleActions}>
                       <TouchableOpacity
@@ -529,18 +573,20 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                         <Ionicons name="arrow-up" size={16} color={index === 0 ? Colors.text.tertiary : Colors.brand.primary} />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={[styles.ruleActionButton, index === customRules.length - 1 && styles.ruleActionDisabled]}
+                        style={[styles.ruleActionButton, index === ruleEntries.length - 1 && styles.ruleActionDisabled]}
                         onPress={() => moveRuleDown(index)}
-                        disabled={index === customRules.length - 1}
+                        disabled={index === ruleEntries.length - 1}
                       >
-                        <Ionicons name="arrow-down" size={16} color={index === customRules.length - 1 ? Colors.text.tertiary : Colors.brand.primary} />
+                        <Ionicons name="arrow-down" size={16} color={index === ruleEntries.length - 1 ? Colors.text.tertiary : Colors.brand.primary} />
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.ruleActionButton}
-                        onPress={() => openEditRule(index)}
-                      >
-                        <Ionicons name="pencil" size={16} color={Colors.brand.primary} />
-                      </TouchableOpacity>
+                      {!isInherited && (
+                        <TouchableOpacity
+                          style={styles.ruleActionButton}
+                          onPress={() => openEditRule(index)}
+                        >
+                          <Ionicons name="pencil" size={16} color={Colors.brand.primary} />
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
                         style={[styles.ruleActionButton, { borderColor: Colors.status.error }]}
                         onPress={() => deleteRule(index)}
@@ -657,7 +703,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         <Text style={styles.previewSectionTitle}>Bubble Rules</Text>
         {expandRules ? <ChevronUpIcon size={20} color={Colors.text.secondary} /> : <ChevronDownIcon size={20} color={Colors.text.secondary} />}
       </TouchableOpacity>
-      {expandRules && allRules.map((rule, i) => (
+      {expandRules && allRuleTexts.map((rule, i) => (
         <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
       ))}
     </View>
