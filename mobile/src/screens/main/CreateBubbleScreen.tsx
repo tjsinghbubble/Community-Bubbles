@@ -121,8 +121,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRuleIndex, setEditingRuleIndex] = useState<number | null>(null);
-  const [ruleName, setRuleName] = useState('');
-  const [ruleDescription, setRuleDescription] = useState('');
+  const [ruleText, setRuleText] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [expandAbout, setExpandAbout] = useState(true);
