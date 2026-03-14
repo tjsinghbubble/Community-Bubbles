@@ -253,6 +253,11 @@ export interface IStorage {
   removeBubbleRuleOverride(bubbleId: string, ruleId: number): Promise<void>;
 
   getEffectiveRules(bubbleId: string): Promise<{ level: string; ruleId: number; text: string; position: number; hidden: boolean }[]>;
+
+  isBubbleRuleLinked(bubbleId: string, ruleId: number): Promise<boolean>;
+  isCategoryRuleLinked(categoryId: number, ruleId: number): Promise<boolean>;
+  isAppRuleLinked(ruleId: number): Promise<boolean>;
+  isRuleReferenced(ruleId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1778,6 +1783,40 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  async isBubbleRuleLinked(bubbleId: string, ruleId: number): Promise<boolean> {
+    const rows = await db.select()
+      .from(bubbleRules)
+      .where(and(eq(bubbleRules.bubbleId, bubbleId), eq(bubbleRules.ruleId, ruleId)))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async isCategoryRuleLinked(categoryId: number, ruleId: number): Promise<boolean> {
+    const rows = await db.select()
+      .from(categoryRules)
+      .where(and(eq(categoryRules.categoryId, categoryId), eq(categoryRules.ruleId, ruleId)))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async isAppRuleLinked(ruleId: number): Promise<boolean> {
+    const rows = await db.select()
+      .from(appRules)
+      .where(eq(appRules.ruleId, ruleId))
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async isRuleReferenced(ruleId: number): Promise<boolean> {
+    const [appRef] = await db.select().from(appRules).where(eq(appRules.ruleId, ruleId)).limit(1);
+    if (appRef) return true;
+    const [catRef] = await db.select().from(categoryRules).where(eq(categoryRules.ruleId, ruleId)).limit(1);
+    if (catRef) return true;
+    const [bubRef] = await db.select().from(bubbleRules).where(eq(bubbleRules.ruleId, ruleId)).limit(1);
+    if (bubRef) return true;
+    return false;
   }
 }
 

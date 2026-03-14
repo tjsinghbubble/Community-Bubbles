@@ -111,6 +111,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [ruleEntries, setRuleEntries] = useState<RuleEntry[]>([]);
+  const [appRuleEntries, setAppRuleEntries] = useState<RuleEntry[]>([]);
   const [hiddenInheritedRuleIds, setHiddenInheritedRuleIds] = useState<number[]>([]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
@@ -156,6 +157,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
             text: r.rule?.text || r.text || '',
             level: 'app' as const,
           }));
+          setAppRuleEntries(entries);
           setRuleEntries(entries);
         } else {
           setRuleEntries([...FALLBACK_RULES]);
@@ -168,6 +170,34 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     fetchCategories();
     fetchAppRules();
   }, [token]);
+
+  useEffect(() => {
+    if (!selectedCategoryItem?.id) {
+      const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
+      setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
+      return;
+    }
+    const fetchCategoryRules = async () => {
+      try {
+        const result = await apiService.getCategoryRules(selectedCategoryItem.id);
+        if (result && result.length > 0) {
+          const catEntries: RuleEntry[] = result.map((r: { ruleId: number; rule?: { text: string }; text?: string }) => ({
+            ruleId: r.ruleId,
+            text: r.rule?.text || r.text || '',
+            level: 'category' as const,
+          }));
+          const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
+          setRuleEntries([...appRuleEntries, ...catEntries, ...bubbleOnlyRules]);
+        } else {
+          const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
+          setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
+        }
+      } catch (e) {
+        console.error('Failed to fetch category rules:', e);
+      }
+    };
+    fetchCategoryRules();
+  }, [selectedCategoryItem?.id]);
 
   const selectedSubcategory = categoryGroups
     .flatMap(g => g.children)

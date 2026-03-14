@@ -2682,8 +2682,13 @@ export async function registerRoutes(
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const ruleId = parseInt(req.params.ruleId);
+      const linked = await storage.isAppRuleLinked(ruleId);
+      if (!linked) return res.status(404).json({ error: "Rule not linked to app" });
       await storage.removeAppRule(ruleId);
-      await storage.deleteRule(ruleId);
+      const stillReferenced = await storage.isRuleReferenced(ruleId);
+      if (!stillReferenced) {
+        await storage.deleteRule(ruleId);
+      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2733,7 +2738,10 @@ export async function registerRoutes(
     try {
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const categoryId = parseInt(req.params.categoryId);
       const ruleId = parseInt(req.params.ruleId);
+      const linked = await storage.isCategoryRuleLinked(categoryId, ruleId);
+      if (!linked) return res.status(404).json({ error: "Rule not linked to this category" });
       const { text } = req.body;
       if (!text) return res.status(400).json({ error: "text is required" });
       const updated = await storage.updateRule(ruleId, text);
@@ -2750,8 +2758,13 @@ export async function registerRoutes(
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const categoryId = parseInt(req.params.categoryId);
       const ruleId = parseInt(req.params.ruleId);
+      const linked = await storage.isCategoryRuleLinked(categoryId, ruleId);
+      if (!linked) return res.status(404).json({ error: "Rule not linked to this category" });
       await storage.removeCategoryRule(categoryId, ruleId);
-      await storage.deleteRule(ruleId);
+      const stillReferenced = await storage.isRuleReferenced(ruleId);
+      if (!stillReferenced) {
+        await storage.deleteRule(ruleId);
+      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -2811,6 +2824,8 @@ export async function registerRoutes(
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
       if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
       const ruleId = parseInt(req.params.ruleId);
+      const linked = await storage.isBubbleRuleLinked(bubbleId, ruleId);
+      if (!linked) return res.status(404).json({ error: "Rule not linked to this bubble" });
       const { text } = req.body;
       if (!text) return res.status(400).json({ error: "text is required" });
       const updated = await storage.updateRule(ruleId, text);
@@ -2830,8 +2845,13 @@ export async function registerRoutes(
       const isAdmin = role === 'admin' || role === 'creator' || user?.isSuperAdmin;
       if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
       const ruleId = parseInt(req.params.ruleId);
+      const linked = await storage.isBubbleRuleLinked(bubbleId, ruleId);
+      if (!linked) return res.status(404).json({ error: "Rule not linked to this bubble" });
       await storage.removeBubbleRule(bubbleId, ruleId);
-      await storage.deleteRule(ruleId);
+      const stillReferenced = await storage.isRuleReferenced(ruleId);
+      if (!stillReferenced) {
+        await storage.deleteRule(ruleId);
+      }
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
