@@ -81,6 +81,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
     Array.isArray(bubble.attachments) ? [...bubble.attachments] : []
   );
   const [customRules, setCustomRules] = useState<string[]>([]);
+  const [appRuleTexts, setAppRuleTexts] = useState<string[]>([]);
+  const [existingBubbleRuleIds, setExistingBubbleRuleIds] = useState<number[]>([]);
   const [rulesLoaded, setRulesLoaded] = useState(false);
   const [privacy, setPrivacy] = useState(bubble.privacy || 'Public');
   const [memberLimit, setMemberLimit] = useState(
@@ -104,9 +106,17 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   useEffect(() => {
     const fetchRules = async () => {
       try {
-        const effectiveRules = await apiService.getEffectiveRules(bubble.id);
+        const [effectiveRules, bubbleRulesData] = await Promise.all([
+          apiService.getEffectiveRules(bubble.id).catch(() => []),
+          apiService.getBubbleCustomRules(bubble.id).catch(() => []),
+        ]);
+        const appTexts = (effectiveRules as any[])
+          .filter((r: any) => r.level === 'app' || r.level === 'category')
+          .map((r: any) => r.text);
+        setAppRuleTexts(appTexts);
+        setExistingBubbleRuleIds((bubbleRulesData as any[]).map((r: any) => r.ruleId));
         if (effectiveRules && effectiveRules.length > 0) {
-          const visibleRules = effectiveRules.filter((r: any) => !r.hidden).map((r: any) => r.text);
+          const visibleRules = (effectiveRules as any[]).filter((r: any) => !r.hidden).map((r: any) => r.text);
           setCustomRules(visibleRules);
         } else if (Array.isArray(bubble.rules) && bubble.rules.length > 0) {
           setCustomRules([...bubble.rules]);
@@ -260,6 +270,20 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         radiusMiles,
         campusId: campusOnly && isCampusVerified ? user?.campusId : null,
       });
+
+      try {
+        for (const ruleId of existingBubbleRuleIds) {
+          await apiService.deleteBubbleRule(bubble.id, ruleId).catch(() => {});
+        }
+        const bubbleOnlyRules = allRules.filter(r => !appRuleTexts.includes(r));
+        for (let i = 0; i < bubbleOnlyRules.length; i++) {
+          await apiService.addBubbleRule(bubble.id, bubbleOnlyRules[i], i + 1).catch(err =>
+            console.log('Failed to save bubble rule:', err)
+          );
+        }
+      } catch (ruleError) {
+        console.log('Error syncing bubble rules:', ruleError);
+      }
 
       setLoading(false);
       setShowSuccessModal(true);

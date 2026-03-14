@@ -229,6 +229,20 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
             </AnimatedPressable>
+            {isSuperAdmin && (
+              <AnimatedPressable
+                style={styles.menuItem}
+                scaleValue={0.97}
+                onPress={() => navigation.navigate('ManageRules')}
+                testID="link-manage-rules"
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons name="list-outline" size={24} color={Colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Manage Rules</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </AnimatedPressable>
+            )}
           </View>
         )}
 

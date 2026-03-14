@@ -18,6 +18,7 @@ import GetHelpScreen from '../screens/main/GetHelpScreen';
 import GiveFeedbackScreen from '../screens/main/GiveFeedbackScreen';
 import HelpCenterScreen from '../screens/main/HelpCenterScreen';
 import ReportConcernScreen from '../screens/main/ReportConcernScreen';
+import ManageRulesScreen from '../screens/main/ManageRulesScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
@@ -40,6 +41,7 @@ export type ProfileStackParamList = {
   GiveFeedback: undefined;
   HelpCenter: undefined;
   ReportConcern: undefined;
+  ManageRules: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
@@ -67,6 +69,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreen} />
+      <Stack.Screen name="ManageRules" component={ManageRulesScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>

@@ -2715,6 +2715,35 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/rules/category/:categoryId/reorder", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const categoryId = parseInt(req.params.categoryId);
+      const { ruleIds } = req.body;
+      if (!Array.isArray(ruleIds)) return res.status(400).json({ error: "ruleIds array required" });
+      await storage.reorderCategoryRules(categoryId, ruleIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/rules/category/:categoryId/:ruleId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser((req as any).userId);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
+      const ruleId = parseInt(req.params.ruleId);
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "text is required" });
+      const updated = await storage.updateRule(ruleId, text);
+      if (!updated) return res.status(404).json({ error: "Rule not found" });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.delete("/api/rules/category/:categoryId/:ruleId", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser((req as any).userId);

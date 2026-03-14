@@ -105,6 +105,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [images, setImages] = useState<string[]>([]);
   const [attachments, setAttachments] = useState<string[]>([]);
   const [customRules, setCustomRules] = useState<string[]>([]);
+  const [appRuleTexts, setAppRuleTexts] = useState<string[]>([]);
   const [privacy, setPrivacy] = useState('Public');
   const [memberLimit, setMemberLimit] = useState('');
   const [campusOnly, setCampusOnly] = useState(false);
@@ -144,13 +145,17 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       try {
         const appRules = await apiService.getAppRules();
         if (appRules && appRules.length > 0) {
-          setCustomRules(appRules.map((r: any) => r.rule?.text || r.text));
+          const texts = appRules.map((r: any) => r.rule?.text || r.text);
+          setCustomRules(texts);
+          setAppRuleTexts(texts);
         } else {
           setCustomRules([...FALLBACK_RULES]);
+          setAppRuleTexts([]);
         }
       } catch (e) {
         console.error('Failed to fetch app rules:', e);
         setCustomRules([...FALLBACK_RULES]);
+        setAppRuleTexts([]);
       }
     };
     fetchCategories();
@@ -314,6 +319,17 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         Alert.alert('Error', data.error || 'Failed to create bubble');
         setLoading(false);
         return;
+      }
+
+      try {
+        const bubbleOnlyRules = allRules.filter(r => !appRuleTexts.includes(r));
+        for (let i = 0; i < bubbleOnlyRules.length; i++) {
+          await apiService.addBubbleRule(data.id, bubbleOnlyRules[i], i + 1).catch(err =>
+            console.log('Failed to save bubble rule:', err)
+          );
+        }
+      } catch (ruleError) {
+        console.log('Error saving bubble rules:', ruleError);
       }
 
       try {

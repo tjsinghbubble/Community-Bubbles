@@ -589,6 +589,74 @@ class ApiService {
       body: JSON.stringify({ ruleId, hidden }),
     });
   }
+
+  async getCategoryRules(categoryId: number): Promise<any[]> {
+    return this.request<any[]>(`/api/rules/category/${categoryId}`);
+  }
+
+  async addCategoryRule(categoryId: number, text: string, position: number): Promise<any> {
+    return this.request<any>(`/api/rules/category/${categoryId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, position }),
+    });
+  }
+
+  async updateCategoryRule(categoryId: number, ruleId: number, text: string): Promise<any> {
+    return this.request<any>(`/api/rules/category/${categoryId}/${ruleId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  async deleteCategoryRule(categoryId: number, ruleId: number): Promise<any> {
+    return this.request<any>(`/api/rules/category/${categoryId}/${ruleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderCategoryRules(categoryId: number, ruleIds: number[]): Promise<any> {
+    return this.request<any>(`/api/rules/category/${categoryId}/reorder`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleIds }),
+    });
+  }
+
+  async addAppRule(text: string, position: number): Promise<any> {
+    return this.request<any>('/api/rules/app', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, position }),
+    });
+  }
+
+  async updateAppRule(ruleId: number, text: string): Promise<any> {
+    return this.request<any>(`/api/rules/app/${ruleId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+  }
+
+  async deleteAppRule(ruleId: number): Promise<any> {
+    return this.request<any>(`/api/rules/app/${ruleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderAppRules(ruleIds: number[]): Promise<any> {
+    return this.request<any>('/api/rules/app/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruleIds }),
+    });
+  }
+
+  async getCategoriesFlat(): Promise<any[]> {
+    return this.request<any[]>('/api/categories/flat');
+  }
 }
 
 export const apiService = new ApiService();
