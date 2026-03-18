@@ -71,11 +71,20 @@ export default function DataConfirmAccountScreen() {
     }
   };
 
+  const VALID_CODE = '122333';
+
   const handleConfirm = async () => {
     if (!isCodeComplete) return;
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      const enteredCode = code.join('');
+      if (enteredCode !== VALID_CODE) {
+        Alert.alert('Incorrect Code', 'The code you entered is incorrect. Please check your email and try again.');
+        setCode(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+        return;
+      }
       setShowSuccessModal(true);
     } catch (error) {
       Alert.alert('Error', 'Verification failed. Please try again.');
