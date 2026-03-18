@@ -70,10 +70,10 @@ const TermsOfServiceScreen: React.FC<Props> = ({ navigation }) => {
           2.3 RSVPing to Events and Booking Slots: When you RSVP to an event or book a venue time slot through the Platform, you are committing to attend. Some bookings may require a Seat Fee (see Section 3). By completing a booking, you agree to pay all applicable charges, including Seat Fees, service fees, and any applicable taxes.
         </Text>
 
+        <Text style={styles.sectionTitle}>3. Seat Fees, Cancellations, and Refunds</Text>
         <View style={styles.disclaimerBox}>
           <Text style={styles.disclaimerText}>These provisions apply when payment features are available through the Service.</Text>
         </View>
-        <Text style={styles.sectionTitle}>3. Seat Fees, Cancellations, and Refunds</Text>
         <Text style={styles.body}>
           3.1 Seat Fees: Certain venue bookings require a Seat Fee, which is collected at the time of booking through our payment processor (Stripe). Seat Fees help Venue Partners offer discounted availability and reduce no-shows. The amount of the Seat Fee will be clearly displayed before you confirm your booking.
         </Text>
