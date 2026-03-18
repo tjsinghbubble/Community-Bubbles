@@ -17,7 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Radius, Typography, NotificationBadge } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import { EventCardTokens } from '../../styles/design-tokens';
 import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
 
@@ -370,11 +370,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: EventCardTokens.padding,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...CardShadow,
   },
   bubbleName: {
     position: 'absolute',

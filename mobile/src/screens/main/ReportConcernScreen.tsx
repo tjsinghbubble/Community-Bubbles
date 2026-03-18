@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Typography, InputStyles } from '../../styles/theme';
+import { Colors, Spacing, Typography, InputStyles, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 const FEEDBACK_OPTIONS = ['Bubble', 'Event', 'Other'] as const;
@@ -544,11 +544,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     padding: Spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...CardShadow,
   },
   calendarHeader: {
     flexDirection: 'row',

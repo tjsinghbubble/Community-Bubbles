@@ -38,7 +38,7 @@ import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from 
 import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
@@ -1221,11 +1221,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     position: 'relative',
     width: '48%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...CardShadow,
   },
   pinIcon: {
     position: 'absolute',

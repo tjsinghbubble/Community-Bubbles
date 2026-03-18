@@ -24,7 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors, CardShadow } from '../../styles/theme';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, CreateAPostIcon, NothingHereYetIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -864,11 +864,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...CardShadow,
   },
   postTypeRow: {
     flexDirection: 'row',

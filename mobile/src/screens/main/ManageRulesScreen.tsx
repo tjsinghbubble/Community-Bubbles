@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ManageRules'>;
@@ -524,11 +524,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.neutral.lightSilver,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    ...CardShadow,
   },
   ruleContent: {
     flexDirection: 'row',

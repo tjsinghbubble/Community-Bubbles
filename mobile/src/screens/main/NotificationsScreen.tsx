@@ -15,7 +15,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 type NotificationItem = {
@@ -331,11 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     marginHorizontal: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    ...CardShadow,
   },
   notifRowUnread: {
     backgroundColor: Colors.background.brandTint,
