@@ -4,6 +4,46 @@ This file maps each SVG design asset to its corresponding screen/component and d
 
 ---
 
+## Card Shadow
+
+**Token**: `CardShadow`
+**Defined in**: `mobile/src/styles/theme.ts`
+**Used by**: All card-style containers and floating elements across the app (29 files)
+
+| Property | Value |
+|---|---|
+| `shadowColor` | `'#000'` |
+| `shadowOffset` | `{ width: 0, height: 0 }` |
+| `shadowOpacity` | `0.25` |
+| `shadowRadius` | `8.3` |
+| `elevation` (Android) | `4` |
+
+### Usage
+
+Spread `CardShadow` into a `StyleSheet` object:
+
+```ts
+import { CardShadow } from '../../styles/theme';
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    ...CardShadow,
+  },
+});
+```
+
+Or pass it directly as a style prop on a `<View>`:
+
+```ts
+<View style={[styles.card, CardShadow]} />
+```
+
+> **Note**: `CardShadow` is a plain object (not an SVG-derived token), so it is not listed in `design-tokens.ts`. It is the single source of truth for all card drop-shadows in the app — do not define shadow properties inline.
+
+---
+
 ## Event Cards
 
 **SVG Source**: `icons/Event Cards.svg`
