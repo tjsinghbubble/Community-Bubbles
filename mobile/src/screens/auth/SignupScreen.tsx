@@ -708,10 +708,10 @@ const styles = StyleSheet.create({
   },
   wheelHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#E8E8E8',
   },
