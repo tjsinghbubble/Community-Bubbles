@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../styles/theme';
+import { Colors, Typography, Spacing, Radius, CardShadow } from '../styles/theme';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -183,11 +183,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     borderRadius: Radius.md,
     gap: Spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    ...CardShadow,
   },
   message: {
     flex: 1,

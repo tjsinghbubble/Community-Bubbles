@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, Typography, Spacing } from '../styles/theme';
+import { Colors, Typography, Spacing, CardShadow } from '../styles/theme';
 import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
@@ -74,11 +74,7 @@ export default function MainNavigator() {
           backgroundColor: Colors.background.primary,
           borderTopWidth: 1,
           borderTopColor: '#D9D9D9',
-          elevation: 8,
-          shadowColor: Colors.neutral.black,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
+          ...CardShadow,
           height: 60 + bottomPadding,
           paddingBottom: bottomPadding,
           paddingTop: Spacing.sm,

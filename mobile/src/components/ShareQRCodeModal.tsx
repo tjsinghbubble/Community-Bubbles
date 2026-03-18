@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Typography, Spacing, Radius } from '../styles/theme';
+import { Colors, Typography, Spacing, Radius, CardShadow } from '../styles/theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -131,11 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: Radius.md,
     marginBottom: Spacing.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...CardShadow,
   },
   urlText: {
     fontSize: Typography.sizes.sm,

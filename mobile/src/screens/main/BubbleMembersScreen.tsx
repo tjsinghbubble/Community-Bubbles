@@ -21,7 +21,7 @@ import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import cometChatService from '../../services/cometchat.service';
 import { FlagIcon } from '../../components/icons';
 
@@ -692,11 +692,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: 260,
     paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...CardShadow,
   },
   menuItem: {
     flexDirection: 'row',

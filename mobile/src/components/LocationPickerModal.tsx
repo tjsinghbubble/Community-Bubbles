@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, Radius, Typography } from '../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../styles/theme';
 
 type LocationData = {
   name: string;
@@ -89,11 +89,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
                 backgroundColor: Colors.brand.skyWhite,
                 marginTop: 8,
                 borderRadius: 12,
-                elevation: 3,
-                shadowColor: Colors.neutral.charcoal,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
+                ...CardShadow,
               },
               row: {
                 padding: 16,

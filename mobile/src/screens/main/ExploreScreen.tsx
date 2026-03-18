@@ -27,7 +27,7 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -584,11 +584,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...CardShadow,
   },
   searchInput: {
     flex: 1,
@@ -719,11 +715,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...CardShadow,
     alignItems: 'center',
   },
   studentPromptTitle: {
@@ -770,11 +762,7 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    ...CardShadow,
   },
   campusName: {
     fontSize: 22,

@@ -27,7 +27,7 @@ import SuccessModal from '../../components/SuccessModal';
 import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, PeopleIcon, FlagIcon, CrownIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
 import { EventDetailsSkeleton } from '../../components/SkeletonLoader';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
 
 const directionsIcon = require('../../assets/icons/Icons/directions-diamond.png');
@@ -932,11 +932,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 6,
     minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    ...CardShadow,
     borderWidth: 1,
     borderColor: Colors.neutral.cloudGrey,
   },
@@ -1053,11 +1049,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    ...CardShadow,
     minWidth: 140,
     overflow: 'hidden',
   },

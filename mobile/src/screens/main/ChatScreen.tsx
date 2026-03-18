@@ -26,7 +26,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import { PeopleIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess, requestCameraAccess } from '../../utils/permissions';
 
@@ -1104,11 +1104,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.skyWhite,
     borderRadius: 24,
     padding: 8,
-    shadowColor: Colors.neutral.charcoal,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    ...CardShadow,
   },
   reactionOption: {
     padding: 8,
