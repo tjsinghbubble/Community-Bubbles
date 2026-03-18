@@ -123,10 +123,10 @@ const TermsOfServiceScreen: React.FC<Props> = ({ navigation }) => {
           6.3 Cancellations: If you need to cancel an event, please do so as early as possible through the Platform. Members who have paid Seat Fees will be automatically refunded upon cancellation.
         </Text>
 
+        <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>VENUE PARTNER TERMS</Text>
         <View style={styles.disclaimerBox}>
           <Text style={styles.disclaimerText}>These provisions apply to users who participate as venue partners when such features are offered.</Text>
         </View>
-        <Text style={[styles.sectionTitle, { marginTop: Spacing.xl }]}>VENUE PARTNER TERMS</Text>
 
         <Text style={styles.sectionTitle}>7. Partnering with Bubble</Text>
         <Text style={styles.body}>
