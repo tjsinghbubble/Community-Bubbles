@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   },
   userRole: {
     fontSize: 12,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     marginTop: 2,
   },
   userEmail: {
@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    color: Colors.neutral.charcoal,
   },
   badge: {
     backgroundColor: Colors.brand.primary,

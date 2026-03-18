@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   },
   userRole: {
     fontSize: 12,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     marginTop: 2,
   },
   completeSection: {
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   completeSubtitle: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     fontStyle: 'italic',
   },
   bubbleRow: {
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   },
   bubbleCategory: {
     fontSize: Typography.sizes.xs,
-    color: Colors.neutral.coolMist,
+    color: Colors.neutral.charcoal,
     marginTop: 2,
   },
   seeAllText: {
