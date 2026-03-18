@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: Typography.sizes.xs,
-    color: Colors.neutral.charcoal,
+    color: Colors.text.tertiary,
   },
   conversationFooter: {
     flexDirection: 'row',
