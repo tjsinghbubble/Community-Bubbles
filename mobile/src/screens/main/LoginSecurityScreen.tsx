@@ -13,16 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 export default function LoginSecurityScreen() {
   const navigation = useNavigation<any>();
@@ -167,7 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.lg,
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   fieldRow: {
     flexDirection: 'row',

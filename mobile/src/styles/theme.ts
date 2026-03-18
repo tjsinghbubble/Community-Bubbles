@@ -64,6 +64,14 @@ export const Colors = {
   },
 };
 
+export const CardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 0 },
+  shadowOpacity: 0.25,
+  shadowRadius: 8.3,
+  elevation: 4,
+};
+
 export const Gradients = {
   button: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,

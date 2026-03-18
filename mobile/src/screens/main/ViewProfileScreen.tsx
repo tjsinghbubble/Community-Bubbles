@@ -17,19 +17,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
 };
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 type BubbleItem = {
   id: string;
@@ -85,7 +78,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
       <View style={styles.separator} />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.profileCard, CARD_SHADOW]}>
+        <View style={[styles.profileCard, CardShadow]}>
           {user.profilePhoto ? (
             <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
           ) : (
@@ -123,7 +116,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
         </View>
 
         <TouchableOpacity
-          style={[styles.bubblesCard, CARD_SHADOW]}
+          style={[styles.bubblesCard, CardShadow]}
           onPress={() => navigation.navigate('MyBubblesFromProfile')}
           activeOpacity={0.7}
           testID="card-my-bubbles"

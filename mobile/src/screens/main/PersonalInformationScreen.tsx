@@ -12,15 +12,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 export default function PersonalInformationScreen() {
   const navigation = useNavigation<any>();
@@ -111,7 +104,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     paddingHorizontal: Spacing.lg,
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   fieldRow: {
     flexDirection: 'row',

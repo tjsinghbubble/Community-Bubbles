@@ -17,17 +17,10 @@ import { useNavigation, useFocusEffect, NavigationProp } from '@react-navigation
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import { ClockIcon, EditIcon } from '../../components/icons';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 export default function ProfileScreen() {
   const { user, token, logout } = useAuth();
@@ -415,7 +408,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     aspectRatio: 1.15,
     justifyContent: 'center',
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   avatar: {
     width: 80,
@@ -463,7 +456,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     minHeight: 140,
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   cardTitle: {
     fontSize: Typography.sizes.md,
@@ -534,7 +527,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   sectionTitleRow: {
     flexDirection: 'row',

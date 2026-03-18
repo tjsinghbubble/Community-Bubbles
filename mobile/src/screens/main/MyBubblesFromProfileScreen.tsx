@@ -17,19 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'MyBubblesFromProfile'>;
 };
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 type BubbleItem = {
   id: string;
@@ -91,7 +84,7 @@ export default function MyBubblesFromProfileScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
         >
           {bubbles.map((bubble) => (
-            <View key={bubble.id} style={[styles.bubbleCard, CARD_SHADOW]}>
+            <View key={bubble.id} style={[styles.bubbleCard, CardShadow]}>
               {bubble.coverImage ? (
                 <Image source={{ uri: bubble.coverImage }} style={styles.bubbleImage} />
               ) : (

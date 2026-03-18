@@ -24,7 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { API_URL } from '../../config/api';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
@@ -55,13 +55,6 @@ type BubbleItem = {
   coverImage?: string | null;
 };
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 export default function EditProfileScreen({ navigation }: Props) {
   const { user, token, refreshUser } = useAuth();
@@ -200,14 +193,14 @@ export default function EditProfileScreen({ navigation }: Props) {
             <Text style={styles.avatarName}>{user.name}</Text>
           </View>
 
-          <View style={[styles.sectionCard, CARD_SHADOW]}>
+          <View style={[styles.sectionCard, CardShadow]}>
             <Text style={styles.sectionTitle}>My Profile</Text>
             <Text style={styles.sectionDescription}>
               Admins and members can see your profile and it may appear across Bubble to help us build trust in our community.
             </Text>
           </View>
 
-          <View style={[styles.sectionCard, CARD_SHADOW]}>
+          <View style={[styles.sectionCard, CardShadow]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>About Me</Text>
               <TouchableOpacity onPress={() => setEditingAbout(!editingAbout)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-about">
@@ -248,7 +241,7 @@ export default function EditProfileScreen({ navigation }: Props) {
             )}
           </View>
 
-          <View style={[styles.sectionCard, CARD_SHADOW]}>
+          <View style={[styles.sectionCard, CardShadow]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Interests</Text>
               <TouchableOpacity onPress={() => setEditingInterests(!editingInterests)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-interests">
@@ -296,7 +289,7 @@ export default function EditProfileScreen({ navigation }: Props) {
             )}
           </View>
 
-          <View style={[styles.sectionCard, CARD_SHADOW]}>
+          <View style={[styles.sectionCard, CardShadow]}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Bubbles</Text>
               <Ionicons name="chevron-forward" size={18} color={Colors.text.tertiary} />

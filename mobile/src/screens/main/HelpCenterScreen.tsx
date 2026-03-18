@@ -12,16 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
-const CARD_SHADOW = {
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 12,
-  elevation: 4,
-};
 
 const OPEN_ISSUES = [
   { id: '6148', status: 'In progress', createdAgo: '59 minutes ago' },
@@ -208,7 +201,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     marginTop: Spacing.lg,
     marginBottom: Spacing.xl,
-    ...CARD_SHADOW,
+    ...CardShadow,
   },
   separator: {
     height: 1,
