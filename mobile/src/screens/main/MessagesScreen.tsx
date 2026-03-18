@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    color: Colors.neutral.charcoal,
     textAlign: 'center',
     lineHeight: Typography.lineHeight.base,
   },
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
+    color: Colors.neutral.charcoal,
   },
   conversationFooter: {
     flexDirection: 'row',
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: Typography.sizes.base,
-    color: Colors.text.tertiary,
+    color: Colors.neutral.charcoal,
     flex: 1,
     marginRight: Spacing.sm,
   },
