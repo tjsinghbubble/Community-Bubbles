@@ -26,11 +26,11 @@ export default function LoginSecurityScreen() {
   };
 
   const handleDownloadData = () => {
-    Alert.alert('Coming Soon', 'Download my data will be available in a future update.');
+    navigation.navigate('DataRequestReason', { flow: 'request' });
   };
 
   const handleDeleteData = () => {
-    Alert.alert('Coming Soon', 'Delete my data will be available in a future update.');
+    navigation.navigate('DataRequestReason', { flow: 'delete' });
   };
 
   const passwordLastUpdated = user?.updatedAt

@@ -240,6 +240,48 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/me/export", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const memberships = await storage.getUserMemberships(req.userId!);
+      const events = await storage.getUserEvents(req.userId!);
+
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        profile: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          interests: user.interests,
+          aboutMe: user.aboutMe,
+          dateOfBirth: user.dateOfBirth,
+          createdAt: user.createdAt,
+        },
+        bubbles: memberships.map((m) => ({
+          id: m.bubble.id,
+          title: m.bubble.title,
+          category: m.bubble.category,
+          role: m.role,
+          status: m.status,
+          joinedAt: m.createdAt,
+        })),
+        events: events.map((e) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          location: e.location,
+          bubbleId: e.bubbleId,
+        })),
+      };
+
+      res.json(exportData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = req.body;

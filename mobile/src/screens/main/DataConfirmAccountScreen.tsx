@@ -13,8 +13,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
+import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 
 
@@ -26,7 +29,7 @@ export default function DataConfirmAccountScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<DataConfirmAccountParams, 'DataConfirmAccount'>>();
   const { flow, reason } = route.params;
-  const { user } = useAuth();
+  const { user, token, logout } = useAuth();
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -78,9 +81,37 @@ export default function DataConfirmAccountScreen() {
         inputRefs.current[0]?.focus();
         return;
       }
-      setShowSuccessModal(true);
-    } catch (error) {
-      Alert.alert('Error', 'Verification failed. Please try again.');
+
+      if (flow === 'request') {
+        const response = await fetch(`${API_URL}/api/users/me/export`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to fetch your data.');
+        const exportData = await response.json();
+        const filename = `bubble-data-${new Date().toISOString().split('T')[0]}.json`;
+        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2), {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'application/json',
+            dialogTitle: 'Save your Bubble data',
+            UTI: 'public.json',
+          });
+        }
+        setShowSuccessModal(true);
+      } else {
+        const response = await fetch(`${API_URL}/api/auth/delete-account`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Failed to delete your account. Please try again.');
+        await logout();
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -98,11 +129,9 @@ export default function DataConfirmAccountScreen() {
     }
   };
 
-  const successTitle = flow === 'request' ? 'Request Submitted' : 'Data Deletion Requested';
+  const successTitle = 'Data Ready';
   const successSubtitle =
-    flow === 'request'
-      ? 'Your data request has been submitted. You will receive an email with your data shortly.'
-      : 'Your data deletion request has been submitted. This process may take up to 30 days.';
+    'Your data file is ready. Use the share sheet to save it to your Files app or send it to yourself.';
 
   return (
     <TouchableWithoutFeedback onPress={() => navigation.goBack()}>
