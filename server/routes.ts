@@ -712,13 +712,6 @@ export async function registerRoutes(
         }
       }
 
-      if (bubble.memberLimit != null) {
-        const currentCount = await storage.getRealMemberCount(bubbleId);
-        if (currentCount >= bubble.memberLimit) {
-          return res.status(400).json({ error: "This bubble has reached its member limit" });
-        }
-      }
-
       const hasExisting = await storage.hasAnyMembership(req.userId!, bubbleId);
       if (hasExisting) {
         const status = await storage.getMembershipStatus(req.userId!, bubbleId);
@@ -727,6 +720,25 @@ export async function registerRoutes(
         }
         if (status === 'pending') {
           return res.status(400).json({ error: "Join request already pending" });
+        }
+        if (status === 'waitlisted') {
+          return res.status(400).json({ error: "Already on the waitlist" });
+        }
+        if (status === 'on_hold') {
+          return res.status(400).json({ error: "Your waitlist spot is on hold" });
+        }
+      }
+
+      if (bubble.memberLimit != null) {
+        const currentCount = await storage.getRealMemberCount(bubbleId);
+        if (currentCount >= bubble.memberLimit) {
+          await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'waitlisted');
+          const waiter = await storage.getUser(req.userId!);
+          notifyBubbleAdmins(bubbleId, req.userId!, "waitlist_join",
+            "Waitlist Request", `${waiter?.name || 'Someone'} joined the waitlist for ${bubble.title}`,
+            { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: waiter?.name },
+            true);
+          return res.json({ success: true, status: 'waitlisted' });
         }
       }
 
@@ -1147,6 +1159,99 @@ export async function registerRoutes(
         metadata: { bubbleId, bubbleName: rejBubble?.title },
       });
 
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/:bubbleId/waitlist", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const user = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can view the waitlist" });
+      }
+      const waitlist = await storage.getWaitlistMembers(bubbleId);
+      res.json(waitlist);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/waitlist/:userId/approve", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const requester = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !requester?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can approve waitlist members" });
+      }
+      const bubble = await storage.getBubble(bubbleId);
+      if (!bubble) return res.status(404).json({ error: "Bubble not found" });
+
+      if (bubble.memberLimit != null) {
+        const currentCount = await storage.getRealMemberCount(bubbleId);
+        if (currentCount >= bubble.memberLimit) {
+          return res.status(400).json({ error: "Bubble is still at capacity" });
+        }
+      }
+
+      const membership = await storage.approveMembership(userId, bubbleId);
+      sendNotification({
+        recipientId: userId,
+        type: "waitlist_approved",
+        title: "You're In!",
+        body: `You've been approved to join ${bubble.title} from the waitlist!`,
+        metadata: { bubbleId, bubbleName: bubble.title },
+      });
+      res.json({ success: true, membership });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/waitlist/:userId/hold", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const requester = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !requester?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can manage waitlist" });
+      }
+      const bubble = await storage.getBubble(bubbleId);
+      const membership = await storage.holdMembership(userId, bubbleId);
+      sendNotification({
+        recipientId: userId,
+        type: "waitlist_on_hold",
+        title: "Waitlist Update",
+        body: `Your waitlist spot for ${bubble?.title || 'the bubble'} has been put on hold.`,
+        metadata: { bubbleId, bubbleName: bubble?.title },
+      });
+      res.json({ success: true, membership });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/bubbles/:bubbleId/waitlist/:userId/reject", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const requester = await storage.getUser(req.userId!);
+      if (requesterRole !== 'admin' && !requester?.isSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can manage waitlist" });
+      }
+      const bubble = await storage.getBubble(bubbleId);
+      await storage.rejectMembership(userId, bubbleId);
+      sendNotification({
+        recipientId: userId,
+        type: "waitlist_rejected",
+        title: "Waitlist Update",
+        body: `Your waitlist spot for ${bubble?.title || 'the bubble'} has been removed.`,
+        metadata: { bubbleId, bubbleName: bubble?.title },
+      });
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });

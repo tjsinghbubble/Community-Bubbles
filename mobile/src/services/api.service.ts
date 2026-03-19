@@ -173,6 +173,22 @@ class ApiService {
     });
   }
 
+  async getWaitlist(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist`, { method: "GET" });
+  }
+
+  async approveWaitlist(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/approve`, { method: "POST" });
+  }
+
+  async holdWaitlist(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/hold`, { method: "POST" });
+  }
+
+  async rejectWaitlist(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/reject`, { method: "POST" });
+  }
+
   async updateMemberRole(bubbleId: string, userId: string, role: string) {
     return this.request(`/api/bubbles/${bubbleId}/members/${userId}/role`, {
       method: "PUT",

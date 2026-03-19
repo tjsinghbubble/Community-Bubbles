@@ -194,7 +194,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       } else {
         const result = await apiService.joinBubble(bubble.id);
         const privacy = bubbleDetails?.privacy || bubble.privacy;
-        if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Private') {
+        if (result.status === 'waitlisted') {
+          setMembershipStatus('waitlisted');
+          setSuccessModalConfig({ title: 'Joined Waitlist!', subtitle: `You'll be notified once a spot opens up in ${bubble.title}` });
+          setShowSuccessModal(true);
+        } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Private') {
           setMembershipStatus('pending');
           setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
           setShowSuccessModal(true);
@@ -760,9 +764,17 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     } else if (membershipStatus === 'pending') {
       title = 'Request Pending';
       variant = 'outline';
-    } else if (isFull) {
-      title = 'Bubble Full';
       disabled = true;
+    } else if (membershipStatus === 'waitlisted') {
+      title = 'On Waitlist';
+      variant = 'outline';
+      disabled = true;
+    } else if (membershipStatus === 'on_hold') {
+      title = 'Waitlist On Hold';
+      variant = 'outline';
+      disabled = true;
+    } else if (isFull) {
+      title = 'Join Waitlist';
     } else if (privacy === 'Request to Join' || privacy === 'Private') {
       title = 'Request to Join';
     }
@@ -779,6 +791,20 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     );
   };
 
+  const renderWaitlistAdminRow = () => {
+    if (!canManage) return null;
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionHeading}>Waitlist</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
+            <Text style={styles.linkText}>manage {'>'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderDetailsTab = () => (
     <View>
       {renderCoverPhoto()}
@@ -791,6 +817,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       {renderSeparator()}
       {renderMembersRow()}
       {renderSeparator()}
+      {renderWaitlistAdminRow()}
+      {canManage && renderSeparator()}
       <View style={styles.section}>
         {renderJoinLeaveButton()}
       </View>

@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, gte, or, isNull, ne, inArray } from "drizzle-orm";
+import { eq, and, desc, lt, gte, or, isNull, ne, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
 import { generateShortId } from "./shortId";
 import {
@@ -106,6 +106,8 @@ export interface IStorage {
   hasAnyMembership(userId: string, bubbleId: string): Promise<boolean>;
   getMemberRole(userId: string, bubbleId: string): Promise<string | null>;
   updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void>;
+  getWaitlistMembers(bubbleId: string): Promise<(Membership & { user: User })[]>;
+  holdMembership(userId: string, bubbleId: string): Promise<Membership | undefined>;
 
   createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
   getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
@@ -642,6 +644,30 @@ export class DatabaseStorage implements IStorage {
     await db.update(memberships)
       .set({ role })
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)));
+  }
+
+  async getWaitlistMembers(bubbleId: string): Promise<(Membership & { user: User })[]> {
+    const result = await db
+      .select()
+      .from(memberships)
+      .leftJoin(users, eq(memberships.userId, users.id))
+      .where(and(
+        eq(memberships.bubbleId, bubbleId),
+        sql`${memberships.membershipStatus} IN ('waitlisted', 'on_hold')`
+      ))
+      .orderBy(memberships.joinedAt);
+    return result.map((row) => ({
+      ...row.memberships,
+      user: row.users as User,
+    }));
+  }
+
+  async holdMembership(userId: string, bubbleId: string): Promise<Membership | undefined> {
+    const result = await db.update(memberships)
+      .set({ membershipStatus: 'on_hold' })
+      .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
+      .returning();
+    return result[0];
   }
 
   async createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode> {

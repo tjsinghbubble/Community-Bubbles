@@ -17,6 +17,7 @@ import BulletinBoardScreen from '../screens/main/BulletinBoardScreen';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import CreatePostScreen from '../screens/main/CreatePostScreen';
 import JoinBubbleScreen from '../screens/main/JoinBubbleScreen';
+import BubbleWaitlistScreen from '../screens/main/BubbleWaitlistScreen';
 
 export type BubbleData = {
   id: string;
@@ -65,6 +66,7 @@ export type ExploreStackParamList = {
   PostDetail: { postId: string; bubbleId: string };
   CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number; editPostId?: string; editTitle?: string; editBody?: string };
   JoinBubble: { bubble: BubbleData };
+  BubbleWaitlist: { bubbleId: string; bubbleTitle: string };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -89,6 +91,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
       <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} />
+      <Stack.Screen name="BubbleWaitlist" component={BubbleWaitlistScreen} />
     </Stack.Navigator>
   );
 }

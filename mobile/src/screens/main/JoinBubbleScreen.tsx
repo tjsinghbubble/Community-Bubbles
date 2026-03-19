@@ -9,10 +9,11 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import ImageCarousel from '../../components/ImageCarousel';
@@ -49,6 +50,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [isJoining, setIsJoining] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showWaitlistConfirm, setShowWaitlistConfirm] = useState(false);
   const [effectiveRules, setEffectiveRules] = useState<{ name: string; description: string }[]>([]);
 
   useEffect(() => {
@@ -82,8 +84,25 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
   const privacy = bubbleDetails?.privacy || bubble.privacy || 'Public';
   const isRequestBased = privacy === 'Request to Join' || privacy === 'Private';
+  const memberLimit = bubbleDetails?.memberLimit || null;
+  const spotsLeftCount = memberLimit ? Math.max(0, memberLimit - memberCount) : null;
+  const isFull = memberLimit != null && memberCount >= memberLimit;
 
   const handleJoin = async () => {
+    if (isFull) {
+      setIsJoining(true);
+      try {
+        const result = await apiService.joinBubble(bubble.id);
+        if (result.status === 'waitlisted') {
+          setShowWaitlistConfirm(true);
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to join waitlist');
+      } finally {
+        setIsJoining(false);
+      }
+      return;
+    }
     if (isRequestBased) {
       setIsJoining(true);
       try {
@@ -165,8 +184,6 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
   const tagline = bubbleDetails?.tagline || bubble.tagline || '';
   const description = bubbleDetails?.description || bubble.description || '';
-  const memberLimit = bubbleDetails?.memberLimit || null;
-  const spotsLeft = memberLimit ? Math.max(0, memberLimit - memberCount) : null;
 
   if (isLoading) {
     return (
@@ -226,10 +243,12 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         <View style={styles.memberInfoRow} data-testid="member-info">
           <View style={styles.memberDot} />
           <Text style={styles.memberText}>{memberCount} active members</Text>
-          {spotsLeft !== null && (
+          {spotsLeftCount !== null && (
             <>
               <Text style={styles.memberDivider}> | </Text>
-              <Text style={styles.spotsText}>{spotsLeft} spots left</Text>
+              <Text style={[styles.spotsText, isFull && { color: Colors.status.error }]}>
+                {isFull ? 'Full' : `${spotsLeftCount} spots left`}
+              </Text>
             </>
           )}
         </View>
@@ -292,7 +311,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
       <View style={styles.buttonSection}>
         <BubbleButton
-          title={isRequestBased ? 'Request to Join' : 'Join'}
+          title={isFull ? 'Join Waitlist' : isRequestBased ? 'Request to Join' : 'Join'}
           variant="primary"
           onPress={handleJoin}
           loading={isJoining}
@@ -321,6 +340,36 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
             : null
         }
       />
+
+      <Modal
+        visible={showWaitlistConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowWaitlistConfirm(false)}
+      >
+        <View style={styles.waitlistOverlay}>
+          <View style={styles.waitlistCard}>
+            <View style={styles.waitlistIconCircle}>
+              <Ionicons name="checkmark" size={36} color="#FFFFFF" />
+            </View>
+            <Text style={styles.waitlistTitle}>Joined Waitlist!</Text>
+            <Text style={styles.waitlistSubtitle}>
+              You'll be notified once a spot opens up in {bubble.title}.
+            </Text>
+            <TouchableOpacity
+              style={styles.waitlistDoneBtn}
+              onPress={() => {
+                setShowWaitlistConfirm(false);
+                navigation.goBack();
+              }}
+              testID="button-waitlist-done"
+              activeOpacity={0.8}
+            >
+              <Text style={styles.waitlistDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -472,5 +521,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxxxl,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
+  },
+  waitlistOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  waitlistCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 20,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    width: '100%',
+  },
+  waitlistIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.status.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  waitlistTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.primary,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  waitlistSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    lineHeight: Typography.lineHeight.md,
+    marginBottom: Spacing.lg,
+  },
+  waitlistDoneBtn: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 22,
+    height: 44,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitlistDoneBtnText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#FFFFFF',
   },
 });
