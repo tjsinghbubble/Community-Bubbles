@@ -264,8 +264,8 @@ export async function registerRoutes(
           title: m.bubble.title,
           category: m.bubble.category,
           role: m.role,
-          status: m.status,
-          joinedAt: m.createdAt,
+          status: m.membershipStatus,
+          joinedAt: m.joinedAt,
         })),
         events: events.map((e) => ({
           id: e.id,

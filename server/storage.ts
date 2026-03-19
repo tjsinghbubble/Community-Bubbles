@@ -279,7 +279,98 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
+    // 1. Delete bulletin post reactions by user
+    await db.delete(bulletinPostReactions).where(eq(bulletinPostReactions.userId, id));
+
+    // 2. Delete bulletin replies authored by user
+    await db.delete(bulletinReplies).where(eq(bulletinReplies.authorId, id));
+
+    // 3. Delete bulletin posts authored by user (and their dependents first)
+    const userPostIds = (
+      await db.select({ id: bulletinPosts.id }).from(bulletinPosts).where(eq(bulletinPosts.authorId, id))
+    ).map((p) => p.id);
+    if (userPostIds.length > 0) {
+      await db.delete(bulletinPostReactions).where(inArray(bulletinPostReactions.postId, userPostIds));
+      await db.delete(bulletinReplies).where(inArray(bulletinReplies.postId, userPostIds));
+      await db.delete(bulletinPosts).where(inArray(bulletinPosts.id, userPostIds));
+    }
+
+    // 4. Delete notifications sent to user
+    await db.delete(notifications).where(eq(notifications.recipientId, id));
+
+    // 5. Delete push tokens for user
+    await db.delete(devicePushTokens).where(eq(devicePushTokens.userId, id));
+
+    // 6. Delete sessions for user
+    await db.delete(userSessions).where(eq(userSessions.userId, id));
+
+    // 7. Delete bubble visits by user
+    await db.delete(bubbleVisits).where(eq(bubbleVisits.userId, id));
+
+    // 8. Delete event attendance by user
+    await db.delete(eventAttendees).where(eq(eventAttendees.userId, id));
+
+    // 9. Delete reports involving user
+    await db.delete(reports).where(
+      or(eq(reports.reporterUserId, id), eq(reports.reportedUserId, id))
+    );
+
+    // 10. Delete admin-member chat threads for user
+    await db.delete(adminMemberChats).where(eq(adminMemberChats.memberId, id));
+
+    // 11. Delete events created by user (and their attendees first)
+    const userEventIds = (
+      await db.select({ id: events.id }).from(events).where(eq(events.creatorId, id))
+    ).map((e) => e.id);
+    if (userEventIds.length > 0) {
+      await db.delete(eventAttendees).where(inArray(eventAttendees.eventId, userEventIds));
+      await db.delete(events).where(inArray(events.id, userEventIds));
+    }
+
+    // 12. Delete bubbles created by user and all their dependents
+    const userBubbleIds = (
+      await db.select({ id: bubbles.id }).from(bubbles).where(eq(bubbles.creatorId, id))
+    ).map((b) => b.id);
+    if (userBubbleIds.length > 0) {
+      // Delete bulletin content in those bubbles
+      const boardIds = (
+        await db.select({ id: bulletinBoards.id }).from(bulletinBoards)
+          .where(inArray(bulletinBoards.bubbleId, userBubbleIds))
+      ).map((b) => b.id);
+      if (boardIds.length > 0) {
+        const boardPostIds = (
+          await db.select({ id: bulletinPosts.id }).from(bulletinPosts)
+            .where(inArray(bulletinPosts.boardId, boardIds))
+        ).map((p) => p.id);
+        if (boardPostIds.length > 0) {
+          await db.delete(bulletinPostReactions).where(inArray(bulletinPostReactions.postId, boardPostIds));
+          await db.delete(bulletinReplies).where(inArray(bulletinReplies.postId, boardPostIds));
+          await db.delete(bulletinPosts).where(inArray(bulletinPosts.id, boardPostIds));
+        }
+        await db.delete(bulletinBoards).where(inArray(bulletinBoards.id, boardIds));
+      }
+
+      // Delete events in those bubbles and their attendees
+      const bubbleEventIds = (
+        await db.select({ id: events.id }).from(events)
+          .where(inArray(events.bubbleId, userBubbleIds))
+      ).map((e) => e.id);
+      if (bubbleEventIds.length > 0) {
+        await db.delete(eventAttendees).where(inArray(eventAttendees.eventId, bubbleEventIds));
+        await db.delete(events).where(inArray(events.id, bubbleEventIds));
+      }
+
+      // Delete admin-member chats and memberships in those bubbles
+      await db.delete(adminMemberChats).where(inArray(adminMemberChats.bubbleId, userBubbleIds));
+      await db.delete(memberships).where(inArray(memberships.bubbleId, userBubbleIds));
+      await db.delete(bubbleChats).where(inArray(bubbleChats.bubbleId, userBubbleIds));
+      await db.delete(bubbles).where(inArray(bubbles.id, userBubbleIds));
+    }
+
+    // 13. Delete remaining memberships for user (in other bubbles)
     await db.delete(memberships).where(eq(memberships.userId, id));
+
+    // 14. Delete user record
     await db.delete(users).where(eq(users.id, id));
   }
 
