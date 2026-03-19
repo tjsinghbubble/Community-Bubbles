@@ -604,10 +604,15 @@ export async function seedCategoryPlaceholders() {
   const allCategories = await db.select({ id: categories.id, name: categories.name }).from(categories);
   const categoryMap = new Map(allCategories.map(c => [c.name, c.id]));
 
-  const existingCount = await db.select({ id: categoryPlaceholders.id }).from(categoryPlaceholders).limit(1);
-  if (existingCount.length > 0) {
-    console.log("[SEED] Category placeholders already seeded, skipping.");
+  const existingCount = await db.select({ id: categoryPlaceholders.id }).from(categoryPlaceholders);
+  const EXPECTED_ROWS = 1200; // 40 subcategories × 10 sets × 3 fields
+  if (existingCount.length >= EXPECTED_ROWS) {
+    console.log("[SEED] Category placeholders already fully seeded, skipping.");
     return;
+  }
+  if (existingCount.length > 0) {
+    console.log(`[SEED] Found ${existingCount.length} placeholder rows (expected ${EXPECTED_ROWS}), clearing and reseeding...`);
+    await db.delete(categoryPlaceholders);
   }
 
   let inserted = 0;
