@@ -145,7 +145,12 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const checkMembership = async () => {
     try {
       const result = await apiService.checkMembership(bubble.id);
-      if (!result.isMember && result.membershipStatus !== 'pending') {
+      if (
+        !result.isMember &&
+        result.membershipStatus !== 'pending' &&
+        result.membershipStatus !== 'waitlisted' &&
+        result.membershipStatus !== 'on_hold'
+      ) {
         navigation.replace('JoinBubble', { bubble });
         return;
       }

@@ -51,6 +51,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showWaitlistConfirm, setShowWaitlistConfirm] = useState(false);
+  const [myMembershipStatus, setMyMembershipStatus] = useState<string | null>(null);
   const [effectiveRules, setEffectiveRules] = useState<{ name: string; description: string }[]>([]);
 
   useEffect(() => {
@@ -59,15 +60,17 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
   const fetchData = async () => {
     try {
-      const [details, eventsData, members, rulesData] = await Promise.all([
+      const [details, eventsData, members, rulesData, membershipData] = await Promise.all([
         apiService.getBubble(bubble.id),
         apiService.getBubbleEvents(bubble.id).catch(() => []),
         apiService.getBubbleMembers(bubble.id).catch(() => []),
         apiService.getEffectiveRules(bubble.id).catch(() => []),
+        apiService.checkMembership(bubble.id).catch(() => ({ isMember: false, role: null, membershipStatus: null })),
       ]);
       setBubbleDetails(details);
       setEvents(eventsData as Event[]);
       setMemberCount((members as any[]).length);
+      setMyMembershipStatus((membershipData as any).membershipStatus || null);
       const visibleRules = (rulesData as any[]).filter((r: any) => !r.hidden).map((r: any) => {
         if (r.name) return { name: r.name, description: r.description || '' };
         const dotIdx = (r.text || '').indexOf('. ');
@@ -311,11 +314,29 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
 
       <View style={styles.buttonSection}>
         <BubbleButton
-          title={isFull ? 'Join Waitlist' : isRequestBased ? 'Request to Join' : 'Join'}
-          variant="primary"
+          title={
+            myMembershipStatus === 'waitlisted'
+              ? 'On Waitlist'
+              : myMembershipStatus === 'on_hold'
+              ? 'Waitlist On Hold'
+              : isFull
+              ? 'Join Waitlist'
+              : isRequestBased
+              ? 'Request to Join'
+              : 'Join'
+          }
+          variant={
+            myMembershipStatus === 'waitlisted' || myMembershipStatus === 'on_hold'
+              ? 'outline'
+              : 'primary'
+          }
           onPress={handleJoin}
           loading={isJoining}
-          disabled={isJoining}
+          disabled={
+            isJoining ||
+            myMembershipStatus === 'waitlisted' ||
+            myMembershipStatus === 'on_hold'
+          }
           testID="button-join-bubble"
         />
         <View style={{ height: Spacing.sm }} />
@@ -350,11 +371,11 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         <View style={styles.waitlistOverlay}>
           <View style={styles.waitlistCard}>
             <View style={styles.waitlistIconCircle}>
-              <Ionicons name="checkmark" size={36} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={36} color={Colors.brand.skyWhite} />
             </View>
             <Text style={styles.waitlistTitle}>Joined Waitlist!</Text>
             <Text style={styles.waitlistSubtitle}>
-              You'll be notified once a spot opens up in {bubble.title}.
+              You'll be notified once accepted into {bubble.title}.
             </Text>
             <TouchableOpacity
               style={styles.waitlistDoneBtn}
@@ -362,10 +383,10 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
                 setShowWaitlistConfirm(false);
                 navigation.goBack();
               }}
-              testID="button-waitlist-done"
+              testID="button-waitlist-close"
               activeOpacity={0.8}
             >
-              <Text style={styles.waitlistDoneBtnText}>Done</Text>
+              <Text style={styles.waitlistDoneBtnText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -530,7 +551,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
   },
   waitlistCard: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: Colors.background.secondary,
     borderRadius: 20,
     padding: Spacing.xl,
     alignItems: 'center',
@@ -570,6 +591,6 @@ const styles = StyleSheet.create({
   waitlistDoneBtnText: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold as any,
-    color: '#FFFFFF',
+    color: Colors.brand.skyWhite,
   },
 });

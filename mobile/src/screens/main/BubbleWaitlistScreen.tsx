@@ -184,7 +184,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
               testID={`button-approve-${item.userId}`}
               activeOpacity={0.7}
             >
-              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+              <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
             </TouchableOpacity>
             {!isOnHold && (
               <TouchableOpacity
@@ -193,7 +193,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
                 testID={`button-hold-${item.userId}`}
                 activeOpacity={0.7}
               >
-                <Ionicons name="pause" size={16} color="#FFFFFF" />
+                <Ionicons name="pause" size={16} color={Colors.brand.skyWhite} />
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -202,7 +202,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
               testID={`button-reject-${item.userId}`}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={18} color="#FFFFFF" />
+              <Ionicons name="close" size={18} color={Colors.brand.skyWhite} />
             </TouchableOpacity>
           </View>
         )}
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold as any,
-    color: '#FFFFFF',
+    color: Colors.brand.skyWhite,
   },
   userInfo: {
     flex: 1,
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   holdBadgeText: {
     fontSize: Typography.sizes.xxs,
     fontWeight: Typography.weights.semiBold as any,
-    color: '#FFFFFF',
+    color: Colors.brand.skyWhite,
   },
   actions: {
     flexDirection: 'row',

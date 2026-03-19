@@ -734,7 +734,7 @@ export async function registerRoutes(
         if (currentCount >= bubble.memberLimit) {
           await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'waitlisted');
           const waiter = await storage.getUser(req.userId!);
-          notifyBubbleAdmins(bubbleId, req.userId!, "waitlist_join",
+          notifyBubbleAdmins(bubbleId, req.userId!, "waitlist_request",
             "Waitlist Request", `${waiter?.name || 'Someone'} joined the waitlist for ${bubble.title}`,
             { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: waiter?.name },
             true);
@@ -1198,7 +1198,14 @@ export async function registerRoutes(
         }
       }
 
+      const existingStatus = await storage.getMembershipStatus(userId, bubbleId);
+      if (!existingStatus || (existingStatus !== 'waitlisted' && existingStatus !== 'on_hold')) {
+        return res.status(400).json({ error: "User is not on the waitlist" });
+      }
       const membership = await storage.approveMembership(userId, bubbleId);
+      if (!membership) {
+        return res.status(400).json({ error: "Failed to approve membership" });
+      }
       sendNotification({
         recipientId: userId,
         type: "waitlist_approved",
@@ -1221,7 +1228,14 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only admins can manage waitlist" });
       }
       const bubble = await storage.getBubble(bubbleId);
+      const existingStatusHold = await storage.getMembershipStatus(userId, bubbleId);
+      if (!existingStatusHold || existingStatusHold !== 'waitlisted') {
+        return res.status(400).json({ error: "User is not on the waitlist" });
+      }
       const membership = await storage.holdMembership(userId, bubbleId);
+      if (!membership) {
+        return res.status(400).json({ error: "Failed to update membership" });
+      }
       sendNotification({
         recipientId: userId,
         type: "waitlist_on_hold",
@@ -1244,6 +1258,10 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only admins can manage waitlist" });
       }
       const bubble = await storage.getBubble(bubbleId);
+      const existingStatusReject = await storage.getMembershipStatus(userId, bubbleId);
+      if (!existingStatusReject || (existingStatusReject !== 'waitlisted' && existingStatusReject !== 'on_hold')) {
+        return res.status(400).json({ error: "User is not on the waitlist" });
+      }
       await storage.rejectMembership(userId, bubbleId);
       sendNotification({
         recipientId: userId,
