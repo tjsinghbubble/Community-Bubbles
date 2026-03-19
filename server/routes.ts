@@ -2190,6 +2190,8 @@ export async function registerRoutes(
   });
 
   // Category Placeholders — create
+  const VALID_PLACEHOLDER_FIELD_TYPES = ['name', 'tagline', 'description'] as const;
+
   app.post("/api/categories/:id/placeholders", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);
@@ -2198,7 +2200,12 @@ export async function registerRoutes(
       if (isNaN(categoryId)) return res.status(400).json({ error: "Invalid category id" });
       const { fieldType, value, displayOrder } = req.body;
       if (!fieldType || !value) return res.status(400).json({ error: "fieldType and value are required" });
-      const row = await storage.createCategoryPlaceholder({ categoryId, fieldType, value, displayOrder: displayOrder ?? 0 });
+      if (!(VALID_PLACEHOLDER_FIELD_TYPES as readonly string[]).includes(fieldType)) {
+        return res.status(400).json({ error: `fieldType must be one of: ${VALID_PLACEHOLDER_FIELD_TYPES.join(', ')}` });
+      }
+      const trimmedValue = String(value).trim();
+      if (!trimmedValue) return res.status(400).json({ error: "value must not be empty" });
+      const row = await storage.createCategoryPlaceholder({ categoryId, fieldType, value: trimmedValue, displayOrder: displayOrder ?? 0 });
       res.json(row);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -2214,9 +2221,18 @@ export async function registerRoutes(
       if (isNaN(id)) return res.status(400).json({ error: "Invalid placeholder id" });
       const { value, displayOrder, fieldType } = req.body;
       const updates: any = {};
-      if (value !== undefined) updates.value = value;
+      if (fieldType !== undefined) {
+        if (!(VALID_PLACEHOLDER_FIELD_TYPES as readonly string[]).includes(fieldType)) {
+          return res.status(400).json({ error: `fieldType must be one of: ${VALID_PLACEHOLDER_FIELD_TYPES.join(', ')}` });
+        }
+        updates.fieldType = fieldType;
+      }
+      if (value !== undefined) {
+        const trimmedValue = String(value).trim();
+        if (!trimmedValue) return res.status(400).json({ error: "value must not be empty" });
+        updates.value = trimmedValue;
+      }
       if (displayOrder !== undefined) updates.displayOrder = displayOrder;
-      if (fieldType !== undefined) updates.fieldType = fieldType;
       const row = await storage.updateCategoryPlaceholder(id, updates);
       if (!row) return res.status(404).json({ error: "Placeholder not found" });
       res.json(row);
