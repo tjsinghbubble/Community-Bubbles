@@ -271,8 +271,10 @@ export async function registerRoutes(
           id: e.id,
           title: e.title,
           date: e.date,
-          location: e.location,
+          locationName: e.locationName,
+          locationAddress: e.locationAddress,
           bubbleId: e.bubbleId,
+          bubbleName: e.bubble?.title,
         })),
       };
 
