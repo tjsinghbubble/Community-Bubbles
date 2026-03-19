@@ -240,6 +240,21 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Category = typeof categories.$inferSelect;
 
+export const categoryPlaceholders = pgTable("category_placeholders", {
+  id: serial("id").primaryKey(),
+  categoryId: integer("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
+  fieldType: text("field_type").notNull(),
+  value: text("value").notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+});
+
+export const insertCategoryPlaceholderSchema = createInsertSchema(categoryPlaceholders).omit({
+  id: true,
+});
+
+export type InsertCategoryPlaceholder = z.infer<typeof insertCategoryPlaceholderSchema>;
+export type CategoryPlaceholder = typeof categoryPlaceholders.$inferSelect;
+
 export const reports = pgTable("reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   reportType: text("report_type").notNull(),

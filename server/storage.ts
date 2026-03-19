@@ -66,6 +66,9 @@ import {
   type CategoryRule,
   type BubbleRule,
   type BubbleRuleOverride,
+  categoryPlaceholders,
+  type CategoryPlaceholder,
+  type InsertCategoryPlaceholder,
 } from "@shared/schema";
 import { sql, count, avg } from "drizzle-orm";
 
@@ -172,6 +175,13 @@ export interface IStorage {
   createCategory(data: InsertCategory): Promise<Category>;
   updateCategory(id: number, data: Partial<InsertCategory>): Promise<Category | undefined>;
   deleteCategory(id: number): Promise<void>;
+
+  // Category Placeholders
+  getCategoryPlaceholders(categoryId: number): Promise<CategoryPlaceholder[]>;
+  getAllCategoryPlaceholders(): Promise<CategoryPlaceholder[]>;
+  createCategoryPlaceholder(data: InsertCategoryPlaceholder): Promise<CategoryPlaceholder>;
+  updateCategoryPlaceholder(id: number, data: Partial<InsertCategoryPlaceholder>): Promise<CategoryPlaceholder | undefined>;
+  deleteCategoryPlaceholder(id: number): Promise<void>;
 
   // Reports
   createReport(report: InsertReport): Promise<Report>;
@@ -1333,6 +1343,31 @@ export class DatabaseStorage implements IStorage {
   async deleteCategory(id: number): Promise<void> {
     await db.delete(categories).where(eq(categories.parentId, id));
     await db.delete(categories).where(eq(categories.id, id));
+  }
+
+  async getCategoryPlaceholders(categoryId: number): Promise<CategoryPlaceholder[]> {
+    return db.select().from(categoryPlaceholders)
+      .where(eq(categoryPlaceholders.categoryId, categoryId))
+      .orderBy(categoryPlaceholders.fieldType, categoryPlaceholders.displayOrder);
+  }
+
+  async getAllCategoryPlaceholders(): Promise<CategoryPlaceholder[]> {
+    return db.select().from(categoryPlaceholders)
+      .orderBy(categoryPlaceholders.categoryId, categoryPlaceholders.fieldType, categoryPlaceholders.displayOrder);
+  }
+
+  async createCategoryPlaceholder(data: InsertCategoryPlaceholder): Promise<CategoryPlaceholder> {
+    const result = await db.insert(categoryPlaceholders).values(data).returning();
+    return result[0];
+  }
+
+  async updateCategoryPlaceholder(id: number, data: Partial<InsertCategoryPlaceholder>): Promise<CategoryPlaceholder | undefined> {
+    const result = await db.update(categoryPlaceholders).set(data).where(eq(categoryPlaceholders.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteCategoryPlaceholder(id: number): Promise<void> {
+    await db.delete(categoryPlaceholders).where(eq(categoryPlaceholders.id, id));
   }
 
   async createReport(report: InsertReport): Promise<Report> {

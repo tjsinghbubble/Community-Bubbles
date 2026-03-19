@@ -55,9 +55,12 @@ interface CategoryItem {
   image: string | null;
   parentId: number | null;
   displayOrder: number;
-  placeholderName: string | null;
-  placeholderTagline: string | null;
-  placeholderDescription: string | null;
+}
+
+interface CategoryPlaceholders {
+  name: string[];
+  tagline: string[];
+  description: string[];
 }
 
 interface CategoryGroup {
@@ -128,6 +131,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const [expandAttachments, setExpandAttachments] = useState(false);
   const [expandRules, setExpandRules] = useState(false);
   const [expandedRuleIndex, setExpandedRuleIndex] = useState<number | null>(null);
+  const [activePlaceholders, setActivePlaceholders] = useState<{ name: string; tagline: string; description: string } | null>(null);
 
   const sliderWidth = useRef(0);
 
@@ -180,6 +184,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     if (!selectedCategoryItem?.id) {
       const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
       setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
+      setActivePlaceholders(null);
       return;
     }
     const fetchCategoryRules = async () => {
@@ -205,7 +210,25 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         console.error('Failed to fetch category rules:', e);
       }
     };
+    const fetchCategoryPlaceholders = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/categories/${selectedCategoryItem.id}/placeholders`);
+        if (res.ok) {
+          const data: CategoryPlaceholders = await res.json();
+          const pick = (arr: string[], fallback: string) =>
+            arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : fallback;
+          setActivePlaceholders({
+            name: pick(data.name, 'Corgi Fam'),
+            tagline: pick(data.tagline, 'Meetup with other Corgi Parents near you'),
+            description: pick(data.description, 'Describe what your bubble is about...'),
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch category placeholders:', e);
+      }
+    };
     fetchCategoryRules();
+    fetchCategoryPlaceholders();
   }, [selectedCategoryItem?.id]);
 
   const selectedSubcategory = categoryGroups
@@ -559,7 +582,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Title <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder={selectedCategoryItem?.placeholderName || 'Ex: Corgi Fam'}
+          placeholder={activePlaceholders?.name || 'Corgi Fam'}
           placeholderTextColor={Colors.text.tertiary}
           value={title}
           onChangeText={(t) => setTitle(t.slice(0, 60))}
@@ -571,7 +594,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Tagline <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder={selectedCategoryItem?.placeholderTagline || 'Meetup with other Corgi Parents near you'}
+          placeholder={activePlaceholders?.tagline || 'Meetup with other Corgi Parents near you'}
           placeholderTextColor={Colors.text.tertiary}
           value={tagline}
           onChangeText={(t) => setTagline(t.slice(0, 100))}
@@ -583,7 +606,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Description <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={[styles.fieldInput, styles.textArea]}
-          placeholder={selectedCategoryItem?.placeholderDescription || "Describe what your bubble is about..."}
+          placeholder={activePlaceholders?.description || "Describe what your bubble is about..."}
           placeholderTextColor={Colors.text.tertiary}
           value={description}
           onChangeText={(t) => setDescription(t.slice(0, 500))}
@@ -811,7 +834,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Member Limit</Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder='Ex: 20'
+          placeholder='20'
           placeholderTextColor={Colors.text.tertiary}
           value={memberLimit}
           onChangeText={(t) => setMemberLimit(t.replace(/[^0-9]/g, '').slice(0, 5))}

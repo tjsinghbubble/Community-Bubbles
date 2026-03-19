@@ -10,6 +10,7 @@ import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { seedData } from "./seed-data";
 import { seedAppConfig } from "./seed-app-config";
 import { seedRules } from "./seed-rules";
+import { seedCategoryPlaceholders } from "./seed-category-placeholders";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
@@ -2149,6 +2150,90 @@ export async function registerRoutes(
     }
   });
 
+  // Category Placeholders — lazy read (no auth)
+  app.get("/api/categories/:id/placeholders", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid category id" });
+      const rows = await storage.getCategoryPlaceholders(id);
+      const grouped: { name: string[]; tagline: string[]; description: string[] } = {
+        name: [],
+        tagline: [],
+        description: [],
+      };
+      for (const row of rows) {
+        if (row.fieldType === "name") grouped.name.push(row.value);
+        else if (row.fieldType === "tagline") grouped.tagline.push(row.value);
+        else if (row.fieldType === "description") grouped.description.push(row.value);
+      }
+      res.json(grouped);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Category Placeholders — all (super admin)
+  app.get("/api/category-placeholders", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const rows = await storage.getAllCategoryPlaceholders();
+      res.json(rows);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Category Placeholders — create
+  app.post("/api/categories/:id/placeholders", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const categoryId = parseInt(req.params.id);
+      if (isNaN(categoryId)) return res.status(400).json({ error: "Invalid category id" });
+      const { fieldType, value, displayOrder } = req.body;
+      if (!fieldType || !value) return res.status(400).json({ error: "fieldType and value are required" });
+      const row = await storage.createCategoryPlaceholder({ categoryId, fieldType, value, displayOrder: displayOrder ?? 0 });
+      res.json(row);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Category Placeholders — update
+  app.put("/api/category-placeholders/:placeholderId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const id = parseInt(req.params.placeholderId);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid placeholder id" });
+      const { value, displayOrder, fieldType } = req.body;
+      const updates: any = {};
+      if (value !== undefined) updates.value = value;
+      if (displayOrder !== undefined) updates.displayOrder = displayOrder;
+      if (fieldType !== undefined) updates.fieldType = fieldType;
+      const row = await storage.updateCategoryPlaceholder(id, updates);
+      if (!row) return res.status(404).json({ error: "Placeholder not found" });
+      res.json(row);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Category Placeholders — delete
+  app.delete("/api/category-placeholders/:placeholderId", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const id = parseInt(req.params.placeholderId);
+      if (isNaN(id)) return res.status(400).json({ error: "Invalid placeholder id" });
+      await storage.deleteCategoryPlaceholder(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   const EVENT_REPORT_VISIBILITY: Record<string, string> = {
     'Safety issue at this event': 'both',
     'Event didn\'t match description': 'bubble_admin',
@@ -2395,6 +2480,7 @@ export async function registerRoutes(
   });
   seedAppConfig().catch(console.error);
   seedRules().catch(console.error);
+  seedCategoryPlaceholders().catch(console.error);
   storage.backfillBubbleShortIds().catch(console.error);
 
   // Bulletin Board - Post Types

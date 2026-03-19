@@ -588,6 +588,26 @@ export default function PendingReviewsScreen() {
             )}
           </View>
         )}
+
+        {isSuperAdmin && (
+          <View style={styles.adminToolsSection}>
+            <Text style={styles.adminToolsTitle}>Admin Tools</Text>
+            <TouchableOpacity
+              style={styles.adminToolRow}
+              onPress={() => navigation.navigate('CategoryPlaceholders')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.adminToolIcon}>
+                <Ionicons name="text-outline" size={20} color={Colors.brand.bubbleBlue} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.adminToolLabel}>Category Placeholders</Text>
+                <Text style={styles.adminToolSub}>Manage example text for Create Bubble fields</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.neutral.charcoal} />
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -972,5 +992,47 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: '#FFFFFF',
     fontWeight: '600' as const,
+  },
+  adminToolsSection: {
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  adminToolsTitle: {
+    fontSize: 11,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.neutral.charcoal,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.8,
+    marginBottom: Spacing.sm,
+    paddingLeft: Spacing.xs,
+  },
+  adminToolRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    backgroundColor: '#fff',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    ...CardShadow,
+  },
+  adminToolIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${Colors.brand.bubbleBlue}15`,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  },
+  adminToolLabel: {
+    fontSize: 15,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.midnight,
+  },
+  adminToolSub: {
+    fontSize: 12,
+    fontWeight: Typography.weights.regular as any,
+    color: Colors.neutral.charcoal,
+    marginTop: 2,
   },
 });
