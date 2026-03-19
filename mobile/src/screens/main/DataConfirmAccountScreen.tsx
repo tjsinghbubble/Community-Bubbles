@@ -89,19 +89,30 @@ export default function DataConfirmAccountScreen() {
         if (!response.ok) throw new Error('Failed to fetch your data.');
         const exportData = await response.json();
         const filename = `bubble-data-${new Date().toISOString().split('T')[0]}.json`;
-        const fileUri = `${FileSystem.documentDirectory}${filename}`;
-        await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2), {
-          encoding: 'utf8',
-        });
-        const canShare = await Sharing.isAvailableAsync();
-        if (canShare) {
+        const content = JSON.stringify(exportData, null, 2);
+
+        if (Platform.OS === 'android') {
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (!permissions.granted) {
+            return;
+          }
+          const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            filename,
+            'application/json'
+          );
+          await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'utf8' });
+          setShowSuccessModal(true);
+        } else {
+          const fileUri = `${FileSystem.documentDirectory}${filename}`;
+          await FileSystem.writeAsStringAsync(fileUri, content, { encoding: 'utf8' });
           await Sharing.shareAsync(fileUri, {
             mimeType: 'application/json',
             dialogTitle: 'Save your Bubble data',
             UTI: 'public.json',
           });
+          setShowSuccessModal(true);
         }
-        setShowSuccessModal(true);
       } else {
         const response = await fetch(`${API_URL}/api/auth/delete-account`, {
           method: 'DELETE',
