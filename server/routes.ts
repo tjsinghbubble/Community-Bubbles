@@ -1174,7 +1174,19 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only admins can view the waitlist" });
       }
       const waitlist = await storage.getWaitlistMembers(bubbleId);
-      res.json(waitlist);
+      res.json(waitlist.map(r => ({
+        id: r.id,
+        userId: r.userId,
+        bubbleId: r.bubbleId,
+        membershipStatus: r.membershipStatus,
+        joinedAt: r.joinedAt,
+        user: {
+          id: r.user.id,
+          name: r.user.name,
+          email: r.user.email,
+          profilePhoto: r.user.profilePhoto,
+        },
+      })));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
