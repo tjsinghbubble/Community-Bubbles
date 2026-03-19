@@ -70,7 +70,7 @@ import {
   type CategoryPlaceholder,
   type InsertCategoryPlaceholder,
 } from "@shared/schema";
-import { sql, count, avg } from "drizzle-orm";
+import { count, avg } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;

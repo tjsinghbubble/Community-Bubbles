@@ -92,6 +92,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [imageUploading, setImageUploading] = useState(false);
   const [maxBubblePhotos, setMaxBubblePhotos] = useState(20);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
   useEffect(() => {
     checkMembership();
@@ -201,8 +202,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         const privacy = bubbleDetails?.privacy || bubble.privacy;
         if (result.status === 'waitlisted') {
           setMembershipStatus('waitlisted');
-          setSuccessModalConfig({ title: 'Joined Waitlist!', subtitle: `You'll be notified once a spot opens up in ${bubble.title}` });
-          setShowSuccessModal(true);
+          setShowWaitlistModal(true);
         } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Private') {
           setMembershipStatus('pending');
           setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
@@ -965,6 +965,33 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         shareUrl={shareUrl}
       />
       <Modal
+        visible={showWaitlistModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowWaitlistModal(false)}
+      >
+        <View style={styles.waitlistModalOverlay}>
+          <View style={styles.waitlistModalSheet}>
+            <View style={styles.waitlistModalHandle} />
+            <View style={styles.waitlistModalIconCircle}>
+              <Ionicons name="checkmark" size={36} color={Colors.brand.skyWhite} />
+            </View>
+            <Text style={styles.waitlistModalTitle}>Joined Waitlist!</Text>
+            <Text style={styles.waitlistModalSubtitle}>
+              You'll be notified once accepted into {bubble.title}.
+            </Text>
+            <TouchableOpacity
+              style={styles.waitlistModalBtn}
+              onPress={() => setShowWaitlistModal(false)}
+              activeOpacity={0.8}
+              testID="button-waitlist-close"
+            >
+              <Text style={styles.waitlistModalBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <Modal
         visible={reportModalVisible}
         transparent
         animationType="slide"
@@ -1548,5 +1575,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
+  },
+  waitlistModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  waitlistModalSheet: {
+    backgroundColor: Colors.background.secondary,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxxl,
+    alignItems: 'center',
+  },
+  waitlistModalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.neutral.lightSilver,
+    marginBottom: Spacing.lg,
+  },
+  waitlistModalIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.status.success,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  waitlistModalTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.primary,
+    marginBottom: Spacing.sm,
+    textAlign: 'center',
+  },
+  waitlistModalSubtitle: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    lineHeight: Typography.lineHeight.md,
+    marginBottom: Spacing.lg,
+  },
+  waitlistModalBtn: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 22,
+    height: 44,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waitlistModalBtnText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.skyWhite,
   },
 });
