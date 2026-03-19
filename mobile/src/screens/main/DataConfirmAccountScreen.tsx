@@ -91,7 +91,7 @@ export default function DataConfirmAccountScreen() {
         const filename = `bubble-data-${new Date().toISOString().split('T')[0]}.json`;
         const fileUri = `${FileSystem.documentDirectory}${filename}`;
         await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2), {
-          encoding: FileSystem.EncodingType.UTF8,
+          encoding: 'utf8',
         });
         const canShare = await Sharing.isAvailableAsync();
         if (canShare) {
