@@ -2171,7 +2171,13 @@ export async function registerRoutes(
         else if (row.fieldType === "tagline") grouped.tagline.push(row.value);
         else if (row.fieldType === "description") grouped.description.push(row.value);
       }
-      res.json(grouped);
+      const pick = (arr: string[]) =>
+        arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : "";
+      res.json({
+        name: pick(grouped.name),
+        tagline: pick(grouped.tagline),
+        description: pick(grouped.description),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

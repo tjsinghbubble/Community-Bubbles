@@ -58,9 +58,9 @@ interface CategoryItem {
 }
 
 interface CategoryPlaceholders {
-  name: string[];
-  tagline: string[];
-  description: string[];
+  name: string;
+  tagline: string;
+  description: string;
 }
 
 interface CategoryGroup {
@@ -215,12 +215,10 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         const res = await fetch(`${API_URL}/api/categories/${selectedCategoryItem.id}/placeholders`);
         if (res.ok) {
           const data: CategoryPlaceholders = await res.json();
-          const pick = (arr: string[], fallback: string) =>
-            arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : fallback;
           setActivePlaceholders({
-            name: pick(data.name, 'Corgi Fam'),
-            tagline: pick(data.tagline, 'Meetup with other Corgi Parents near you'),
-            description: pick(data.description, 'Describe what your bubble is about...'),
+            name: data.name || 'Corgi Fam',
+            tagline: data.tagline || 'Meetup with other Corgi Parents near you',
+            description: data.description || 'Describe what your bubble is about...',
           });
         }
       } catch (e) {
