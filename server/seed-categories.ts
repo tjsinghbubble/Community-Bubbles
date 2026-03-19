@@ -137,9 +137,9 @@ export async function seedCategories() {
                 displayName: child.displayName,
                 image: child.image || null,
                 displayOrder: child.displayOrder,
-                placeholderName: child.placeholderName,
-                placeholderTagline: child.placeholderTagline,
-                placeholderDescription: child.placeholderDescription,
+                placeholderName: null,
+                placeholderTagline: null,
+                placeholderDescription: null,
               })
               .where(eq(categories.name, child.name));
           }
@@ -185,9 +185,9 @@ export async function seedCategories() {
         image: child.image || null,
         parentId: inserted.id,
         displayOrder: child.displayOrder,
-        placeholderName: child.placeholderName,
-        placeholderTagline: child.placeholderTagline,
-        placeholderDescription: child.placeholderDescription,
+        placeholderName: null,
+        placeholderTagline: null,
+        placeholderDescription: null,
       });
     }
   }

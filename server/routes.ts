@@ -2056,6 +2056,11 @@ export async function registerRoutes(
     return { ...cat, image: `${protocol}://${host}${cat.image}` };
   }
 
+  function withoutLegacyPlaceholders(cat: any) {
+    const { placeholderName, placeholderTagline, placeholderDescription, ...rest } = cat;
+    return rest;
+  }
+
   app.get("/api/categories", optionalAuthMiddleware, async (req, res) => {
     try {
       let campusFirst = false;
@@ -2080,11 +2085,11 @@ export async function registerRoutes(
       }
 
       const nested = topLevel.map(parent => ({
-        ...withAbsoluteImageUrl(req, parent),
+        ...withoutLegacyPlaceholders(withAbsoluteImageUrl(req, parent)),
         children: allCategories
           .filter(c => c.parentId === parent.id)
           .sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
-          .map(c => withAbsoluteImageUrl(req, c)),
+          .map(c => withoutLegacyPlaceholders(withAbsoluteImageUrl(req, c))),
       }));
       res.json(nested);
     } catch (error: any) {
@@ -2096,7 +2101,7 @@ export async function registerRoutes(
     try {
       const allCategories = await storage.getCategories();
       const sorted = allCategories.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
-      res.json(sorted.map(c => withAbsoluteImageUrl(req, c)));
+      res.json(sorted.map(c => withoutLegacyPlaceholders(withAbsoluteImageUrl(req, c))));
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -2474,13 +2479,12 @@ export async function registerRoutes(
   });
 
   seedCampuses().catch(console.error);
-  seedCategories().catch(console.error);
+  seedCategories().then(() => seedCategoryPlaceholders()).catch(console.error);
   seedBulletinPostTypes().catch(console.error).then(() => {
     seedData().catch(console.error);
   });
   seedAppConfig().catch(console.error);
   seedRules().catch(console.error);
-  seedCategoryPlaceholders().catch(console.error);
   storage.backfillBubbleShortIds().catch(console.error);
 
   // Bulletin Board - Post Types
