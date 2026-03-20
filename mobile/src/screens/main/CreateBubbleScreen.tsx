@@ -185,9 +185,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
       setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
       setActivePlaceholders(null);
-      setTitle(prev => (prev === '' || activePlaceholders?.name === prev) ? '' : prev);
-      setTagline(prev => (prev === '' || activePlaceholders?.tagline === prev) ? '' : prev);
-      setDescription(prev => (prev === '' || activePlaceholders?.description === prev) ? '' : prev);
+      setTitle('');
+      setTagline('');
+      setDescription('');
       return;
     }
 
@@ -233,9 +233,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           setDescription(prev => (prev === '' || prev === prevPlaceholders?.description) ? desc : prev);
         } else {
           setActivePlaceholders(null);
-          setTitle(prev => (prev === '' || prev === prevPlaceholders?.name) ? '' : prev);
-          setTagline(prev => (prev === '' || prev === prevPlaceholders?.tagline) ? '' : prev);
-          setDescription(prev => (prev === '' || prev === prevPlaceholders?.description) ? '' : prev);
+          setTitle('');
+          setTagline('');
+          setDescription('');
         }
       } catch (e) {
         console.error('Failed to fetch category placeholders:', e);
