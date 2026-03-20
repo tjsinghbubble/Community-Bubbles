@@ -185,14 +185,19 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
       setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
       setActivePlaceholders(null);
-      setTitle('');
-      setTagline('');
-      setDescription('');
+      setTitle(prev => (prev === '' || activePlaceholders?.name === prev) ? '' : prev);
+      setTagline(prev => (prev === '' || activePlaceholders?.tagline === prev) ? '' : prev);
+      setDescription(prev => (prev === '' || activePlaceholders?.description === prev) ? '' : prev);
       return;
     }
+
+    let cancelled = false;
+    const prevPlaceholders = activePlaceholders;
+
     const fetchCategoryRules = async () => {
       try {
         const result = await apiService.getCategoryRules(selectedCategoryItem.id);
+        if (cancelled) return;
         if (result && result.length > 0) {
           const catEntries: RuleEntry[] = result.map((r: any) => {
             const ruleName = r.rule?.name || r.name || '';
@@ -216,15 +221,21 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     const fetchCategoryPlaceholders = async () => {
       try {
         const res = await fetch(`${API_URL}/api/categories/${selectedCategoryItem.id}/placeholders`);
+        if (cancelled) return;
         if (res.ok) {
           const data: CategoryPlaceholders = await res.json();
           const name = data.name || '';
-          const tagline = data.tagline || '';
-          const description = data.description || '';
-          setActivePlaceholders({ name, tagline, description });
-          setTitle(name);
-          setTagline(tagline);
-          setDescription(description);
+          const tag = data.tagline || '';
+          const desc = data.description || '';
+          setActivePlaceholders({ name, tagline: tag, description: desc });
+          setTitle(prev => (prev === '' || prev === prevPlaceholders?.name) ? name : prev);
+          setTagline(prev => (prev === '' || prev === prevPlaceholders?.tagline) ? tag : prev);
+          setDescription(prev => (prev === '' || prev === prevPlaceholders?.description) ? desc : prev);
+        } else {
+          setActivePlaceholders(null);
+          setTitle(prev => (prev === '' || prev === prevPlaceholders?.name) ? '' : prev);
+          setTagline(prev => (prev === '' || prev === prevPlaceholders?.tagline) ? '' : prev);
+          setDescription(prev => (prev === '' || prev === prevPlaceholders?.description) ? '' : prev);
         }
       } catch (e) {
         console.error('Failed to fetch category placeholders:', e);
@@ -232,6 +243,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     };
     fetchCategoryRules();
     fetchCategoryPlaceholders();
+    return () => { cancelled = true; };
   }, [selectedCategoryItem?.id]);
 
   const selectedSubcategory = categoryGroups
