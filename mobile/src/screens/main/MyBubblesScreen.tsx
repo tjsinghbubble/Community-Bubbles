@@ -19,7 +19,7 @@ import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -203,7 +203,8 @@ export default function MyBubblesScreen() {
                 scaleValue={0.95}
                 onPress={() => handleBubblePress(bubble)}
               >
-                <View style={styles.gridImageContainer}>
+                <View style={styles.gridImageShadowWrapper}>
+                  <View style={styles.gridImageContainer}>
                   <Image
                     source={{
                       uri: bubble.coverImage || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
@@ -223,6 +224,7 @@ export default function MyBubblesScreen() {
                       <Text style={styles.gridCategoryText}>{bubble.category}</Text>
                     </View>
                   )}
+                </View>
                 </View>
                 <Text style={styles.gridTitle} numberOfLines={1}>{bubble.title}</Text>
                 <Text style={styles.gridRole}>
@@ -327,6 +329,11 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: CARD_WIDTH,
+  },
+  gridImageShadowWrapper: {
+    width: '100%',
+    borderRadius: 14,
+    ...CardShadow,
   },
   gridImageContainer: {
     width: '100%',

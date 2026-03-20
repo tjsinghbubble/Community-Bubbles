@@ -356,10 +356,12 @@ export default function ExploreScreen() {
       scaleValue={0.95}
       onPress={() => handleBubblePress(bubble)}
     >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: bubble.image }} style={styles.image} />
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{bubble.category}</Text>
+      <View style={styles.imageShadowWrapper}>
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: bubble.image }} style={styles.image} />
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{bubble.category}</Text>
+          </View>
         </View>
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>{bubble.title}</Text>
@@ -377,13 +379,15 @@ export default function ExploreScreen() {
       scaleValue={0.95}
       onPress={() => handleEventPress(event)}
     >
-      <View style={styles.imageContainer}>
-        <Image 
-          source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400' }} 
-          style={styles.image} 
-        />
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{event.bubble.category}</Text>
+      <View style={styles.imageShadowWrapper}>
+        <View style={styles.imageContainer}>
+          <Image 
+            source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400' }} 
+            style={styles.image} 
+          />
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{event.bubble.category}</Text>
+          </View>
         </View>
       </View>
       <Text style={styles.cardTitle} numberOfLines={1}>{event.title}</Text>
@@ -659,13 +663,18 @@ const styles = StyleSheet.create({
     width: '47.5%',
     marginBottom: 20,
   },
+  imageShadowWrapper: {
+    width: '100%',
+    borderRadius: 16,
+    marginBottom: 8,
+    ...CardShadow,
+  },
   imageContainer: {
     width: '100%',
     height: 160,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#E8E8E8',
-    marginBottom: 8,
   },
   image: {
     width: '100%',
