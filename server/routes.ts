@@ -18,8 +18,10 @@ import { localToUtc, utcToLocal } from "./timezone";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "bubble-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required but not set");
+}
 
 async function resolveCategoryName(categoryId: number | null | undefined): Promise<string | null> {
   if (!categoryId) return null;
@@ -861,6 +863,27 @@ export async function registerRoutes(
       }
       
       const members = await storage.getBubbleMembersWithUsers(req.params.id);
+
+      // Determine if the requester is an authenticated bubble admin or super admin
+      // so we can decide whether to expose email addresses
+      let requesterIsAdmin = false;
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const requester = await storage.getUser(decoded.userId);
+          if (requester?.isSuperAdmin) {
+            requesterIsAdmin = true;
+          } else {
+            const role = await storage.getMemberRole(decoded.userId, req.params.id);
+            if (role === "admin") requesterIsAdmin = true;
+          }
+        } catch {
+          // invalid token — treat as unauthenticated
+        }
+      }
+
       res.json(members.map(m => ({
         id: m.id,
         userId: m.userId,
@@ -870,7 +893,7 @@ export async function registerRoutes(
         user: {
           id: m.user.id,
           name: m.user.name,
-          email: m.user.email,
+          ...(requesterIsAdmin ? { email: m.user.email } : {}),
           profilePhoto: m.user.profilePhoto,
         }
       })));
