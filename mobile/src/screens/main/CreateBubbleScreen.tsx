@@ -185,6 +185,9 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       const bubbleOnlyRules = ruleEntries.filter(r => r.level === 'bubble');
       setRuleEntries([...appRuleEntries, ...bubbleOnlyRules]);
       setActivePlaceholders(null);
+      setTitle('');
+      setTagline('');
+      setDescription('');
       return;
     }
     const fetchCategoryRules = async () => {
@@ -215,11 +218,13 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         const res = await fetch(`${API_URL}/api/categories/${selectedCategoryItem.id}/placeholders`);
         if (res.ok) {
           const data: CategoryPlaceholders = await res.json();
-          setActivePlaceholders({
-            name: data.name || 'Corgi Fam',
-            tagline: data.tagline || 'Meetup with other Corgi Parents near you',
-            description: data.description || 'Describe what your bubble is about...',
-          });
+          const name = data.name || '';
+          const tagline = data.tagline || '';
+          const description = data.description || '';
+          setActivePlaceholders({ name, tagline, description });
+          setTitle(name);
+          setTagline(tagline);
+          setDescription(description);
         }
       } catch (e) {
         console.error('Failed to fetch category placeholders:', e);
@@ -580,7 +585,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Title <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder={activePlaceholders?.name || 'Corgi Fam'}
+          placeholder="Add a title"
           placeholderTextColor={Colors.text.tertiary}
           value={title}
           onChangeText={(t) => setTitle(t.slice(0, 60))}
@@ -592,7 +597,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Tagline <Text style={styles.optional}>(optional)</Text></Text>
         <TextInput
           style={styles.fieldInput}
-          placeholder={activePlaceholders?.tagline || 'Meetup with other Corgi Parents near you'}
+          placeholder="Add a tagline"
           placeholderTextColor={Colors.text.tertiary}
           value={tagline}
           onChangeText={(t) => setTagline(t.slice(0, 100))}
@@ -604,7 +609,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         <Text style={styles.fieldLabel}>Bubble Description <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={[styles.fieldInput, styles.textArea]}
-          placeholder={activePlaceholders?.description || "Describe what your bubble is about..."}
+          placeholder="Describe your bubble"
           placeholderTextColor={Colors.text.tertiary}
           value={description}
           onChangeText={(t) => setDescription(t.slice(0, 500))}
