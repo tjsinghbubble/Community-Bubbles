@@ -735,11 +735,6 @@ export async function registerRoutes(
         const currentCount = await storage.getRealMemberCount(bubbleId);
         if (currentCount >= bubble.memberLimit) {
           await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'waitlisted');
-          const waiter = await storage.getUser(req.userId!);
-          notifyBubbleAdmins(bubbleId, req.userId!, "waitlist_request",
-            "Waitlist Request", `${waiter?.name || 'Someone'} joined the waitlist for ${bubble.title}`,
-            { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: waiter?.name },
-            true);
           return res.json({ success: true, status: 'waitlisted' });
         }
       }
@@ -1271,11 +1266,15 @@ export async function registerRoutes(
       if (!membership) {
         return res.status(400).json({ error: "Failed to update membership" });
       }
+      const holdReason = req.body?.reason as string | undefined;
+      const holdBody = holdReason
+        ? `Your waitlist spot for ${bubble?.title || 'the bubble'} has been put on hold: ${holdReason}`
+        : `Your waitlist spot for ${bubble?.title || 'the bubble'} has been put on hold.`;
       sendNotification({
         recipientId: userId,
         type: "waitlist_on_hold",
         title: "Waitlist Update",
-        body: `Your waitlist spot for ${bubble?.title || 'the bubble'} has been put on hold.`,
+        body: holdBody,
         metadata: { bubbleId, bubbleName: bubble?.title },
       });
       res.json({ success: true, membership });
@@ -1298,11 +1297,15 @@ export async function registerRoutes(
         return res.status(400).json({ error: "User is not on the waitlist" });
       }
       await storage.rejectMembership(userId, bubbleId);
+      const rejectReason = req.body?.reason as string | undefined;
+      const rejectBody = rejectReason
+        ? `Your waitlist spot for ${bubble?.title || 'the bubble'} has been removed: ${rejectReason}`
+        : `Your waitlist spot for ${bubble?.title || 'the bubble'} has been removed.`;
       sendNotification({
         recipientId: userId,
         type: "waitlist_rejected",
         title: "Waitlist Update",
-        body: `Your waitlist spot for ${bubble?.title || 'the bubble'} has been removed.`,
+        body: rejectBody,
         metadata: { bubbleId, bubbleName: bubble?.title },
       });
       res.json({ success: true });
@@ -1709,6 +1712,56 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/waitlist", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const result: any[] = [];
+
+      if (user.isSuperAdmin) {
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const members = await storage.getWaitlistMembers(bubble.id);
+          for (const m of members) {
+            result.push({
+              id: m.id,
+              userId: m.userId,
+              bubbleId: m.bubbleId,
+              bubbleTitle: bubble.title,
+              membershipStatus: m.membershipStatus,
+              joinedAt: m.joinedAt,
+              user: { id: m.user.id, name: m.user.name, profilePhoto: m.user.profilePhoto },
+            });
+          }
+        }
+      } else {
+        const userMemberships = await storage.getUserMemberships(req.userId!);
+        const adminBubbles = userMemberships.filter(m => m.role === 'admin');
+        for (const membership of adminBubbles) {
+          const members = await storage.getWaitlistMembers(membership.bubbleId);
+          for (const m of members) {
+            result.push({
+              id: m.id,
+              userId: m.userId,
+              bubbleId: m.bubbleId,
+              bubbleTitle: membership.bubble.title,
+              membershipStatus: m.membershipStatus,
+              joinedAt: m.joinedAt,
+              user: { id: m.user.id, name: m.user.name, profilePhoto: m.user.profilePhoto },
+            });
+          }
+        }
+      }
+
+      // Sort oldest first (first come, first served)
+      result.sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/admin/pending-count", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);
@@ -1742,6 +1795,22 @@ export async function registerRoutes(
         }
       }
       count += pendingEvents.length;
+
+      // Include waitlist count
+      if (user.isSuperAdmin) {
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const members = await storage.getWaitlistMembers(bubble.id);
+          count += members.length;
+        }
+      } else {
+        const userMemberships = await storage.getUserMemberships(req.userId!);
+        const adminBubbles = userMemberships.filter(m => m.role === 'admin');
+        for (const membership of adminBubbles) {
+          const members = await storage.getWaitlistMembers(membership.bubbleId);
+          count += members.length;
+        }
+      }
 
       res.json({ count });
     } catch (error: any) {

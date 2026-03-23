@@ -16,6 +16,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -50,6 +51,16 @@ type PendingEvent = {
     title: string;
   };
   createdAt: string;
+};
+
+type WaitlistItem = {
+  id: number;
+  userId: string;
+  bubbleId: string;
+  bubbleTitle: string;
+  membershipStatus: string;
+  joinedAt: string;
+  user: { id: string; name: string; profilePhoto?: string };
 };
 
 type ReportItem = {
@@ -96,17 +107,19 @@ export default function PendingReviewsScreen() {
   const [pendingBubbles, setPendingBubbles] = useState<PendingBubble[]>([]);
   const [pendingEvents, setPendingEvents] = useState<PendingEvent[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
+  const [waitlistItems, setWaitlistItems] = useState<WaitlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
-  const [rejectTarget, setRejectTarget] = useState<{ type: 'bubble' | 'event'; id: string } | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{ type: 'bubble' | 'event' | 'waitlist_hold' | 'waitlist_reject'; id: string; bubbleId?: string } | null>(null);
 
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     concerns: false,
     events: false,
     bubbles: false,
+    waitlist: false,
   });
 
   const isSuperAdmin = user?.isSuperAdmin === true;
@@ -146,6 +159,9 @@ export default function PendingReviewsScreen() {
 
       const events = await apiService.getPendingEvents();
       setPendingEvents(events);
+
+      const waitlist = await apiService.getAdminWaitlist() as WaitlistItem[];
+      setWaitlistItems(waitlist);
     } catch (error) {
       console.error('Failed to load pending items:', error);
     } finally {
@@ -198,20 +214,26 @@ export default function PendingReviewsScreen() {
   const handleConfirmReject = async () => {
     if (!rejectTarget) return;
     setRejectModalVisible(false);
-    const { type, id } = rejectTarget;
+    const { type, id, bubbleId } = rejectTarget;
     setActionLoading(id);
     try {
       if (type === 'bubble') {
         await apiService.rejectBubble(id, rejectReason || undefined);
         setPendingBubbles(prev => prev.filter(b => b.id !== id));
         Alert.alert('Rejected', 'Bubble has been rejected');
-      } else {
+      } else if (type === 'event') {
         await apiService.rejectEvent(id, rejectReason || undefined);
         setPendingEvents(prev => prev.filter(e => e.id !== id));
         Alert.alert('Rejected', 'Event has been rejected');
+      } else if (type === 'waitlist_hold' && bubbleId) {
+        await apiService.holdWaitlist(bubbleId, id, rejectReason || undefined);
+        setWaitlistItems(prev => prev.filter(w => !(w.userId === id && w.bubbleId === bubbleId)));
+      } else if (type === 'waitlist_reject' && bubbleId) {
+        await apiService.rejectWaitlist(bubbleId, id, rejectReason || undefined);
+        setWaitlistItems(prev => prev.filter(w => !(w.userId === id && w.bubbleId === bubbleId)));
       }
     } catch (error) {
-      Alert.alert('Error', `Failed to reject ${type}`);
+      Alert.alert('Error', `Failed to update waitlist`);
     } finally {
       setActionLoading(null);
       setRejectTarget(null);
@@ -254,6 +276,103 @@ export default function PendingReviewsScreen() {
           },
         },
       ]
+    );
+  };
+
+  const handleApproveWaitlist = async (item: WaitlistItem) => {
+    setActionLoading(`${item.userId}-${item.bubbleId}`);
+    try {
+      await apiService.approveWaitlist(item.bubbleId, item.userId);
+      setWaitlistItems(prev => prev.filter(w => !(w.userId === item.userId && w.bubbleId === item.bubbleId)));
+    } catch (error) {
+      Alert.alert('Error', 'Failed to approve waitlist member');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleHoldWaitlist = (item: WaitlistItem) => {
+    setRejectReason('');
+    setRejectTarget({ type: 'waitlist_hold', id: item.userId, bubbleId: item.bubbleId });
+    setRejectModalVisible(true);
+  };
+
+  const handleRejectWaitlist = (item: WaitlistItem) => {
+    setRejectReason('');
+    setRejectTarget({ type: 'waitlist_reject', id: item.userId, bubbleId: item.bubbleId });
+    setRejectModalVisible(true);
+  };
+
+  const renderWaitlistCard = (item: WaitlistItem) => {
+    const key = `${item.userId}-${item.bubbleId}`;
+    const isLoading = actionLoading === key;
+    return (
+      <View key={key} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.bubbleTag}>
+            <Ionicons name="apps-outline" size={14} color={Colors.brand.bubbleBlue} />
+            <Text style={styles.bubbleTagText}>{item.bubbleTitle}</Text>
+          </View>
+        </View>
+        <View style={styles.waitlistUserRow}>
+          {item.user.profilePhoto ? (
+            <Image source={{ uri: item.user.profilePhoto }} style={styles.waitlistAvatar} />
+          ) : (
+            <View style={styles.waitlistAvatarPlaceholder}>
+              <Ionicons name="person" size={20} color={Colors.neutral.coolMist} />
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>{item.user.name}</Text>
+            <Text style={styles.cardSubtitle}>
+              Joined waitlist {formatDate(item.joinedAt)}
+              {item.membershipStatus === 'on_hold' ? '  •  On Hold' : ''}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.cardActions}>
+          <TouchableOpacity
+            onPress={() => handleRejectWaitlist(item)}
+            disabled={isLoading}
+            style={[styles.inlineBtn, styles.inlineBtnDestructive]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="close" size={16} color={Colors.state.error} />
+            <Text style={styles.inlineBtnTextDestructive}>Reject</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleHoldWaitlist(item)}
+            disabled={isLoading}
+            style={[styles.inlineBtn, styles.inlineBtnGhost]}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pause-circle-outline" size={16} color={Colors.neutral.coolMist} />
+            <Text style={styles.inlineBtnTextGhost}>Hold</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleApproveWaitlist(item)}
+            disabled={isLoading}
+            activeOpacity={0.7}
+            style={{ flex: 1 }}
+          >
+            <LinearGradient
+              colors={['#35A8F7', '#FFFFFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0.7, y: 3.6 }}
+              style={styles.inlineBtnPrimary}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={16} color="#1E1F26" />
+                  <Text style={styles.inlineBtnTextPrimary}>Approve</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
@@ -521,7 +640,7 @@ export default function PendingReviewsScreen() {
     );
   };
 
-  const totalItems = pendingReports.length + pendingEvents.length + pendingBubbles.length;
+  const totalItems = pendingReports.length + pendingEvents.length + pendingBubbles.length + waitlistItems.length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -568,6 +687,17 @@ export default function PendingReviewsScreen() {
                   <Text style={styles.emptySection}>No pending events</Text>
                 ) : (
                   pendingEvents.map(renderEventCard)
+                )}
+              </View>
+            )}
+
+            {renderAccordionHeader('Waitlist Requests', waitlistItems.length, Colors.brand.bubbleBlue, 'waitlist', <Ionicons name="time-outline" size={18} color={Colors.brand.bubbleBlue} />)}
+            {expandedSections.waitlist && (
+              <View style={styles.accordionContent}>
+                {waitlistItems.length === 0 ? (
+                  <Text style={styles.emptySection}>No waitlist requests</Text>
+                ) : (
+                  waitlistItems.map(renderWaitlistCard)
                 )}
               </View>
             )}
@@ -627,7 +757,9 @@ export default function PendingReviewsScreen() {
           >
             <View style={styles.rejectModalContent}>
               <Text style={styles.rejectModalTitle}>
-                Reject {rejectTarget?.type === 'bubble' ? 'Bubble' : 'Event'}
+                {rejectTarget?.type === 'waitlist_hold' ? 'Hold Waitlist Spot' :
+                 rejectTarget?.type === 'waitlist_reject' ? 'Reject Waitlist Spot' :
+                 `Reject ${rejectTarget?.type === 'bubble' ? 'Bubble' : 'Event'}`}
               </Text>
               <Text style={styles.rejectModalSubtitle}>
                 Enter a reason for rejection (optional):
@@ -992,6 +1124,25 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     color: '#FFFFFF',
     fontWeight: '600' as const,
+  },
+  waitlistUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  waitlistAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  waitlistAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.background.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   adminToolsSection: {
     marginTop: Spacing.xl,

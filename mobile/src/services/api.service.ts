@@ -181,12 +181,22 @@ class ApiService {
     return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/approve`, { method: "POST" });
   }
 
-  async holdWaitlist(bubbleId: string, userId: string) {
-    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/hold`, { method: "POST" });
+  async holdWaitlist(bubbleId: string, userId: string, reason?: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/hold`, {
+      method: "POST",
+      body: reason ? JSON.stringify({ reason }) : undefined,
+    });
   }
 
-  async rejectWaitlist(bubbleId: string, userId: string) {
-    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/reject`, { method: "POST" });
+  async rejectWaitlist(bubbleId: string, userId: string, reason?: string) {
+    return this.request(`/api/bubbles/${bubbleId}/waitlist/${userId}/reject`, {
+      method: "POST",
+      body: reason ? JSON.stringify({ reason }) : undefined,
+    });
+  }
+
+  async getAdminWaitlist() {
+    return this.request(`/api/admin/waitlist`, { method: "GET" });
   }
 
   async updateMemberRole(bubbleId: string, userId: string, role: string) {
