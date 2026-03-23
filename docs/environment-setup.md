@@ -12,6 +12,10 @@ Add each variable via the **Secrets** tab (padlock icon in the Replit sidebar).
 |----------|----------|-------------|
 | `JWT_SECRET` | **Yes** | Secret key used to sign and verify auth tokens. Must be a long random string. The server will refuse to start without this. |
 | `DATABASE_URL` | **Yes** | PostgreSQL connection string. Auto-provided by Replit's PostgreSQL integration. |
+| `RATE_LIMIT_AUTH_MAX` | No | Max attempts for `/api/auth/login` and `/api/auth/verify-code` per window. Default: `10` |
+| `RATE_LIMIT_AUTH_WINDOW_MIN` | No | Window size in minutes for auth limiter. Default: `15` |
+| `RATE_LIMIT_SEND_MAX` | No | Max requests for `/api/auth/send-verification` and `/api/auth/signup` per window. Default: `5` |
+| `RATE_LIMIT_SEND_WINDOW_MIN` | No | Window size in minutes for send limiter. Default: `60` |
 
 > **Note:** If you are on a shared Repl (not a fork), Secrets are shared — one team member adding them covers everyone.
 

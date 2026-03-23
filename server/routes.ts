@@ -19,22 +19,27 @@ import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
 
-// 10 attempts per 15 minutes — protects login and verify-code against brute force
+const AUTH_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_AUTH_MAX ?? "10", 10);
+const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MIN ?? "15", 10) * 60 * 1000;
+const SEND_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_SEND_MAX ?? "5", 10);
+const SEND_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_SEND_WINDOW_MIN ?? "60", 10) * 60 * 1000;
+
+// Protects login and verify-code against brute force
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+  max: AUTH_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many attempts, please try again in 15 minutes." },
+  message: { error: `Too many attempts, please try again later.` },
 });
 
-// 5 requests per hour — protects send-verification and signup against spam
+// Protects send-verification and signup against spam
 const sendLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
+  windowMs: SEND_RATE_LIMIT_WINDOW_MS,
+  max: SEND_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: "Too many requests, please try again in an hour." },
+  message: { error: `Too many requests, please try again later.` },
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
