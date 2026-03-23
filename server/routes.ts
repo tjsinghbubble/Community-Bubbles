@@ -17,6 +17,25 @@ import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBub
 import { localToUtc, utcToLocal } from "./timezone";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
+import rateLimit from "express-rate-limit";
+
+// 10 attempts per 15 minutes — protects login and verify-code against brute force
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again in 15 minutes." },
+});
+
+// 5 requests per hour — protects send-verification and signup against spam
+const sendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again in an hour." },
+});
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -143,7 +162,7 @@ export async function registerRoutes(
     next();
   });
 
-  app.post("/api/auth/send-verification", async (req, res) => {
+  app.post("/api/auth/send-verification", sendLimiter, async (req, res) => {
     try {
       const { email } = req.body;
       if (!email) {
@@ -177,7 +196,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/verify-code", async (req, res) => {
+  app.post("/api/auth/verify-code", authLimiter, async (req, res) => {
     try {
       const { email, code } = req.body;
       if (!email || !code) {
@@ -200,7 +219,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/signup", async (req, res) => {
+  app.post("/api/auth/signup", sendLimiter, async (req, res) => {
     try {
       const data = insertUserSchema.parse(req.body);
 
@@ -287,7 +306,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
 
