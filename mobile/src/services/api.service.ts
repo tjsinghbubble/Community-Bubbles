@@ -92,6 +92,10 @@ class ApiService {
     });
   }
 
+  async serverLogout() {
+    return this.request("/api/auth/logout", { method: "POST" });
+  }
+
   async getProfile() {
     return this.request("/api/auth/me");
   }

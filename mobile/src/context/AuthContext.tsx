@@ -146,7 +146,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     // End session on logout
     await endSession();
-    
+
+    // Invalidate token server-side before clearing locally
+    try {
+      await apiService.serverLogout();
+    } catch (e) {
+      console.log('Server logout error:', e);
+    }
+
     try {
       await cometChatService.logoutUser();
     } catch (e) {
