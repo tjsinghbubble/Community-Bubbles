@@ -77,6 +77,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  incrementTokenVersion(id: string): Promise<void>;
   getSuperAdmins(): Promise<User[]>;
 
   getBubbles(): Promise<Bubble[]>;
@@ -384,6 +385,10 @@ export class DatabaseStorage implements IStorage {
 
     // 14. Delete user record
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  async incrementTokenVersion(id: string): Promise<void> {
+    await db.update(users).set({ tokenVersion: sql`token_version + 1` }).where(eq(users.id, id));
   }
 
   async getSuperAdmins(): Promise<User[]> {

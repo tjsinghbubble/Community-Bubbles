@@ -118,7 +118,7 @@ declare global {
   }
 }
 
-function authMiddleware(req: any, res: any, next: any) {
+async function authMiddleware(req: any, res: any, next: any) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -126,7 +126,11 @@ function authMiddleware(req: any, res: any, next: any) {
 
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; tokenVersion: number };
+    const user = await storage.getUser(decoded.userId);
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ error: "Token revoked" });
+    }
     req.userId = decoded.userId;
     next();
   } catch (error) {
@@ -326,7 +330,7 @@ export async function registerRoutes(
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
+      const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
         expiresIn: "30d",
       });
 
@@ -347,6 +351,16 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Logout — invalidates all existing tokens for this user
+  app.post("/api/auth/logout", authMiddleware, async (req, res) => {
+    try {
+      await storage.incrementTokenVersion(req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
