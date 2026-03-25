@@ -113,18 +113,20 @@ export default function InterestsScreen({ navigation, route }: Props) {
                 activeOpacity={0.8}
                 data-testid={`button-interest-${interest.id}`}
               >
-                <Image
-                  source={{ uri: interest.image }}
-                  style={styles.cardImage}
-                  resizeMode="cover"
-                />
-                {isSelected && (
-                  <View style={styles.selectedOverlay}>
-                    <View style={styles.checkCircle}>
-                      <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                <View style={styles.cardInner}>
+                  <Image
+                    source={{ uri: interest.image }}
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                  />
+                  {isSelected && (
+                    <View style={styles.selectedOverlay}>
+                      <View style={styles.checkCircle}>
+                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                      </View>
                     </View>
-                  </View>
-                )}
+                  )}
+                </View>
               </TouchableOpacity>
               <Text
                 style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
@@ -218,14 +220,18 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_SIZE,
     height: CARD_SIZE,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     borderWidth: 3,
     borderColor: 'transparent',
   },
   cardSelected: {
     borderColor: '#35A8F7',
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: 17,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
   },
   cardImage: {
     width: '100%',
