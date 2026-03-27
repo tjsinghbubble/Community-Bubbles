@@ -3,6 +3,7 @@ import { db } from "./db";
 import { generateShortId } from "./shortId";
 import {
   users,
+  userProfiles,
   bubbles,
   memberships,
   verificationCodes,
@@ -13,6 +14,7 @@ import {
   bubbleVisits,
   categories,
   type User,
+  type UserProfile,
   type InsertUser,
   type Bubble,
   type InsertBubble,
@@ -275,20 +277,48 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    return result[0];
+    const [row] = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.id, id))
+      .limit(1);
+    if (!row) return undefined;
+    const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+    return { ...row.users, ...profileFields } as User;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return result[0];
+    const [row] = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.email, email))
+      .limit(1);
+    if (!row) return undefined;
+    const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+    return { ...row.users, ...profileFields } as User;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
-    const user = result[0];
-    await db.update(users).set({ updatedBy: user.id }).where(eq(users.id, user.id));
-    return { ...user, updatedBy: user.id };
+    const authUser = result[0];
+    await db.update(users).set({ updatedBy: authUser.id }).where(eq(users.id, authUser.id));
+
+    // Sync profile data to user_profiles
+    await db.insert(userProfiles).values({
+      userId: authUser.id,
+      name: authUser.name,
+      interests: authUser.interests,
+      campusId: authUser.campusId,
+      campusEmail: authUser.campusEmail,
+      campusVerified: authUser.campusVerified,
+      dismissedCampusPrompt: authUser.dismissedCampusPrompt,
+      profilePhoto: authUser.profilePhoto,
+      aboutMe: authUser.aboutMe,
+    }).onConflictDoNothing();
+
+    return { ...authUser, updatedBy: authUser.id };
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -392,7 +422,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSuperAdmins(): Promise<User[]> {
-    return db.select().from(users).where(eq(users.isSuperAdmin, true));
+    const rows = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.isSuperAdmin, true));
+    return rows.map(row => {
+      const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+      return { ...row.users, ...profileFields } as User;
+    });
   }
 
   async getBubbles(): Promise<Bubble[]> {
@@ -527,13 +565,17 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .innerJoin(users, eq(memberships.userId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved')))
       .orderBy(desc(memberships.joinedAt));
 
-    return result.map((row) => ({
-      ...row.memberships,
-      user: row.users,
-    }));
+    return result.map((row) => {
+      const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+      return {
+        ...row.memberships,
+        user: { ...row.users, ...profileFields } as User,
+      };
+    });
   }
 
   async getPendingJoinRequests(bubbleId: string): Promise<(Membership & { user: User })[]> {
@@ -541,13 +583,17 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .innerJoin(users, eq(memberships.userId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'pending')))
       .orderBy(desc(memberships.joinedAt));
 
-    return result.map((row) => ({
-      ...row.memberships,
-      user: row.users,
-    }));
+    return result.map((row) => {
+      const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+      return {
+        ...row.memberships,
+        user: { ...row.users, ...profileFields } as User,
+      };
+    });
   }
 
   async createMembership(insertMembership: InsertMembership): Promise<Membership> {
@@ -656,15 +702,19 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(memberships)
       .leftJoin(users, eq(memberships.userId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(and(
         eq(memberships.bubbleId, bubbleId),
         sql`${memberships.membershipStatus} IN ('waitlisted', 'on_hold')`
       ))
       .orderBy(memberships.joinedAt);
-    return result.map((row) => ({
-      ...row.memberships,
-      user: row.users as User,
-    }));
+    return result.map((row) => {
+      const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+      return {
+        ...row.memberships,
+        user: { ...row.users, ...profileFields } as User,
+      };
+    });
   }
 
   async holdMembership(userId: string, bubbleId: string): Promise<Membership | undefined> {
@@ -860,11 +910,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(eventAttendees)
       .innerJoin(users, eq(eventAttendees.userId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(eq(eventAttendees.eventId, eventId));
-    return result.map(r => ({
-      ...r.event_attendees,
-      user: r.users,
-    }));
+    return result.map(r => {
+      const { userId: _uid, ...profileFields } = r.user_profiles ?? {};
+      return {
+        ...r.event_attendees,
+        user: { ...r.users, ...profileFields } as User,
+      };
+    });
   }
 
   async isEventAttendee(userId: string, eventId: string): Promise<boolean> {
@@ -979,16 +1033,62 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string; aboutMe?: string; interests?: string[] }): Promise<User | undefined> {
+    // Fetch current row so we can upsert userProfiles with all required fields
+    const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!currentUser) return undefined;
+
+    // Upsert userProfiles (creates row if it doesn't exist yet)
+    await db.insert(userProfiles).values({
+      userId,
+      name: updates.name ?? currentUser.name,
+      interests: updates.interests ?? currentUser.interests,
+      campusId: currentUser.campusId,
+      campusEmail: currentUser.campusEmail,
+      campusVerified: currentUser.campusVerified,
+      dismissedCampusPrompt: currentUser.dismissedCampusPrompt,
+      profilePhoto: updates.profilePhoto ?? currentUser.profilePhoto,
+      aboutMe: updates.aboutMe ?? currentUser.aboutMe,
+    }).onConflictDoUpdate({
+      target: userProfiles.userId,
+      set: {
+        ...(updates.name !== undefined && { name: updates.name }),
+        ...(updates.interests !== undefined && { interests: updates.interests }),
+        ...(updates.profilePhoto !== undefined && { profilePhoto: updates.profilePhoto }),
+        ...(updates.aboutMe !== undefined && { aboutMe: updates.aboutMe }),
+      },
+    });
+
+    // Phase 1 dual-write: keep users table in sync
     const setObj: Record<string, any> = { updatedAt: new Date(), updatedBy: userId };
     if (updates.profilePhoto !== undefined) setObj.profilePhoto = updates.profilePhoto;
     if (updates.name !== undefined) setObj.name = updates.name;
     if (updates.aboutMe !== undefined) setObj.aboutMe = updates.aboutMe;
     if (updates.interests !== undefined) setObj.interests = updates.interests;
-    const [updated] = await db.update(users).set(setObj).where(eq(users.id, userId)).returning();
-    return updated;
+    await db.update(users).set(setObj).where(eq(users.id, userId));
+
+    return this.getUser(userId);
   }
 
   async updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void> {
+    const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!currentUser) return;
+
+    await db.insert(userProfiles).values({
+      userId,
+      name: currentUser.name,
+      interests: currentUser.interests,
+      campusId,
+      campusEmail,
+      campusVerified: verified,
+      dismissedCampusPrompt: currentUser.dismissedCampusPrompt,
+      profilePhoto: currentUser.profilePhoto,
+      aboutMe: currentUser.aboutMe,
+    }).onConflictDoUpdate({
+      target: userProfiles.userId,
+      set: { campusId, campusEmail, campusVerified: verified },
+    });
+
+    // Phase 1 dual-write
     await db.update(users).set({
       campusId,
       campusEmail,
@@ -999,6 +1099,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async dismissCampusPrompt(userId: string): Promise<void> {
+    const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!currentUser) return;
+
+    await db.insert(userProfiles).values({
+      userId,
+      name: currentUser.name,
+      interests: currentUser.interests,
+      campusId: currentUser.campusId,
+      campusEmail: currentUser.campusEmail,
+      campusVerified: currentUser.campusVerified,
+      dismissedCampusPrompt: true,
+      profilePhoto: currentUser.profilePhoto,
+      aboutMe: currentUser.aboutMe,
+    }).onConflictDoUpdate({
+      target: userProfiles.userId,
+      set: { dismissedCampusPrompt: true },
+    });
+
+    // Phase 1 dual-write
     await db.update(users).set({
       dismissedCampusPrompt: true,
       updatedAt: new Date(),
@@ -1601,7 +1720,8 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .select({
         post: bulletinPosts,
-        author: users,
+        authUser: users,
+        profile: userProfiles,
         postType: bulletinPostTypes,
         replyCount: sql<number>`(SELECT COUNT(*) FROM bulletin_replies WHERE post_id = ${bulletinPosts.id})::int`,
         reactionCount: sql<number>`(SELECT COUNT(*) FROM bulletin_post_reactions WHERE post_id = ${bulletinPosts.id})::int`,
@@ -1609,35 +1729,46 @@ export class DatabaseStorage implements IStorage {
       })
       .from(bulletinPosts)
       .innerJoin(users, eq(bulletinPosts.authorId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .innerJoin(bulletinPostTypes, eq(bulletinPosts.postTypeId, bulletinPostTypes.id))
       .where(and(...conditions))
       .orderBy(desc(bulletinPosts.isPinned), desc(bulletinPosts.createdAt));
 
-    return rows.map(r => ({
-      ...r.post,
-      author: r.author,
-      postType: r.postType,
-      replyCount: r.replyCount,
-      reactionCount: r.reactionCount,
-      userReacted: r.userReacted,
-    }));
+    return rows.map(r => {
+      const { userId: _uid, ...profileFields } = r.profile ?? {};
+      return {
+        ...r.post,
+        author: { ...r.authUser, ...profileFields } as User,
+        postType: r.postType,
+        replyCount: r.replyCount,
+        reactionCount: r.reactionCount,
+        userReacted: r.userReacted,
+      };
+    });
   }
 
   async getBulletinPost(postId: string): Promise<(BulletinPost & { author: User; postType: BulletinPostType }) | undefined> {
     const rows = await db
       .select({
         post: bulletinPosts,
-        author: users,
+        authUser: users,
+        profile: userProfiles,
         postType: bulletinPostTypes,
       })
       .from(bulletinPosts)
       .innerJoin(users, eq(bulletinPosts.authorId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .innerJoin(bulletinPostTypes, eq(bulletinPosts.postTypeId, bulletinPostTypes.id))
       .where(eq(bulletinPosts.id, postId))
       .limit(1);
 
     if (!rows[0]) return undefined;
-    return { ...rows[0].post, author: rows[0].author, postType: rows[0].postType };
+    const { userId: _uid, ...profileFields } = rows[0].profile ?? {};
+    return {
+      ...rows[0].post,
+      author: { ...rows[0].authUser, ...profileFields } as User,
+      postType: rows[0].postType,
+    };
   }
 
   async createBulletinPost(post: InsertBulletinPost): Promise<BulletinPost> {
@@ -1685,14 +1816,19 @@ export class DatabaseStorage implements IStorage {
     const rows = await db
       .select({
         reply: bulletinReplies,
-        author: users,
+        authUser: users,
+        profile: userProfiles,
       })
       .from(bulletinReplies)
       .innerJoin(users, eq(bulletinReplies.authorId, users.id))
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(eq(bulletinReplies.postId, postId))
       .orderBy(bulletinReplies.createdAt);
 
-    return rows.map(r => ({ ...r.reply, author: r.author }));
+    return rows.map(r => {
+      const { userId: _uid, ...profileFields } = r.profile ?? {};
+      return { ...r.reply, author: { ...r.authUser, ...profileFields } as User };
+    });
   }
 
   async createBulletinReply(reply: InsertBulletinReply): Promise<BulletinReply> {

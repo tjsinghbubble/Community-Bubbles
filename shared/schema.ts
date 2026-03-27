@@ -43,6 +43,21 @@ export const users = pgTable("users", {
   updatedBy: varchar("updated_by"),
 });
 
+export const userProfiles = pgTable("user_profiles", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
+  campusId: varchar("campus_id").references(() => campuses.id),
+  campusEmail: text("campus_email"),
+  campusVerified: boolean("campus_verified").notNull().default(false),
+  dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
+  profilePhoto: text("profile_photo"),
+  aboutMe: text("about_me"),
+});
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = typeof userProfiles.$inferInsert;
+
 export const bubbles = pgTable("bubbles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
