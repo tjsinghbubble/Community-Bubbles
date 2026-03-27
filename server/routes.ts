@@ -12,7 +12,8 @@ import { seedData } from "./seed-data";
 import { seedAppConfig } from "./seed-app-config";
 import { seedRules } from "./seed-rules";
 import { seedCategoryPlaceholders } from "./seed-category-placeholders";
-import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
+const objectStorageService = new ObjectStorageService();
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
@@ -265,6 +266,14 @@ export async function registerRoutes(
 
   app.delete("/api/auth/delete-account", authMiddleware, async (req, res) => {
     try {
+      const user = await storage.getUser(req.userId!);
+      if (user?.profilePhoto) {
+        try {
+          await objectStorageService.deleteObjectEntity(user.profilePhoto);
+        } catch (e) {
+          console.error("Failed to delete profile photo from storage:", e);
+        }
+      }
       await storage.deleteUser(req.userId!);
       res.json({ success: true, message: "Account deleted successfully" });
     } catch (error: any) {

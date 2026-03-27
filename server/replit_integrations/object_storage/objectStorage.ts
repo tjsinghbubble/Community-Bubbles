@@ -221,6 +221,18 @@ export class ObjectStorageService {
     return normalizedPath;
   }
 
+  // Deletes an object entity by its raw path or URL. Silently ignores if not found.
+  async deleteObjectEntity(rawPath: string): Promise<void> {
+    try {
+      const normalizedPath = this.normalizeObjectEntityPath(rawPath);
+      const objectFile = await this.getObjectEntityFile(normalizedPath);
+      await objectFile.delete();
+    } catch (error) {
+      if (error instanceof ObjectNotFoundError) return;
+      throw error;
+    }
+  }
+
   // Checks if the user can access the object entity.
   async canAccessObjectEntity({
     userId,
