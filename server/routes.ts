@@ -49,6 +49,12 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required but not set");
 }
 
+function truncateCoord(value: string | null | undefined): string | null | undefined {
+  if (value == null) return value;
+  const num = parseFloat(value);
+  return isNaN(num) ? value : num.toFixed(2);
+}
+
 async function resolveCategoryName(categoryId: number | null | undefined): Promise<string | null> {
   if (!categoryId) return null;
   const cat = await storage.getCategory(categoryId);
@@ -493,6 +499,8 @@ export async function registerRoutes(
         body.category = catName || 'General';
       }
 
+      if (body.locationLat != null) body.locationLat = truncateCoord(body.locationLat);
+      if (body.locationLng != null) body.locationLng = truncateCoord(body.locationLng);
       const data = insertBubbleSchema.parse(body);
       const bubble = await storage.createBubble(data);
 
@@ -560,8 +568,8 @@ export async function registerRoutes(
       if (memberLimit !== undefined) updateData.memberLimit = memberLimit;
       if (locationName !== undefined) updateData.locationName = locationName;
       if (locationAddress !== undefined) updateData.locationAddress = locationAddress;
-      if (locationLat !== undefined) updateData.locationLat = locationLat;
-      if (locationLng !== undefined) updateData.locationLng = locationLng;
+      if (locationLat !== undefined) updateData.locationLat = truncateCoord(locationLat);
+      if (locationLng !== undefined) updateData.locationLng = truncateCoord(locationLng);
       if (radiusMiles !== undefined) updateData.radiusMiles = radiusMiles;
 
       const updatedBubble = await storage.updateBubble(bubbleId, updateData);
@@ -1579,6 +1587,8 @@ export async function registerRoutes(
         }
         bodyToStore.timezone = timezone;
       }
+      if (bodyToStore.locationLat != null) bodyToStore.locationLat = truncateCoord(bodyToStore.locationLat);
+      if (bodyToStore.locationLng != null) bodyToStore.locationLng = truncateCoord(bodyToStore.locationLng);
       const data = insertEventSchema.parse({
         ...bodyToStore,
         creatorId: req.userId,

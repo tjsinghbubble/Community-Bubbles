@@ -222,6 +222,7 @@ export interface IStorage {
   upsertDevicePushToken(userId: string, token: string, platform: string): Promise<DevicePushToken>;
   getDevicePushTokens(userId: string): Promise<DevicePushToken[]>;
   deleteDevicePushToken(userId: string, token: string): Promise<void>;
+  deleteStaleDevicePushTokens(olderThanDays?: number): Promise<number>;
 
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
@@ -1670,6 +1671,13 @@ export class DatabaseStorage implements IStorage {
       return result[0];
     }
     const result = await db.insert(devicePushTokens).values({ userId, token, platform }).returning();
+
+    // Clean up stale tokens for this user (older than 90 days) on each upsert
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    await db.delete(devicePushTokens).where(
+      and(eq(devicePushTokens.userId, userId), lt(devicePushTokens.updatedAt, cutoff))
+    );
+
     return result[0];
   }
 
@@ -1680,6 +1688,14 @@ export class DatabaseStorage implements IStorage {
   async deleteDevicePushToken(userId: string, token: string): Promise<void> {
     await db.delete(devicePushTokens)
       .where(and(eq(devicePushTokens.userId, userId), eq(devicePushTokens.token, token)));
+  }
+
+  async deleteStaleDevicePushTokens(olderThanDays = 90): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const result = await db.delete(devicePushTokens)
+      .where(lt(devicePushTokens.updatedAt, cutoff))
+      .returning({ id: devicePushTokens.id });
+    return result.length;
   }
 
   async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {
