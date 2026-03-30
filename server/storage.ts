@@ -1,5 +1,6 @@
 import { eq, and, desc, lt, gte, or, isNull, ne, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
+import { encryptField, hashField, safeDecryptField, decryptUserEmails } from "./encryption";
 import { generateShortId } from "./shortId";
 import {
   users,
@@ -286,40 +287,66 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     if (!row) return undefined;
     const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
-    return { ...row.users, ...profileFields } as User;
+    return decryptUserEmails({ ...row.users, ...profileFields } as User);
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [row] = await db
+    const hash = hashField(email);
+
+    // Try hash lookup (post-migration users)
+    let [row] = await db
       .select()
       .from(users)
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
-      .where(eq(users.email, email))
+      .where(eq(users.emailHash, hash))
       .limit(1);
+
+    // Fallback: plaintext lookup for pre-migration users
+    if (!row) {
+      [row] = await db
+        .select()
+        .from(users)
+        .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+        .where(eq(users.email, email))
+        .limit(1);
+    }
+
     if (!row) return undefined;
     const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
-    return { ...row.users, ...profileFields } as User;
+    return decryptUserEmails({ ...row.users, ...profileFields } as User);
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
+    const encryptedEmail = encryptField(insertUser.email);
+    const emailHash = hashField(insertUser.email);
+
+    const result = await db
+      .insert(users)
+      .values({ ...insertUser, email: encryptedEmail, emailHash })
+      .returning();
     const authUser = result[0];
-    await db.update(users).set({ updatedBy: authUser.id }).where(eq(users.id, authUser.id));
+    await db
+      .update(users)
+      .set({ updatedBy: authUser.id })
+      .where(eq(users.id, authUser.id));
 
     // Sync profile data to user_profiles
-    await db.insert(userProfiles).values({
-      userId: authUser.id,
-      name: authUser.name,
-      interests: authUser.interests,
-      campusId: authUser.campusId,
-      campusEmail: authUser.campusEmail,
-      campusVerified: authUser.campusVerified,
-      dismissedCampusPrompt: authUser.dismissedCampusPrompt,
-      profilePhoto: authUser.profilePhoto,
-      aboutMe: authUser.aboutMe,
-    }).onConflictDoNothing();
+    await db
+      .insert(userProfiles)
+      .values({
+        userId: authUser.id,
+        name: authUser.name,
+        interests: authUser.interests,
+        campusId: authUser.campusId,
+        campusEmail: authUser.campusEmail,
+        campusVerified: authUser.campusVerified,
+        dismissedCampusPrompt: authUser.dismissedCampusPrompt,
+        profilePhoto: authUser.profilePhoto,
+        aboutMe: authUser.aboutMe,
+      })
+      .onConflictDoNothing();
 
-    return { ...authUser, updatedBy: authUser.id };
+    return decryptUserEmails({ ...authUser, updatedBy: authUser.id } as User);
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -430,7 +457,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.isSuperAdmin, true));
     return rows.map(row => {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
-      return { ...row.users, ...profileFields } as User;
+      return decryptUserEmails({ ...row.users, ...profileFields } as User);
     });
   }
 
@@ -574,7 +601,7 @@ export class DatabaseStorage implements IStorage {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
       return {
         ...row.memberships,
-        user: { ...row.users, ...profileFields } as User,
+        user: decryptUserEmails({ ...row.users, ...profileFields } as User),
       };
     });
   }
@@ -592,7 +619,7 @@ export class DatabaseStorage implements IStorage {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
       return {
         ...row.memberships,
-        user: { ...row.users, ...profileFields } as User,
+        user: decryptUserEmails({ ...row.users, ...profileFields } as User),
       };
     });
   }
@@ -713,7 +740,7 @@ export class DatabaseStorage implements IStorage {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
       return {
         ...row.memberships,
-        user: { ...row.users, ...profileFields } as User,
+        user: decryptUserEmails({ ...row.users, ...profileFields } as User),
       };
     });
   }
@@ -727,24 +754,47 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode> {
-    const result = await db.insert(verificationCodes).values(data).returning();
+    const normalizedEmail = data.email.toLowerCase().trim();
+    const result = await db.insert(verificationCodes).values({
+      ...data,
+      email: encryptField(normalizedEmail),
+      emailHash: hashField(normalizedEmail),
+    }).returning();
     return result[0];
   }
 
   async getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined> {
     const now = new Date();
-    const result = await db
+    const hash = hashField(email.toLowerCase().trim());
+
+    // Try hash lookup (post-migration)
+    let result = await db
       .select()
       .from(verificationCodes)
       .where(
         and(
-          eq(verificationCodes.email, email),
+          eq(verificationCodes.emailHash, hash),
           eq(verificationCodes.code, code),
           eq(verificationCodes.used, false)
         )
       )
       .limit(1);
-    
+
+    // Fallback: plaintext lookup for pre-migration codes
+    if (result.length === 0) {
+      result = await db
+        .select()
+        .from(verificationCodes)
+        .where(
+          and(
+            eq(verificationCodes.email, email.toLowerCase().trim()),
+            eq(verificationCodes.code, code),
+            eq(verificationCodes.used, false)
+          )
+        )
+        .limit(1);
+    }
+
     const verificationCode = result[0];
     if (verificationCode && new Date(verificationCode.expiresAt) > now) {
       return verificationCode;
@@ -917,7 +967,7 @@ export class DatabaseStorage implements IStorage {
       const { userId: _uid, ...profileFields } = r.user_profiles ?? {};
       return {
         ...r.event_attendees,
-        user: { ...r.users, ...profileFields } as User,
+        user: decryptUserEmails({ ...r.users, ...profileFields } as User),
       };
     });
   }
@@ -1074,25 +1124,32 @@ export class DatabaseStorage implements IStorage {
     const [currentUser] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!currentUser) return;
 
-    await db.insert(userProfiles).values({
-      userId,
-      name: currentUser.name,
-      interests: currentUser.interests,
-      campusId,
-      campusEmail,
-      campusVerified: verified,
-      dismissedCampusPrompt: currentUser.dismissedCampusPrompt,
-      profilePhoto: currentUser.profilePhoto,
-      aboutMe: currentUser.aboutMe,
-    }).onConflictDoUpdate({
-      target: userProfiles.userId,
-      set: { campusId, campusEmail, campusVerified: verified },
-    });
+    const encryptedCampusEmail = encryptField(campusEmail.toLowerCase().trim());
+    const campusEmailHash = hashField(campusEmail);
+
+    await db
+      .insert(userProfiles)
+      .values({
+        userId,
+        name: currentUser.name,
+        interests: currentUser.interests,
+        campusId,
+        campusEmail: encryptedCampusEmail,
+        campusEmailHash,
+        campusVerified: verified,
+        dismissedCampusPrompt: currentUser.dismissedCampusPrompt,
+        profilePhoto: currentUser.profilePhoto,
+        aboutMe: currentUser.aboutMe,
+      })
+      .onConflictDoUpdate({
+        target: userProfiles.userId,
+        set: { campusId, campusEmail: encryptedCampusEmail, campusEmailHash, campusVerified: verified },
+      });
 
     // Phase 1 dual-write
     await db.update(users).set({
       campusId,
-      campusEmail,
+      campusEmail: encryptedCampusEmail,
       campusVerified: verified,
       updatedAt: new Date(),
       updatedBy: userId,
@@ -1754,7 +1811,7 @@ export class DatabaseStorage implements IStorage {
       const { userId: _uid, ...profileFields } = r.profile ?? {};
       return {
         ...r.post,
-        author: { ...r.authUser, ...profileFields } as User,
+        author: decryptUserEmails({ ...r.authUser, ...profileFields } as User),
         postType: r.postType,
         replyCount: r.replyCount,
         reactionCount: r.reactionCount,
@@ -1782,7 +1839,7 @@ export class DatabaseStorage implements IStorage {
     const { userId: _uid, ...profileFields } = rows[0].profile ?? {};
     return {
       ...rows[0].post,
-      author: { ...rows[0].authUser, ...profileFields } as User,
+      author: decryptUserEmails({ ...rows[0].authUser, ...profileFields } as User),
       postType: rows[0].postType,
     };
   }
@@ -1843,7 +1900,7 @@ export class DatabaseStorage implements IStorage {
 
     return rows.map(r => {
       const { userId: _uid, ...profileFields } = r.profile ?? {};
-      return { ...r.reply, author: { ...r.authUser, ...profileFields } as User };
+      return { ...r.reply, author: decryptUserEmails({ ...r.authUser, ...profileFields } as User) };
     });
   }
 

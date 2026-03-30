@@ -16,6 +16,7 @@ Add each variable via the **Secrets** tab (padlock icon in the Replit sidebar).
 | `RATE_LIMIT_AUTH_WINDOW_MIN` | No | Window size in minutes for auth limiter. Default: `15` |
 | `RATE_LIMIT_SEND_MAX` | No | Max requests for `/api/auth/send-verification` and `/api/auth/signup` per window. Default: `5` |
 | `RATE_LIMIT_SEND_WINDOW_MIN` | No | Window size in minutes for send limiter. Default: `60` |
+| `ENCRYPTION_KEY` | **Yes** | 32-byte hex key for AES-256-GCM email encryption. Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
 
 > **Note:** If you are on a shared Repl (not a fork), Secrets are shared — one team member adding them covers everyone.
 
@@ -54,4 +55,5 @@ Before deploying to production, make sure the following are set in the productio
 
 - [ ] `JWT_SECRET` — generate a fresh value, do not reuse the dev secret
 - [ ] `DATABASE_URL` — points to the production database
+- [ ] `ENCRYPTION_KEY` — generate a fresh value, do not reuse the dev key. Run `server/migrations/encrypt_emails.ts` after first deploy.
 - [ ] Google Places API key — replace the hardcoded key in `mobile/src/config/api.ts` with a key restricted to production bundle IDs only

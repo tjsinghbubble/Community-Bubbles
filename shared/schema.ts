@@ -27,7 +27,8 @@ export const campuses = pgTable("campuses", {
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  email: text("email").notNull(),
+  emailHash: text("email_hash").unique(),
   password: text("password").notNull(),
   interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
   campusId: varchar("campus_id").references(() => campuses.id),
@@ -53,6 +54,7 @@ export const userProfiles = pgTable("user_profiles", {
   dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
   profilePhoto: text("profile_photo"),
   aboutMe: text("about_me"),
+  campusEmailHash: text("campus_email_hash"),
 });
 
 export type UserProfile = typeof userProfiles.$inferSelect;
@@ -99,6 +101,7 @@ export const memberships = pgTable("memberships", {
 export const verificationCodes = pgTable("verification_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: text("email").notNull(),
+  emailHash: text("email_hash"),
   code: text("code").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   used: boolean("used").notNull().default(false),
