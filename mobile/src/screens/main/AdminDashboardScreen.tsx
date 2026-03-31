@@ -269,6 +269,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   pillButtonLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
