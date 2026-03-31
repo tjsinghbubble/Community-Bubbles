@@ -416,8 +416,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             activeOpacity={1}
             onPress={handleOverlayCancel}
           />
-          <View style={overlayStyles.sheetOuter}>
-            <View style={overlayStyles.sheetInner}>
+          <View style={overlayStyles.sheet}>
             <View style={overlayStyles.dragHandle} />
             <Text style={overlayStyles.sheetTitle}>{overlayEditPostId ? 'Edit Post' : 'New Post'}</Text>
 
@@ -543,7 +542,6 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                   </View>
                 )}
               </TouchableOpacity>
-            </View>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -1035,19 +1033,11 @@ const overlayStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
-  sheetOuter: {
-    maxHeight: '90%',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 8,
-  },
-  sheetInner: {
+  sheet: {
     backgroundColor: '#F5F6F8',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: 'hidden',
+    maxHeight: '90%',
     paddingBottom: 20,
   },
   sheetTitle: {
