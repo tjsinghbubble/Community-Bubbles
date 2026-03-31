@@ -402,13 +402,16 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 65;
 
   const renderCreateOverlay = () => {
-    if (!showCreateOverlay) return null;
     return (
-      <View style={[StyleSheet.absoluteFill, { zIndex: 999 }]}>
+      <Modal
+        visible={showCreateOverlay}
+        transparent
+        animationType="slide"
+        onRequestClose={handleOverlayCancel}
+      >
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={TAB_BAR_HEIGHT}
         >
           <TouchableOpacity
             style={overlayStyles.backdrop}
@@ -518,26 +521,32 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
                 onPress={handleOverlaySubmit}
                 disabled={!overlayCanSubmit}
                 testID="overlay-post-button"
-                style={{ flex: 1, opacity: overlayCanSubmit ? 1 : 0.4 }}
+                style={{ flex: 1 }}
                 activeOpacity={0.8}
               >
-                <LinearGradient
-                  colors={['#35A8F7', '#FFFFFF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0.7, y: 3.6 }}
-                  style={overlayStyles.postButton}
-                >
-                  {overlaySubmitting ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Text style={overlayStyles.postButtonText}>{overlayEditPostId ? 'Save' : 'Post'}</Text>
-                  )}
-                </LinearGradient>
+                {overlayCanSubmit ? (
+                  <LinearGradient
+                    colors={['#35A8F7', '#FFFFFF']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0.7, y: 3.6 }}
+                    style={overlayStyles.postButton}
+                  >
+                    {overlaySubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <Text style={overlayStyles.postButtonText}>{overlayEditPostId ? 'Save' : 'Post'}</Text>
+                    )}
+                  </LinearGradient>
+                ) : (
+                  <View style={overlayStyles.postButtonDisabled}>
+                    <Text style={overlayStyles.postButtonDisabledText}>{overlayEditPostId ? 'Save' : 'Post'}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
-      </View>
+      </Modal>
     );
   };
 
@@ -1124,6 +1133,18 @@ const overlayStyles = StyleSheet.create({
     fontSize: Typography.sizes.lg,
     fontWeight: Typography.weights.semiBold,
     color: '#1E1F26',
+  },
+  postButtonDisabled: {
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#969696',
+  },
+  postButtonDisabledText: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: '#FFFFFF',
   },
   dropdownList: {
     backgroundColor: '#FFFFFF',
