@@ -1037,8 +1037,12 @@ const overlayStyles = StyleSheet.create({
     backgroundColor: '#F5F6F8',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     paddingBottom: 20,
     maxHeight: '90%',
+    marginHorizontal: 5,
+    marginBottom: 5,
   },
   sheetTitle: {
     fontSize: Typography.sizes.lg,
