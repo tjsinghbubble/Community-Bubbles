@@ -338,7 +338,6 @@ const styles = StyleSheet.create({
     color: Colors.text.primary,
   },
   replyCard: {
-    backgroundColor: Colors.background.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
