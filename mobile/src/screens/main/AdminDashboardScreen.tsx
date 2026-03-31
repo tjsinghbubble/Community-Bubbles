@@ -122,24 +122,24 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
           <View style={styles.buttonsGrid}>
             <View style={styles.buttonRow}>
               <TouchableOpacity style={styles.pillButton} onPress={handleManageMembers} activeOpacity={0.75}>
-                <Text style={styles.pillButtonText}>Manage Members</Text>
+                <Text style={styles.pillButtonText} numberOfLines={1}>Manage Members</Text>
                 <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.pillButton} onPress={handleManageWaitlist} activeOpacity={0.75}>
-                <Text style={styles.pillButtonText}>Manage Waitlist</Text>
+                <Text style={styles.pillButtonText} numberOfLines={1}>Manage Waitlist</Text>
                 <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.buttonRow}>
               <TouchableOpacity style={styles.pillButton} onPress={handleEditBubble} activeOpacity={0.75}>
-                <Text style={styles.pillButtonText}>Edit Bubble Info</Text>
+                <Text style={styles.pillButtonText} numberOfLines={1}>Edit Bubble Info</Text>
                 <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.pillButton} onPress={handleCreateEvent} activeOpacity={0.75}>
                 <View style={styles.pillButtonLeft}>
                   <Ionicons name="add" size={16} color={Colors.text.primary} />
-                  <Text style={styles.pillButtonText}>Create Event</Text>
+                  <Text style={styles.pillButtonText} numberOfLines={1}>Create Event</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
               </TouchableOpacity>
