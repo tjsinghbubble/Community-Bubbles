@@ -424,6 +424,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               style={overlayStyles.scrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              backgroundColor="transparent"
             >
               <TouchableOpacity
                 style={overlayStyles.card}
@@ -1038,6 +1039,7 @@ const overlayStyles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingBottom: 20,
     overflow: 'hidden',
+    maxHeight: '90%',
   },
   sheetTitle: {
     fontSize: Typography.sizes.lg,
@@ -1057,6 +1059,7 @@ const overlayStyles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
+    backgroundColor: 'transparent',
   },
   card: {
     backgroundColor: '#FFFFFF',
