@@ -1036,8 +1036,6 @@ const overlayStyles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheetOuter: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     maxHeight: '90%',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: -2 },
