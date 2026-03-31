@@ -1037,6 +1037,7 @@ const overlayStyles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 20,
+    overflow: 'hidden',
   },
   sheetTitle: {
     fontSize: Typography.sizes.lg,
