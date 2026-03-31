@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -15,7 +15,7 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
-import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
+import { Colors, Spacing, Typography } from '../../styles/theme';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleWaitlist'>;
@@ -60,7 +60,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleApprove = async (userId: string, userName: string) => {
+  const handleApprove = (userId: string, userName: string) => {
     Alert.alert(
       'Approve Member',
       `Let ${userName} join the bubble from the waitlist?`,
@@ -84,35 +84,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
     );
   };
 
-  const handleHold = async (userId: string, userName: string) => {
-    Alert.alert(
-      'Put On Hold',
-      `Put ${userName}'s waitlist spot on hold? They will be notified.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Hold',
-          onPress: async () => {
-            setActionLoading(userId);
-            try {
-              await apiService.holdWaitlist(bubbleId, userId);
-              setWaitlist(prev =>
-                prev.map(m =>
-                  m.userId === userId ? { ...m, membershipStatus: 'on_hold' } : m
-                )
-              );
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to put on hold');
-            } finally {
-              setActionLoading(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleReject = async (userId: string, userName: string) => {
+  const handleReject = (userId: string, userName: string) => {
     Alert.alert(
       'Remove From Waitlist',
       `Remove ${userName} from the waitlist? They will be notified.`,
@@ -138,35 +110,29 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
   };
 
   const getInitials = (name: string) =>
-    name
-      .split(' ')
-      .map(n => n[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
+    name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  const pendingCount = waitlist.filter(m => m.membershipStatus === 'waitlisted').length;
+  const onHoldCount = waitlist.filter(m => m.membershipStatus === 'on_hold').length;
+  const totalPending = pendingCount + onHoldCount;
 
-  const renderItem = ({ item }: { item: WaitlistMember }) => {
-    const isOnHold = item.membershipStatus === 'on_hold';
+  const renderMemberCard = (item: WaitlistMember) => {
     const isActing = actionLoading === item.userId;
+    const name = item.user.name || item.user.email;
+    const isOnHold = item.membershipStatus === 'on_hold';
 
     return (
-      <View style={styles.card} testID={`card-waitlist-${item.userId}`}>
-        <View style={styles.cardLeft}>
+      <View key={item.userId} style={styles.memberCard}>
+        <View style={styles.memberLeft}>
           {item.user.profilePhoto ? (
             <Image source={{ uri: item.user.profilePhoto }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarInitials}>{getInitials(item.user.name || item.user.email)}</Text>
+              <Text style={styles.avatarInitials}>{getInitials(name)}</Text>
             </View>
           )}
-          <View style={styles.userInfo}>
-            <Text style={styles.userName} numberOfLines={1}>{item.user.name || item.user.email}</Text>
-            <Text style={styles.joinedDate}>Joined {formatDate(item.joinedAt)}</Text>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName} numberOfLines={1}>{name}</Text>
             {isOnHold && (
               <View style={styles.holdBadge}>
                 <Text style={styles.holdBadgeText}>On Hold</Text>
@@ -174,35 +140,24 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
             )}
           </View>
         </View>
+
         {isActing ? (
-          <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} />
+          <ActivityIndicator size="small" color={Colors.brand.primary} style={styles.activityIndicator} />
         ) : (
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.actionBtn, styles.approveBtn]}
-              onPress={() => handleApprove(item.userId, item.user.name || item.user.email)}
-              testID={`button-approve-${item.userId}`}
+              onPress={() => handleApprove(item.userId, name)}
               activeOpacity={0.7}
             >
-              <Ionicons name="checkmark" size={18} color={Colors.brand.skyWhite} />
+              <Ionicons name="checkmark" size={18} color="#34C759" />
             </TouchableOpacity>
-            {!isOnHold && (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.holdBtn]}
-                onPress={() => handleHold(item.userId, item.user.name || item.user.email)}
-                testID={`button-hold-${item.userId}`}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="pause" size={16} color={Colors.brand.skyWhite} />
-              </TouchableOpacity>
-            )}
             <TouchableOpacity
               style={[styles.actionBtn, styles.rejectBtn]}
-              onPress={() => handleReject(item.userId, item.user.name || item.user.email)}
-              testID={`button-reject-${item.userId}`}
+              onPress={() => handleReject(item.userId, name)}
               activeOpacity={0.7}
             >
-              <Ionicons name="close" size={18} color={Colors.brand.skyWhite} />
+              <Ionicons name="close" size={18} color="#FF3B30" />
             </TouchableOpacity>
           </View>
         )}
@@ -213,45 +168,55 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back"
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>Waitlist</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Waitlist</Text>
+        <View style={styles.headerBtn} />
       </View>
-      <View style={styles.headerSeparator} />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
-        </View>
-      ) : waitlist.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="people-outline" size={48} color={Colors.text.tertiary} />
-          <Text style={styles.emptyTitle}>No one on the waitlist</Text>
-          <Text style={styles.emptySubtitle}>
-            When the bubble is full, members who want to join will appear here.
-          </Text>
+          <ActivityIndicator size="large" color={Colors.brand.primary} />
         </View>
       ) : (
-        <FlatList
-          data={waitlist}
-          keyExtractor={item => item.userId}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <Text style={styles.countText}>
-              {waitlist.length} {waitlist.length === 1 ? 'person' : 'people'} waiting
-            </Text>
-          }
-        />
+        >
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalPending}</Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Accepted</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Denied</Text>
+            </View>
+          </View>
+
+          {waitlist.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={48} color={Colors.text.tertiary} />
+              <Text style={styles.emptyTitle}>No one on the waitlist</Text>
+              <Text style={styles.emptySubtitle}>
+                When the bubble is full, members who want to join will appear here.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.sectionTitle}>Pending</Text>
+              <View style={styles.separator} />
+              <View style={styles.memberList}>
+                {waitlist.map(renderMemberCard)}
+              </View>
+            </>
+          )}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
@@ -260,77 +225,92 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.background.surface,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border.light,
+    backgroundColor: Colors.background.primary,
   },
-  backButton: {
-    padding: Spacing.xs,
+  headerBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     flex: 1,
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold as any,
-    color: Colors.text.primary,
     textAlign: 'center',
-    marginHorizontal: Spacing.md,
-  },
-  headerSpacer: {
-    width: 32,
-  },
-  headerSeparator: {
-    height: 1,
-    backgroundColor: Colors.neutral.lightSilver,
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.primary,
   },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyContainer: {
+  scrollContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.xxxl,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  statCard: {
     flex: 1,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    gap: Spacing.xs,
   },
-  emptyTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold as any,
+  statNumber: {
+    fontSize: 16,
+    fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
-    marginTop: Spacing.md,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    fontWeight: Typography.weights.regular as any,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.bold as any,
+    color: Colors.text.primary,
     marginBottom: Spacing.sm,
   },
-  emptySubtitle: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
-    textAlign: 'center',
-    lineHeight: Typography.lineHeight.md,
-  },
-  listContent: {
-    padding: Spacing.lg,
-  },
-  countText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.text.tertiary,
-    marginBottom: Spacing.md,
-  },
   separator: {
-    height: Spacing.sm,
+    height: 1,
+    backgroundColor: Colors.border.default,
+    marginBottom: Spacing.lg,
   },
-  card: {
+  memberList: {
+    gap: Spacing.md,
+  },
+  memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: Colors.neutral.cloudGrey,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    ...CardShadow,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
-  cardLeft: {
+  memberLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
@@ -340,34 +320,29 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
   },
   avatarPlaceholder: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.brand.bubbleBlue,
+    backgroundColor: Colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: Spacing.sm,
+    marginRight: Spacing.md,
   },
   avatarInitials: {
-    fontSize: Typography.sizes.md,
+    fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.bold as any,
-    color: Colors.brand.skyWhite,
+    color: '#FFFFFF',
   },
-  userInfo: {
+  memberInfo: {
     flex: 1,
   },
-  userName: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semiBold as any,
+  memberName: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium as any,
     color: Colors.text.primary,
-    marginBottom: 2,
-  },
-  joinedDate: {
-    fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
   },
   holdBadge: {
     alignSelf: 'flex-start',
@@ -380,26 +355,46 @@ const styles = StyleSheet.create({
   holdBadgeText: {
     fontSize: Typography.sizes.xxs,
     fontWeight: Typography.weights.semiBold as any,
-    color: Colors.brand.skyWhite,
+    color: '#FFFFFF',
+  },
+  activityIndicator: {
+    width: 80,
   },
   actions: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
   actionBtn: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
   },
   approveBtn: {
-    backgroundColor: Colors.status.success,
-  },
-  holdBtn: {
-    backgroundColor: Colors.status.warning,
+    borderColor: '#34C759',
   },
   rejectBtn: {
-    backgroundColor: Colors.status.error,
+    borderColor: '#FF3B30',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xxxl,
+    gap: Spacing.md,
+  },
+  emptyTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.text.primary,
+  },
+  emptySubtitle: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
