@@ -407,15 +407,15 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         animationType="slide"
         onRequestClose={handleOverlayCancel}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={overlayStyles.overlay}>
           <TouchableOpacity
-            style={overlayStyles.backdrop}
+            style={StyleSheet.absoluteFillObject}
             activeOpacity={1}
             onPress={handleOverlayCancel}
           />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
           <View style={overlayStyles.sheet}>
             <View style={overlayStyles.dragHandle} />
             <Text style={overlayStyles.sheetTitle}>{overlayEditPostId ? 'Edit Post' : 'New Post'}</Text>
@@ -544,7 +544,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
           </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     );
   };
@@ -1029,9 +1030,10 @@ const styles = StyleSheet.create({
 });
 
 const overlayStyles = StyleSheet.create({
-  backdrop: {
+  overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: '#FAFAFA',
