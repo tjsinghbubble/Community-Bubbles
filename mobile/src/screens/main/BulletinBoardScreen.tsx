@@ -399,8 +399,6 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
 
   const selectedOverlayType = postTypes.find(pt => pt.id === overlaySelectedTypeId);
 
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 85 : 65;
-
   const renderCreateOverlay = () => {
     return (
       <Modal
