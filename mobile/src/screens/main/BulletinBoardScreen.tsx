@@ -17,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -116,6 +117,7 @@ function formatTimeAgo(dateStr: string): string {
 export default function BulletinBoardScreen({ navigation, route }: Props) {
   const { bubbleId, bubbleTitle } = route.params;
   const { token, user } = useAuth();
+  const insets = useSafeAreaInsets();
   const [posts, setPosts] = useState<BulletinPost[]>([]);
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
   const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
@@ -416,7 +418,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
-          <View style={overlayStyles.sheet}>
+          <View style={[overlayStyles.sheet, { paddingBottom: Math.max(20, insets.bottom + 20) }]}>
             <View style={overlayStyles.dragHandle} />
             <Text style={overlayStyles.sheetTitle}>{overlayEditPostId ? 'Edit Post' : 'New Post'}</Text>
 
@@ -1040,7 +1042,6 @@ const overlayStyles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
-    paddingBottom: 20,
   },
   sheetTitle: {
     fontSize: Typography.sizes.lg,
