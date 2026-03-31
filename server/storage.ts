@@ -164,6 +164,7 @@ export interface IStorage {
   // Analytics
   createSession(userId: string): Promise<UserSession>;
   endSession(sessionId: string, userId: string): Promise<UserSession | undefined>;
+  getUserSessions(userId: string): Promise<UserSession[]>;
   getRetentionMetrics(): Promise<{ day1: number; day7: number; day30: number }>;
   getDauMauMetrics(): Promise<{ dau: number; mau: number; stickiness: number; dailyData: { date: string; dau: number }[] }>;
   getAverageSessionLength(): Promise<{ averageSeconds: number; dailyData: { date: string; avgSeconds: number }[] }>;
@@ -1267,6 +1268,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics methods
+  async getUserSessions(userId: string): Promise<UserSession[]> {
+    return db.select().from(userSessions)
+      .where(eq(userSessions.userId, userId))
+      .orderBy(desc(userSessions.startedAt));
+  }
+
   async createSession(userId: string): Promise<UserSession> {
     const result = await db.insert(userSessions).values({ userId }).returning();
     return result[0];

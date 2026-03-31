@@ -289,11 +289,28 @@ export async function registerRoutes(
 
   app.get("/api/users/me/export", authMiddleware, async (req, res) => {
     try {
-      const user = await storage.getUser(req.userId!);
-      if (!user) return res.status(404).json({ error: "User not found" });
+      const userId = req.userId!;
+      const [
+        user,
+        memberships,
+        createdBubbles,
+        attendedEvents,
+        createdEvents,
+        notifications,
+        deviceTokens,
+        sessions,
+      ] = await Promise.all([
+        storage.getUser(userId),
+        storage.getUserMemberships(userId),
+        storage.getUserCreatedBubbles(userId),
+        storage.getUserEvents(userId),
+        storage.getUserCreatedEvents(userId),
+        storage.getNotifications(userId, 1000),
+        storage.getDevicePushTokens(userId),
+        storage.getUserSessions(userId),
+      ]);
 
-      const memberships = await storage.getUserMemberships(req.userId!);
-      const events = await storage.getUserEvents(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
 
       const exportData = {
         exportedAt: new Date().toISOString(),
@@ -301,27 +318,58 @@ export async function registerRoutes(
           id: user.id,
           name: user.name,
           email: user.email,
+          campusEmail: user.campusEmail,
+          campusVerified: user.campusVerified,
           interests: user.interests,
           aboutMe: user.aboutMe,
-          dateOfBirth: user.dateOfBirth,
-          createdAt: user.createdAt,
+          profilePhoto: user.profilePhoto,
+          accountCreatedAt: user.createdAt,
         },
-        bubbles: memberships.map((m) => ({
-          id: m.bubble.id,
-          title: m.bubble.title,
+        memberships: memberships.map((m) => ({
+          bubbleId: m.bubble.id,
+          bubbleTitle: m.bubble.title,
           category: m.bubble.category,
           role: m.role,
           status: m.membershipStatus,
           joinedAt: m.joinedAt,
         })),
-        events: events.map((e) => ({
+        bubblesCreated: createdBubbles.map((b) => ({
+          id: b.id,
+          title: b.title,
+          category: b.category,
+          privacy: b.privacy,
+          status: b.status,
+          createdAt: b.createdAt,
+        })),
+        eventsAttended: attendedEvents.map((e) => ({
           id: e.id,
           title: e.title,
           date: e.date,
-          locationName: e.locationName,
-          locationAddress: e.locationAddress,
-          bubbleId: e.bubbleId,
-          bubbleName: e.bubble?.title,
+          bubbleTitle: e.bubble?.title,
+        })),
+        eventsCreated: createdEvents.map((e) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          bubbleTitle: e.bubble?.title,
+          createdAt: e.createdAt,
+        })),
+        notifications: notifications.map((n) => ({
+          type: n.type,
+          title: n.title,
+          body: n.body,
+          read: n.read,
+          createdAt: n.createdAt,
+        })),
+        deviceTokens: deviceTokens.map((t) => ({
+          platform: t.platform,
+          registeredAt: t.createdAt,
+          lastSeenAt: t.updatedAt,
+        })),
+        sessions: sessions.map((s) => ({
+          startedAt: s.startedAt,
+          endedAt: s.endedAt,
+          durationSeconds: s.durationSeconds,
         })),
       };
 
