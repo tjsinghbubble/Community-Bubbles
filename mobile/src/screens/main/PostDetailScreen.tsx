@@ -126,12 +126,14 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const renderReply = ({ item }: { item: BulletinReply }) => {
     const isOwn = user?.id === item.authorId;
     return (
-      <View style={[styles.replyCard, isOwn && styles.ownReplyCard]}>
-        <View style={styles.replyHeader}>
-          <Text style={styles.replyAuthor}>{isOwn ? 'You' : item.author.name}</Text>
-          <Text style={styles.replyTime}>{formatTimeAgo(item.createdAt)}</Text>
+      <View style={styles.replyRow}>
+        <View style={[styles.replyCard, isOwn && styles.ownReplyCard]}>
+          <View style={styles.replyHeader}>
+            <Text style={styles.replyAuthor}>{isOwn ? 'You' : item.author.name}</Text>
+            <Text style={styles.replyTime}>{formatTimeAgo(item.createdAt)}</Text>
+          </View>
+          <Text style={styles.replyBody}>{item.body}</Text>
         </View>
-        <Text style={styles.replyBody}>{item.body}</Text>
       </View>
     );
   };
@@ -168,6 +170,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
           data={replies}
           renderItem={renderReply}
           keyExtractor={(item) => item.id}
+          style={{ backgroundColor: '#FFFFFF' }}
           contentContainerStyle={styles.listContent}
           ListHeaderComponent={
             <View style={[
@@ -337,10 +340,13 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
   },
+  replyRow: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: Spacing.sm,
+  },
   replyCard: {
     borderRadius: Radius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
     width: '75%',
     alignSelf: 'flex-start',
   },
