@@ -122,7 +122,7 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
           <View style={styles.buttonsGrid}>
             <View style={styles.buttonRow}>
               <TouchableOpacity style={styles.pillButton} onPress={handleManageMembers} activeOpacity={0.75}>
-                <Text style={styles.pillButtonText} numberOfLines={1}>Manage Members</Text>
+                <Text style={[styles.pillButtonText, { fontSize: 11 }]} numberOfLines={1}>Manage Members</Text>
                 <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.pillButton} onPress={handleManageWaitlist} activeOpacity={0.75}>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   pillButtonTextAuto: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.text.primary,
     fontWeight: Typography.weights.regular as any,
   },
