@@ -68,7 +68,7 @@ export type ExploreStackParamList = {
   CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number; editPostId?: string; editTitle?: string; editBody?: string };
   JoinBubble: { bubble: BubbleData };
   BubbleWaitlist: { bubbleId: string; bubbleTitle: string };
-  AdminDashboard: { bubbleId: string; bubbleTitle: string };
+  AdminDashboard: { bubbleId: string; bubbleTitle: string; bubble: BubbleData };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();

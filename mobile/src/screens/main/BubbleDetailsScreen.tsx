@@ -939,7 +939,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     return (
       <TouchableOpacity
         style={styles.adminDashboardCard}
-        onPress={() => navigation.navigate('AdminDashboard', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+        onPress={() => navigation.navigate('AdminDashboard', { bubbleId: bubble.id, bubbleTitle: bubble.title, bubble })}
         activeOpacity={0.85}
       >
         <Text style={styles.adminDashboardText}>Admin Dashboard</Text>
