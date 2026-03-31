@@ -146,7 +146,7 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.pillButton} onPress={handleNeedsAttention} activeOpacity={0.75}>
+              <TouchableOpacity style={[styles.pillButton, { flex: 3 }]} onPress={handleNeedsAttention} activeOpacity={0.75}>
                 <View style={styles.pillButtonLeft}>
                   <Ionicons name="alarm-outline" size={16} color={Colors.status.warning} />
                   <Text style={styles.pillButtonText} numberOfLines={1}>Needs Attention</Text>
@@ -158,7 +158,7 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={Colors.brand.primary} />
               </TouchableOpacity>
-              <View style={styles.pillButtonEmpty} />
+              <View style={{ flex: 7 }} />
             </View>
           </View>
         </ScrollView>
