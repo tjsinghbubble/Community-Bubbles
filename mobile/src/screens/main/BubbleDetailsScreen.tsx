@@ -934,10 +934,25 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     );
   }
 
+  const renderAdminDashboardEntry = () => {
+    if (!canManage) return null;
+    return (
+      <TouchableOpacity
+        style={styles.adminDashboardCard}
+        onPress={() => navigation.navigate('AdminDashboard', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.adminDashboardText}>Admin Dashboard</Text>
+        <Ionicons name="chevron-forward" size={22} color={Colors.brand.primary} />
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       {renderHeader()}
+      {renderAdminDashboardEntry()}
       {renderTabs()}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {activeTab === 'Details' ? renderDetailsTab() : renderEventsTab()}
@@ -1162,6 +1177,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  adminDashboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    height: 65,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    shadowColor: 'rgba(0, 0, 0, 0.25)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  adminDashboardText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.medium as any,
     color: Colors.text.primary,
   },
   tabBar: {
