@@ -23,7 +23,6 @@ type Props = {
 type Member = {
   userId: string;
   role: string;
-  status: string;
   name?: string;
 };
 
@@ -57,11 +56,9 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
     }, [fetchStats])
   );
 
-  const approvedMembers = members.filter((m) => m.status === 'approved');
-  const adminCount = approvedMembers.filter((m) => m.role === 'admin').length;
-  const memberCount = approvedMembers.length;
-  const pendingCount = members.filter((m) => m.status === 'pending').length;
-  const needsAttentionCount = pendingCount + waitlistCount;
+  const adminCount = members.filter((m) => m.role === 'admin').length;
+  const memberCount = members.length;
+  const needsAttentionCount = waitlistCount;
 
   const handleManageMembers = () => {
     navigation.navigate('BubbleMembers', { bubbleId, bubbleTitle });
