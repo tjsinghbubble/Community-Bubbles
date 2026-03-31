@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   pillButtonText: {
-    fontSize: Typography.sizes.base,
+    fontSize: 12,
     color: Colors.text.primary,
     fontWeight: Typography.weights.regular as any,
   },
