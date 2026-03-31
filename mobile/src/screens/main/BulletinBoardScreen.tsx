@@ -547,7 +547,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             </View>
           </View>
           </KeyboardAvoidingView>
-          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: insets.bottom, backgroundColor: '#FAFAFA' }} />
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: insets.bottom + 60, backgroundColor: '#FAFAFA' }} />
         </View>
       </Modal>
     );
