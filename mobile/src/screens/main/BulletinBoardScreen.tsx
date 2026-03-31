@@ -1038,7 +1038,6 @@ const overlayStyles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 20,
-    overflow: 'hidden',
     maxHeight: '90%',
   },
   sheetTitle: {
