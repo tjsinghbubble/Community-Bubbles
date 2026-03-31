@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(storedToken);
         setUser(parsedUser);
         apiService.setToken(storedToken);
+        apiService.setOnTokenRevoked(() => clearLocalAuth());
         
         try {
           await cometChatService.loginUser(parsedUser.id, parsedUser.name);
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
+    apiService.setOnTokenRevoked(() => clearLocalAuth());
     
     try {
       await cometChatService.loginUser(response.user.id, response.user.name);
@@ -132,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
+    apiService.setOnTokenRevoked(() => clearLocalAuth());
     
     try {
       await cometChatService.loginUser(response.user.id, response.user.name);
@@ -141,6 +144,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Start session on signup
     await startSession();
+  };
+
+  const clearLocalAuth = async () => {
+    apiService.setOnTokenRevoked(null);
+    await AsyncStorage.removeItem('authToken');
+    await AsyncStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+    apiService.setToken(null);
+    try {
+      await cometChatService.logoutUser();
+    } catch (e) {
+      console.log('CometChat logout error:', e);
+    }
   };
 
   const logout = async () => {
@@ -154,16 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Server logout error:', e);
     }
 
-    try {
-      await cometChatService.logoutUser();
-    } catch (e) {
-      console.log('CometChat logout error:', e);
-    }
-    await AsyncStorage.removeItem('authToken');
-    await AsyncStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    apiService.setToken(null);
+    await clearLocalAuth();
   };
 
   const refreshUser = async () => {

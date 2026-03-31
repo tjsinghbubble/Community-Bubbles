@@ -15,6 +15,7 @@ type AuthResponse = {
 
 class ApiService {
   private token: string | null = null;
+  private onTokenRevokedCallback: (() => void) | null = null;
 
   setToken(token: string | null) {
     this.token = token;
@@ -22,6 +23,10 @@ class ApiService {
 
   getToken(): string | null {
     return this.token;
+  }
+
+  setOnTokenRevoked(callback: (() => void) | null) {
+    this.onTokenRevokedCallback = callback;
   }
 
   private async request<T>(
@@ -60,6 +65,9 @@ class ApiService {
         error = JSON.parse(rawText);
       } catch {
         error = { error: response.statusText };
+      }
+      if (response.status === 401 && error.error === 'Token revoked') {
+        this.onTokenRevokedCallback?.();
       }
       throw new Error(error.error || response.statusText);
     }
