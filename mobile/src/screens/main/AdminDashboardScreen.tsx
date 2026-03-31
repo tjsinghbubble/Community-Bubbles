@@ -145,21 +145,16 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={[styles.pillButton, { flex: 3 }]} onPress={handleNeedsAttention} activeOpacity={0.75}>
-                <View style={styles.pillButtonLeft}>
-                  <Ionicons name="alarm-outline" size={16} color={Colors.status.warning} />
-                  <Text style={styles.pillButtonText} numberOfLines={1}>Needs Attention</Text>
-                  {needsAttentionCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{needsAttentionCount}</Text>
-                    </View>
-                  )}
+            <TouchableOpacity style={styles.pillButtonAuto} onPress={handleNeedsAttention} activeOpacity={0.75}>
+              <Ionicons name="alarm-outline" size={16} color={Colors.status.warning} />
+              <Text style={styles.pillButtonTextAuto} numberOfLines={1}>Needs Attention</Text>
+              {needsAttentionCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{needsAttentionCount}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.brand.primary} />
-              </TouchableOpacity>
-              <View style={{ flex: 7 }} />
-            </View>
+              )}
+              <Ionicons name="chevron-forward" size={16} color={Colors.brand.primary} />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       )}
@@ -270,6 +265,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.border.default,
     height: 54,
     paddingHorizontal: Spacing.lg,
+  },
+  pillButtonAuto: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: Spacing.xs,
+    backgroundColor: Colors.background.primary,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    height: 54,
+    paddingHorizontal: 3,
+  },
+  pillButtonTextAuto: {
+    fontSize: 12,
+    color: Colors.text.primary,
+    fontWeight: Typography.weights.regular as any,
   },
   pillButtonLeft: {
     flex: 1,
