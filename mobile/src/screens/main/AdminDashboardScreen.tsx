@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.default,
     height: 54,
-    paddingHorizontal: 3,
+    paddingHorizontal: 6,
   },
   pillButtonTextAuto: {
     fontSize: 12,
