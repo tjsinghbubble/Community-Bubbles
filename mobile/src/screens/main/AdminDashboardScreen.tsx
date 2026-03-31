@@ -145,18 +145,21 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.pillButtonFull} onPress={handleNeedsAttention} activeOpacity={0.75}>
-              <View style={styles.pillButtonLeft}>
-                <Ionicons name="alarm-outline" size={18} color={Colors.status.warning} />
-                <Text style={styles.pillButtonText}>Needs Attention</Text>
-                {needsAttentionCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{needsAttentionCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={styles.pillButton} onPress={handleNeedsAttention} activeOpacity={0.75}>
+                <View style={styles.pillButtonLeft}>
+                  <Ionicons name="alarm-outline" size={16} color={Colors.status.warning} />
+                  <Text style={styles.pillButtonText} numberOfLines={1}>Needs Attention</Text>
+                  {needsAttentionCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{needsAttentionCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.brand.primary} />
+              </TouchableOpacity>
+              <View style={styles.pillButtonEmpty} />
+            </View>
           </View>
         </ScrollView>
       )}
@@ -276,6 +279,7 @@ const styles = StyleSheet.create({
   },
   pillButtonText: {
     fontSize: 12,
+    flexShrink: 1,
     color: Colors.text.primary,
     fontWeight: Typography.weights.regular as any,
   },
