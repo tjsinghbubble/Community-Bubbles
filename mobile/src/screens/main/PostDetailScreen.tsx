@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   replyCard: {
+    backgroundColor: '#F5F6F8',
     borderRadius: Radius.md,
     padding: Spacing.md,
     width: '75%',
