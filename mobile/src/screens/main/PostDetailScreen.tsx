@@ -173,7 +173,6 @@ export default function PostDetailScreen({ navigation, route }: Props) {
             <View style={[
               styles.postContainer,
               { borderLeftColor: post.postType.color, borderLeftWidth: 4 },
-              isOwnPost && styles.ownPostContainer,
             ]}>
               <View style={styles.postTypeRow}>
                 <View style={[styles.postTypeBadge, { backgroundColor: post.postType.color + '20' }]}>
@@ -276,9 +275,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border.light,
   },
-  ownPostContainer: {
-    marginLeft: '25%',
-  },
+  ownPostContainer: {},
   postTypeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -345,9 +342,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    width: '75%',
+    alignSelf: 'flex-start',
   },
   ownReplyCard: {
-    marginLeft: '25%',
+    alignSelf: 'flex-end',
   },
   replyHeader: {
     flexDirection: 'row',
