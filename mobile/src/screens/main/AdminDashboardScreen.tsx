@@ -77,7 +77,7 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
   };
 
   const handleNeedsAttention = () => {
-    navigation.navigate('BubbleMembers', { bubbleId, bubbleTitle });
+    (navigation as any).navigate('Profile', { screen: 'PendingReviews' });
   };
 
   return (
@@ -102,18 +102,18 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.statsRow}>
-            <View style={styles.statCard}>
+            <TouchableOpacity style={styles.statCard} onPress={handleManageMembers} activeOpacity={0.75}>
               <Text style={styles.statNumber}>{memberCount}</Text>
               <Text style={styles.statLabel}>Members</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCard} onPress={handleManageMembers} activeOpacity={0.75}>
               <Text style={styles.statNumber}>{adminCount}</Text>
               <Text style={styles.statLabel}>Admins</Text>
-            </View>
-            <View style={styles.statCard}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statCard} onPress={handleManageWaitlist} activeOpacity={0.75}>
               <Text style={styles.statNumber}>{waitlistCount}</Text>
               <Text style={styles.statLabel}>Waitlisted</Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionTitle}>Admin Controls</Text>
@@ -145,21 +145,18 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.buttonRow}>
-              <TouchableOpacity style={styles.pillButton} onPress={handleNeedsAttention} activeOpacity={0.75}>
-                <View style={styles.pillButtonLeft}>
-                  <Ionicons name="alarm-outline" size={18} color={Colors.status.warning} />
-                  <Text style={styles.pillButtonText}>Needs Attention</Text>
-                  {needsAttentionCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{needsAttentionCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
-              </TouchableOpacity>
-              <View style={styles.pillButtonEmpty} />
-            </View>
+            <TouchableOpacity style={styles.pillButtonFull} onPress={handleNeedsAttention} activeOpacity={0.75}>
+              <View style={styles.pillButtonLeft}>
+                <Ionicons name="alarm-outline" size={18} color={Colors.status.warning} />
+                <Text style={styles.pillButtonText}>Needs Attention</Text>
+                {needsAttentionCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{needsAttentionCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.brand.primary} />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       )}
@@ -260,8 +257,16 @@ const styles = StyleSheet.create({
     height: 54,
     paddingHorizontal: Spacing.lg,
   },
-  pillButtonEmpty: {
-    flex: 1,
+  pillButtonFull: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.background.primary,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    height: 54,
+    paddingHorizontal: Spacing.lg,
   },
   pillButtonLeft: {
     flexDirection: 'row',
