@@ -224,12 +224,12 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   statNumber: {
-    fontSize: Typography.sizes.xxl,
+    fontSize: 16,
     fontWeight: Typography.weights.bold as any,
     color: Colors.text.primary,
   },
   statLabel: {
-    fontSize: Typography.sizes.base,
+    fontSize: 14,
     color: Colors.text.secondary,
     fontWeight: Typography.weights.regular as any,
   },
