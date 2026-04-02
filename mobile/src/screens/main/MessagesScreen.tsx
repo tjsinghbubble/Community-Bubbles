@@ -289,10 +289,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
             style={[
               BulletinPillStyles.chip,
               styles.filterChip,
+              isActive && BulletinPillStyles.chipActive,
               isActive && styles.filterChipActive,
             ]}
           >
-            <Text style={[BulletinPillStyles.chipText, styles.filterChipText, isActive && styles.filterChipTextActive]}>
+            <Text style={[BulletinPillStyles.chipText, styles.filterChipText, isActive && BulletinPillStyles.chipTextActive]}>
               {label}
             </Text>
           </TouchableOpacity>
@@ -448,9 +449,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.secondary,
-  },
-  filterChipTextActive: {
-    color: '#FFFFFF',
   },
   headerTitle: {
     fontSize: Typography.sizes.md,
