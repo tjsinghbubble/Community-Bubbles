@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   filterOverlay: {
     flex: 1,
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   },
   filterSeparator: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: Colors.border.light,
     marginHorizontal: Spacing.lg,
   },
   headerTitle: {
