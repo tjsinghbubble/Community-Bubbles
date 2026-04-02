@@ -16,6 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
+import cometChatService from '../../services/cometchat.service';
+import { useAuth } from '../../context/AuthContext';
 import ImageCarousel from '../../components/ImageCarousel';
 import BubbleButton from '../../components/BubbleButton';
 import WelcomeBubbleModal from '../../components/WelcomeBubbleModal';
@@ -43,11 +45,13 @@ type Event = {
 
 export default function JoinBubbleScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
+  const { user } = useAuth();
   const [bubbleDetails, setBubbleDetails] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [memberCount, setMemberCount] = useState(bubble.members || 0);
   const [aboutExpanded, setAboutExpanded] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [isContacting, setIsContacting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showWaitlistConfirm, setShowWaitlistConfirm] = useState(false);
@@ -140,8 +144,42 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleContact = () => {
-    Alert.alert('Coming Soon', 'Contact functionality will be available soon.');
+  const handleContact = async () => {
+    if (!user) return;
+    setIsContacting(true);
+    try {
+      const members = await apiService.getBubbleMembers(bubble.id) as any[];
+      const admins = members.filter((m: any) => m.role === 'admin');
+      const adminUids = admins.map((a: any) => String(a.userId));
+
+      const isMember = myMembershipStatus === 'approved';
+      const memberLabel = isMember ? 'member' : 'non-member';
+      const userName = user.name || user.email || 'User';
+      const bubbleTitle = bubbleDetails?.title || bubble.title || 'Bubble';
+
+      const guid = `contact_${bubble.id}_${user.id}`;
+      const groupName = `${bubbleTitle}: ${userName} (${memberLabel})`;
+
+      const otherUids = adminUids.filter(uid => uid !== String(user.id));
+      await cometChatService.createContactGroup(guid, groupName, otherUids);
+
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.navigate('Messages' as any, {
+          screen: 'Chat',
+          params: { groupId: guid, groupName },
+        });
+      } else {
+        (navigation as any).navigate('Messages', {
+          screen: 'Chat',
+          params: { groupId: guid, groupName },
+        });
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'Could not open contact chat. Please try again.');
+    } finally {
+      setIsContacting(false);
+    }
   };
 
   const formatEventDate = (dateStr: string) => {
@@ -344,6 +382,8 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           title="Contact"
           variant="outline"
           onPress={handleContact}
+          loading={isContacting}
+          disabled={isContacting}
           testID="button-contact"
         />
       </View>

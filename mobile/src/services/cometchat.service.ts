@@ -136,6 +136,46 @@ class CometChatService {
     }
   }
 
+  async createContactGroup(
+    guid: string,
+    name: string,
+    memberUids: string[],
+  ) {
+    let group: any;
+    try {
+      const newGroup = new CometChat.Group(guid, name, CometChat.GROUP_TYPE.PRIVATE);
+      group = await CometChat.createGroup(newGroup);
+    } catch (error: any) {
+      if (error?.code === 'ERR_GUID_ALREADY_EXISTS') {
+        group = await CometChat.getGroup(guid);
+      } else {
+        throw error;
+      }
+    }
+
+    try {
+      await CometChat.joinGroup(guid, CometChat.GROUP_TYPE.PRIVATE as CometChat.GroupType);
+    } catch (e: any) {
+      if (e?.code !== 'ERR_ALREADY_JOINED' && e?.code !== 'ERR_GROUP_JOIN_NOT_ALLOWED') {
+        console.log('joinGroup in createContactGroup:', e?.code);
+      }
+    }
+
+    if (memberUids.length > 0) {
+      const groupMembers = memberUids.map(uid => {
+        const m = new CometChat.GroupMember(uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT);
+        return m;
+      });
+      try {
+        await CometChat.addMembersToGroup(guid, groupMembers, []);
+      } catch (e: any) {
+        console.log('addMembersToGroup in createContactGroup (may be partial):', e?.code || e?.message);
+      }
+    }
+
+    return group;
+  }
+
   async leaveGroup(guid: string) {
     try {
       await CometChat.leaveGroup(guid);

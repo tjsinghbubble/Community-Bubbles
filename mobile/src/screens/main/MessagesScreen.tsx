@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
-import { Colors, Spacing, Radius, Typography, NotificationBadge } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, NotificationBadge, BulletinPillStyles } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 type Conversation = {
@@ -40,6 +40,8 @@ type Conversation = {
   unreadMessageCount: number;
 };
 
+type FilterTab = 'general' | 'member' | 'non-member';
+
 type Props = {
   navigation: NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
   route: RouteProp<MessagesStackParamList, 'MessagesList'>;
@@ -52,6 +54,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
   const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('general');
   const hasAutoNavigated = React.useRef(false);
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
@@ -75,6 +78,37 @@ export default function MessagesScreen({ navigation, route }: Props) {
           try {
             const members = await apiService.getBubbleMembers(bubbleId) as any[];
             const targetMember = members.find((m: any) => String(m.userId) === memberId);
+            if (targetMember?.user?.profilePhoto) {
+              memberPhoto = targetMember.user.profilePhoto;
+            }
+          } catch {}
+          try {
+            const bubble = await apiService.getBubble(bubbleId) as any;
+            if (bubble?.coverImage) {
+              bubbleCover = bubble.coverImage;
+            } else if (bubble?.images?.length > 0) {
+              bubbleCover = bubble.images[0];
+            }
+          } catch {}
+          dmData[guid] = { memberPhoto, bubbleCover };
+          imageMap[guid] = memberPhoto;
+        } else {
+          imageMap[guid] = null;
+        }
+        return;
+      }
+
+      const isContactGroup = guid.startsWith('contact_');
+      if (isContactGroup) {
+        const contactMatch = guid.match(/^contact_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (contactMatch) {
+          const bubbleId = contactMatch[1];
+          const userId = contactMatch[2];
+          let memberPhoto: string | null = null;
+          let bubbleCover: string | null = null;
+          try {
+            const members = await apiService.getBubbleMembers(bubbleId) as any[];
+            const targetMember = members.find((m: any) => String(m.userId) === userId);
             if (targetMember?.user?.profilePhoto) {
               memberPhoto = targetMember.user.profilePhoto;
             }
@@ -179,10 +213,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const renderAvatar = (conversation: Conversation) => {
     const guid = conversation.conversationWith.guid;
     const isAdminDm = guid.startsWith('adm_');
+    const isContactGroup = guid.startsWith('contact_');
     const imageUrl = bubbleImages[guid] || conversation.conversationWith.icon;
     const dmData = dmAvatarData[guid];
 
-    if (isAdminDm) {
+    if (isAdminDm || isContactGroup) {
       const memberPhoto = dmData?.memberPhoto || imageUrl;
       const bubbleCover = dmData?.bubbleCover;
       return (
@@ -241,11 +276,48 @@ export default function MessagesScreen({ navigation, route }: Props) {
     </TouchableOpacity>
   );
 
+  const filterChips = (
+    <View style={styles.filterChipsRow}>
+      {(['general', 'member', 'non-member'] as FilterTab[]).map((tab) => {
+        const isActive = activeFilter === tab;
+        const label = tab === 'general' ? 'General' : tab === 'member' ? 'Member' : 'Non-member';
+        return (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveFilter(tab)}
+            activeOpacity={0.8}
+            style={[
+              BulletinPillStyles.chip,
+              styles.filterChip,
+              isActive && styles.filterChipActive,
+            ]}
+          >
+            <Text style={[BulletinPillStyles.chipText, styles.filterChipText, isActive && styles.filterChipTextActive]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const filteredConversations = conversations.filter((conv) => {
+    const guid = conv.conversationWith.guid;
+    const name = conv.conversationWith.name;
+    const isContactGroup = guid.startsWith('contact_');
+    const isMemberChat = isContactGroup && name.includes('(member)') && !name.includes('(non-member)');
+    const isNonMemberChat = isContactGroup && name.includes('(non-member)');
+
+    if (activeFilter === 'member') return isMemberChat;
+    if (activeFilter === 'non-member') return isNonMemberChat;
+    return true;
+  });
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
+          {filterChips}
           <Text style={styles.headerTitle}>Messages</Text>
           {bellIcon}
         </View>
@@ -260,7 +332,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
+          {filterChips}
           <Text style={styles.headerTitle}>Messages</Text>
           {bellIcon}
         </View>
@@ -280,7 +352,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
+        {filterChips}
         <Text style={styles.headerTitle}>Messages</Text>
         {bellIcon}
       </View>
@@ -291,7 +363,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {conversations.map((conversation) => (
+        {filteredConversations.map((conversation) => (
           <AnimatedPressable
             key={conversation.conversationId}
             style={styles.conversationItem}
@@ -350,8 +422,35 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
-  headerSpacer: {
-    width: 40,
+  filterChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background.primary,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightSilver,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  filterChipText: {
+    fontSize: 11,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
   },
   headerTitle: {
     fontSize: Typography.sizes.md,
