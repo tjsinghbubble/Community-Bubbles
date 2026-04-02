@@ -110,6 +110,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   }, [groupId]);
 
   const isAdminDmChat = groupId.startsWith('adm_');
+  const isContactDmChat = groupId.startsWith('contact_');
 
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
@@ -143,6 +144,34 @@ export default function ChatScreen({ navigation, route }: Props) {
           }
           setParticipants(dmParticipants);
         } catch (dbErr) {
+          const ccMembers = await cometChatService.getGroupMembers(groupId);
+          setParticipants(ccMembers);
+        }
+      } else if (isContactDmChat) {
+        // contact_<bubbleId>_<userId> — extract the real bubble ID so we don't call
+        // /api/bubbles/<full-guid>/members which returns 404
+        const contactMatch = groupId.match(
+          /^contact_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_(.+)$/
+        );
+        const bubbleId = contactMatch ? contactMatch[1] : '';
+        try {
+          const allMembers = await apiService.getBubbleMembers(bubbleId) as any[];
+          const admins = allMembers.filter((m: any) => m.role === 'admin');
+          const contactParticipants: Array<{ uid: string; name: string; avatar?: string; scope: string }> = admins.map((admin: any) => ({
+            uid: String(admin.userId),
+            name: admin.user?.name || admin.user?.email || 'User',
+            avatar: admin.user?.profilePhoto || undefined,
+            scope: 'admin',
+          }));
+          // Non-member enquirer: pull from CometChat group member list and add if not already present
+          const ccMembers = await cometChatService.getGroupMembers(groupId);
+          for (const ccMember of ccMembers) {
+            if (!contactParticipants.find(p => p.uid === ccMember.uid)) {
+              contactParticipants.push({ ...ccMember, scope: 'participant' });
+            }
+          }
+          setParticipants(contactParticipants);
+        } catch {
           const ccMembers = await cometChatService.getGroupMembers(groupId);
           setParticipants(ccMembers);
         }
