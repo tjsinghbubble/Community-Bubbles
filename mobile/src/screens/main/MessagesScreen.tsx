@@ -11,6 +11,7 @@ import {
   Platform,
   StatusBar,
   Image,
+  Modal,
 } from 'react-native';
 import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
-import { Colors, Spacing, Radius, Typography, NotificationBadge, BulletinPillStyles } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 type Conversation = {
@@ -55,6 +56,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
   const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
   const [activeFilter, setActiveFilter] = useState<FilterTab>('general');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const hasAutoNavigated = React.useRef(false);
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
@@ -276,30 +278,63 @@ export default function MessagesScreen({ navigation, route }: Props) {
     </TouchableOpacity>
   );
 
-  const filterChips = (
-    <View style={styles.filterChipsRow}>
-      {(['general', 'member', 'non-member'] as FilterTab[]).map((tab) => {
-        const isActive = activeFilter === tab;
-        const label = tab === 'general' ? 'General' : tab === 'member' ? 'Member' : 'Non-member';
-        return (
-          <TouchableOpacity
-            key={tab}
-            onPress={() => setActiveFilter(tab)}
-            activeOpacity={0.8}
-            style={[
-              BulletinPillStyles.chip,
-              styles.filterChip,
-              isActive && BulletinPillStyles.chipActive,
-              isActive && styles.filterChipActive,
-            ]}
-          >
-            <Text style={[BulletinPillStyles.chipText, styles.filterChipText, isActive && BulletinPillStyles.chipTextActive]}>
-              {label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
+  const FILTER_OPTIONS: { key: FilterTab; label: string }[] = [
+    { key: 'general', label: 'General' },
+    { key: 'member', label: 'Member' },
+    { key: 'non-member', label: 'Non-member' },
+  ];
+
+  const hamburgerButton = (
+    <TouchableOpacity
+      style={styles.hamburgerButton}
+      onPress={() => setShowFilterMenu(true)}
+      activeOpacity={0.7}
+    >
+      <Ionicons name="menu-outline" size={24} color={Colors.text.primary} />
+    </TouchableOpacity>
+  );
+
+  const renderFilterMenu = () => (
+    <Modal
+      visible={showFilterMenu}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowFilterMenu(false)}
+    >
+      <TouchableOpacity
+        style={styles.filterOverlay}
+        activeOpacity={1}
+        onPress={() => setShowFilterMenu(false)}
+      >
+        <View style={styles.filterDropdown}>
+          {FILTER_OPTIONS.map((option, index) => (
+            <React.Fragment key={option.key}>
+              {index > 0 && <View style={styles.filterSeparator} />}
+              <TouchableOpacity
+                style={styles.filterItem}
+                onPress={() => {
+                  setActiveFilter(option.key);
+                  setShowFilterMenu(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterItemText,
+                    activeFilter === option.key && styles.filterItemTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {activeFilter === option.key && (
+                  <Ionicons name="checkmark" size={18} color={Colors.brand.bubbleBlue} />
+                )}
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+        </View>
+      </TouchableOpacity>
+    </Modal>
   );
 
   const filteredConversations = conversations.filter((conv) => {
@@ -318,10 +353,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          {filterChips}
+          {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
           {bellIcon}
         </View>
+        {renderFilterMenu()}
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
@@ -333,10 +369,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          {filterChips}
+          {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
           {bellIcon}
         </View>
+        {renderFilterMenu()}
         <View style={styles.empty}>
           <View style={styles.emptyIconCircle}>
             <Ionicons name="chatbubbles-outline" size={40} color={Colors.brand.primary} />
@@ -353,10 +390,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        {filterChips}
+        {hamburgerButton}
         <Text style={styles.headerTitle}>Messages</Text>
         {bellIcon}
       </View>
+      {renderFilterMenu()}
 
       <ScrollView
         contentContainerStyle={styles.list}
@@ -423,32 +461,45 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
-  filterChipsRow: {
+  hamburgerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  filterOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  filterDropdown: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 90 : 50,
+    left: Spacing.lg,
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.sm,
+    minWidth: 160,
+    ...CardShadow,
+  },
+  filterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
-  filterChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-    borderWidth: 1,
-    borderColor: Colors.neutral.lightSilver,
+  filterItemText: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
   },
-  filterChipActive: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderColor: Colors.brand.bubbleBlue,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  filterChipText: {
-    fontSize: 11,
+  filterItemTextActive: {
+    color: Colors.brand.bubbleBlue,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.text.secondary,
+  },
+  filterSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: Spacing.lg,
   },
   headerTitle: {
     fontSize: Typography.sizes.md,
