@@ -27,12 +27,7 @@ type NavId = (typeof NAV_ITEMS)[number]["id"];
 function BubbleLogo() {
   return (
     <span
-      className="cursor-pointer select-none font-display text-[22px] font-bold tracking-tight"
-      style={{
-        background: "linear-gradient(135deg, #35A8F7, #6C63FF)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      }}
+      className="cursor-pointer select-none font-display text-[22px] font-bold tracking-tight text-[#35A8F7]"
     >
       Bubble
     </span>
@@ -65,14 +60,14 @@ function CreateMenu({ onClose }: { onClose: () => void }) {
       description: "Start a new community",
       icon: Users,
       href: "/create",
-      gradient: "linear-gradient(135deg, #35A8F7, #6C63FF)",
+      color: "#35A8F7",
     },
     {
       label: "Create Event",
       description: "Plan something for your bubble",
       icon: CalendarDays,
       href: "/my-bubbles",
-      gradient: "linear-gradient(135deg, #35A8F7, #6C63FF)",
+      color: "#35A8F7",
     },
   ];
 
@@ -93,7 +88,7 @@ function CreateMenu({ onClose }: { onClose: () => void }) {
             >
               <div
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white"
-                style={{ background: opt.gradient }}
+                style={{ background: opt.color }}
               >
                 <Icon className="h-4 w-4" />
               </div>
