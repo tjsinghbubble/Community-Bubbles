@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Heart, MapPin, Plus, Search, Users } from "lucide-react";
+import { CalendarDays, ChevronDown, Heart, MapPin, Plus, Search, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/AppShell";
@@ -68,43 +68,95 @@ function CategoryChips({
   );
 }
 
-/* ─── Search pill (Airbnb style) ─────────────────── */
+/* ─── Search pill + Create (Airbnb style) ────────── */
 function SearchPill() {
+  const [, navigate] = useLocation();
+  const [showCreate, setShowCreate] = useState(false);
+  const createRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (createRef.current && !createRef.current.contains(e.target as Node)) {
+        setShowCreate(false);
+      }
+    }
+    if (showCreate) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [showCreate]);
+
   return (
-    <div className="flex items-center rounded-full border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_18px_rgba(0,0,0,0.14)] transition-shadow">
-      <div className="flex flex-1 items-center divide-x divide-black/8">
-        <div className="px-5 py-3">
-          <div className="text-[11px] font-bold text-[#35A8F7]">What</div>
-          <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
-            placeholder="Any interest"
-            data-testid="search-interest"
-          />
+    <div className="flex items-center gap-2">
+      {/* Search pill */}
+      <div className="flex flex-1 items-center rounded-full border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_18px_rgba(0,0,0,0.14)] transition-shadow">
+        <div className="flex flex-1 items-center divide-x divide-black/8">
+          <div className="px-4 py-2.5">
+            <div className="text-[10px] font-bold text-[#35A8F7]">What</div>
+            <input
+              className="mt-0.5 w-full bg-transparent text-[12px] text-black/60 placeholder:text-black/30 focus:outline-none"
+              placeholder="Any interest"
+              data-testid="search-interest"
+            />
+          </div>
+          <div className="px-4 py-2.5">
+            <div className="text-[10px] font-bold text-[#35A8F7]">Where</div>
+            <input
+              className="mt-0.5 w-full bg-transparent text-[12px] text-black/60 placeholder:text-black/30 focus:outline-none"
+              placeholder="San Francisco"
+              data-testid="search-location"
+            />
+          </div>
+          <div className="hidden px-4 py-2.5 lg:block">
+            <div className="text-[10px] font-bold text-[#35A8F7]">Who</div>
+            <input
+              className="mt-0.5 w-full bg-transparent text-[12px] text-black/60 placeholder:text-black/30 focus:outline-none"
+              placeholder="Add members"
+              data-testid="search-members"
+            />
+          </div>
         </div>
-        <div className="px-5 py-3">
-          <div className="text-[11px] font-bold text-[#35A8F7]">Where</div>
-          <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
-            placeholder="San Francisco"
-            data-testid="search-location"
-          />
-        </div>
-        <div className="hidden px-5 py-3 sm:block">
-          <div className="text-[11px] font-bold text-[#35A8F7]">Who</div>
-          <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
-            placeholder="Add members"
-            data-testid="search-members"
-          />
-        </div>
+        {/* Magnifying glass — Bubble Blue */}
+        <button
+          className="m-1.5 grid h-9 w-9 place-items-center rounded-full text-white shadow-[0_2px_8px_rgba(53,168,247,0.35)] transition-all hover:scale-105 hover:shadow-[0_4px_14px_rgba(53,168,247,0.45)]"
+          style={{ background: "#35A8F7" }}
+          data-testid="button-search"
+        >
+          <Search className="h-4 w-4" />
+        </button>
       </div>
-      <button
-        className="m-1.5 grid h-11 w-11 place-items-center rounded-full text-white shadow-[0_2px_8px_rgba(53,168,247,0.4)] transition-all hover:scale-105 hover:shadow-[0_4px_16px_rgba(53,168,247,0.5)]"
-        style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
-        data-testid="button-search"
-      >
-        <Search className="h-[18px] w-[18px]" />
-      </button>
+
+      {/* + Create dropdown */}
+      <div ref={createRef} className="relative shrink-0">
+        <button
+          onClick={() => setShowCreate((v) => !v)}
+          className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2.5 text-[12px] font-semibold text-black/70 shadow-sm transition hover:bg-black/4 hover:shadow-md"
+          data-testid="button-create-menu"
+        >
+          + Create
+          <ChevronDown className="h-3.5 w-3.5 opacity-50" strokeWidth={2} />
+        </button>
+        {showCreate && (
+          <div className="absolute right-0 top-full mt-2 w-48 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.14)] z-50">
+            <div className="p-1.5">
+              <button
+                onClick={() => { setShowCreate(false); navigate("/create"); }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
+                data-testid="button-create-bubble"
+              >
+                <Users className="h-4 w-4 text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                <span className="text-[13px] font-medium text-black">Create Bubble</span>
+              </button>
+              <button
+                onClick={() => { setShowCreate(false); navigate("/create-event"); }}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
+                data-testid="button-create-event"
+              >
+                <CalendarDays className="h-4 w-4 text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                <span className="text-[13px] font-medium text-black">Create Event</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -288,29 +340,9 @@ export default function Explore() {
           <SearchPill />
         </div>
 
-        {/* ── Category chips + Create CTA ── */}
-        <div className="mb-8 flex items-center justify-between border-b border-black/6 pb-1">
-          <div className="flex-1 overflow-x-auto">
-            <CategoryChips active={activeCategory} onChange={setActiveCategory} />
-          </div>
-          <div className="hidden shrink-0 items-center gap-2 pl-4 md:flex">
-            <button
-              onClick={() => navigate("/create")}
-              className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
-              data-testid="button-create-bubble"
-            >
-              <Users className="h-3.5 w-3.5" />
-              Create Bubble
-            </button>
-            <button
-              onClick={() => navigate("/create-event")}
-              className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
-              data-testid="button-create-event"
-            >
-              <CalendarDays className="h-3.5 w-3.5" />
-              Create Event
-            </button>
-          </div>
+        {/* ── Category chips ── */}
+        <div className="mb-8 border-b border-black/6 pb-1">
+          <CategoryChips active={activeCategory} onChange={setActiveCategory} />
         </div>
 
         {isLoading ? (
