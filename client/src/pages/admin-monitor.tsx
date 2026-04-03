@@ -134,10 +134,11 @@ export default function AdminMonitor() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: me, isLoading: meLoading } = useQuery<AuthMe>({
+  const { data: me, isLoading: meLoading, isError: meError } = useQuery<AuthMe>({
     queryKey: ["/api/auth/me"],
     queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
     enabled: !!user,
+    retry: false,
   });
 
   const {
@@ -146,7 +147,6 @@ export default function AdminMonitor() {
     isFetching,
     isError: statsError,
     refetch,
-    dataUpdatedAt,
   } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     queryFn: () => apiRequest("GET", "/api/admin/stats").then((r) => r.json()),
@@ -160,20 +160,20 @@ export default function AdminMonitor() {
       navigate("/profile");
       return;
     }
-    if (me && !me.isSuperAdmin) {
+    if (meError || (me && !me.isSuperAdmin)) {
       navigate("/profile");
     }
-  }, [user, me, meLoading, navigate]);
+  }, [user, me, meLoading, meError, navigate]);
 
-  // Show nothing while resolving auth — prevents shell flash for non-admins
-  if (!user || meLoading || (me && !me.isSuperAdmin)) {
+  // Block render until auth is resolved; redirect on error or non-admin
+  if (!user || meLoading || meError || (me && !me.isSuperAdmin)) {
     return null;
   }
 
   const dbOk = stats?.db?.status === "connected";
   const uptime = stats?.server?.uptimeSeconds ?? 0;
   const s = stats?.stats;
-  const lastFetched = dataUpdatedAt ? formatTime(new Date(dataUpdatedAt).toISOString()) : null;
+  const lastFetched = stats?.fetchedAt ? formatTime(stats.fetchedAt) : null;
 
   return (
     <AppShell active="profile">
