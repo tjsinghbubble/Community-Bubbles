@@ -1,5 +1,6 @@
 const COMETCHAT_APP_ID = process.env.COMETCHAT_APP_ID || '';
-const COMETCHAT_API_KEY = process.env.COMETCHAT_API_KEY || '';
+// Some deployments use a single key for both REST API and client auth — fall back to AUTH_KEY
+const COMETCHAT_API_KEY = process.env.COMETCHAT_API_KEY || process.env.COMETCHAT_AUTH_KEY || '';
 const COMETCHAT_REGION = process.env.COMETCHAT_REGION || 'us';
 
 const BASE_URL = `https://${COMETCHAT_APP_ID}.api-${COMETCHAT_REGION}.cometchat.io/v3`;
