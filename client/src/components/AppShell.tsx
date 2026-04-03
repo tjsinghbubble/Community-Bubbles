@@ -122,8 +122,8 @@ function NavMenu({
   ];
 
   const settingsLinks = [
-    { label: "Account Settings", icon: Settings, href: "/profile" },
-    { label: "Get Help",         icon: HelpCircle, href: null },
+    { label: "Account Settings", icon: Settings,   href: "/profile" },
+    { label: "Get Help",         icon: HelpCircle, href: "/legal/terms" },
   ];
 
   return (
@@ -166,7 +166,7 @@ function NavMenu({
         {settingsLinks.map(({ label, icon: Icon, href }) => (
           <button
             key={label}
-            onClick={() => { if (href) go(href); }}
+            onClick={() => go(href)}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
             data-testid={`nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`}
           >
