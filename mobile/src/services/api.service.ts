@@ -108,6 +108,10 @@ class ApiService {
     return this.request("/api/auth/me");
   }
 
+  async getCometChatAuthToken(): Promise<{ authToken: string; uid: string }> {
+    return this.request("/api/cometchat/auth-token", { method: "POST" }) as Promise<{ authToken: string; uid: string }>;
+  }
+
   async updateProfile(updates: { aboutMe?: string; interests?: string[]; profilePhoto?: string; name?: string }) {
     return this.request("/api/users/me", {
       method: "PATCH",

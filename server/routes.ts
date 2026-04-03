@@ -14,7 +14,7 @@ import { seedRules } from "./seed-rules";
 import { seedCategoryPlaceholders } from "./seed-category-placeholders";
 import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
 const objectStorageService = new ObjectStorageService();
-import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble } from "./cometchat";
+import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble, generateAuthToken } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { moderateText } from "./moderation";
@@ -449,6 +449,22 @@ export async function registerRoutes(
         aboutMe: user.aboutMe,
       });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // CometChat: generate auth token for the authenticated user (creates CC user if needed)
+  app.post("/api/cometchat/auth-token", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const uid = String(user.id);
+      const name = user.name || user.email;
+      await ensureCometChatUser(uid, name);
+      const authToken = await generateAuthToken(uid);
+      res.json({ authToken, uid });
+    } catch (error: any) {
+      console.error("CometChat auth-token error:", error.message);
       res.status(500).json({ error: error.message });
     }
   });

@@ -1,5 +1,6 @@
 import { CometChat } from '@cometchat/chat-sdk-react-native';
 import { COMETCHAT_CONSTANTS } from '../constants/cometchat';
+import apiService from './api.service';
 
 class CometChatService {
   private initialized = false;
@@ -25,9 +26,10 @@ class CometChatService {
 
   async loginUser(uid: string, name: string) {
     try {
-      await this.createUserIfNotExists(uid, name);
-      
-      const user = await CometChat.login(uid, COMETCHAT_CONSTANTS.AUTH_KEY);
+      // Fetch an auth token from the backend — this also creates the CometChat user
+      // server-side using the API key, which is the v4-recommended secure approach.
+      const { authToken } = await apiService.getCometChatAuthToken();
+      const user = await CometChat.login(uid, authToken);
       console.log('Login successful:', user);
       return user;
     } catch (error) {
@@ -37,15 +39,15 @@ class CometChatService {
   }
 
   async createUserIfNotExists(uid: string, name: string) {
+    // User creation is now handled server-side via /api/cometchat/auth-token.
+    // This stub is retained for callers outside the login flow (e.g. EventParticipantsScreen).
     try {
       const user = new CometChat.User(uid);
       user.setName(name);
-      
       await CometChat.createUser(user, COMETCHAT_CONSTANTS.AUTH_KEY);
-      console.log('User created:', uid);
     } catch (error: any) {
       if (error?.code !== 'ERR_UID_ALREADY_EXISTS') {
-        throw error;
+        console.warn('CometChat createUser (client-side) failed:', error?.code);
       }
     }
   }

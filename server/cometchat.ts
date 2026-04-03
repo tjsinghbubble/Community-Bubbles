@@ -170,6 +170,13 @@ export async function syncAllAdminDmGroupsForBubble(
   }
 }
 
+export async function generateAuthToken(uid: string): Promise<string> {
+  const result = await apiCall('POST', `/users/${uid}/auth_tokens`);
+  const token = result?.data?.authToken;
+  if (!token) throw new Error(`CometChat: no authToken returned for uid ${uid}`);
+  return token;
+}
+
 export async function removeMemberFromGroup(groupGuid: string, userUid: string): Promise<boolean> {
   try {
     const result = await apiCall('DELETE', `/groups/${groupGuid}/members/${userUid}`);
