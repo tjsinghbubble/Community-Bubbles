@@ -10,6 +10,7 @@ import Home from "./pages/home";
 import AuthFlow from "./pages/auth-flow";
 import Explore from "./pages/explore";
 import CreateBubble from "./pages/create-bubble";
+import CreateEvent from "./pages/create-event";
 import BubbleDetails from "./pages/bubble-details";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/auth" component={AuthFlow} />
       <Route path="/explore" component={Explore} />
       <Route path="/create" component={CreateBubble} />
+      <Route path="/create-event" component={CreateEvent} />
       <Route path="/bubble/:id" component={BubbleDetails} />
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />

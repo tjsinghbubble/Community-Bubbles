@@ -66,7 +66,7 @@ function CreateMenu({ onClose }: { onClose: () => void }) {
       label: "Create Event",
       description: "Plan something for your bubble",
       icon: CalendarDays,
-      href: "/my-bubbles",
+      href: "/create-event",
       color: "#35A8F7",
     },
   ];

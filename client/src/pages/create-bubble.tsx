@@ -87,7 +87,7 @@ const blank: Draft = {
 };
 
 function getToken(): string | null {
-  return localStorage.getItem("bubble_token");
+  return localStorage.getItem("bubble_web_token") || localStorage.getItem("bubble_token");
 }
 
 async function apiFetch(url: string, opts: RequestInit = {}) {

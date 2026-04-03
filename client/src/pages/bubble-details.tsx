@@ -11,12 +11,22 @@ import {
   Camera,
   ChevronDown,
   Check,
+  Clock,
+  Crown,
   Flag,
   MessageSquare,
   MoreHorizontal,
+  Plus,
+  QrCode,
+  Send,
+  Share2,
   Star,
   Trash2,
   X,
+  CalendarDays,
+  Pin,
+  Heart,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +38,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 import avatar1 from "@/assets/images/avatar-1.jpg";
@@ -180,13 +197,14 @@ const membersSeed: Member[] = [
   { id: "p-8", name: "Hermione Granger", avatar: avatar1, role: "participant" },
 ];
 
-function Segmented({ value, onChange }: { value: "details" | "events"; onChange: (v: "details" | "events") => void }) {
+function Segmented({ value, onChange }: { value: "details" | "events" | "bulletin"; onChange: (v: "details" | "events" | "bulletin") => void }) {
   return (
     <div className="mt-2 flex justify-center" data-testid="segmented-tabs">
       <div className="inline-flex rounded-full bg-black/5 p-1">
         {([
           { id: "details", label: "Details" },
           { id: "events", label: "Events" },
+          { id: "bulletin", label: "Bulletin" },
         ] as const).map((t) => {
           const active = value === t.id;
           return (
@@ -194,7 +212,7 @@ function Segmented({ value, onChange }: { value: "details" | "events"; onChange:
               key={t.id}
               onClick={() => onChange(t.id)}
               className={cn(
-                "relative rounded-full px-5 py-2 text-[13px] font-semibold",
+                "relative rounded-full px-4 py-2 text-[13px] font-semibold",
                 active ? "text-foreground" : "text-muted-foreground",
               )}
               data-testid={`tab-${t.id}`}
@@ -203,7 +221,7 @@ function Segmented({ value, onChange }: { value: "details" | "events"; onChange:
               {active ? (
                 <span
                   className="absolute left-1/2 top-full mt-1 h-[2px] w-10 -translate-x-1/2 rounded-full"
-                  style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+                  style={{ background: "linear-gradient(90deg, #35A8F7, #6C63FF)" }}
                 />
               ) : null}
             </button>
@@ -442,6 +460,166 @@ function JoinBubbleSheet({
   );
 }
 
+function ReportModal({ open, onClose, title }: { open: boolean; onClose: () => void; title: string }) {
+  const [reason, setReason] = useState("");
+  const [sent, setSent] = useState(false);
+  const submit = () => {
+    if (!reason.trim()) return;
+    setSent(true);
+    setTimeout(() => { onClose(); setSent(false); setReason(""); }, 1500);
+  };
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm rounded-3xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>Describe the issue and our team will review it.</DialogDescription>
+        </DialogHeader>
+        {sent ? (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Check className="h-10 w-10 text-emerald-500" />
+            <div className="font-semibold text-black/70">Report submitted</div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="What's going on?"
+              rows={4}
+              className="w-full resize-none rounded-xl border border-black/10 bg-[#FAFAFA] px-3 py-2.5 text-[13px] outline-none"
+            />
+            <button
+              onClick={submit}
+              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white"
+              style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+            >
+              Submit Report
+            </button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BubbleKebabMenu({
+  bubble,
+  isMember,
+  isAdmin,
+  onManage,
+  onChat,
+}: {
+  bubble: Bubble;
+  isMember: boolean;
+  isAdmin: boolean;
+  onManage: () => void;
+  onChat: () => void;
+}) {
+  const [reportConcern, setReportConcern] = useState(false);
+  const [reportBubble, setReportBubble] = useState(false);
+  const RED = "#E8453C";
+  const BLUE = "#35A8F7";
+
+  const share = () => {
+    const url = `${window.location.origin}/bubble/${bubble.id}`;
+    if (navigator.share) {
+      navigator.share({ title: bubble.title, url }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(url);
+    }
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
+            data-testid="button-bubble-kebab"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className="w-56 rounded-2xl border-0 p-1 shadow-[0_8px_32px_rgba(0,0,0,0.14)]"
+        >
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal text-black"
+            onClick={share}
+            data-testid="action-share-bubble"
+          >
+            <Share2 className="h-[18px] w-[18px] text-black/60" />
+            Share Bubble
+          </DropdownMenuItem>
+
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal text-black"
+            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/bubble/${bubble.id}`)}
+            data-testid="action-qr-bubble"
+          >
+            <QrCode className="h-[18px] w-[18px] text-black/60" />
+            QR Code
+          </DropdownMenuItem>
+
+          {isMember && (
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal text-black"
+              onClick={onChat}
+              data-testid="action-bubble-chat"
+            >
+              <MessageSquare className="h-[18px] w-[18px] text-black/60" />
+              Bubble Chat
+            </DropdownMenuItem>
+          )}
+
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator className="my-1 bg-black/6" />
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
+                style={{ color: BLUE }}
+                onClick={onManage}
+                data-testid="action-manage-bubble"
+              >
+                <Crown className="h-[18px] w-[18px]" style={{ color: BLUE }} />
+                Manage Bubble
+              </DropdownMenuItem>
+            </>
+          )}
+
+          <DropdownMenuSeparator className="my-1 bg-black/6" />
+
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal text-black"
+            onClick={() => setReportConcern(true)}
+            data-testid="action-report-concern"
+          >
+            <Flag className="h-[18px] w-[18px]" style={{ color: RED }} />
+            Report a Concern
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator className="my-1 bg-black/6" />
+
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
+            style={{ color: RED }}
+            onClick={() => setReportBubble(true)}
+            data-testid="action-report-bubble"
+          >
+            <Flag className="h-[18px] w-[18px]" style={{ color: RED }} />
+            Report this Bubble
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ReportModal open={reportConcern} onClose={() => setReportConcern(false)} title="Report a Concern" />
+      <ReportModal open={reportBubble} onClose={() => setReportBubble(false)} title="Report this Bubble" />
+    </>
+  );
+}
+
 function MemberKebabMenu({ member }: { member: Member }) {
   return (
     <DropdownMenu>
@@ -580,7 +758,7 @@ export default function BubbleDetails() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"details" | "events">("details");
+  const [tab, setTab] = useState<"details" | "events" | "bulletin">("details");
   const [sectionAbout, setSectionAbout] = useState(true);
   const [sectionAttachments, setSectionAttachments] = useState(false);
   const [view, setView] = useState<"bubble" | "members" | "join">("bubble");
@@ -609,6 +787,18 @@ export default function BubbleDetails() {
     enabled: !!id && view === "join",
   });
 
+  const { data: bubbleEvents } = useQuery<any[]>({
+    queryKey: [`/api/bubbles/${id}/events`],
+    queryFn: () => fetch(`/api/bubbles/${id}/events`).then((r) => r.json()),
+    enabled: !!id && tab === "events",
+  });
+
+  const { data: bulletinPosts } = useQuery<any[]>({
+    queryKey: [`/api/bubbles/${id}/bulletin/posts`],
+    queryFn: () => apiRequest("GET", `/api/bubbles/${id}/bulletin/posts`).then((r) => r.json()),
+    enabled: !!id && !!user && tab === "bulletin",
+  });
+
   const joinMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/bubbles/${id}/join`).then((r) => r.json()),
     onSuccess: () => {
@@ -620,6 +810,7 @@ export default function BubbleDetails() {
 
   const isMember = membershipData?.isMember === true || membershipData?.membershipStatus === "approved";
   const isPending = !isMember && membershipData?.membershipStatus === "pending";
+  const isAdmin = membershipData?.role === "admin" || user?.isSuperAdmin === true;
 
   const bubble: Bubble = useMemo(() => {
     if (!bubbleData || bubbleData.error) {
@@ -682,33 +873,13 @@ export default function BubbleDetails() {
           <div className="text-[15px] font-semibold tracking-tight" data-testid="text-bubble-title">
             {bubble.title}
           </div>
-          <button
-            onClick={() => {
-              if (!bubble.isActiveMember) return;
-              window.location.href = `/chat/chat-${bubble.id}`;
-            }}
-            className="relative grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
-            data-testid="button-bubble-chat"
-          >
-            <MessageSquare className="h-5 w-5" />
-            {(() => {
-              try {
-                const obj = JSON.parse(window.localStorage.getItem("bubble:unread:v1") || "{}");
-                const n = Number(obj[`chat-${bubble.id}`] ?? obj[`chat-${bubble.id}`] ?? 0);
-                const count = Number(obj[`chat-${bubble.id}`] ?? 0);
-                return count > 0 ? (
-                  <span
-                    className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[hsl(var(--primary))] px-1 py-0.5 text-[10px] font-bold text-white"
-                    data-testid="badge-bubble-chat-unread"
-                  >
-                    {count > 99 ? "99+" : count}
-                  </span>
-                ) : null;
-              } catch {
-                return null;
-              }
-            })()}
-          </button>
+          <BubbleKebabMenu
+            bubble={bubble}
+            isMember={isMember}
+            isAdmin={isAdmin}
+            onChat={() => { window.location.href = `/chat/chat-${bubble.id}`; }}
+            onManage={() => navigate("/admin/pending")}
+          />
         </div>
         <Segmented value={tab} onChange={setTab} />
       </div>
@@ -716,6 +887,27 @@ export default function BubbleDetails() {
       <div className="mx-auto w-full max-w-[420px] px-5 pb-28 pt-4">
         {tab === "details" ? (
           <>
+            {/* Admin Dashboard entry point */}
+            {isAdmin && (
+              <button
+                onClick={() => navigate("/admin/pending")}
+                className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/8"
+                data-testid="button-admin-dashboard"
+              >
+                <div
+                  className="grid h-9 w-9 place-items-center rounded-xl"
+                  style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+                >
+                  <LayoutDashboard className="h-5 w-5 text-white" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="text-[13px] font-semibold text-black">Admin Dashboard</div>
+                  <div className="text-[11px] text-black/40">Manage members, events & content</div>
+                </div>
+                <span className="text-[12px] font-semibold" style={{ color: "#35A8F7" }}>Manage →</span>
+              </button>
+            )}
+
             <Card className="overflow-hidden rounded-[30px] border-0 bg-white/55 shadow-sm ring-1 ring-black/5">
               <div className="relative aspect-[4/3]">
                 <img
@@ -799,12 +991,110 @@ export default function BubbleDetails() {
               )}
             </div>
           </>
+        ) : tab === "events" ? (
+          <div className="space-y-4" data-testid="events-tab">
+            {isAdmin && (
+              <button
+                onClick={() => navigate("/create-event")}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-semibold text-white"
+                style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+                data-testid="button-create-event"
+              >
+                <Plus className="h-4 w-4" /> Create Event
+              </button>
+            )}
+            {(bubbleEvents ?? []).length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-black/10 bg-white/55 p-8 text-center" data-testid="empty-events">
+                <CalendarDays className="mx-auto h-8 w-8 text-black/15" />
+                <div className="mt-3 text-[13px] font-semibold text-black/50">No events yet</div>
+                <div className="mt-1 text-[12px] text-muted-foreground">
+                  Events will show up here once the host schedules something.
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-3">
+                {(bubbleEvents ?? []).map((ev: any) => (
+                  <div
+                    key={ev.id}
+                    className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
+                    data-testid={`row-event-${ev.id}`}
+                  >
+                    {ev.coverImage && (
+                      <img src={ev.coverImage} alt="" className="h-16 w-16 rounded-xl object-cover shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-semibold text-black">{ev.title}</div>
+                      {ev.date && (
+                        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-black/45">
+                          <CalendarDays className="h-3 w-3" />
+                          {ev.date}
+                          {ev.startTime && (
+                            <><Clock className="ml-1 h-3 w-3" />{ev.startTime}</>
+                          )}
+                        </div>
+                      )}
+                      {ev.locationName && (
+                        <div className="mt-0.5 text-[11px] text-black/40">{ev.locationName}</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
-          <div className="mt-8 rounded-2xl border border-black/10 bg-white/55 p-6 text-center" data-testid="empty-events">
-            <div className="text-[13px] font-semibold">No events yet</div>
-            <div className="mt-2 text-[12px] text-muted-foreground">
-              Events will show up here once the host schedules something.
-            </div>
+          /* Bulletin Board tab */
+          <div className="space-y-4" data-testid="bulletin-tab">
+            {isAdmin && (
+              <button
+                className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-semibold text-white"
+                style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+                data-testid="button-create-bulletin-post"
+              >
+                <Plus className="h-4 w-4" /> New Post
+              </button>
+            )}
+            {!user ? (
+              <div className="mt-4 rounded-2xl border border-black/10 bg-white/55 p-8 text-center">
+                <div className="text-[13px] font-semibold text-black/50">Sign in to view the bulletin board</div>
+              </div>
+            ) : (bulletinPosts ?? []).length === 0 ? (
+              <div className="mt-4 rounded-2xl border border-black/10 bg-white/55 p-8 text-center" data-testid="empty-bulletin">
+                <Pin className="mx-auto h-8 w-8 text-black/15" />
+                <div className="mt-3 text-[13px] font-semibold text-black/50">No posts yet</div>
+                <div className="mt-1 text-[12px] text-muted-foreground">Admins will post announcements here.</div>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-3">
+                {(bulletinPosts ?? []).map((post: any) => (
+                  <div
+                    key={post.id}
+                    className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
+                    data-testid={`post-${post.id}`}
+                  >
+                    {post.isPinned && (
+                      <div className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#35A8F7" }}>
+                        <Pin className="h-3 w-3" /> Pinned
+                      </div>
+                    )}
+                    <div className="text-[14px] font-semibold text-black">{post.title}</div>
+                    <div className="mt-1.5 text-[13px] leading-relaxed text-black/60">{post.body}</div>
+                    {post.imageUrl && (
+                      <img src={post.imageUrl} alt="" className="mt-3 w-full rounded-xl object-cover" />
+                    )}
+                    <div className="mt-3 flex items-center gap-3">
+                      <button className="flex items-center gap-1 text-[11px] text-black/40">
+                        <Heart className="h-3.5 w-3.5" />
+                        {post.reactionCount ?? 0}
+                      </button>
+                      <span className="text-[11px] text-black/30">
+                        {post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ""}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
