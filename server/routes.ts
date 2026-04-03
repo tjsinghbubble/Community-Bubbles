@@ -841,6 +841,20 @@ export async function registerRoutes(
 
   // System stats (super admin only)
   app.get("/api/admin/stats", authMiddleware, async (req, res) => {
+    interface StatsRow {
+      total_users: number;
+      total_bubbles: number;
+      approved_bubbles: number;
+      pending_bubbles: number;
+      rejected_bubbles: number;
+      total_events: number;
+      approved_events: number;
+      pending_events: number;
+      total_memberships: number;
+      pending_waitlist: number;
+      open_reports: number;
+    }
+
     try {
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) {
@@ -852,13 +866,13 @@ export async function registerRoutes(
       let dbError: string | null = null;
       try {
         await db.execute(drizzleSql`SELECT 1`);
-      } catch (e: any) {
+      } catch (e: unknown) {
         dbStatus = "error";
-        dbError = e.message;
+        dbError = e instanceof Error ? e.message : "Unknown error";
       }
 
       // Counts via efficient single SQL query
-      const countsResult = await db.execute(drizzleSql`
+      const countsResult = await db.execute<StatsRow>(drizzleSql`
         SELECT
           (SELECT COUNT(*)::int FROM users) AS total_users,
           (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
@@ -868,12 +882,11 @@ export async function registerRoutes(
           (SELECT COUNT(*)::int FROM events) AS total_events,
           (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
           (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
-          (SELECT COUNT(*)::int FROM memberships WHERE membership_status = 'approved') AS total_memberships,
+          (SELECT COUNT(*)::int FROM memberships) AS total_memberships,
           (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
           (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
       `);
-      // drizzle with pg returns a QueryResult; rows is always defined
-      const counts: any = (countsResult as any).rows?.[0] ?? countsResult[0] ?? {};
+      const counts = countsResult.rows[0];
 
       res.json({
         db: { status: dbStatus, error: dbError },
@@ -901,9 +914,10 @@ export async function registerRoutes(
         },
         fetchedAt: new Date().toISOString(),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unexpected error";
       console.error("[admin/stats] error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: message });
     }
   });
 

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -19,6 +20,27 @@ import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+
+interface AuthMe {
+  id: string;
+  name: string;
+  email: string;
+  isSuperAdmin: boolean;
+  profilePhoto: string | null;
+}
+
+interface AdminStats {
+  db: { status: "connected" | "error"; error: string | null };
+  server: { uptimeSeconds: number; nodeVersion: string };
+  stats: {
+    users: { total: number };
+    bubbles: { total: number; approved: number; pending: number; rejected: number };
+    events: { total: number; approved: number; pending: number };
+    memberships: { total: number };
+    pendingReview: { bubbles: number; events: number; waitlist: number; reports: number };
+  };
+  fetchedAt: string;
+}
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -112,7 +134,7 @@ export default function AdminMonitor() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: me } = useQuery<any>({
+  const { data: me, isLoading: meLoading } = useQuery<AuthMe>({
     queryKey: ["/api/auth/me"],
     queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
     enabled: !!user,
@@ -120,19 +142,30 @@ export default function AdminMonitor() {
 
   const {
     data: stats,
-    isLoading,
+    isLoading: statsLoading,
     isFetching,
     refetch,
     dataUpdatedAt,
-  } = useQuery<any>({
+  } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     queryFn: () => apiRequest("GET", "/api/admin/stats").then((r) => r.json()),
     enabled: !!user && me?.isSuperAdmin === true,
     refetchInterval: 30_000,
   });
 
-  if (me && !me.isSuperAdmin) {
-    navigate("/profile");
+  // Redirect non-authenticated and non-super-admin users
+  useEffect(() => {
+    if (!user && !meLoading) {
+      navigate("/profile");
+      return;
+    }
+    if (me && !me.isSuperAdmin) {
+      navigate("/profile");
+    }
+  }, [user, me, meLoading, navigate]);
+
+  // Show nothing while resolving auth — prevents shell flash for non-admins
+  if (!user || meLoading || (me && !me.isSuperAdmin)) {
     return null;
   }
 
@@ -172,7 +205,7 @@ export default function AdminMonitor() {
           </button>
         </div>
 
-        {isLoading ? (
+        {statsLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[#35A8F7]" />
           </div>
@@ -245,7 +278,7 @@ export default function AdminMonitor() {
                 <StatCard
                   label="Memberships"
                   value={s?.memberships?.total ?? "—"}
-                  sub="approved members"
+                  sub="total members"
                   icon={CheckCircle2}
                   accent="#10B981"
                 />
