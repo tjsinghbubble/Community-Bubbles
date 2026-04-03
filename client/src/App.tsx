@@ -15,6 +15,10 @@ import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
 import Profile from "./pages/profile";
+import ProfileEdit from "./pages/profile-edit";
+import ProfileNotifications from "./pages/profile-notifications";
+import ProfilePrivacy from "./pages/profile-privacy";
+import Legal from "./pages/legal";
 
 function BubbleShortLink() {
   const { shortId } = useParams<{ shortId: string }>();
@@ -51,6 +55,10 @@ function Router() {
       <Route path="/chat/:id" component={Messages} />
       <Route path="/upcoming" component={Upcoming} />
       <Route path="/profile" component={Profile} />
+      <Route path="/profile/edit" component={ProfileEdit} />
+      <Route path="/profile/notifications" component={ProfileNotifications} />
+      <Route path="/profile/privacy" component={ProfilePrivacy} />
+      <Route path="/legal/:page" component={Legal} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route component={NotFound} />
     </Switch>

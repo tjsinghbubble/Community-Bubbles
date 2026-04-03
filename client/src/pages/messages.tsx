@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Camera,
@@ -16,12 +17,15 @@ import {
   Search,
   Send,
   Smile,
+  Users,
   Video,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 
 import avatar1 from "@/assets/images/avatar-1.jpg";
 import avatar2 from "@/assets/images/avatar-2.jpg";
@@ -221,12 +225,21 @@ function ChatRow({
       className="flex w-full items-center gap-3 rounded-2xl bg-white/50 px-3 py-3 ring-1 ring-black/5"
       data-testid={`row-chat-${chat.id}`}
     >
-      <img
-        src={chat.avatar}
-        alt=""
-        className="h-12 w-12 rounded-2xl object-cover"
-        data-testid={`img-chat-${chat.id}`}
-      />
+      {chat.avatar ? (
+        <img
+          src={chat.avatar}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-2xl object-cover"
+          data-testid={`img-chat-${chat.id}`}
+        />
+      ) : (
+        <div
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-white"
+          style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+        >
+          <Users className="h-5 w-5" />
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="truncate text-[13px] font-semibold" data-testid={`text-chat-title-${chat.id}`}>
@@ -696,6 +709,7 @@ function InfoSheet({ chat, onClose }: { chat: Chat; onClose: () => void }) {
 
 export default function Messages() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const [view, setView] = useState<"list" | "chat">("list");
   const [activeChatId, setActiveChatId] = useState<ChatId | null>(null);
   const [search, setSearch] = useState("");
@@ -703,93 +717,36 @@ export default function Messages() {
   const [showInfo, setShowInfo] = useState(false);
   const [toastText, setToastText] = useState<string | null>(null);
 
-  const joinedBubbleIds = useMemo(() => {
-    const keys = Object.keys(window.localStorage).filter((k) => k.startsWith(LS_JOINED_PREFIX));
-    return keys
-      .filter((k) => window.localStorage.getItem(k) === "1")
-      .map((k) => k.replace(LS_JOINED_PREFIX, ""));
-  }, []);
+  const { data: myBubbles } = useQuery<any[]>({
+    queryKey: ["/api/bubbles/my"],
+    queryFn: () => apiRequest("GET", "/api/bubbles/my").then((r) => r.json()),
+    enabled: !!user,
+  });
 
-  const seedChats: Chat[] = useMemo(
-    () => [
-      { id: "chat-sf-pickleball", bubbleId: "sf-pickleball", title: "SF Pickleball Crew", subtitle: "8 online • 20 members", avatar: avatar2 },
-      { id: "chat-bark-dogpatch", bubbleId: "bark-dogpatch", title: "Bark at Dogpatch", subtitle: "Pups welcome • 112 members", avatar: avatar1 },
-      { id: "chat-park-picnic", bubbleId: "park-picnic", title: "Park Picnic & Cards", subtitle: "Next: Sunday picnic", avatar: avatar3 },
-      { id: "chat-food-finds", bubbleId: "food-finds", title: "Food Finds", subtitle: "Drop your recs", avatar: avatar2 },
-      { id: "chat-marina-meetup", bubbleId: "marina-meetup", title: "Marina Meetup", subtitle: "Sunset walk today", avatar: avatar1 },
-      { id: "chat-mindful-mamas", bubbleId: "mindful-mamas", title: "Mindful Mamas", subtitle: "Gentle reminder: breathe", avatar: avatar3 },
-    ],
-    [],
-  );
+  const apiBubbleChats: Chat[] = useMemo(() => {
+    if (!myBubbles?.length) return [];
+    return myBubbles.map((b: any) => ({
+      id: `chat-${b.id}`,
+      bubbleId: b.id,
+      title: b.title ?? "Untitled",
+      subtitle: `${b.members ?? 0} members`,
+      avatar: b.images?.[0] || b.coverImage || "",
+    }));
+  }, [myBubbles]);
 
   const chats = useMemo(() => {
-    const persisted = loadJson<Chat[]>(LS_CHATS, []);
-    const merged = persisted.length ? persisted : seedChats;
-    const filteredToJoined = merged.filter((c) => joinedBubbleIds.includes(c.bubbleId));
-    const pinned = filteredToJoined.filter((c) => c.pinned);
-    const rest = filteredToJoined.filter((c) => !c.pinned);
+    const base = apiBubbleChats;
+    const pinned = base.filter((c) => c.pinned);
+    const rest = base.filter((c) => !c.pinned);
     return [...pinned, ...rest];
-  }, [joinedBubbleIds, seedChats]);
+  }, [apiBubbleChats]);
 
   const [unreadByChat, setUnreadByChat] = useState<Record<string, number>>(() => loadJson(LS_UNREAD, {}));
 
   const unreadTotal = useMemo(() => Object.values(unreadByChat).reduce((a, b) => a + (b || 0), 0), [unreadByChat]);
 
   const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>(() => {
-    const saved = loadJson<Record<string, Message[]>>(LS_MESSAGES, {});
-    if (Object.keys(saved).length) return saved;
-
-    const base: Record<string, Message[]> = {};
-    for (const c of seedChats) {
-      base[c.id] = [
-        {
-          id: nowId(),
-          chatId: c.id,
-          from: "other",
-          authorName: "Host",
-          type: "system",
-          text: `Welcome to ${c.title}. Be kind, keep it local.`,
-          ts: Date.now() - 1000 * 60 * 60 * 22,
-        },
-        {
-          id: nowId(),
-          chatId: c.id,
-          from: "other",
-          authorName: "Alexa",
-          type: "text",
-          text: "Anyone down for a quick meetup this week?",
-          ts: Date.now() - 1000 * 60 * 90,
-        },
-        {
-          id: nowId(),
-          chatId: c.id,
-          from: "me",
-          type: "text",
-          text: "I can do Thursday after work.",
-          ts: Date.now() - 1000 * 60 * 82,
-          status: "read",
-        },
-        {
-          id: nowId(),
-          chatId: c.id,
-          from: "other",
-          authorName: "Brandon",
-          type: "text",
-          text: "Perfect. Let’s pick a spot near the park.",
-          ts: Date.now() - 1000 * 60 * 80,
-        },
-        {
-          id: nowId(),
-          chatId: c.id,
-          from: "me",
-          type: "text",
-          text: "I’ll bring extra paddles/snacks.",
-          ts: Date.now() - 1000 * 60 * 78,
-          status: "delivered",
-        },
-      ];
-    }
-    return base;
+    return loadJson<Record<string, Message[]>>(LS_MESSAGES, {});
   });
 
   useEffect(() => {
