@@ -349,9 +349,9 @@ export default function Explore() {
           );
         })}
       </div>
-      {/* Search bar row — centered, 60% width on desktop */}
+      {/* Search bar row — centered, 36% width on desktop */}
       <div className="flex justify-center py-3">
-        <div className="flex w-full md:w-[60%] items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2.5 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
+        <div className="flex w-full md:w-[36%] items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2.5 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
           <Search className="h-4 w-4 shrink-0 text-black/35" />
           <input
             value={searchQuery}

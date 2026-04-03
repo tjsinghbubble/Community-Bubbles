@@ -67,7 +67,16 @@ function BubbleLogo() {
   );
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, photo }: { name: string; photo?: string | null }) {
+  if (photo) {
+    return (
+      <img
+        src={photo}
+        alt={name}
+        className="h-9 w-9 rounded-full object-cover shrink-0"
+      />
+    );
+  }
   const initials = name
     .split(" ")
     .map((w) => w[0])
@@ -261,7 +270,7 @@ export function AppShell({
               data-testid="button-avatar"
               title="Profile"
             >
-              <Avatar name={displayName} />
+              <Avatar name={displayName} photo={me?.profilePhoto} />
             </button>
 
             {/* Hamburger → nav dropdown */}
