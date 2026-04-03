@@ -1120,8 +1120,8 @@ export default function Messages() {
           if (id === "explore") return navigate("/explore");
           if (id === "messages") return;
           if (id === "bubbles") return navigate("/my-bubbles");
-          setToastText(`${id} coming soon`);
-          window.setTimeout(() => setToastText(null), 1200);
+          if (id === "upcoming") return navigate("/upcoming");
+          if (id === "profile") return navigate("/profile");
         }}
       />
 

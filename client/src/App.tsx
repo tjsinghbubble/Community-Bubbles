@@ -13,6 +13,8 @@ import CreateBubble from "./pages/create-bubble";
 import BubbleDetails from "./pages/bubble-details";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
+import Upcoming from "./pages/upcoming";
+import Profile from "./pages/profile";
 
 function BubbleShortLink() {
   const { shortId } = useParams<{ shortId: string }>();
@@ -47,6 +49,8 @@ function Router() {
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
+      <Route path="/upcoming" component={Upcoming} />
+      <Route path="/profile" component={Profile} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route component={NotFound} />
     </Switch>
