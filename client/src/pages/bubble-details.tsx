@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useAuth } from "@/context/AuthContext";
+import { apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft,
   ArrowDown,
@@ -574,6 +578,8 @@ function MembersScreen({ onBack }: { onBack: () => void }) {
 
 export default function BubbleDetails() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"details" | "events">("details");
   const [sectionAbout, setSectionAbout] = useState(true);
   const [sectionAttachments, setSectionAttachments] = useState(false);
@@ -581,35 +587,84 @@ export default function BubbleDetails() {
 
   const id = useMemo(() => {
     const parts = window.location.pathname.split("/").filter(Boolean);
-    const last = parts[parts.length - 1];
-    return last || "sf-pickleball";
+    return parts[parts.length - 1] || "";
   }, []);
 
-  const bubble = bubbleSeed[id] ?? bubbleSeed["sf-pickleball"];
+  const { data: bubbleData, isLoading: bubbleLoading } = useQuery<any>({
+    queryKey: [`/api/bubbles/${id}`],
+    queryFn: () => fetch(`/api/bubbles/${id}`).then((r) => r.json()),
+    enabled: !!id,
+  });
 
-  const joinKey = `bubble:joined:${bubble.id}`;
-  const joined = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(joinKey) === "1";
-  }, [joinKey]);
+  const { data: membershipData, refetch: refetchMembership } = useQuery<any>({
+    queryKey: [`/api/bubbles/${id}/membership`],
+    queryFn: () => apiRequest("GET", `/api/bubbles/${id}/membership`).then((r) => r.json()),
+    enabled: !!id && !!user,
+    retry: false,
+  });
 
-  bubble.isActiveMember = bubble.isActiveMember || joined;
+  const { data: rulesData } = useQuery<any[]>({
+    queryKey: [`/api/rules/effective/${id}`],
+    queryFn: () => fetch(`/api/rules/effective/${id}`).then((r) => r.json()),
+    enabled: !!id && view === "join",
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/bubbles/${id}/join`).then((r) => r.json()),
+    onSuccess: () => {
+      refetchMembership();
+      qc.invalidateQueries({ queryKey: [`/api/bubbles/${id}`] });
+      setView("bubble");
+    },
+  });
+
+  const isMember = membershipData?.status === "approved";
+  const isPending = membershipData?.status === "pending";
+
+  const bubble: Bubble = useMemo(() => {
+    if (!bubbleData || bubbleData.error) {
+      return { id, title: "...", category: "", tagline: "", image: "", members: 0, isActiveMember: false, about: "", rules: [] };
+    }
+    const effectiveRules: string[] = Array.isArray(rulesData)
+      ? rulesData.filter((r: any) => r.isVisible !== false).map((r: any) => r.text ?? r.rule ?? String(r))
+      : (bubbleData.rules ?? []);
+    const img = (bubbleData.images && bubbleData.images[0]) || bubbleData.coverImage || "";
+    return {
+      id: bubbleData.id,
+      title: bubbleData.title ?? "",
+      category: bubbleData.category ?? "",
+      tagline: bubbleData.tagline ?? "",
+      image: img,
+      members: bubbleData.members ?? 0,
+      isActiveMember: isMember,
+      about: bubbleData.description ?? "",
+      rules: effectiveRules,
+    };
+  }, [bubbleData, rulesData, isMember, id]);
 
   if (view === "members") {
     return <MembersScreen onBack={() => setView("bubble")} />;
   }
 
   if (view === "join") {
+    if (!user) {
+      navigate("/auth");
+      return null;
+    }
     return (
       <JoinBubbleSheet
         bubble={bubble}
         onClose={() => setView("bubble")}
-        onJoin={() => {
-          window.localStorage.setItem(joinKey, "1");
-          bubble.isActiveMember = true;
-          setView("bubble");
-        }}
+        onJoin={() => joinMutation.mutate()}
       />
+    );
+  }
+
+  if (bubbleLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-background" data-testid="loading-bubble">
+        <div className="text-[13px] text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
@@ -684,9 +739,9 @@ export default function BubbleDetails() {
                   {bubble.tagline}
                 </div>
                 <div className="mt-2 flex items-center justify-center gap-2 text-[12px]" data-testid="row-active-member">
-                  <span className={cn("h-2 w-2 rounded-full", bubble.isActiveMember ? "bg-emerald-500" : "bg-black/20")} />
+                  <span className={cn("h-2 w-2 rounded-full", bubble.isActiveMember ? "bg-emerald-500" : isPending ? "bg-amber-400" : "bg-black/20")} />
                   <span className="font-semibold text-muted-foreground">
-                    {bubble.isActiveMember ? "Active Member" : "Not a member"}
+                    {bubble.isActiveMember ? "Active Member" : isPending ? "Request Pending" : "Not a member"}
                   </span>
                 </div>
               </div>
@@ -726,10 +781,15 @@ export default function BubbleDetails() {
                   <PrimaryAction label="More" tone="neutral" testId="button-more" />
                   <PrimaryAction label="Leave Bubble" tone="danger" testId="button-leave-bubble" />
                 </>
+              ) : isPending ? (
+                <>
+                  <PrimaryAction label="Request Pending" tone="neutral" testId="button-join-pending" />
+                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
+                </>
               ) : (
                 <>
                   <PrimaryAction
-                    label="Join Bubble"
+                    label={bubble.category ? (bubbleData?.privacy === "Request to Join" ? "Request to Join" : "Join Bubble") : "Join Bubble"}
                     tone="primary"
                     onClick={() => setView("join")}
                     testId="button-join-bubble"

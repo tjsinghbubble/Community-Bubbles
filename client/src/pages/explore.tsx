@@ -1,78 +1,21 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
-import { Bell, ListFilter, MapPin, Plus, Clock } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Bell, ListFilter, MapPin, Plus, Users } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import pickleballImg from "@/assets/images/explore-pickleball.jpg";
-import wellnessImg from "@/assets/images/explore-wellness.jpg";
-import dogImg from "@/assets/images/explore-dog.jpg";
-import meetupImg from "@/assets/images/explore-meetup.jpg";
-import gamesImg from "@/assets/images/explore-games.jpg";
-import foodImg from "@/assets/images/explore-food.jpg";
-
 type BubbleCardItem = {
   id: string;
   category: string;
   title: string;
-  time: string;
+  members: number;
   miles: string;
   image: string;
 };
-
-const bubbles: BubbleCardItem[] = [
-  {
-    id: "sf-pickleball",
-    category: "Sports",
-    title: "SF Pickleball Crew",
-    time: "6:00 PM",
-    miles: "9.7 miles",
-    image: pickleballImg,
-  },
-  {
-    id: "mindful-mamas",
-    category: "Wellness",
-    title: "Mindful Mamas",
-    time: "1:00 PM",
-    miles: "8.2 miles",
-    image: wellnessImg,
-  },
-  {
-    id: "bark-dogpatch",
-    category: "Animals",
-    title: "Bark at Dogpatch",
-    time: "3:30 PM",
-    miles: "9.1 miles",
-    image: dogImg,
-  },
-  {
-    id: "marina-meetup",
-    category: "Neighborhood",
-    title: "Marina Meetup",
-    time: "5:15 PM",
-    miles: "6.5 miles",
-    image: meetupImg,
-  },
-  {
-    id: "park-picnic",
-    category: "Games",
-    title: "Park Picnic & Cards",
-    time: "2:10 PM",
-    miles: "4.8 miles",
-    image: gamesImg,
-  },
-  {
-    id: "food-finds",
-    category: "Food",
-    title: "Food Finds",
-    time: "7:40 PM",
-    miles: "3.2 miles",
-    image: foodImg,
-  },
-];
 
 function Chip({ label }: { label: string }) {
   return (
@@ -113,14 +56,16 @@ function BubbleCard({ item, onOpen }: { item: BubbleCardItem; onOpen: (id: strin
             {item.title}
           </div>
           <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-            <div className="inline-flex items-center gap-1" data-testid={`row-bubble-time-${item.id}`}>
-              <Clock className="h-3.5 w-3.5" />
-              <span>{item.time}</span>
+            <div className="inline-flex items-center gap-1" data-testid={`row-bubble-members-${item.id}`}>
+              <Users className="h-3.5 w-3.5" />
+              <span>{item.members} members</span>
             </div>
-            <div className="inline-flex items-center gap-1" data-testid={`row-bubble-miles-${item.id}`}>
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{item.miles}</span>
-            </div>
+            {item.miles ? (
+              <div className="inline-flex items-center gap-1" data-testid={`row-bubble-miles-${item.id}`}>
+                <MapPin className="h-3.5 w-3.5" />
+                <span>{item.miles}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -193,7 +138,19 @@ export default function Explore() {
   const [, navigate] = useLocation();
   const [city] = useState("San Francisco");
 
-  const list = useMemo(() => bubbles, []);
+  const { data: rawBubbles, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/bubbles"],
+    queryFn: () => fetch("/api/bubbles").then((r) => r.json()),
+  });
+
+  const list: BubbleCardItem[] = (rawBubbles ?? []).map((b: any) => ({
+    id: b.id,
+    category: b.category ?? "",
+    title: b.title ?? "",
+    members: b.members ?? 0,
+    miles: b.distance ?? "",
+    image: (b.images && b.images[0]) || b.coverImage || "",
+  }));
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -236,9 +193,19 @@ export default function Explore() {
           className="mt-5 grid grid-cols-2 gap-4"
           data-testid="grid-explore"
         >
-          {list.map((b) => (
-            <BubbleCard key={b.id} item={b} onOpen={(id) => navigate(`/bubble/${id}`)} />
-          ))}
+          {isLoading ? (
+            <div className="col-span-2 py-10 text-center text-[13px] text-muted-foreground" data-testid="loading-bubbles">
+              Loading bubbles...
+            </div>
+          ) : list.length === 0 ? (
+            <div className="col-span-2 py-10 text-center text-[13px] text-muted-foreground" data-testid="empty-bubbles">
+              No bubbles nearby yet.
+            </div>
+          ) : (
+            list.map((b) => (
+              <BubbleCard key={b.id} item={b} onOpen={(id) => navigate(`/bubble/${id}`)} />
+            ))
+          )}
         </motion.div>
 
         <button
