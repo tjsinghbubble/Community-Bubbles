@@ -34,7 +34,7 @@ function BubbleLogo() {
         WebkitTextFillColor: "transparent",
       }}
     >
-      bubble
+      Bubble
     </span>
   );
 }
@@ -72,7 +72,7 @@ function CreateMenu({ onClose }: { onClose: () => void }) {
       description: "Plan something for your bubble",
       icon: CalendarDays,
       href: "/my-bubbles",
-      gradient: "linear-gradient(135deg, #6C63FF, #A855F7)",
+      gradient: "linear-gradient(135deg, #35A8F7, #6C63FF)",
     },
   ];
 

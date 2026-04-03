@@ -618,8 +618,8 @@ export default function BubbleDetails() {
     },
   });
 
-  const isMember = membershipData?.status === "approved";
-  const isPending = membershipData?.status === "pending";
+  const isMember = membershipData?.isMember === true || membershipData?.membershipStatus === "approved";
+  const isPending = !isMember && membershipData?.membershipStatus === "pending";
 
   const bubble: Bubble = useMemo(() => {
     if (!bubbleData || bubbleData.error) {
