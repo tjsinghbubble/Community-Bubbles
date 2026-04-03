@@ -251,7 +251,7 @@ export async function registerRoutes(
         password: hashedPassword,
       });
 
-      const token = jwt.sign({ userId: user.id }, JWT_SECRET, {
+      const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
         expiresIn: "30d",
       });
 
