@@ -1,67 +1,107 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Bell,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  ListFilter,
-  Lock,
-  Mail,
-  MapPin,
-  Plus,
-  Shield,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 
-import mosaicImg from "@/assets/images/bubble-mosaic.png";
-import gradientImg from "@/assets/images/bubble-blue-gradient.png";
-
-import interestRunning from "@/assets/images/interest-running.jpg";
-import interestCooking from "@/assets/images/interest-cooking.jpg";
-import interestCoffee from "@/assets/images/interest-coffee.jpg";
-import interestGardening from "@/assets/images/interest-gardening.jpg";
-import interestHiking from "@/assets/images/interest-hiking.jpg";
-import interestTennis from "@/assets/images/interest-tennis.jpg";
-import interestBiking from "@/assets/images/interest-biking.jpg";
-import interestPets from "@/assets/images/interest-pets.jpg";
-import interestCrafts from "@/assets/images/interest-crafts.jpg";
-
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
-const screens = [
-  "welcome",
-  "details",
-  "verify",
-  "verifyFilled",
-  "interests",
-  "guidelines",
-  "explore",
-] as const;
-type Screen = (typeof screens)[number];
+const INTEREST_OPTIONS = [
+  { id: "hiking", label: "Hiking" },
+  { id: "running", label: "Running" },
+  { id: "cycling", label: "Cycling" },
+  { id: "yoga", label: "Yoga" },
+  { id: "fitness", label: "Fitness" },
+  { id: "cooking", label: "Cooking" },
+  { id: "coffee", label: "Coffee" },
+  { id: "dining", label: "Dining Out" },
+  { id: "book_clubs", label: "Book Clubs" },
+  { id: "photography", label: "Photography" },
+  { id: "music", label: "Music" },
+  { id: "arts", label: "Arts & Crafts" },
+  { id: "gaming", label: "Gaming" },
+  { id: "tech", label: "Tech" },
+  { id: "travel", label: "Travel" },
+  { id: "pets", label: "Pets" },
+  { id: "wellness", label: "Wellness" },
+  { id: "volunteering", label: "Volunteering" },
+];
 
-type AccountDetails = {
-  legalName: string;
-  gender: string;
-  dob: string;
-  email: string;
-};
+type Tab = "login" | "signup";
+type SignupStep = "details" | "interests";
 
-function PhoneFrame({ children }: { children: React.ReactNode }) {
+export default function AuthFlow() {
+  const [tab, setTab] = useState<Tab>("login");
+  const [signupStep, setSignupStep] = useState<SignupStep>("details");
+  const [, navigate] = useLocation();
+  const { login, signup } = useAuth();
+
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPw, setShowLoginPw] = useState(false);
+
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupInterests, setSignupInterests] = useState<string[]>([]);
+  const [signupError, setSignupError] = useState("");
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [showSignupPw, setShowSignupPw] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      await login(loginEmail, loginPassword);
+      navigate("/");
+    } catch (err: any) {
+      setLoginError(err.message || "Login failed");
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleSignupDetails = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignupError("");
+    if (!signupName.trim()) return setSignupError("Please enter your name");
+    if (!signupEmail.trim()) return setSignupError("Please enter your email");
+    if (signupPassword.length < 6) return setSignupError("Password must be at least 6 characters");
+    setSignupStep("interests");
+  };
+
+  const handleSignupFinish = async () => {
+    if (signupInterests.length === 0) return setSignupError("Pick at least one interest");
+    setSignupError("");
+    setSignupLoading(true);
+    try {
+      await signup({ name: signupName, email: signupEmail, password: signupPassword, interests: signupInterests });
+      navigate("/");
+    } catch (err: any) {
+      setSignupError(err.message || "Sign up failed");
+      setSignupStep("details");
+    } finally {
+      setSignupLoading(false);
+    }
+  };
+
+  const toggleInterest = (id: string) =>
+    setSignupInterests((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 -z-10">
+      <div
+        className="pointer-events-none fixed inset-0 -z-10"
+        aria-hidden
+      >
         <div
           className="absolute inset-0 opacity-90"
           style={{
@@ -73,1074 +113,260 @@ function PhoneFrame({ children }: { children: React.ReactNode }) {
         <div className="absolute inset-0 noise opacity-55" />
       </div>
 
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-        <div className="flex items-center gap-2">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-            data-testid="link-back-home"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-2" data-testid="text-preview-label">
-          <Badge className="rounded-full" variant="secondary">
-            Mobile preview
-          </Badge>
-        </div>
+      <div className="mx-auto flex max-w-6xl items-center px-4 py-4 sm:px-6">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          data-testid="link-back-home"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Link>
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 pb-10 sm:px-6 lg:grid-cols-[1fr_420px]">
-        <div className="hidden lg:block">
-          <div className="max-w-xl">
-            <h1 className="font-display text-3xl font-semibold tracking-tight">
-              Bubble Signup Flow
-            </h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Web-based prototype styled like a native iOS/Android app.
-            </p>
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-center px-4 pb-16 pt-8 sm:px-6 lg:flex-row lg:items-start lg:gap-20 lg:pt-16">
+        <div className="hidden max-w-sm lg:block">
+          <div
+            className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+            data-testid="badge-tagline"
+          >
+            🫧 Local communities, real connections
+          </div>
+          <h1 className="font-display text-4xl font-bold tracking-tight">
+            Find your people,<br />find your Bubble.
+          </h1>
+          <p className="mt-3 text-muted-foreground leading-relaxed">
+            Join interest-based groups in your area. Discover events, chat with members, and build friendships that last.
+          </p>
+          <div className="mt-8 grid gap-3 text-sm">
+            {[
+              ["🏃", "Active communities — hiking, running, tennis & more"],
+              ["🎨", "Creative groups — photography, music, arts"],
+              ["☕", "Social scenes — coffee, brunch, book clubs"],
+            ].map(([icon, text]) => (
+              <div key={text} className="flex items-start gap-3">
+                <span className="text-lg leading-none">{icon}</span>
+                <span className="text-muted-foreground">{text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-            <div className="mt-6 grid gap-3">
-              {["Welcome", "Account details", "Email verification", "Verified"].map(
-                (t, idx) => (
-                  <div
-                    key={t}
-                    className="glass rounded-2xl border px-4 py-3"
-                    data-testid={`row-step-${idx}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">{t}</div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <div className="w-full max-w-md">
+          <div className="rounded-3xl border bg-background/80 p-8 shadow-xl backdrop-blur-sm">
+            <div className="mb-6 flex gap-1 rounded-2xl bg-muted p-1">
+              {(["login", "signup"] as Tab[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); setSignupStep("details"); setLoginError(""); setSignupError(""); }}
+                  className={cn(
+                    "flex-1 rounded-xl py-2 text-sm font-medium transition-all",
+                    tab === t
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  data-testid={`tab-${t}`}
+                >
+                  {t === "login" ? "Sign In" : "Create Account"}
+                </button>
+              ))}
+            </div>
+
+            <AnimatePresence mode="wait">
+              {tab === "login" ? (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  onSubmit={handleLogin}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-email">Email</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                      className="h-11 rounded-xl"
+                      data-testid="input-login-email"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="login-password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showLoginPw ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        className="h-11 rounded-xl pr-10"
+                        data-testid="input-login-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowLoginPw((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                        data-testid="button-toggle-password"
+                      >
+                        {showLoginPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
                   </div>
-                ),
+                  {loginError && (
+                    <p className="text-sm text-destructive" data-testid="text-login-error">
+                      {loginError}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="h-11 w-full rounded-xl"
+                    disabled={loginLoading}
+                    data-testid="button-login-submit"
+                  >
+                    {loginLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Sign In"}
+                  </Button>
+                  <p className="text-center text-xs text-muted-foreground">
+                    Test account: george@seinfeld.com / Bubble123!
+                  </p>
+                </motion.form>
+              ) : signupStep === "details" ? (
+                <motion.form
+                  key="signup-details"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  onSubmit={handleSignupDetails}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Input
+                      id="signup-name"
+                      placeholder="Your name"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      required
+                      className="h-11 rounded-xl"
+                      data-testid="input-signup-name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-email">Email</Label>
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required
+                      className="h-11 rounded-xl"
+                      data-testid="input-signup-email"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="signup-password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="signup-password"
+                        type={showSignupPw ? "text" : "password"}
+                        placeholder="At least 6 characters"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
+                        required
+                        className="h-11 rounded-xl pr-10"
+                        data-testid="input-signup-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSignupPw((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        tabIndex={-1}
+                      >
+                        {showSignupPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  {signupError && (
+                    <p className="text-sm text-destructive" data-testid="text-signup-error">
+                      {signupError}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    className="h-11 w-full rounded-xl"
+                    data-testid="button-signup-next"
+                  >
+                    Continue
+                  </Button>
+                </motion.form>
+              ) : (
+                <motion.div
+                  key="signup-interests"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <p className="text-sm font-medium">What are you into?</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Pick as many as you like — we'll find bubbles you'll love.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {INTEREST_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => toggleInterest(opt.id)}
+                        className={cn(
+                          "rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                          signupInterests.includes(opt.id)
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
+                        )}
+                        data-testid={`chip-interest-${opt.id}`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {signupError && (
+                    <p className="text-sm text-destructive" data-testid="text-signup-error-interests">
+                      {signupError}
+                    </p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="h-11 flex-1 rounded-xl"
+                      onClick={() => { setSignupStep("details"); setSignupError(""); }}
+                      data-testid="button-signup-back"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      className="h-11 flex-1 rounded-xl"
+                      onClick={handleSignupFinish}
+                      disabled={signupLoading}
+                      data-testid="button-signup-submit"
+                    >
+                      {signupLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Join Bubble"}
+                    </Button>
+                  </div>
+                </motion.div>
               )}
-            </div>
-
-            <div className="mt-6 glass rounded-2xl border p-4 text-sm text-muted-foreground">
-              <div className="font-medium text-foreground" data-testid="text-note-title">
-                Notes
-              </div>
-              <div className="mt-1" data-testid="text-note-body">
-                Tap targets are large, spacing matches mobile rhythm, and transitions
-                are animated between screens.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mx-auto w-full max-w-[420px]">
-          <div
-            className="relative mx-auto w-full overflow-hidden rounded-[44px] border bg-black/5 p-3 shadow-[0_40px_120px_hsl(var(--foreground)/0.18)] dark:bg-white/5"
-            data-testid="phone-frame"
-          >
-            <div className="absolute left-1/2 top-3 h-6 w-40 -translate-x-1/2 rounded-full bg-black/10 dark:bg-white/10" />
-            <div
-              className="relative overflow-hidden rounded-[36px] bg-background"
-              data-testid="phone-screen"
-            >
-              {children}
-            </div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function GradientButton({
-  children,
-  className,
-  ...props
-}: React.ComponentProps<typeof Button>) {
-  return (
-    <Button
-      {...props}
-      className={cn(
-        "relative h-12 w-full rounded-full border-0 text-white shadow-[0_12px_30px_hsl(var(--primary)/0.30)]",
-        className,
-      )}
-      style={{
-        background:
-          "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-2)))",
-      }}
-    >
-      <span className="relative z-10">{children}</span>
-    </Button>
-  );
-}
-
-function TopBar({
-  title,
-  onBack,
-  right,
-}: {
-  title: string;
-  onBack?: () => void;
-  right?: React.ReactNode;
-}) {
-  return (
-    <div className="sticky top-0 z-10 bg-background/85 backdrop-blur-xl">
-      <div className="flex items-center justify-between px-5 py-4">
-        <button
-          onClick={onBack}
-          className={cn(
-            "grid h-9 w-9 place-items-center rounded-full text-foreground/70",
-            !onBack && "opacity-0 pointer-events-none",
-          )}
-          data-testid="button-nav-back"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div
-          className="text-sm font-semibold tracking-tight"
-          data-testid="text-screen-title"
-        >
-          {title}
-        </div>
-        <div className="h-9 w-9" aria-hidden>
-          {right}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
-  return (
-    <div className="relative min-h-[760px]">
-      <div className="relative h-[520px]">
-        <img
-          src={mosaicImg}
-          alt=""
-          className="h-full w-full object-cover"
-          data-testid="img-welcome-mosaic"
-        />
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-56"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent, hsl(var(--background)) 65%)",
-          }}
-        />
-        <div className="pointer-events-none absolute inset-0 bg-white/10" />
-      </div>
-
-      <div className="px-6 pb-10">
-        <div className="-mt-10">
-          <div
-            className="mx-auto grid h-16 w-16 place-items-center rounded-[22px] bg-white/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-            data-testid="badge-appmark"
-          >
-            <Sparkles className="h-6 w-6 text-primary" strokeWidth={2.2} />
-          </div>
-        </div>
-
-        <h1
-          className="mt-4 text-center font-display text-3xl font-semibold tracking-tight"
-          data-testid="text-welcome-title"
-        >
-          Bubble
-        </h1>
-        <p
-          className="mx-auto mt-2 max-w-[280px] text-center text-sm leading-relaxed text-muted-foreground"
-          data-testid="text-welcome-tagline"
-        >
-          Connect locally. Create moments. Build lasting community.
-        </p>
-
-        <div className="mt-7">
-          <GradientButton
-            onClick={onContinue}
-            data-testid="button-welcome-continue"
-          >
-            Continue
-          </GradientButton>
-        </div>
-
-        <div
-          className="mt-4 text-center text-xs text-muted-foreground"
-          data-testid="text-welcome-login"
-        >
-          Already have an account?{" "}
-          <button
-            className="font-medium text-foreground underline underline-offset-4"
-            data-testid="button-welcome-login"
-          >
-            Log in
-          </button>
-        </div>
-
-        <div className="mt-6 grid gap-2">
-          <div
-            className="flex items-center justify-center gap-2 text-xs text-muted-foreground"
-            data-testid="row-welcome-security"
-          >
-            <Shield className="h-4 w-4" />
-            <span>Privacy controls built-in</span>
-          </div>
-          <div
-            className="flex items-center justify-center gap-2 text-xs text-muted-foreground"
-            data-testid="row-welcome-email"
-          >
-            <Mail className="h-4 w-4" />
-            <span>Email verification for safety</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  children,
-  testId,
-}: {
-  label: string;
-  hint?: string;
-  children: React.ReactNode;
-  testId: string;
-}) {
-  return (
-    <div className="grid gap-1.5" data-testid={`field-${testId}`}>
-      <div className="text-xs font-medium text-foreground/80" data-testid={`text-label-${testId}`}>
-        {label}
-      </div>
-      {children}
-      {hint ? (
-        <div className="text-[11px] leading-snug text-muted-foreground" data-testid={`text-hint-${testId}`}>
-          {hint}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function AccountDetailsScreen({
-  value,
-  onChange,
-  onContinue,
-}: {
-  value: AccountDetails;
-  onChange: (next: AccountDetails) => void;
-  onContinue: () => void;
-}) {
-  const canContinue =
-    value.legalName.trim() &&
-    value.gender.trim() &&
-    value.dob.trim() &&
-    value.email.trim();
-
-  return (
-    <div
-      className="min-h-[760px]"
-      style={{
-        backgroundImage: `url(${gradientImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <TopBar title="Sign up" onBack={() => {}} />
-
-      <div className="px-5 pb-10">
-        <Card className="glass rounded-[28px] border p-0 shadow-none" data-testid="card-signup">
-          <div className="p-5">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl border bg-white/60 text-primary dark:bg-white/5">
-                <Lock className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="font-display text-lg font-semibold" data-testid="text-details-title">
-                  Account details
-                </div>
-                <div className="text-sm text-muted-foreground" data-testid="text-details-subtitle">
-                  Keep the community safe — 18+ only.
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 grid gap-4">
-              <Field
-                label="Legal name"
-                hint="Make sure this matches the name on your government ID."
-                testId="legal-name"
-              >
-                <Input
-                  value={value.legalName}
-                  onChange={(e) => onChange({ ...value, legalName: e.target.value })}
-                  placeholder="Full name"
-                  className="h-12 rounded-2xl bg-white/70"
-                  data-testid="input-legal-name"
-                />
-              </Field>
-
-              <Field label="Gender" testId="gender">
-                <select
-                  value={value.gender}
-                  onChange={(e) => onChange({ ...value, gender: e.target.value })}
-                  className="h-12 w-full rounded-2xl border border-input bg-white/70 px-3 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  data-testid="select-gender"
-                >
-                  <option value="">Please select one</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="nonbinary">Non-binary</option>
-                  <option value="prefer-not">Prefer not to say</option>
-                </select>
-              </Field>
-
-              <Field label="Date of birth" testId="dob">
-                <Input
-                  type="date"
-                  value={value.dob}
-                  onChange={(e) => onChange({ ...value, dob: e.target.value })}
-                  className="h-12 rounded-2xl bg-white/70"
-                  data-testid="input-dob"
-                />
-              </Field>
-
-              <Field
-                label="Email"
-                hint="We’ll email you occasional updates about your communities."
-                testId="email"
-              >
-                <Input
-                  type="email"
-                  value={value.email}
-                  onChange={(e) => onChange({ ...value, email: e.target.value })}
-                  placeholder="john.doe@gmail.com"
-                  className="h-12 rounded-2xl bg-white/70"
-                  data-testid="input-email"
-                />
-              </Field>
-
-              <div className="pt-1">
-                <GradientButton
-                  onClick={onContinue}
-                  disabled={!canContinue}
-                  className="disabled:opacity-60"
-                  data-testid="button-details-continue"
-                >
-                  Continue
-                </GradientButton>
-              </div>
-            </div>
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function InterestTile({
-  id,
-  title,
-  image,
-  selected,
-  onToggle,
-}: {
-  id: string;
-  title: string;
-  image: string;
-  selected: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className={cn(
-        "group relative overflow-hidden rounded-[18px] border bg-white/40 text-left",
-        "shadow-[0_12px_40px_hsl(var(--foreground)/0.10)]",
-        selected
-          ? "border-[hsl(var(--primary))]/70 ring-2 ring-[hsl(var(--primary))]/45"
-          : "border-white/40",
-      )}
-      data-testid={`tile-interest-${id}`}
-    >
-      <div className="relative aspect-square">
-        <img
-          src={image}
-          alt=""
-          className="h-full w-full object-cover"
-          data-testid={`img-interest-${id}`}
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-        <div className="absolute right-2 top-2">
-          <div
-            className={cn(
-              "grid h-6 w-6 place-items-center rounded-full backdrop-blur",
-              selected
-                ? "bg-[hsl(var(--primary))] text-white"
-                : "bg-white/60 text-transparent",
-            )}
-            data-testid={`badge-interest-check-${id}`}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </div>
-        </div>
-        <div className="absolute bottom-2 left-2 right-2">
-          <div
-            className="text-[12px] font-semibold text-white drop-shadow"
-            data-testid={`text-interest-${id}`}
-          >
-            {title}
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function InterestsScreen({
-  selected,
-  onToggle,
-  onNext,
-}: {
-  selected: string[];
-  onToggle: (id: string) => void;
-  onNext: () => void;
-}) {
-  const min = 3;
-  const remaining = Math.max(0, min - selected.length);
-  const canNext = remaining === 0;
-
-  const interests = [
-    { id: "running", title: "Running", image: interestRunning },
-    { id: "cooking", title: "Cooking", image: interestCooking },
-    { id: "coffee", title: "Coffee Meets", image: interestCoffee },
-    { id: "gardening", title: "Gardening", image: interestGardening },
-    { id: "hiking", title: "Hiking", image: interestHiking },
-    { id: "tennis", title: "Tennis", image: interestTennis },
-    { id: "biking", title: "Biking", image: interestBiking },
-    { id: "pets", title: "Pets", image: interestPets },
-    { id: "crafts", title: "Arts & Crafts", image: interestCrafts },
-  ];
-
-  return (
-    <div
-      className="min-h-[760px]"
-      style={{
-        backgroundImage: `url(${gradientImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <TopBar title="Tell us your interests" onBack={() => {}} />
-
-      <div className="px-5 pb-28">
-        <div className="mt-1 text-center text-sm text-muted-foreground" data-testid="text-interests-subtitle">
-          Select at least {min} to continue
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-3" data-testid="grid-interests">
-          {interests.map((it) => (
-            <InterestTile
-              key={it.id}
-              id={it.id}
-              title={it.title}
-              image={it.image}
-              selected={selected.includes(it.id)}
-              onToggle={() => onToggle(it.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-center">
-        <div className="pointer-events-auto w-full max-w-[420px] px-6 pb-7">
-          <GradientButton
-            onClick={onNext}
-            disabled={!canNext}
-            className={cn(
-              "disabled:opacity-60",
-              !canNext && "bg-none",
-            )}
-            style={
-              !canNext
-                ? {
-                    background:
-                      "linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,.28))",
-                  }
-                : undefined
-            }
-            data-testid="button-interests-next"
-          >
-            {canNext ? "Next" : `Select ${remaining} more`}
-          </GradientButton>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GuidelinesCard({
-  title,
-  body,
-  testId,
-}: {
-  title: string;
-  body: React.ReactNode;
-  testId: string;
-}) {
-  return (
-    <div className="rounded-2xl bg-white/60 p-4 ring-1 ring-black/5" data-testid={`card-guideline-${testId}`}>
-      <div className="text-sm font-semibold text-foreground" data-testid={`text-guideline-title-${testId}`}>
-        {title}
-      </div>
-      <div className="mt-1 text-sm leading-relaxed text-muted-foreground" data-testid={`text-guideline-body-${testId}`}>
-        {body}
-      </div>
-    </div>
-  );
-}
-
-function GuidelinesScreen({ onAgree }: { onAgree: () => void }) {
-  return (
-    <div
-      className="min-h-[760px]"
-      style={{
-        backgroundImage: `url(${gradientImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <TopBar title="Our Community Guidelines" onBack={() => {}} />
-
-      <div className="px-5 pb-28">
-        <h2 className="mt-2 font-display text-xl font-semibold tracking-tight" data-testid="text-guidelines-heading">
-          Let’s Keep This Space Safe
-        </h2>
-
-        <div className="mt-5 grid gap-3" data-testid="list-guidelines">
-          <GuidelinesCard
-            title="Be Kind"
-            body="No bullying, harassment, or hateful behavior."
-            testId="kind"
-          />
-          <GuidelinesCard
-            title="Respect Privacy"
-            body="Don’t share anyone’s personal info, screenshots, or messages without permission."
-            testId="privacy"
-          />
-          <GuidelinesCard
-            title="Keep It Safe"
-            body="No threats, dangerous behavior, or anything that could harm others."
-            testId="safe"
-          />
-          <GuidelinesCard
-            title="No Scams or Spam"
-            body="No fraud, promotions, or unwanted selling unless the Bubble allows it."
-            testId="spam"
-          />
-          <GuidelinesCard
-            title="Keep Content Appropriate"
-            body={
-              <ul className="ml-4 list-disc space-y-1">
-                <li>No graphic violence or gore</li>
-                <li>No illegal content or promotion of illegal activities</li>
-                <li>No misinformation intended to deceive or harm others</li>
-              </ul>
-            }
-            testId="content"
-          />
-          <GuidelinesCard
-            title="Show Up"
-            body="Honor your commitments, whether you’re hosting or attending."
-            testId="showup"
-          />
-
-          <div
-            className="rounded-2xl border border-[hsl(var(--primary))]/25 bg-white/70 p-4 text-sm text-muted-foreground"
-            data-testid="card-guidelines-warning"
-          >
-            <div className="font-semibold text-foreground" data-testid="text-warning-title">
-              Please Keep In Mind
-            </div>
-            <div className="mt-1" data-testid="text-warning-body">
-              Violations of these guidelines will result in warnings. Continued violations may lead to removal from Bubbles or account termination.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex justify-center">
-        <div className="pointer-events-auto w-full max-w-[420px] px-6 pb-7">
-          <GradientButton onClick={onAgree} data-testid="button-guidelines-agree">
-            I Agree
-          </GradientButton>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-type ExploreItem = {
-  id: string;
-  category: string;
-  title: string;
-  time: string;
-  miles: string;
-  tint: string;
-};
-
-const exploreSeed: ExploreItem[] = [
-  {
-    id: "sf-pickleball",
-    category: "Sports",
-    title: "SF Pickleball Crew",
-    time: "6:00 PM",
-    miles: "9.7 miles",
-    tint: "linear-gradient(135deg, hsl(var(--primary) / .18), hsl(var(--brand-2) / .10))",
-  },
-  {
-    id: "mindful-mamas",
-    category: "Wellness",
-    title: "Mindful Mamas",
-    time: "1:00 PM",
-    miles: "8.2 miles",
-    tint: "linear-gradient(135deg, hsl(var(--brand-2) / .18), hsl(var(--brand-3) / .10))",
-  },
-  {
-    id: "bark-dogpatch",
-    category: "Animals",
-    title: "Bark at Dogpatch",
-    time: "3:30 PM",
-    miles: "9.1 miles",
-    tint: "linear-gradient(135deg, hsl(var(--brand-3) / .16), hsl(var(--primary) / .08))",
-  },
-  {
-    id: "marina-meetup",
-    category: "Neighborhood",
-    title: "Marina Meetup",
-    time: "5:15 PM",
-    miles: "6.5 miles",
-    tint: "linear-gradient(135deg, hsl(var(--primary) / .14), hsl(var(--brand-2) / .10))",
-  },
-  {
-    id: "park-picnic",
-    category: "Games",
-    title: "Park Picnic & Cards",
-    time: "2:10 PM",
-    miles: "4.8 miles",
-    tint: "linear-gradient(135deg, hsl(var(--brand-2) / .14), hsl(var(--brand-3) / .10))",
-  },
-  {
-    id: "food-finds",
-    category: "Food",
-    title: "Food Finds",
-    time: "7:40 PM",
-    miles: "3.2 miles",
-    tint: "linear-gradient(135deg, hsl(var(--brand-3) / .14), hsl(var(--primary) / .10))",
-  },
-];
-
-function ExploreCard({ item }: { item: ExploreItem }) {
-  return (
-    <button className="w-full text-left" data-testid={`card-explore-${item.id}`}>
-      <div className="overflow-hidden rounded-[26px] bg-white/55 ring-1 ring-black/5">
-        <div className="relative aspect-[4/3]">
-          <div
-            className="absolute inset-0"
-            style={{ background: item.tint }}
-            data-testid={`img-explore-${item.id}`}
-          />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
-          <div className="absolute left-3 top-3">
-            <div
-              className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold text-foreground shadow-sm ring-1 ring-black/5 backdrop-blur"
-              data-testid={`badge-explore-category-${item.id}`}
-            >
-              {item.category}
-            </div>
-          </div>
-        </div>
-        <div className="px-3 pb-3 pt-3">
-          <div
-            className="font-display text-[15px] font-semibold tracking-tight"
-            data-testid={`text-explore-title-${item.id}`}
-          >
-            {item.title}
-          </div>
-          <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
-            <div className="inline-flex items-center gap-1" data-testid={`row-explore-time-${item.id}`}>
-              <Clock className="h-3.5 w-3.5" />
-              <span>{item.time}</span>
-            </div>
-            <div className="inline-flex items-center gap-1" data-testid={`row-explore-miles-${item.id}`}>
-              <MapPin className="h-3.5 w-3.5" />
-              <span>{item.miles}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function ExploreScreen() {
-  return (
-    <div className="min-h-[760px] bg-background">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(900px circle at 20% 10%, hsl(var(--primary) / .10), transparent 52%), radial-gradient(900px circle at 90% 25%, hsl(var(--brand-2) / .10), transparent 55%), radial-gradient(900px circle at 50% 90%, hsl(var(--brand-3) / .08), transparent 55%)",
-          }}
-        />
-      </div>
-
-      <div className="sticky top-0 z-10 bg-background/85 backdrop-blur-xl">
-        <div className="flex items-center justify-between px-5 py-4">
-          <button
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
-            data-testid="button-explore-filters"
-          >
-            <ListFilter className="h-5 w-5" />
-          </button>
-          <div className="text-base font-semibold tracking-tight" data-testid="text-explore-header">
-            Bubbles in San Francisco
-          </div>
-          <button
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
-            data-testid="button-explore-notifications"
-          >
-            <Bell className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      <div className="px-5 pb-28 pt-2">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="mt-3 grid grid-cols-2 gap-4"
-          data-testid="grid-explore"
-        >
-          {exploreSeed.map((it) => (
-            <ExploreCard key={it.id} item={it} />
-          ))}
-        </motion.div>
-      </div>
-
-      <button
-        className="absolute bottom-24 right-6 grid h-14 w-14 place-items-center rounded-full text-white shadow-[0_18px_50px_hsl(var(--primary)/0.38)]"
-        style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
-        data-testid="button-explore-fab"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
-
-      <div className="absolute bottom-0 inset-x-0 px-4 pb-4">
-        <div className="rounded-[26px] bg-white/70 px-3 py-2 shadow-[0_18px_60px_hsl(var(--foreground)/0.18)] ring-1 ring-black/5 backdrop-blur">
-          <div className="grid grid-cols-5 gap-1">
-            {["Explore", "Upcoming", "Bubbles", "Messages", "Profile"].map((label, idx) => {
-              const active = idx === 0;
-              return (
-                <button
-                  key={label}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[10px] font-medium",
-                    active ? "text-[hsl(var(--primary))]" : "text-muted-foreground",
-                  )}
-                  data-testid={`tab-${label.toLowerCase()}`}
-                >
-                  <div
-                    className={cn(
-                      "h-5 w-5 rounded-md",
-                      active ? "bg-[hsl(var(--primary))]/15" : "bg-black/5",
-                    )}
-                    aria-hidden
-                  />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmailVerificationScreen({
-  filled,
-  otp,
-  onOTPChange,
-  onVerify,
-}: {
-  filled: boolean;
-  otp: string;
-  onOTPChange: (v: string) => void;
-  onVerify: () => void;
-}) {
-  const isReady = otp.length === 6;
-
-  return (
-    <div
-      className="min-h-[760px]"
-      style={{
-        backgroundImage: `url(${gradientImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <TopBar title="Email Verification" onBack={() => {}} />
-
-      <div className="px-6 pb-10">
-        <div className="mx-auto mt-2 max-w-[320px] text-center">
-          <p
-            className="text-sm leading-relaxed text-muted-foreground"
-            data-testid="text-verify-instructions"
-          >
-            Please enter the 6-digit verification code that was sent to your email.
-            The code is valid for 30 minutes.
-          </p>
-        </div>
-
-        <div className="mt-6 flex justify-center" data-testid="otp-wrapper">
-          <InputOTP
-            maxLength={6}
-            value={otp}
-            onChange={onOTPChange}
-            containerClassName="gap-2"
-            data-testid="input-otp"
-          >
-            <InputOTPGroup className="gap-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <InputOTPSlot
-                  key={i}
-                  index={i}
-                  className={cn(
-                    "h-12 w-12 rounded-2xl border border-input bg-white/70 text-base shadow-none",
-                    filled && "bg-white/85",
-                  )}
-                />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
-        </div>
-
-        <div className="mt-6 px-2">
-          <GradientButton
-            onClick={onVerify}
-            disabled={!isReady}
-            className="disabled:opacity-60"
-            data-testid="button-verify"
-          >
-            Verify
-          </GradientButton>
-
-          <button
-            className="mt-3 w-full rounded-full border border-transparent py-3 text-sm font-medium text-primary"
-            data-testid="button-send-new-code"
-          >
-            Send new code
-          </button>
-        </div>
-
-        <div
-          className="mt-6 text-center text-xs text-muted-foreground"
-          data-testid="text-verify-footer"
-        >
-          Didn’t get an email? Check spam or try again.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function AuthFlow() {
-  const [, navigate] = useLocation();
-  const [screen, setScreen] = useState<Screen>("welcome");
-  const [details, setDetails] = useState<AccountDetails>({
-    legalName: "",
-    gender: "",
-    dob: "",
-    email: "",
-  });
-  const [otp, setOtp] = useState("");
-
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-
-  const stepIndex = useMemo(() => screens.indexOf(screen), [screen]);
-
-  return (
-    <PhoneFrame>
-      <div className="relative">
-        <div className="absolute right-4 top-4 z-20 lg:hidden">
-          <Badge
-            variant="secondary"
-            className="rounded-full"
-            data-testid="badge-step"
-          >
-            {stepIndex + 1}/{screens.length}
-          </Badge>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {screen === "welcome" ? (
-            <motion.div
-              key="welcome"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <WelcomeScreen onContinue={() => setScreen("details")} />
-            </motion.div>
-          ) : null}
-
-          {screen === "details" ? (
-            <motion.div
-              key="details"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div className="absolute left-3 top-3 z-20">
-                <button
-                  onClick={() => setScreen("welcome")}
-                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-                  data-testid="button-details-back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-
-              <AccountDetailsScreen
-                value={details}
-                onChange={setDetails}
-                onContinue={() => setScreen("verify")}
-              />
-            </motion.div>
-          ) : null}
-
-          {screen === "verify" ? (
-            <motion.div
-              key="verify"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div className="absolute left-3 top-3 z-20">
-                <button
-                  onClick={() => setScreen("details")}
-                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-                  data-testid="button-verify-back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-
-              <EmailVerificationScreen
-                filled={false}
-                otp={otp}
-                onOTPChange={(v) => setOtp(v)}
-                onVerify={() => setScreen("verifyFilled")}
-              />
-            </motion.div>
-          ) : null}
-
-          {screen === "verifyFilled" ? (
-            <motion.div
-              key="verifyFilled"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div className="absolute left-3 top-3 z-20">
-                <button
-                  onClick={() => setScreen("verify")}
-                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-                  data-testid="button-verifyfilled-back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-
-              <EmailVerificationScreen
-                filled={true}
-                otp={"462416"}
-                onOTPChange={() => {}}
-                onVerify={() => setScreen("interests")}
-              />
-            </motion.div>
-          ) : null}
-
-          {screen === "interests" ? (
-            <motion.div
-              key="interests"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div className="absolute left-3 top-3 z-20">
-                <button
-                  onClick={() => setScreen("verifyFilled")}
-                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-                  data-testid="button-interests-back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-
-              <InterestsScreen
-                selected={selectedInterests}
-                onToggle={(id) =>
-                  setSelectedInterests((prev) =>
-                    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-                  )
-                }
-                onNext={() => setScreen("guidelines")}
-              />
-            </motion.div>
-          ) : null}
-
-          {screen === "guidelines" ? (
-            <motion.div
-              key="guidelines"
-              initial={{ opacity: 0, x: 18 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -18 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div className="absolute left-3 top-3 z-20">
-                <button
-                  onClick={() => setScreen("interests")}
-                  className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-white/10 dark:ring-white/10"
-                  data-testid="button-guidelines-back"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-
-              <GuidelinesScreen onAgree={() => navigate("/explore")} />
-            </motion.div>
-          ) : null}
-
-        </AnimatePresence>
-      </div>
-    </PhoneFrame>
   );
 }

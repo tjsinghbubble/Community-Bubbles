@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Bell,
@@ -8,6 +8,7 @@ import {
   Compass,
   Heart,
   ImagePlus,
+  LogOut,
   MessageCircle,
   Plus,
   Search,
@@ -22,6 +23,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 type Bubble = {
   id: string;
@@ -157,6 +159,14 @@ function accentClasses(accent: Bubble["accent"]) {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth();
+  const [, navigate] = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <div className="pointer-events-none fixed inset-0 -z-10">
@@ -217,12 +227,30 @@ function Shell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
             </Button>
-            <Button asChild variant="secondary" size="sm" className="rounded-2xl" data-testid="button-profile">
-              <Link href="/auth">
-                <Users className="mr-2 h-4 w-4" />
-                Profile
-              </Link>
-            </Button>
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="hidden text-sm font-medium sm:inline-block" data-testid="text-username">
+                  {user.name.split(" ")[0]}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-2xl text-muted-foreground hover:text-foreground"
+                  onClick={handleLogout}
+                  data-testid="button-logout"
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button asChild variant="secondary" size="sm" className="rounded-2xl" data-testid="button-signin">
+                <Link href="/auth">
+                  <Users className="mr-2 h-4 w-4" />
+                  Sign In
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -234,7 +262,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <footer className="mx-auto max-w-6xl px-4 pb-10 pt-2 text-xs text-muted-foreground sm:px-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div data-testid="text-footer">
-            Prototype UI for Bubbles — frontend-only.
+            Bubble — local communities built around shared interests.
           </div>
           <Link
             href="/"
