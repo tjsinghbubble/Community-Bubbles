@@ -17,6 +17,24 @@ function formatEventDate(dateStr: string) {
   }
 }
 
+function DatePill({ label }: { label: string }) {
+  const isSpecial = label === "Today" || label === "Tomorrow";
+  return (
+    <div
+      className={cn(
+        "inline-flex flex-col items-center justify-center rounded-xl px-3 py-2 text-center",
+        isSpecial
+          ? "bg-[#35A8F7] text-white"
+          : "bg-black/6 text-black/70",
+      )}
+      style={{ minWidth: "52px" }}
+    >
+      <CalendarDays className="mb-0.5 h-3.5 w-3.5" />
+      <span className="text-[10px] font-bold leading-tight">{label}</span>
+    </div>
+  );
+}
+
 function EventCard({ event }: { event: any }) {
   const [, navigate] = useLocation();
   const dateLabel = formatEventDate(event.date);
@@ -24,36 +42,40 @@ function EventCard({ event }: { event: any }) {
   return (
     <button
       onClick={() => navigate(`/bubble/${event.bubbleId}`)}
-      className="w-full text-left"
+      className="group w-full text-left"
       data-testid={`card-event-${event.id}`}
     >
-      <div className="flex gap-4 rounded-2xl bg-white/60 p-4 ring-1 ring-black/5 transition hover:bg-white/80">
-        <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-[hsl(var(--primary))]/10 py-3 text-[hsl(var(--primary))]">
-          <CalendarDays className="h-4 w-4" />
-          <div className="mt-1 text-center text-[10px] font-bold leading-tight">{dateLabel}</div>
-        </div>
+      <div className="flex gap-4 rounded-2xl bg-white p-4 shadow-[0_1px_6px_rgba(0,0,0,0.07)] ring-1 ring-black/5 transition hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)]">
+        <DatePill label={dateLabel} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-semibold" data-testid={`text-event-title-${event.id}`}>
-            {event.title}
+          <div className="flex items-start justify-between gap-2">
+            <div className="truncate text-[14px] font-semibold text-black" data-testid={`text-event-title-${event.id}`}>
+              {event.title}
+            </div>
           </div>
           {event.bubbleName && (
-            <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-[hsl(var(--primary))]">
-              <Users className="h-3 w-3" />
-              <span className="truncate">{event.bubbleName}</span>
+            <div className="mt-0.5 text-[12px] font-semibold text-[#35A8F7]">
+              {event.bubbleName}
             </div>
           )}
-          <div className="mt-1.5 flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-black/45">
             {event.startTime && (
-              <span className="flex items-center gap-1">
+              <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {event.startTime}
-              </span>
+                <span>{event.startTime}</span>
+              </div>
             )}
-            {event.locationName && (
-              <span className="flex items-center gap-1">
+            {(event.locationName || event.locationAddress) && (
+              <div className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
-                <span className="truncate">{event.locationName}</span>
-              </span>
+                <span className="truncate">{event.locationName || event.locationAddress}</span>
+              </div>
+            )}
+            {event.attendees != null && (
+              <div className="flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                <span>{event.attendees} going</span>
+              </div>
             )}
           </div>
         </div>
@@ -62,84 +84,77 @@ function EventCard({ event }: { event: any }) {
   );
 }
 
+function SectionHeader({ title, count }: { title: string; count?: number }) {
+  return (
+    <div className="mb-4 flex items-center gap-2">
+      <h2 className="text-[18px] font-bold text-black">{title}</h2>
+      {count != null && count > 0 && (
+        <span className="rounded-full bg-black/6 px-2.5 py-0.5 text-[12px] font-semibold text-black/50">
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function Upcoming() {
-  const { data: myEvents, isLoading: loadingMy } = useQuery<any[]>({
+  const { data: myEvents } = useQuery<any[]>({
     queryKey: ["/api/events/my"],
     queryFn: () => apiRequest("GET", "/api/events/my").then((r) => r.json()),
   });
 
-  const { data: publicEvents, isLoading: loadingPublic } = useQuery<any[]>({
+  const { data: upcomingEvents } = useQuery<any[]>({
     queryKey: ["/api/events/upcoming"],
-    queryFn: () => fetch("/api/events/upcoming").then((r) => r.json()),
+    queryFn: () => apiRequest("GET", "/api/events/upcoming").then((r) => r.json()),
   });
 
-  const isLoading = loadingMy || loadingPublic;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const upcomingMyEvents = (myEvents ?? []).filter((e) => {
-    try {
-      return parseISO(e.date) >= today;
-    } catch {
-      return true;
-    }
-  });
-
-  const otherEvents = (publicEvents ?? []).filter((e) => {
-    const alreadyIn = upcomingMyEvents.some((me) => me.id === e.id);
-    return !alreadyIn;
-  });
+  const rsvpd = myEvents ?? [];
+  const nearby = (upcomingEvents ?? []).filter(
+    (e) => !rsvpd.find((m) => m.id === e.id),
+  );
 
   return (
     <AppShell active="upcoming">
-      <div className="mx-auto w-full max-w-2xl px-4 pb-28 pt-6 md:pb-8">
-        <div className="mb-6">
-          <h1 className="font-display text-[24px] font-bold tracking-tight">Upcoming</h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">Events you're attending and new ones nearby</p>
-        </div>
+      <div className="mx-auto max-w-3xl px-4 py-6 md:px-6">
+        <h1 className="mb-6 text-[28px] font-bold text-black">Upcoming</h1>
 
-        {isLoading ? (
-          <div className="py-10 text-center text-[13px] text-muted-foreground">Loading events…</div>
-        ) : (
-          <>
-            {upcomingMyEvents.length > 0 && (
-              <section className="mb-8">
-                <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Your RSVPs
-                </div>
-                <div className="space-y-3">
-                  {upcomingMyEvents.map((e) => (
-                    <EventCard key={e.id} event={e} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {otherEvents.length > 0 && (
-              <section>
-                <div className="mb-3 text-[12px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Happening Nearby
-                </div>
-                <div className="space-y-3">
-                  {otherEvents.map((e) => (
-                    <EventCard key={e.id} event={e} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {upcomingMyEvents.length === 0 && otherEvents.length === 0 && (
-              <div className="rounded-2xl border border-black/8 bg-white/60 p-8 text-center">
-                <CalendarDays className="mx-auto h-8 w-8 text-muted-foreground/40" />
-                <div className="mt-3 text-[14px] font-semibold">No upcoming events</div>
-                <div className="mt-1 text-[12px] text-muted-foreground">
-                  Join bubbles and RSVP to events to see them here.
+        <div className="space-y-10">
+          {/* Your RSVPs */}
+          <section>
+            <SectionHeader title="Your RSVPs" count={rsvpd.length} />
+            {rsvpd.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-[0_1px_6px_rgba(0,0,0,0.07)] ring-1 ring-black/5">
+                <CalendarDays className="mx-auto h-8 w-8 text-black/15" />
+                <div className="mt-3 text-[14px] font-semibold text-black/50">No upcoming events</div>
+                <div className="mt-1 text-[12px] text-black/35">
+                  RSVP to events in your bubbles to see them here.
                 </div>
               </div>
+            ) : (
+              <div className="space-y-3">
+                {rsvpd.map((e) => <EventCard key={e.id} event={e} />)}
+              </div>
             )}
-          </>
-        )}
+          </section>
+
+          {/* Nearby events */}
+          <section>
+            <SectionHeader title="Happening near you" count={nearby.length} />
+            {nearby.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center shadow-[0_1px_6px_rgba(0,0,0,0.07)] ring-1 ring-black/5">
+                <CalendarDays className="mx-auto h-8 w-8 text-black/15" />
+                <div className="mt-3 text-[14px] font-semibold text-black/50">No events found</div>
+                <div className="mt-1 text-[12px] text-black/35">
+                  Check back soon for community events near you.
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {nearby.map((e) => <EventCard key={e.id} event={e} />)}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </AppShell>
   );
