@@ -2,6 +2,8 @@ import crypto from "crypto";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { sql as drizzleSql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema } from "@shared/schema";
@@ -834,6 +836,74 @@ export async function registerRoutes(
       res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // System stats (super admin only)
+  app.get("/api/admin/stats", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+
+      // Database health check
+      let dbStatus: "connected" | "error" = "connected";
+      let dbError: string | null = null;
+      try {
+        await db.execute(drizzleSql`SELECT 1`);
+      } catch (e: any) {
+        dbStatus = "error";
+        dbError = e.message;
+      }
+
+      // Counts via efficient single SQL query
+      const countsResult = await db.execute(drizzleSql`
+        SELECT
+          (SELECT COUNT(*)::int FROM users) AS total_users,
+          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
+          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'approved') AS approved_bubbles,
+          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'pending') AS pending_bubbles,
+          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'rejected') AS rejected_bubbles,
+          (SELECT COUNT(*)::int FROM events) AS total_events,
+          (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
+          (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
+          (SELECT COUNT(*)::int FROM memberships WHERE membership_status = 'approved') AS total_memberships,
+          (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
+          (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
+      `);
+      // drizzle with pg returns a QueryResult; rows is always defined
+      const counts: any = (countsResult as any).rows?.[0] ?? countsResult[0] ?? {};
+
+      res.json({
+        db: { status: dbStatus, error: dbError },
+        server: { uptimeSeconds: Math.floor(process.uptime()), nodeVersion: process.version },
+        stats: {
+          users: { total: counts.total_users },
+          bubbles: {
+            total: counts.total_bubbles,
+            approved: counts.approved_bubbles,
+            pending: counts.pending_bubbles,
+            rejected: counts.rejected_bubbles,
+          },
+          events: {
+            total: counts.total_events,
+            approved: counts.approved_events,
+            pending: counts.pending_events,
+          },
+          memberships: { total: counts.total_memberships },
+          pendingReview: {
+            bubbles: counts.pending_bubbles,
+            events: counts.pending_events,
+            waitlist: counts.pending_waitlist,
+            reports: counts.open_reports,
+          },
+        },
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("[admin/stats] error:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
