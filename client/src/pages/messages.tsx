@@ -5,12 +5,9 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Camera,
   Check,
   ChevronDown,
   CheckCheck,
-  ImagePlus,
-  Mic,
   MoreVertical,
   Paperclip,
   Phone,
@@ -22,14 +19,12 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { CometChat } from "@cometchat/chat-sdk-javascript";
+import { webCometChat } from "@/lib/cometchat";
 
-import avatar1 from "@/assets/images/avatar-1.jpg";
-import avatar2 from "@/assets/images/avatar-2.jpg";
-import avatar3 from "@/assets/images/avatar-3.jpg";
 
 type ChatId = string;
 
@@ -39,6 +34,8 @@ type Chat = {
   title: string;
   subtitle: string;
   avatar: string;
+  lastMessageText?: string;
+  lastMessageTs?: number;
   muted?: boolean;
   pinned?: boolean;
 };
@@ -65,35 +62,31 @@ type Draft = {
   editingId?: string;
 };
 
-const LS_CHATS = "bubble:chats:v1";
-const LS_MESSAGES = "bubble:messages:v1";
-const LS_UNREAD = "bubble:unread:v1";
-const LS_JOINED_PREFIX = "bubble:joined:";
-
-function loadJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveJson(key: string, value: unknown) {
-  window.localStorage.setItem(key, JSON.stringify(value));
-}
-
 function nowId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function softHaptic() {
-  // UI-only mock
-}
+function softHaptic() {}
 
 function pillGradientStyle() {
   return { background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" };
+}
+
+function mapCcMessage(m: any, myUid: string): Message {
+  const isMe = m.getSender?.()?.getUid?.() === myUid;
+  const msgType = m.getType?.();
+  const isText = msgType === "text";
+  return {
+    id: String(m.getId?.() ?? nowId()),
+    chatId: m.getReceiverId?.() ?? "",
+    from: isMe ? "me" : "other",
+    authorName: m.getSender?.()?.getName?.() || "Unknown",
+    type: isText ? "text" : "image",
+    text: isText ? m.getText?.() : undefined,
+    imageUrl: !isText ? m.getURL?.() : undefined,
+    ts: (m.getSentAt?.() ?? 0) * 1000,
+    status: "read",
+  };
 }
 
 function TopBar({ title, onBack, right }: { title: string; onBack?: () => void; right?: React.ReactNode }) {
@@ -219,6 +212,10 @@ function ChatRow({
   unread: number;
   onOpen: () => void;
 }) {
+  const timeStr = chat.lastMessageTs
+    ? format(chat.lastMessageTs, "h:mm a")
+    : "";
+
   return (
     <button
       onClick={onOpen}
@@ -248,12 +245,14 @@ function ChatRow({
           <UnreadBadge count={unread} />
         </div>
         <div className="mt-0.5 truncate text-[12px] text-muted-foreground" data-testid={`text-chat-subtitle-${chat.id}`}>
-          {chat.subtitle}
+          {chat.lastMessageText || chat.subtitle}
         </div>
       </div>
-      <div className="text-[11px] text-muted-foreground" data-testid={`text-chat-time-${chat.id}`}>
-        {format(Date.now() - 1000 * 60 * 12, "h:mm a")}
-      </div>
+      {timeStr ? (
+        <div className="text-[11px] text-muted-foreground" data-testid={`text-chat-time-${chat.id}`}>
+          {timeStr}
+        </div>
+      ) : null}
     </button>
   );
 }
@@ -327,8 +326,7 @@ function MessageBubble({
             {msg.text}
           </div>
         ) : (
-          <div className={cn("relative")}
-          >
+          <div className={cn("relative")}>
             <div
               className={cn(
                 "overflow-hidden",
@@ -377,7 +375,7 @@ function MessageBubble({
                 data-testid={`meta-${msg.id}`}
               >
                 {msg.starred ? <span data-testid={`star-${msg.id}`}>★</span> : null}
-                <span>{format(msg.ts, "h:mm a")}</span>
+                <span>{msg.ts > 0 ? format(msg.ts, "h:mm a") : ""}</span>
                 {mine ? <StatusTicks status={msg.status} /> : null}
               </div>
             </div>
@@ -498,6 +496,7 @@ function Composer({
           <input
             value={draft.text}
             onChange={(e) => setDraft({ ...draft, text: e.target.value })}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSend(); } }}
             placeholder="Message"
             className="h-11 w-full bg-transparent px-3 text-[13px] outline-none"
             data-testid="input-message"
@@ -513,31 +512,36 @@ function Composer({
         </button>
 
         <button
-          onClick={canSend ? onSend : onAttach}
-          className="grid h-11 w-11 place-items-center rounded-2xl text-white shadow-[0_16px_45px_hsl(var(--primary)/0.32)]"
+          onClick={onSend}
+          disabled={!canSend}
+          className={cn(
+            "grid h-11 w-11 place-items-center rounded-2xl text-white transition-opacity",
+            canSend ? "opacity-100" : "opacity-40",
+          )}
           style={pillGradientStyle()}
           data-testid="button-send"
         >
-          {canSend ? <Send className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          <Send className="h-5 w-5" />
         </button>
       </div>
     </div>
   );
 }
 
+const EMOJI_STRIP = ["😀", "😂", "🥰", "😎", "🤔", "😅", "🙏", "🔥", "❤️", "👍", "👋", "🎉"];
+
 function EmojiStrip({ onPick }: { onPick: (e: string) => void }) {
-  const emojis = ["😀", "😅", "😂", "😍", "🥳", "👍", "❤️", "🙏"];
   return (
-    <div className="mx-auto w-full max-w-[420px] px-4 pb-2" data-testid="emoji-strip">
-      <div className="flex items-center justify-between rounded-2xl bg-white/70 px-3 py-2 ring-1 ring-black/5">
-        {emojis.map((e) => (
+    <div className="pointer-events-auto mx-auto w-full max-w-[420px] px-4 pb-1">
+      <div className="flex gap-2 overflow-x-auto rounded-2xl bg-white/80 px-3 py-2 ring-1 ring-black/5" data-testid="emoji-strip">
+        {EMOJI_STRIP.map((e) => (
           <button
             key={e}
             onClick={() => onPick(e)}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-black/5"
+            className="shrink-0 text-[22px]"
             data-testid={`emoji-${e}`}
           >
-            <span className="text-[16px]">{e}</span>
+            {e}
           </button>
         ))}
       </div>
@@ -547,73 +551,61 @@ function EmojiStrip({ onPick }: { onPick: (e: string) => void }) {
 
 function ChatHeader({
   chat,
+  unread,
   onBack,
   onSearch,
   onCall,
   onVideo,
   onMore,
-  unread,
 }: {
   chat: Chat;
+  unread: number;
   onBack: () => void;
   onSearch: () => void;
   onCall: () => void;
   onVideo: () => void;
   onMore: () => void;
-  unread: number;
 }) {
   return (
     <div className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl">
-      <div className="mx-auto w-full max-w-[420px] px-4 pb-3 pt-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onBack}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 ring-1 ring-black/5"
-              data-testid="button-chat-back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={onMore}
-              className="flex items-center gap-2 rounded-full bg-white/60 px-2 py-1 ring-1 ring-black/5"
-              data-testid="button-chat-header"
-            >
-              <img src={chat.avatar} alt="" className="h-9 w-9 rounded-full object-cover" data-testid="img-chat-avatar" />
-              <div className="min-w-0">
-                <div className="truncate text-[13px] font-semibold" data-testid="text-chat-name">
-                  {chat.title}
-                </div>
-                <div className="truncate text-[11px] text-muted-foreground" data-testid="text-chat-status">
-                  {unread > 0 ? `${unread} unread` : "Online • 8 members"}
-                </div>
-              </div>
-            </button>
-          </div>
+      <div className="mx-auto flex w-full max-w-[420px] items-center gap-3 px-4 py-3">
+        <button
+          onClick={onBack}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5"
+          data-testid="button-chat-back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onSearch}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
-              data-testid="button-chat-search"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            <button
-              onClick={onCall}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
-              data-testid="button-chat-call"
-            >
-              <Phone className="h-5 w-5" />
-            </button>
-            <button
-              onClick={onVideo}
-              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
-              data-testid="button-chat-video"
-            >
-              <Video className="h-5 w-5" />
-            </button>
+        {chat.avatar ? (
+          <img src={chat.avatar} alt="" className="h-10 w-10 shrink-0 rounded-2xl object-cover" data-testid="img-chat-header" />
+        ) : (
+          <div
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"
+            style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+          >
+            <Users className="h-4 w-4" />
           </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[14px] font-semibold" data-testid="text-chat-header-title">{chat.title}</div>
+          <div className="truncate text-[11px] text-muted-foreground" data-testid="text-chat-header-subtitle">
+            {chat.subtitle}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {unread > 0 ? <UnreadBadge count={unread} /> : null}
+          <button onClick={onCall} className="grid h-9 w-9 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5" data-testid="button-call">
+            <Phone className="h-4 w-4" />
+          </button>
+          <button onClick={onVideo} className="grid h-9 w-9 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5" data-testid="button-video">
+            <Video className="h-4 w-4" />
+          </button>
+          <button onClick={onMore} className="grid h-9 w-9 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5" data-testid="button-chat-more">
+            <MoreVertical className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -622,87 +614,43 @@ function ChatHeader({
 
 function InfoSheet({ chat, onClose }: { chat: Chat; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 bg-black/40">
-      <div className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col justify-end">
-        <motion.div
-          initial={{ y: 30, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 30, opacity: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-          className="relative rounded-t-[28px] bg-background px-5 pb-6 pt-4 shadow-[0_-20px_60px_rgba(0,0,0,0.18)]"
-          data-testid="sheet-chat-info"
-        >
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-black/10" />
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 ring-1 ring-black/5"
-            data-testid="button-info-close"
-          >
-            <ChevronDown className="h-5 w-5 rotate-180" />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-end justify-center" data-testid="info-sheet">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="relative z-10 w-full max-w-[420px] rounded-t-[28px] bg-background px-5 pb-10 pt-4"
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/20" />
+        <div className="text-[16px] font-semibold" data-testid="text-info-title">{chat.title}</div>
+        <div className="mt-1 text-[13px] text-muted-foreground" data-testid="text-info-subtitle">{chat.subtitle}</div>
 
-          <div className="flex items-center gap-3">
-            <img src={chat.avatar} alt="" className="h-14 w-14 rounded-2xl object-cover" data-testid="img-info-avatar" />
-            <div className="min-w-0">
-              <div className="truncate text-[15px] font-semibold" data-testid="text-info-title">
-                {chat.title}
-              </div>
-              <div className="mt-0.5 truncate text-[12px] text-muted-foreground" data-testid="text-info-subtitle">
-                {chat.subtitle}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-3">
+        <div className="mt-5 space-y-3">
+          {(["Mute notifications", "Search in chat", "View members", "Leave group"] as const).map((item) => (
             <button
-              className="flex w-full items-center justify-between rounded-2xl bg-white/60 px-4 py-4 ring-1 ring-black/5"
-              data-testid="button-info-mute"
-            >
-              <div className="text-[13px] font-semibold">Mute notifications</div>
-              <div className="h-6 w-10 rounded-full bg-black/10" aria-hidden />
-            </button>
-            <button
-              className="flex w-full items-center justify-between rounded-2xl bg-white/60 px-4 py-4 ring-1 ring-black/5"
-              data-testid="button-info-wallpaper"
-            >
-              <div className="text-[13px] font-semibold">Wallpaper</div>
-              <div className="text-[12px] text-muted-foreground">Default</div>
-            </button>
-            <button
-              className="flex w-full items-center justify-between rounded-2xl bg-white/60 px-4 py-4 ring-1 ring-black/5"
-              data-testid="button-info-media"
-            >
-              <div className="text-[13px] font-semibold">Media, links, docs</div>
-              <div className="text-[12px] text-muted-foreground">12</div>
-            </button>
-            <button
-              className="flex w-full items-center justify-between rounded-2xl bg-white/60 px-4 py-4 ring-1 ring-black/5"
-              data-testid="button-info-search"
-            >
-              <div className="text-[13px] font-semibold">Search in chat</div>
-              <div className="text-[12px] text-muted-foreground">⌘ F</div>
-            </button>
-            <button
-              className="flex w-full items-center justify-between rounded-2xl bg-white/60 px-4 py-4 ring-1 ring-black/5"
-              data-testid="button-info-report"
-            >
-              <div className="text-[13px] font-semibold text-red-500">Report</div>
-              <div className="text-[12px] text-muted-foreground">\u2026</div>
-            </button>
-          </div>
-
-          <div className="mt-5">
-            <Button
-              className="h-12 w-full rounded-full text-[14px] font-semibold"
-              style={pillGradientStyle()}
-              data-testid="button-info-close-primary"
+              key={item}
               onClick={onClose}
+              className="flex w-full items-center rounded-2xl bg-white/60 px-4 py-3 text-left text-[13px] font-medium ring-1 ring-black/5"
+              data-testid={`action-${item.toLowerCase().replace(/ /g, "-")}`}
             >
-              Done
-            </Button>
-          </div>
-        </motion.div>
-      </div>
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="w-full rounded-2xl"
+            data-testid="button-info-done"
+          >
+            Done
+          </Button>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -710,12 +658,26 @@ function InfoSheet({ chat, onClose }: { chat: Chat; onClose: () => void }) {
 export default function Messages() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+
   const [view, setView] = useState<"list" | "chat">("list");
   const [activeChatId, setActiveChatId] = useState<ChatId | null>(null);
   const [search, setSearch] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [toastText, setToastText] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Draft>({ text: "" });
+
+  const [ccReady, setCcReady] = useState(false);
+  const [ccError, setCcError] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Chat[]>([]);
+  const [unreadByChat, setUnreadByChat] = useState<Record<string, number>>({});
+  const [activeMessages, setActiveMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const listenerIdRef = useRef<string | null>(null);
+  const myUidRef = useRef<string>("");
 
   const { data: myBubbles } = useQuery<any[]>({
     queryKey: ["/api/bubbles/my"],
@@ -723,73 +685,144 @@ export default function Messages() {
     enabled: !!user,
   });
 
-  const apiBubbleChats: Chat[] = useMemo(() => {
-    if (!myBubbles?.length) return [];
-    return myBubbles.map((b: any) => ({
-      id: `chat-${b.id}`,
-      bubbleId: b.id,
-      title: b.title ?? "Untitled",
-      subtitle: `${b.members ?? 0} members`,
-      avatar: b.images?.[0] || b.coverImage || "",
-    }));
+  const bubbleImageMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (!myBubbles) return map;
+    for (const b of myBubbles) {
+      const img = b.coverImage || b.images?.[0] || "";
+      if (img) map[b.id] = img;
+    }
+    return map;
   }, [myBubbles]);
 
-  const chats = useMemo(() => {
-    const base = apiBubbleChats;
-    const pinned = base.filter((c) => c.pinned);
-    const rest = base.filter((c) => !c.pinned);
-    return [...pinned, ...rest];
-  }, [apiBubbleChats]);
-
-  const [unreadByChat, setUnreadByChat] = useState<Record<string, number>>(() => loadJson(LS_UNREAD, {}));
-
-  const unreadTotal = useMemo(() => Object.values(unreadByChat).reduce((a, b) => a + (b || 0), 0), [unreadByChat]);
-
-  const [messagesByChat, setMessagesByChat] = useState<Record<string, Message[]>>(() => {
-    return loadJson<Record<string, Message[]>>(LS_MESSAGES, {});
-  });
-
   useEffect(() => {
-    saveJson(LS_UNREAD, unreadByChat);
-  }, [unreadByChat]);
+    if (!user) return;
+    let cancelled = false;
 
-  useEffect(() => {
-    saveJson(LS_MESSAGES, messagesByChat);
-  }, [messagesByChat]);
+    (async () => {
+      try {
+        await webCometChat.init();
+        const existing = await webCometChat.getLoggedInUser();
+        if (!existing) {
+          const { authToken } = await apiRequest("POST", "/api/cometchat/auth-token").then((r) => r.json());
+          await webCometChat.loginWithToken(authToken);
+        }
+        const me = await webCometChat.getLoggedInUser();
+        myUidRef.current = me?.getUid() ?? user.id;
 
-  useEffect(() => {
-    saveJson(LS_CHATS, chats);
-  }, [chats]);
+        if (!cancelled) {
+          setCcReady(true);
+          await loadConversations();
+        }
+      } catch (err: any) {
+        if (!cancelled) setCcError(err?.message || "Could not connect to chat");
+      }
+    })();
 
-  const activeChat = useMemo(() => chats.find((c) => c.id === activeChatId) ?? null, [chats, activeChatId]);
+    return () => { cancelled = true; };
+  }, [user]);
 
-  const activeMessages = useMemo(() => {
-    if (!activeChatId) return [];
-    return messagesByChat[activeChatId] ?? [];
-  }, [messagesByChat, activeChatId]);
+  const loadConversations = async () => {
+    try {
+      const convs = await webCometChat.getConversations();
+      const mapped: Chat[] = convs.map((c: any) => {
+        const group = c.getConversationWith();
+        const guid: string = group?.getGuid?.() ?? "";
+        const lastMsg = c.getLastMessage();
+        const lastText: string | undefined = lastMsg?.getText?.();
+        const lastTs: number | undefined = lastMsg?.getSentAt?.()
+          ? lastMsg.getSentAt() * 1000
+          : undefined;
 
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+        return {
+          id: guid,
+          bubbleId: guid,
+          title: group?.getName?.() ?? "Group",
+          subtitle: `${group?.getMembersCount?.() ?? 0} members`,
+          avatar: bubbleImageMap[guid] ?? group?.getIcon?.() ?? "",
+          lastMessageText: lastText,
+          lastMessageTs: lastTs,
+        };
+      });
 
-  const scrollToBottom = () => {
-    const el = scrollerRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
+      const unread: Record<string, number> = {};
+      convs.forEach((c: any) => {
+        const guid = c.getConversationWith()?.getGuid?.() ?? "";
+        unread[guid] = c.getUnreadMessageCount?.() ?? 0;
+      });
+
+      setConversations(mapped);
+      setUnreadByChat(unread);
+    } catch (err) {
+      console.error("Failed to load conversations:", err);
+    }
   };
 
   useEffect(() => {
-    if (view === "chat") {
-      window.setTimeout(scrollToBottom, 0);
-    }
+    if (!bubbleImageMap || !conversations.length) return;
+    setConversations((prev) =>
+      prev.map((c) => ({
+        ...c,
+        avatar: bubbleImageMap[c.bubbleId] || c.avatar,
+      }))
+    );
+  }, [bubbleImageMap]);
+
+  useEffect(() => {
+    if (!activeChatId) return;
+    const listenerId = `web-msg-${activeChatId}-${Date.now()}`;
+    listenerIdRef.current = listenerId;
+
+    webCometChat.addMessageListener(
+      listenerId,
+      new CometChat.MessageListener({
+        onTextMessageReceived: (msg: any) => {
+          if (msg.getReceiverId?.() === activeChatId) {
+            const mapped = mapCcMessage(msg, myUidRef.current);
+            setActiveMessages((prev) => [...prev, mapped]);
+            scrollToBottom();
+          }
+        },
+      }),
+    );
+
+    return () => {
+      webCometChat.removeMessageListener(listenerId);
+      listenerIdRef.current = null;
+    };
+  }, [activeChatId]);
+
+  const scrollToBottom = () => {
+    window.setTimeout(() => {
+      if (scrollerRef.current) {
+        scrollerRef.current.scrollTop = scrollerRef.current.scrollHeight;
+      }
+    }, 0);
+  };
+
+  useEffect(() => {
+    if (view === "chat") scrollToBottom();
   }, [view, activeChatId]);
 
-  const [draft, setDraft] = useState<Draft>({ text: "" });
-
-  const openChat = (id: ChatId) => {
-    setActiveChatId(id);
+  const openChat = async (chatId: ChatId) => {
+    setActiveChatId(chatId);
     setView("chat");
     setShowEmoji(false);
     setDraft({ text: "" });
-    setUnreadByChat((p) => ({ ...p, [id]: 0 }));
+    setActiveMessages([]);
+    setLoadingMessages(true);
+    setUnreadByChat((p) => ({ ...p, [chatId]: 0 }));
+
+    try {
+      const msgs = await webCometChat.getMessages(chatId);
+      const mapped = msgs.map((m: any) => mapCcMessage(m, myUidRef.current));
+      setActiveMessages(mapped);
+    } catch (err) {
+      console.error("Failed to load messages:", err);
+    } finally {
+      setLoadingMessages(false);
+      scrollToBottom();
+    }
   };
 
   const showToast = (text: string) => {
@@ -797,24 +830,14 @@ export default function Messages() {
     window.setTimeout(() => setToastText(null), 1400);
   };
 
-  const send = () => {
-    if (!activeChatId) return;
+  const send = async () => {
+    if (!activeChatId || sending) return;
     const text = draft.text.trim();
     if (!text) return;
 
-    const list = messagesByChat[activeChatId] ?? [];
-
-    if (draft.editingId) {
-      const next = list.map((m) => (m.id === draft.editingId ? { ...m, text } : m));
-      setMessagesByChat((p) => ({ ...p, [activeChatId]: next }));
-      setDraft({ text: "" });
-      showToast("Edited");
-      window.setTimeout(scrollToBottom, 0);
-      return;
-    }
-
-    const msg: Message = {
-      id: nowId(),
+    const optimisticId = nowId();
+    const optimistic: Message = {
+      id: optimisticId,
       chatId: activeChatId,
       from: "me",
       type: "text",
@@ -824,62 +847,38 @@ export default function Messages() {
       replyTo: draft.replyTo,
     };
 
-    setMessagesByChat((p) => ({ ...p, [activeChatId]: [...list, msg] }));
+    setActiveMessages((prev) => [...prev, optimistic]);
     setDraft({ text: "" });
-    softHaptic();
-    window.setTimeout(scrollToBottom, 0);
+    scrollToBottom();
+    setSending(true);
 
-    // simulate delivery progression
-    window.setTimeout(() => {
-      setMessagesByChat((p) => {
-        const arr = p[activeChatId] ?? [];
-        return {
-          ...p,
-          [activeChatId]: arr.map((m) => (m.id === msg.id ? { ...m, status: "sent" } : m)),
-        };
-      });
-    }, 300);
-    window.setTimeout(() => {
-      setMessagesByChat((p) => {
-        const arr = p[activeChatId] ?? [];
-        return {
-          ...p,
-          [activeChatId]: arr.map((m) => (m.id === msg.id ? { ...m, status: "delivered" } : m)),
-        };
-      });
-    }, 900);
-    window.setTimeout(() => {
-      setMessagesByChat((p) => {
-        const arr = p[activeChatId] ?? [];
-        return {
-          ...p,
-          [activeChatId]: arr.map((m) => (m.id === msg.id ? { ...m, status: "read" } : m)),
-        };
-      });
-    }, 1500);
+    try {
+      const sent = await webCometChat.sendMessage(activeChatId, text);
+      const sentMapped = mapCcMessage(sent, myUidRef.current);
+      sentMapped.status = "sent";
+      setActiveMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? sentMapped : m)),
+      );
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeChatId
+            ? { ...c, lastMessageText: text, lastMessageTs: Date.now() }
+            : c,
+        ),
+      );
+    } catch (err) {
+      console.error("Send failed:", err);
+      showToast("Failed to send");
+      setActiveMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+    } finally {
+      setSending(false);
+    }
   };
 
-  const attach = () => {
-    if (!activeChatId) return;
-    const list = messagesByChat[activeChatId] ?? [];
-    const msg: Message = {
-      id: nowId(),
-      chatId: activeChatId,
-      from: "me",
-      type: "image",
-      imageUrl: avatar1,
-      ts: Date.now(),
-      status: "sending",
-    };
-    setMessagesByChat((p) => ({ ...p, [activeChatId]: [...list, msg] }));
-    showToast("Photo attached");
-    window.setTimeout(scrollToBottom, 0);
-  };
+  const attach = () => showToast("Photo upload coming soon");
 
-  const reactTo = (msgId: string, emoji: string) => {
-    // UI-only: we show toast to indicate reaction
-    showToast(`Reacted ${emoji}`);
-  };
+  const reactTo = (_msgId: string, emoji: string) => showToast(`Reacted ${emoji}`);
 
   const copyText = async (text?: string) => {
     if (!text) return;
@@ -892,23 +891,14 @@ export default function Messages() {
   };
 
   const del = (msgId: string) => {
-    if (!activeChatId) return;
-    setMessagesByChat((p) => {
-      const arr = p[activeChatId] ?? [];
-      return { ...p, [activeChatId]: arr.filter((m) => m.id !== msgId) };
-    });
-    showToast("Deleted");
+    setActiveMessages((prev) => prev.filter((m) => m.id !== msgId));
+    showToast("Deleted locally");
   };
 
   const star = (msgId: string) => {
-    if (!activeChatId) return;
-    setMessagesByChat((p) => {
-      const arr = p[activeChatId] ?? [];
-      return {
-        ...p,
-        [activeChatId]: arr.map((m) => (m.id === msgId ? { ...m, starred: !m.starred } : m)),
-      };
-    });
+    setActiveMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, starred: !m.starred } : m)),
+    );
   };
 
   const reply = (msg: Message) => {
@@ -923,32 +913,46 @@ export default function Messages() {
     showToast("Edit");
   };
 
+  const unreadTotal = useMemo(
+    () => Object.values(unreadByChat).reduce((a, b) => a + (b || 0), 0),
+    [unreadByChat],
+  );
+
   const listFiltered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return chats;
-    return chats.filter((c) => c.title.toLowerCase().includes(q) || c.subtitle.toLowerCase().includes(q));
-  }, [chats, search]);
+    if (!q) return conversations;
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, search]);
+
+  const activeChat = useMemo(
+    () => conversations.find((c) => c.id === activeChatId) ?? null,
+    [conversations, activeChatId],
+  );
+
+  const bgLayer = (
+    <div className="pointer-events-none fixed inset-0 -z-10">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(900px circle at 20% 10%, hsl(var(--primary) / .10), transparent 52%), radial-gradient(900px circle at 90% 25%, hsl(var(--brand-2) / .10), transparent 55%), radial-gradient(900px circle at 50% 90%, hsl(var(--brand-3) / .08), transparent 55%)",
+        }}
+      />
+      <div className="absolute inset-0 bg-grid opacity-40" />
+    </div>
+  );
 
   if (view === "chat" && activeChat) {
     const unread = unreadByChat[activeChat.id] || 0;
 
     return (
       <div className="min-h-dvh bg-background text-foreground">
-        <div className="pointer-events-none fixed inset-0 -z-10">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(900px circle at 20% 10%, hsl(var(--primary) / .10), transparent 52%), radial-gradient(900px circle at 90% 25%, hsl(var(--brand-2) / .10), transparent 55%), radial-gradient(900px circle at 50% 90%, hsl(var(--brand-3) / .08), transparent 55%)",
-            }}
-          />
-          <div className="absolute inset-0 bg-grid opacity-40" />
-        </div>
+        {bgLayer}
 
         <ChatHeader
           chat={activeChat}
           unread={unread}
-          onBack={() => setView("list")}
+          onBack={() => { setView("list"); setActiveChatId(null); setActiveMessages([]); }}
           onSearch={() => showToast("Search")}
           onCall={() => showToast("Voice call")}
           onVideo={() => showToast("Video call")}
@@ -960,25 +964,37 @@ export default function Messages() {
           className="mx-auto h-[calc(100dvh-168px)] w-full max-w-[420px] overflow-auto px-4 pb-4"
           data-testid="chat-scroll"
         >
-          <div className="space-y-4 py-2">
-            {activeMessages.map((m, idx) => {
-              const prev = activeMessages[idx - 1];
-              const showName = m.from === "other" && (!prev || prev.from !== "other" || prev.authorName !== m.authorName);
-              return (
-                <MessageBubble
-                  key={m.id}
-                  msg={m}
-                  showName={showName}
-                  onReply={() => reply(m)}
-                  onToggleStar={() => star(m.id)}
-                  onCopy={() => copyText(m.text)}
-                  onDelete={() => del(m.id)}
-                  onEdit={() => editMsg(m)}
-                  onReact={(e) => reactTo(m.id, e)}
-                />
-              );
-            })}
-          </div>
+          {loadingMessages ? (
+            <div className="flex justify-center py-10 text-[13px] text-muted-foreground" data-testid="loading-messages">
+              Loading messages…
+            </div>
+          ) : activeMessages.length === 0 ? (
+            <div className="flex justify-center py-10 text-[13px] text-muted-foreground" data-testid="empty-messages">
+              No messages yet. Say hello!
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              {activeMessages.map((m, idx) => {
+                const prev = activeMessages[idx - 1];
+                const showName =
+                  m.from === "other" &&
+                  (!prev || prev.from !== "other" || prev.authorName !== m.authorName);
+                return (
+                  <MessageBubble
+                    key={m.id}
+                    msg={m}
+                    showName={showName}
+                    onReply={() => reply(m)}
+                    onToggleStar={() => star(m.id)}
+                    onCopy={() => copyText(m.text)}
+                    onDelete={() => del(m.id)}
+                    onEdit={() => editMsg(m)}
+                    onReact={(e) => reactTo(m.id, e)}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
@@ -991,14 +1007,13 @@ export default function Messages() {
                 }}
               />
             ) : null}
-
             <Composer
               draft={draft}
               setDraft={setDraft}
               onSend={send}
               onAttach={attach}
               onOpenEmoji={() => setShowEmoji((v) => !v)}
-              sendingDisabled={false}
+              sendingDisabled={sending || !ccReady}
             />
           </div>
         </div>
@@ -1011,25 +1026,16 @@ export default function Messages() {
           </div>
         ) : null}
 
-        <AnimatePresence>{showInfo ? <InfoSheet chat={activeChat} onClose={() => setShowInfo(false)} /> : null}</AnimatePresence>
+        <AnimatePresence>
+          {showInfo ? <InfoSheet chat={activeChat} onClose={() => setShowInfo(false)} /> : null}
+        </AnimatePresence>
       </div>
     );
   }
 
-  const hasChats = chats.length > 0;
-
   return (
     <div className="min-h-dvh bg-background text-foreground">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(900px circle at 20% 10%, hsl(var(--primary) / .10), transparent 52%), radial-gradient(900px circle at 90% 25%, hsl(var(--brand-2) / .10), transparent 55%), radial-gradient(900px circle at 50% 90%, hsl(var(--brand-3) / .08), transparent 55%)",
-          }}
-        />
-        <div className="absolute inset-0 bg-grid opacity-40" />
-      </div>
+      {bgLayer}
 
       <TopBar
         title="Messages"
@@ -1059,12 +1065,29 @@ export default function Messages() {
           </div>
         </div>
 
-        {!hasChats ? <EmptyState onExplore={() => navigate("/explore")} /> : null}
+        {ccError ? (
+          <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-[13px] text-red-600 ring-1 ring-red-100" data-testid="error-cc">
+            {ccError}
+          </div>
+        ) : null}
 
-        {hasChats ? (
+        {!ccReady && !ccError ? (
+          <div className="mt-10 flex justify-center text-[13px] text-muted-foreground" data-testid="loading-cc">
+            Connecting to chat…
+          </div>
+        ) : conversations.length === 0 && ccReady ? (
+          <EmptyState onExplore={() => navigate("/explore")} />
+        ) : null}
+
+        {conversations.length > 0 ? (
           <div className="mt-4 space-y-3" data-testid="list-chats">
             {listFiltered.map((c) => (
-              <ChatRow key={c.id} chat={c} unread={unreadByChat[c.id] || 0} onOpen={() => openChat(c.id)} />
+              <ChatRow
+                key={c.id}
+                chat={c}
+                unread={unreadByChat[c.id] || 0}
+                onOpen={() => openChat(c.id)}
+              />
             ))}
           </div>
         ) : null}
