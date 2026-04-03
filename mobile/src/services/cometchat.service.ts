@@ -26,13 +26,27 @@ class CometChatService {
 
   async loginUser(uid: string, name: string) {
     try {
+      // If another user is already logged in, log them out first.
+      const existing = await CometChat.getLoggedinUser();
+      if (existing && existing.getUid() !== uid) {
+        try { await CometChat.logout(); } catch (_) {}
+      } else if (existing && existing.getUid() === uid) {
+        // Already logged in as the same user — nothing to do.
+        console.log('CometChat: already logged in as', uid);
+        return existing;
+      }
+
       // Fetch an auth token from the backend — this also creates the CometChat user
       // server-side using the API key, which is the v4-recommended secure approach.
       const { authToken } = await apiService.getCometChatAuthToken();
       const user = await CometChat.login(uid, authToken);
       console.log('Login successful:', user);
       return user;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ERR_ALREADY_LOGGED_IN') {
+        console.log('CometChat: already logged in, skipping');
+        return await CometChat.getLoggedinUser();
+      }
       console.error('Login failed:', error);
       throw error;
     }
@@ -75,9 +89,12 @@ class CometChatService {
     try {
       await CometChat.logout();
       console.log('Logout successful');
-    } catch (error) {
+    } catch (error: any) {
+      // "User not logged in" is harmless — treat it as already logged out.
+      if (error?.code === 'USER_NOT_LOGED_IN') {
+        return;
+      }
       console.error('Logout failed:', error);
-      throw error;
     }
   }
 
