@@ -321,41 +321,37 @@ export default function Explore() {
   const popular = filteredBubbles.slice(0, 8);
   const newer   = filteredBubbles.slice(8, 16);
 
-  const centerContent = (
-    <ExploreTabs active={activeTab} onChange={(t) => { setActiveTab(t); setSearchQuery(""); }} />
-  );
+  const changeTab = (t: "bubbles" | "events") => { setActiveTab(t); setSearchQuery(""); setActiveCategory("all"); };
 
-  return (
-    <AppShell active="explore" centerContent={centerContent}>
+  const centerContent = <ExploreTabs active={activeTab} onChange={changeTab} />;
 
-      {/* ── Mobile tabs (shown in content area on small screens) ── */}
-      <div className="md:hidden border-b border-black/8 bg-white">
-        <div className="flex justify-center gap-8 px-4">
-          {(["bubbles", "events"] as const).map((id) => {
-            const isActive = activeTab === id;
-            const Icon = id === "bubbles" ? IconBubblesTab : IconCalendarTab;
-            return (
-              <button
-                key={id}
-                onClick={() => { setActiveTab(id); setSearchQuery(""); }}
-                className={cn(
-                  "flex flex-col items-center gap-1 py-3 border-b-2 transition-all",
-                  isActive ? "border-black text-black" : "border-transparent text-black/45",
-                )}
-                data-testid={`tab-mobile-${id}`}
-              >
-                <Icon size={22} color={isActive ? "#111" : "rgba(0,0,0,0.4)"} />
-                <span className="text-[11px] font-semibold capitalize">{id}</span>
-              </button>
-            );
-          })}
-        </div>
+  /* Sub-bar: mobile tabs (hidden on desktop) + search bar (always visible) */
+  const subBar = (
+    <div className="mx-auto max-w-7xl px-4 md:px-6">
+      {/* Mobile-only tab row */}
+      <div className="flex justify-center gap-8 md:hidden">
+        {(["bubbles", "events"] as const).map((id) => {
+          const isActive = activeTab === id;
+          const Icon = id === "bubbles" ? IconBubblesTab : IconCalendarTab;
+          return (
+            <button
+              key={id}
+              onClick={() => changeTab(id)}
+              className={cn(
+                "flex flex-col items-center gap-1 pt-2 pb-1 border-b-2 transition-all",
+                isActive ? "border-black text-black" : "border-transparent text-black/45",
+              )}
+              data-testid={`tab-mobile-${id}`}
+            >
+              <Icon size={20} color={isActive ? "#111" : "rgba(0,0,0,0.4)"} />
+              <span className="text-[10px] font-semibold capitalize">{id}</span>
+            </button>
+          );
+        })}
       </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-
-        {/* ── Simple search bar ── */}
-        <div className="mb-6 flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-3 shadow-[0_2px_12px_rgba(0,0,0,0.07)] focus-within:shadow-[0_2px_18px_rgba(0,0,0,0.12)] transition-shadow">
+      {/* Search bar row */}
+      <div className="flex items-center gap-2 py-3">
+        <div className="flex flex-1 items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2.5 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
           <Search className="h-4 w-4 shrink-0 text-black/35" />
           <input
             value={searchQuery}
@@ -365,14 +361,17 @@ export default function Explore() {
             data-testid="search-main"
           />
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="shrink-0 text-[11px] font-semibold text-black/40 hover:text-black/70"
-            >
-              ✕
-            </button>
+            <button onClick={() => setSearchQuery("")} className="shrink-0 text-[12px] text-black/35 hover:text-black/60">✕</button>
           )}
         </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <AppShell active="explore" centerContent={centerContent} subBar={subBar}>
+
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
 
         {/* ── Bubbles tab ── */}
         {activeTab === "bubbles" && (

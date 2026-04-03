@@ -185,10 +185,12 @@ export function AppShell({
   children,
   active,
   centerContent,
+  subBar,
 }: {
   children: React.ReactNode;
   active: NavId;
   centerContent?: React.ReactNode;
+  subBar?: React.ReactNode;
 }) {
   const [, navigate] = useLocation();
   const { user, logout } = useAuth();
@@ -231,8 +233,8 @@ export function AppShell({
   return (
     <div className="min-h-dvh bg-[#FAFAFA] text-foreground">
       {/* ── Top navbar ── */}
-      <header className="sticky top-0 z-40 border-b border-black/8 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-4 px-4 md:px-6">
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-[0_1px_0_rgba(0,0,0,0.08)]">
+        <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-4 px-4 md:px-6">
 
           {/* Logo — left */}
           <div onClick={() => navigate("/explore")} className="shrink-0 cursor-pointer">
@@ -284,6 +286,13 @@ export function AppShell({
             </div>
           </div>
         </div>
+
+        {/* ── Optional sub-bar (e.g. search row on Explore, like Airbnb) ── */}
+        {subBar && (
+          <div className="border-t border-black/6">
+            {subBar}
+          </div>
+        )}
       </header>
 
       {/* ── Page content ── */}
