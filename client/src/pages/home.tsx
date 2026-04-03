@@ -200,13 +200,11 @@ function Shell({ children }: { children: React.ReactNode }) {
                 className="w-[360px] rounded-2xl pl-9"
               />
             </div>
-            <Button
-              data-testid="button-create"
-              className="rounded-2xl"
-              size="sm"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create
+            <Button asChild data-testid="button-create" className="rounded-2xl" size="sm">
+              <Link href="/create">
+                <Plus className="mr-2 h-4 w-4" />
+                Create
+              </Link>
             </Button>
           </div>
 
@@ -219,14 +217,11 @@ function Shell({ children }: { children: React.ReactNode }) {
             >
               <Bell className="h-4 w-4" />
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="rounded-2xl"
-              data-testid="button-profile"
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Profile
+            <Button asChild variant="secondary" size="sm" className="rounded-2xl" data-testid="button-profile">
+              <Link href="/auth">
+                <Users className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
             </Button>
           </div>
         </div>
@@ -239,7 +234,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <footer className="mx-auto max-w-6xl px-4 pb-10 pt-2 text-xs text-muted-foreground sm:px-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div data-testid="text-footer">
-            Prototype UI for Bubbles \u2014 frontend-only.
+            Prototype UI for Bubbles — frontend-only.
           </div>
           <Link
             href="/"
@@ -272,28 +267,29 @@ function Hero() {
                 className="rounded-full border bg-white/60 px-3 py-1 text-xs font-medium text-foreground/80 dark:bg-white/5"
                 data-testid="badge-hero"
               >
-                \uD83E\uDEB6 Communities that feel close
+                🪶 Communities that feel close
               </Badge>
               <h1
                 className="mt-4 font-display text-3xl font-semibold tracking-tight sm:text-5xl"
                 data-testid="text-title"
               >
-                Find your people, then\n                <span className="text-primary"> do things together</span>.
+                Find your people, then{" "}
+                <span className="text-primary">do things together</span>.
               </h1>
               <p
                 className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base"
                 data-testid="text-subtitle"
               >
-                Bubbles are interest-based communities with photo sharing, chat, and\n                events\u2014designed to be lively, safe, and simple.
+                Bubbles are interest-based communities with photo sharing, chat,
+                and events—designed to be lively, safe, and simple.
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button
-                  className="h-11 rounded-2xl"
-                  data-testid="button-join"
-                >
-                  <Compass className="mr-2 h-4 w-4" />
-                  Explore bubbles
+                <Button asChild className="h-11 rounded-2xl" data-testid="button-join">
+                  <Link href="/explore">
+                    <Compass className="mr-2 h-4 w-4" />
+                    Explore bubbles
+                  </Link>
                 </Button>
                 <Button
                   variant="secondary"
@@ -508,13 +504,11 @@ function BubbleCard({ bubble }: { bubble: Bubble }) {
             >
               {bubble.members.toLocaleString()} members
             </div>
-            <Button
-              size="sm"
-              className="rounded-2xl"
-              data-testid={`button-bubble-join-${bubble.id}`}
-            >
-              Join
-              <ChevronRight className="ml-1.5 h-4 w-4" />
+            <Button asChild size="sm" className="rounded-2xl" data-testid={`button-bubble-join-${bubble.id}`}>
+              <Link href={`/bubble/${bubble.id}`}>
+                Join
+                <ChevronRight className="ml-1.5 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
@@ -541,9 +535,7 @@ function EventCard({ event }: { event: EventItem }) {
           </div>
           <div className="mt-1 text-sm text-muted-foreground">
             <span data-testid={`text-event-bubble-${event.id}`}>{event.bubble}</span>
-            <span className="px-2" aria-hidden>
-              \u2022
-            </span>
+            <span className="px-2" aria-hidden>•</span>
             <span data-testid={`text-event-when-${event.id}`}>{event.when}</span>
           </div>
         </div>
@@ -565,14 +557,11 @@ function EventCard({ event }: { event: EventItem }) {
           <span className={cn("h-2 w-2 rounded-full", a.dot)} />
           <span data-testid={`text-event-signal-${event.id}`}>Live updates</span>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="rounded-2xl"
-          data-testid={`button-event-view-${event.id}`}
-        >
-          View
-          <ChevronRight className="ml-1.5 h-4 w-4" />
+        <Button asChild variant="secondary" size="sm" className="rounded-2xl" data-testid={`button-event-view-${event.id}`}>
+          <Link href="/explore">
+            View
+            <ChevronRight className="ml-1.5 h-4 w-4" />
+          </Link>
         </Button>
       </div>
     </div>
@@ -801,7 +790,7 @@ export default function Home() {
                     Quick actions
                   </div>
                   <div className="text-sm text-muted-foreground" data-testid="text-quick-subtitle">
-                    Common things you\u2019ll do in a Bubble.
+                    Common things you'll do in a Bubble.
                   </div>
                 </div>
               </div>
@@ -842,7 +831,7 @@ export default function Home() {
                   Privacy controls
                 </div>
                 <div className="mt-1" data-testid="text-privacy-desc">
-                  Public, private, invite-only, and hidden visibility options\u2014plus\n                  role-based member management.
+                  Public, private, invite-only, and hidden visibility options—plus role-based member management.
                 </div>
               </div>
             </div>

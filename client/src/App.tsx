@@ -1,4 +1,5 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation, useParams } from "wouter";
+import { useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,6 +13,28 @@ import BubbleDetails from "./pages/bubble-details";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 
+function BubbleShortLink() {
+  const { shortId } = useParams<{ shortId: string }>();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!shortId) return;
+    fetch(`/b/${shortId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.id) navigate(`/bubble/${data.id}`, { replace: true });
+        else navigate("/", { replace: true });
+      })
+      .catch(() => navigate("/", { replace: true }));
+  }, [shortId]);
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -23,6 +46,7 @@ function Router() {
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
+      <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route component={NotFound} />
     </Switch>
   );
