@@ -59,7 +59,7 @@ export default function AuthFlow() {
     setLoginLoading(true);
     try {
       await login(loginEmail, loginPassword);
-      navigate("/");
+      navigate("/explore");
     } catch (err: any) {
       setLoginError(err.message || "Login failed");
     } finally {
@@ -82,7 +82,7 @@ export default function AuthFlow() {
     setSignupLoading(true);
     try {
       await signup({ name: signupName, email: signupEmail, password: signupPassword, interests: signupInterests });
-      navigate("/");
+      navigate("/explore");
     } catch (err: any) {
       setSignupError(err.message || "Sign up failed");
       setSignupStep("details");

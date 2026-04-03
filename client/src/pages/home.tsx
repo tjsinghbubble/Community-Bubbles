@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -644,6 +644,13 @@ function Composer() {
 }
 
 export default function Home() {
+  const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (user) navigate("/explore", { replace: true });
+  }, [user]);
+
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"discover" | "events" | "messages">("discover");
 
