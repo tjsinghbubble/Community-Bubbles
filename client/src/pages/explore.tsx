@@ -64,12 +64,12 @@ function ExploreTabs({
             className={cn(
               "flex flex-col items-center gap-1 pb-1 border-b-2 transition-all",
               isActive
-                ? "border-black text-black"
+                ? "border-[#35A8F7] text-[#35A8F7]"
                 : "border-transparent text-black/45 hover:text-black/70",
             )}
             data-testid={`tab-explore-${id}`}
           >
-            <Icon size={22} color={isActive ? "#111" : "rgba(0,0,0,0.4)"} />
+            <Icon size={22} color={isActive ? "#35A8F7" : "rgba(0,0,0,0.4)"} />
             <span className="text-[12px] font-semibold">{label}</span>
           </button>
         );
@@ -339,19 +339,19 @@ export default function Explore() {
               onClick={() => changeTab(id)}
               className={cn(
                 "flex flex-col items-center gap-1 pt-2 pb-1 border-b-2 transition-all",
-                isActive ? "border-black text-black" : "border-transparent text-black/45",
+                isActive ? "border-[#35A8F7] text-[#35A8F7]" : "border-transparent text-black/45",
               )}
               data-testid={`tab-mobile-${id}`}
             >
-              <Icon size={20} color={isActive ? "#111" : "rgba(0,0,0,0.4)"} />
+              <Icon size={20} color={isActive ? "#35A8F7" : "rgba(0,0,0,0.4)"} />
               <span className="text-[10px] font-semibold capitalize">{id}</span>
             </button>
           );
         })}
       </div>
-      {/* Search bar row */}
-      <div className="flex items-center gap-2 py-3">
-        <div className="flex flex-1 items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2.5 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
+      {/* Search bar row — centered, 60% width on desktop */}
+      <div className="flex justify-center py-3">
+        <div className="flex w-full md:w-[60%] items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2.5 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
           <Search className="h-4 w-4 shrink-0 text-black/35" />
           <input
             value={searchQuery}
