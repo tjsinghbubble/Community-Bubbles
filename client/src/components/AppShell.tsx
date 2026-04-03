@@ -43,7 +43,7 @@ function Avatar({ name }: { name: string }) {
   return (
     <div
       className="grid h-9 w-9 place-items-center rounded-full text-[11px] font-bold text-white shrink-0"
-      style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+      style={{ background: "#35A8F7" }}
     >
       {initials}
     </div>

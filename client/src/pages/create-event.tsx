@@ -168,7 +168,7 @@ export default function CreateEvent() {
   }
 
   return (
-    <AppShell active="">
+    <AppShell active="explore">
       <div className="mx-auto max-w-lg px-4 py-6">
         {/* Header */}
         <div className="mb-6 flex items-center gap-3">
