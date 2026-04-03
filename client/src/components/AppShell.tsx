@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -7,6 +8,7 @@ import {
   Plus,
   Users,
   User,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -54,6 +56,59 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
+function CreateMenu({ onClose }: { onClose: () => void }) {
+  const [, navigate] = useLocation();
+
+  const options = [
+    {
+      label: "Create Bubble",
+      description: "Start a new community",
+      icon: Users,
+      href: "/create",
+      gradient: "linear-gradient(135deg, #35A8F7, #6C63FF)",
+    },
+    {
+      label: "Create Event",
+      description: "Plan something for your bubble",
+      icon: CalendarDays,
+      href: "/my-bubbles",
+      gradient: "linear-gradient(135deg, #6C63FF, #A855F7)",
+    },
+  ];
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.14)] z-50">
+      <div className="p-1.5">
+        {options.map((opt) => {
+          const Icon = opt.icon;
+          return (
+            <button
+              key={opt.label}
+              onClick={() => {
+                onClose();
+                navigate(opt.href);
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
+              data-testid={`menu-${opt.label.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              <div
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white"
+                style={{ background: opt.gradient }}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <div>
+                <div className="text-[13px] font-semibold text-black">{opt.label}</div>
+                <div className="text-[11px] text-black/45">{opt.description}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({
   children,
   active,
@@ -63,6 +118,8 @@ export function AppShell({
 }) {
   const [, navigate] = useLocation();
   const { user, logout } = useAuth();
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: me } = useQuery<any>({
     queryKey: ["/api/auth/me"],
@@ -71,6 +128,18 @@ export function AppShell({
   });
 
   const displayName = me?.name || user?.name || "Me";
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+        setShowCreateMenu(false);
+      }
+    }
+    if (showCreateMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showCreateMenu]);
 
   return (
     <div className="min-h-dvh bg-[#FAFAFA] text-foreground">
@@ -110,14 +179,21 @@ export function AppShell({
 
           {/* Right actions */}
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              onClick={() => navigate("/create")}
-              className="hidden items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5 md:flex"
-              data-testid="button-create-bubble"
-            >
-              <Plus className="h-4 w-4" />
-              Create Bubble
-            </button>
+            {/* Create button with dropdown */}
+            <div ref={createMenuRef} className="relative hidden md:block">
+              <button
+                onClick={() => setShowCreateMenu((v) => !v)}
+                className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
+                data-testid="button-create"
+              >
+                <Plus className="h-4 w-4" />
+                Create
+              </button>
+              {showCreateMenu && (
+                <CreateMenu onClose={() => setShowCreateMenu(false)} />
+              )}
+            </div>
+
             <button
               onClick={() => navigate("/profile")}
               className="flex items-center gap-2 rounded-full border border-black/12 bg-white p-1.5 pl-3 shadow-sm transition hover:shadow-md"

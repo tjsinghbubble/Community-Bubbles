@@ -74,36 +74,36 @@ function SearchPill() {
     <div className="flex items-center rounded-full border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_2px_18px_rgba(0,0,0,0.14)] transition-shadow">
       <div className="flex flex-1 items-center divide-x divide-black/8">
         <div className="px-5 py-3">
-          <div className="text-[11px] font-bold">What</div>
+          <div className="text-[11px] font-bold text-[#35A8F7]">What</div>
           <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/50 placeholder:text-black/35 focus:outline-none"
+            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
             placeholder="Any interest"
             data-testid="search-interest"
           />
         </div>
         <div className="px-5 py-3">
-          <div className="text-[11px] font-bold">Where</div>
+          <div className="text-[11px] font-bold text-[#35A8F7]">Where</div>
           <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/50 placeholder:text-black/35 focus:outline-none"
+            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
             placeholder="San Francisco"
             data-testid="search-location"
           />
         </div>
         <div className="hidden px-5 py-3 sm:block">
-          <div className="text-[11px] font-bold">Who</div>
+          <div className="text-[11px] font-bold text-[#35A8F7]">Who</div>
           <input
-            className="mt-0.5 w-full bg-transparent text-[13px] text-black/50 placeholder:text-black/35 focus:outline-none"
+            className="mt-0.5 w-full bg-transparent text-[13px] text-black/60 placeholder:text-black/30 focus:outline-none"
             placeholder="Add members"
             data-testid="search-members"
           />
         </div>
       </div>
       <button
-        className="m-1.5 grid h-10 w-10 place-items-center rounded-full text-white transition-transform hover:scale-105"
+        className="m-1.5 grid h-11 w-11 place-items-center rounded-full text-white shadow-[0_2px_8px_rgba(53,168,247,0.4)] transition-all hover:scale-105 hover:shadow-[0_4px_16px_rgba(53,168,247,0.5)]"
         style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
         data-testid="button-search"
       >
-        <Search className="h-4 w-4" />
+        <Search className="h-[18px] w-[18px]" />
       </button>
     </div>
   );
@@ -186,7 +186,7 @@ function BubbleCard({
           </div>
         </div>
         {item.category && (
-          <div className="text-[12px] text-black/40">{item.category}</div>
+          <div className="text-[12px] font-semibold text-[#35A8F7]">{item.category}</div>
         )}
         {item.tagline && (
           <div className="line-clamp-1 text-[12px] text-black/55">{item.tagline}</div>
