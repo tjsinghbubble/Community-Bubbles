@@ -144,6 +144,7 @@ export default function AdminMonitor() {
     data: stats,
     isLoading: statsLoading,
     isFetching,
+    isError: statsError,
     refetch,
     dataUpdatedAt,
   } = useQuery<AdminStats>({
@@ -189,9 +190,7 @@ export default function AdminMonitor() {
           </button>
           <div className="flex-1">
             <h1 className="font-display text-[22px] font-bold tracking-tight">System Monitor</h1>
-            <p className="text-[12px] text-muted-foreground">
-              {lastFetched ? `Last updated at ${lastFetched}` : "Live platform health and stats"}
-            </p>
+            <p className="text-[12px] text-muted-foreground">Live platform health and stats</p>
           </div>
           <button
             onClick={() => refetch()}
@@ -209,13 +208,34 @@ export default function AdminMonitor() {
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[#35A8F7]" />
           </div>
+        ) : statsError ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-white/70 py-16 text-center ring-1 ring-black/8" data-testid="stats-error">
+            <XCircle className="h-8 w-8 text-red-400" />
+            <div className="text-[14px] font-semibold text-red-600">Failed to load stats</div>
+            <p className="max-w-xs text-[12px] text-muted-foreground">
+              Could not reach the monitoring endpoint. Check your connection and permissions, then try again.
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-1 rounded-xl px-4 py-2 text-[12px] font-semibold text-white"
+              style={{ background: "#35A8F7" }}
+              data-testid="button-retry"
+            >
+              Retry
+            </button>
+          </div>
         ) : (
           <div className="space-y-5">
 
             {/* Status row */}
             <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">
-              <div className="border-b border-black/5 px-5 py-3">
+              <div className="border-b border-black/5 px-5 py-3 flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Status</span>
+                {lastFetched && (
+                  <span className="text-[10px] text-muted-foreground" data-testid="last-fetched">
+                    Updated {lastFetched}
+                  </span>
+                )}
               </div>
               <div className="divide-y divide-black/5">
                 {/* Database */}
