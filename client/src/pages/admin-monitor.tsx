@@ -33,10 +33,10 @@ interface AdminStats {
   db: { status: "connected" | "error"; error: string | null };
   server: { uptimeSeconds: number; nodeVersion: string };
   stats: {
-    users: { total: number };
-    bubbles: { total: number; approved: number; pending: number; rejected: number };
-    events: { total: number; approved: number; pending: number };
-    memberships: { total: number };
+    users: { total: number | null };
+    bubbles: { total: number | null; approved: number | null; pending: number | null; rejected: number | null };
+    events: { total: number | null; approved: number | null; pending: number | null };
+    memberships: { total: number | null };
     pendingReview: { bubbles: number; events: number; waitlist: number; reports: number };
   };
   fetchedAt: string;
@@ -154,20 +154,48 @@ export default function AdminMonitor() {
     refetchInterval: 30_000,
   });
 
-  // Redirect non-authenticated and non-super-admin users
+  // Redirect non-authenticated and confirmed non-super-admin users
   useEffect(() => {
     if (!user && !meLoading) {
       navigate("/profile");
       return;
     }
-    if (meError || (me && !me.isSuperAdmin)) {
+    if (me && !me.isSuperAdmin) {
       navigate("/profile");
     }
-  }, [user, me, meLoading, meError, navigate]);
+  }, [user, me, meLoading, navigate]);
 
-  // Block render until auth is resolved; redirect on error or non-admin
-  if (!user || meLoading || meError || (me && !me.isSuperAdmin)) {
+  // Block render until auth is resolved
+  if (!user || meLoading) {
     return null;
+  }
+
+  // Confirmed non-admin: prevent flash before redirect fires
+  if (me && !me.isSuperAdmin) {
+    return null;
+  }
+
+  // If me fetch failed (transient error), show an explicit unauthorized state
+  if (meError) {
+    return (
+      <AppShell active="profile">
+        <div className="mx-auto w-full max-w-2xl px-4 pt-20 text-center">
+          <XCircle className="mx-auto h-10 w-10 text-red-400" />
+          <div className="mt-3 text-[15px] font-semibold text-red-600">Could not verify permissions</div>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Unable to confirm super-admin access. Please refresh or try again.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 rounded-xl px-5 py-2.5 text-[13px] font-semibold text-white"
+            style={{ background: "#35A8F7" }}
+            data-testid="button-retry-auth"
+          >
+            Refresh
+          </button>
+        </div>
+      </AppShell>
+    );
   }
 
   const dbOk = stats?.db?.status === "connected";

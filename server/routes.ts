@@ -871,45 +871,55 @@ export async function registerRoutes(
         dbError = e instanceof Error ? e.message : "Unknown error";
       }
 
-      // Counts via efficient single SQL query
-      const countsResult = await db.execute<StatsRow>(drizzleSql`
-        SELECT
-          (SELECT COUNT(*)::int FROM users) AS total_users,
-          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
-          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'approved') AS approved_bubbles,
-          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'pending') AS pending_bubbles,
-          (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'rejected') AS rejected_bubbles,
-          (SELECT COUNT(*)::int FROM events) AS total_events,
-          (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
-          (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
-          (SELECT COUNT(*)::int FROM memberships) AS total_memberships,
-          (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
-          (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
-      `);
-      const counts = countsResult.rows[0];
+      // Count queries — run independently so a DB outage returns a degraded
+      // payload (db.status='error') rather than a hard 500.
+      let counts: Partial<StatsRow> = {};
+      try {
+        const countsResult = await db.execute<StatsRow>(drizzleSql`
+          SELECT
+            (SELECT COUNT(*)::int FROM users) AS total_users,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'approved') AS approved_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'pending') AS pending_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'rejected') AS rejected_bubbles,
+            (SELECT COUNT(*)::int FROM events) AS total_events,
+            (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
+            (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
+            (SELECT COUNT(*)::int FROM memberships) AS total_memberships,
+            (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
+            (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
+        `);
+        counts = countsResult.rows[0] ?? {};
+      } catch (e: unknown) {
+        // DB counts unavailable — surface as null values in the response
+        if (dbStatus === "connected") {
+          dbStatus = "error";
+          dbError = e instanceof Error ? e.message : "Count query failed";
+        }
+      }
 
       res.json({
         db: { status: dbStatus, error: dbError },
         server: { uptimeSeconds: Math.floor(process.uptime()), nodeVersion: process.version },
         stats: {
-          users: { total: counts.total_users },
+          users: { total: counts.total_users ?? null },
           bubbles: {
-            total: counts.total_bubbles,
-            approved: counts.approved_bubbles,
-            pending: counts.pending_bubbles,
-            rejected: counts.rejected_bubbles,
+            total: counts.total_bubbles ?? null,
+            approved: counts.approved_bubbles ?? null,
+            pending: counts.pending_bubbles ?? null,
+            rejected: counts.rejected_bubbles ?? null,
           },
           events: {
-            total: counts.total_events,
-            approved: counts.approved_events,
-            pending: counts.pending_events,
+            total: counts.total_events ?? null,
+            approved: counts.approved_events ?? null,
+            pending: counts.pending_events ?? null,
           },
-          memberships: { total: counts.total_memberships },
+          memberships: { total: counts.total_memberships ?? null },
           pendingReview: {
-            bubbles: counts.pending_bubbles,
-            events: counts.pending_events,
-            waitlist: counts.pending_waitlist,
-            reports: counts.open_reports,
+            bubbles: counts.pending_bubbles ?? 0,
+            events: counts.pending_events ?? 0,
+            waitlist: counts.pending_waitlist ?? 0,
+            reports: counts.open_reports ?? 0,
           },
         },
         fetchedAt: new Date().toISOString(),
