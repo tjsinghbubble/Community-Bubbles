@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { Heart, MapPin, Plus, Search, Users } from "lucide-react";
+import { CalendarDays, Heart, MapPin, Plus, Search, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/AppShell";
@@ -280,17 +280,37 @@ export default function Explore() {
   const newer   = filtered.slice(8, 16);
 
   return (
-    <AppShell active="explore">
+    <AppShell active="explore" centerContent={<SearchPill />}>
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
 
-        {/* ── Search bar ── */}
-        <div className="mb-6 max-w-2xl">
+        {/* ── Search pill — mobile only (hidden in navbar on desktop) ── */}
+        <div className="mb-5 md:hidden">
           <SearchPill />
         </div>
 
-        {/* ── Category chips ── */}
-        <div className="mb-8 border-b border-black/6 pb-1">
-          <CategoryChips active={activeCategory} onChange={setActiveCategory} />
+        {/* ── Category chips + Create CTA ── */}
+        <div className="mb-8 flex items-center justify-between border-b border-black/6 pb-1">
+          <div className="flex-1 overflow-x-auto">
+            <CategoryChips active={activeCategory} onChange={setActiveCategory} />
+          </div>
+          <div className="hidden shrink-0 items-center gap-2 pl-4 md:flex">
+            <button
+              onClick={() => navigate("/create")}
+              className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
+              data-testid="button-create-bubble"
+            >
+              <Users className="h-3.5 w-3.5" />
+              Create Bubble
+            </button>
+            <button
+              onClick={() => navigate("/create-event")}
+              className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
+              data-testid="button-create-event"
+            >
+              <CalendarDays className="h-3.5 w-3.5" />
+              Create Event
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

@@ -7,7 +7,6 @@ import {
   LogOut,
   Menu,
   MessageSquare,
-  Plus,
   Settings,
   Shield,
   Users,
@@ -43,56 +42,10 @@ function Avatar({ name }: { name: string }) {
     .toUpperCase();
   return (
     <div
-      className="grid h-8 w-8 place-items-center rounded-full text-[11px] font-bold text-white shrink-0"
+      className="grid h-9 w-9 place-items-center rounded-full text-[11px] font-bold text-white shrink-0"
       style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
     >
       {initials}
-    </div>
-  );
-}
-
-function CreateMenu({ onClose }: { onClose: () => void }) {
-  const [, navigate] = useLocation();
-  const options = [
-    {
-      label: "Create Bubble",
-      description: "Start a new community",
-      icon: Users,
-      href: "/create",
-    },
-    {
-      label: "Create Event",
-      description: "Plan something for your bubble",
-      icon: CalendarDays,
-      href: "/create-event",
-    },
-  ];
-  return (
-    <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.14)] z-50">
-      <div className="p-1.5">
-        {options.map((opt) => {
-          const Icon = opt.icon;
-          return (
-            <button
-              key={opt.label}
-              onClick={() => { onClose(); navigate(opt.href); }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
-              data-testid={`menu-${opt.label.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              <div
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-white"
-                style={{ background: "#35A8F7" }}
-              >
-                <Icon className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="text-[13px] font-semibold text-black">{opt.label}</div>
-                <div className="text-[11px] text-black/45">{opt.description}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -111,7 +64,6 @@ function NavMenu({
   onLogout: () => void;
 }) {
   const [, navigate] = useLocation();
-
   const go = (href: string) => { onClose(); navigate(href); };
 
   const navLinks = [
@@ -196,15 +148,15 @@ function NavMenu({
 export function AppShell({
   children,
   active,
+  centerContent,
 }: {
   children: React.ReactNode;
   active: NavId;
+  centerContent?: React.ReactNode;
 }) {
   const [, navigate] = useLocation();
   const { user, logout } = useAuth();
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
-  const createMenuRef = useRef<HTMLDivElement>(null);
   const navMenuRef = useRef<HTMLDivElement>(null);
 
   const { data: me } = useQuery<any>({
@@ -225,18 +177,15 @@ export function AppShell({
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
-        setShowCreateMenu(false);
-      }
       if (navMenuRef.current && !navMenuRef.current.contains(e.target as Node)) {
         setShowNavMenu(false);
       }
     }
-    if (showCreateMenu || showNavMenu) {
+    if (showNavMenu) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showCreateMenu, showNavMenu]);
+  }, [showNavMenu]);
 
   const handleLogout = () => {
     logout();
@@ -247,42 +196,45 @@ export function AppShell({
     <div className="min-h-dvh bg-[#FAFAFA] text-foreground">
       {/* ── Top navbar ── */}
       <header className="sticky top-0 z-40 border-b border-black/8 bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
+        <div className="mx-auto flex h-[72px] max-w-7xl items-center gap-4 px-4 md:px-6">
 
-          {/* Logo */}
-          <div onClick={() => navigate("/explore")} className="shrink-0">
+          {/* Logo — left */}
+          <div onClick={() => navigate("/explore")} className="shrink-0 cursor-pointer">
             <BubbleLogo />
           </div>
 
-          {/* Center — intentionally empty (Explore is the home page) */}
-          <div className="flex-1" />
-
-          {/* Right actions */}
-          <div className="flex shrink-0 items-center gap-2">
-            {/* Create button */}
-            <div ref={createMenuRef} className="relative hidden md:block">
-              <button
-                onClick={() => { setShowNavMenu(false); setShowCreateMenu((v) => !v); }}
-                className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold text-foreground shadow-sm transition hover:bg-black/5"
-                data-testid="button-create"
-              >
-                <Plus className="h-4 w-4" />
-                Create
-              </button>
-              {showCreateMenu && (
-                <CreateMenu onClose={() => setShowCreateMenu(false)} />
-              )}
+          {/* Center — optional slot (e.g. SearchPill on Explore), hidden on mobile */}
+          {centerContent ? (
+            <div className="hidden flex-1 justify-center px-4 md:flex">
+              <div className="w-full max-w-xl">
+                {centerContent}
+              </div>
             </div>
+          ) : (
+            <div className="flex-1" />
+          )}
 
-            {/* Hamburger + avatar pill */}
+          {/* Right — avatar circle + hamburger circle */}
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Avatar → Profile */}
+            <button
+              onClick={() => navigate("/profile")}
+              className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
+              data-testid="button-avatar"
+              title="Profile"
+            >
+              <Avatar name={displayName} />
+            </button>
+
+            {/* Hamburger → nav dropdown */}
             <div ref={navMenuRef} className="relative">
               <button
-                onClick={() => { setShowCreateMenu(false); setShowNavMenu((v) => !v); }}
-                className="flex items-center gap-2.5 rounded-full border border-black/12 bg-white px-3 py-1.5 shadow-sm transition hover:shadow-md"
+                onClick={() => setShowNavMenu((v) => !v)}
+                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
                 data-testid="button-nav-menu"
+                title="Menu"
               >
                 <Menu className="h-[18px] w-[18px] text-black/60" strokeWidth={1.8} />
-                <Avatar name={displayName} />
               </button>
               {showNavMenu && (
                 <NavMenu
