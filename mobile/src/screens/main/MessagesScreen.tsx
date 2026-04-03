@@ -16,8 +16,10 @@ import {
 import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import { CometChat } from '@cometchat/chat-sdk-react-native';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
+import { useAuth } from '../../context/AuthContext';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -49,6 +51,7 @@ type Props = {
 };
 
 export default function MessagesScreen({ navigation, route }: Props) {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
@@ -151,6 +154,16 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   const fetchConversations = async () => {
     try {
+      // Ensure CometChat session is active before fetching conversations.
+      // The session can be lost if init/login silently failed at startup.
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser && user) {
+        try {
+          await cometChatService.loginUser(user.id, user.name);
+        } catch (loginErr) {
+          console.error('CometChat re-login failed:', loginErr);
+        }
+      }
       const data = await cometChatService.getConversations();
       const convs = data as unknown as Conversation[];
       setConversations(convs);
