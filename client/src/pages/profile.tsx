@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Bell,
   ChevronRight,
+  Clock,
   FileText,
+  List,
   Lock,
   LogOut,
   Settings,
@@ -104,6 +106,9 @@ export default function Profile() {
   const email = me?.email || user?.email || "";
   const interests: string[] = me?.interests ?? [];
   const bubbleCount = myBubbles?.length ?? 0;
+  const isSuperAdmin = me?.isSuperAdmin === true;
+  const isBubbleAdmin = (myBubbles ?? []).some((b: any) => b.role === "admin");
+  const hasAdminSection = isSuperAdmin || isBubbleAdmin;
 
   const initials = displayName
     .split(" ")
@@ -215,6 +220,41 @@ export default function Profile() {
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Administration ── */}
+          {hasAdminSection && (
+            <div className="overflow-hidden rounded-2xl bg-white/60 ring-1 ring-black/5">
+              <div className="flex items-center justify-between border-b border-black/5 px-5 py-3">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Administration
+                </span>
+                <span
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-white"
+                  style={{ background: "#35A8F7" }}
+                  data-testid="badge-admin-role"
+                >
+                  <Shield className="h-3 w-3" />
+                  {isSuperAdmin ? "Super Admin" : "Admin"}
+                </span>
+              </div>
+              <div className="divide-y divide-black/5">
+                <SectionRow
+                  icon={Clock}
+                  label="Needs Attention"
+                  sublabel="Review pending bubbles, events & requests"
+                  onClick={() => navigate("/admin/pending")}
+                />
+                {isSuperAdmin && (
+                  <SectionRow
+                    icon={List}
+                    label="Manage Rules"
+                    sublabel="App-wide and category-level rules"
+                    onClick={() => navigate("/admin/rules")}
+                  />
+                )}
               </div>
             </div>
           )}
