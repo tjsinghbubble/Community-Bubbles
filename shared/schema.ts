@@ -113,6 +113,10 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
   updatedBy: true,
+}).extend({
+  name: z.string().min(1).max(100),
+  aboutMe: z.string().max(500).optional().nullable(),
+  interests: z.array(z.string().max(50)).max(20).default([]),
 });
 
 export const insertBubbleSchema = createInsertSchema(bubbles).omit({
@@ -121,6 +125,13 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
   shortId: true,
   createdAt: true,
   deletedAt: true,
+}).extend({
+  title: z.string().min(1).max(150),
+  tagline: z.string().min(1).max(150),
+  description: z.string().min(1).max(2000),
+  rules: z.array(z.string().max(300)).max(20).default([]),
+  locationName: z.string().max(300).optional().nullable(),
+  locationAddress: z.string().max(300).optional().nullable(),
 });
 
 export const insertMembershipSchema = createInsertSchema(memberships).omit({
@@ -196,6 +207,11 @@ export const insertEventSchema = createInsertSchema(events).omit({
   createdAt: true,
   reminder24hSent: true,
   reminder1hSent: true,
+}).extend({
+  title: z.string().min(1).max(150),
+  description: z.string().max(2000).optional().nullable(),
+  locationName: z.string().max(300).optional().nullable(),
+  locationAddress: z.string().max(300).optional().nullable(),
 });
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
@@ -254,6 +270,9 @@ export type BubbleVisit = typeof bubbleVisits.$inferSelect;
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
+}).extend({
+  name: z.string().min(1).max(100),
+  displayName: z.string().max(100).optional().nullable(),
 });
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
@@ -292,6 +311,9 @@ export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
   status: true,
   createdAt: true,
+}).extend({
+  reason: z.string().min(1).max(500),
+  freeText: z.string().max(2000).optional().nullable(),
 });
 
 export type InsertReport = z.infer<typeof insertReportSchema>;
@@ -449,6 +471,9 @@ export const insertBulletinPostSchema = createInsertSchema(bulletinPosts).omit({
   isPinned: true,
   updatedAt: true,
   updatedBy: true,
+}).extend({
+  title: z.string().min(1).max(150),
+  body: z.string().min(1).max(5000),
 });
 
 export const insertBulletinReplySchema = createInsertSchema(bulletinReplies).omit({
@@ -457,6 +482,8 @@ export const insertBulletinReplySchema = createInsertSchema(bulletinReplies).omi
   createdBy: true,
   updatedAt: true,
   updatedBy: true,
+}).extend({
+  body: z.string().min(1).max(2000),
 });
 
 export const bulletinPostReactions = pgTable("bulletin_post_reactions", {
@@ -480,6 +507,19 @@ export type BulletinReply = typeof bulletinReplies.$inferSelect;
 export type InsertBulletinReply = z.infer<typeof insertBulletinReplySchema>;
 
 export type BulletinPostReaction = typeof bulletinPostReactions.$inferSelect;
+
+// Partial schemas for update routes
+export const updateBubbleSchema = insertBubbleSchema.partial();
+export const updateEventSchema = insertEventSchema.partial();
+export const updateBulletinPostSchema = insertBulletinPostSchema.partial();
+
+// Patch schema for user profile (fields that can be updated individually)
+export const patchUserSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  aboutMe: z.string().max(500).optional().nullable(),
+  interests: z.array(z.string().max(50)).max(20).optional(),
+  profilePhoto: z.string().optional().nullable(),
+});
 
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),

@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -473,8 +473,17 @@ export async function registerRoutes(
 
   app.patch("/api/users/me", authMiddleware, async (req, res) => {
     try {
-      const { profilePhoto, name, aboutMe, interests } = req.body;
-      const updated = await storage.updateUserProfile(req.userId!, { profilePhoto, name, aboutMe, interests });
+      const parsed = patchUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.issues[0].message });
+      }
+      const { profilePhoto, name, aboutMe, interests } = parsed.data;
+      const updated = await storage.updateUserProfile(req.userId!, {
+        profilePhoto: profilePhoto ?? undefined,
+        name,
+        aboutMe: aboutMe ?? undefined,
+        interests,
+      });
       if (!updated) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -602,7 +611,12 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to edit this bubble" });
       }
 
-      const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = req.body;
+      const bodyParsed = updateBubbleSchema.safeParse(req.body);
+      if (!bodyParsed.success) {
+        return res.status(400).json({ error: bodyParsed.error.issues[0].message });
+      }
+
+      const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = bodyParsed.data as any;
 
       const modResult = moderateText({
         title,
@@ -799,6 +813,9 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Super admin access required" });
       }
       const { reason } = req.body;
+      if (reason !== undefined && (typeof reason !== 'string' || reason.length > 500)) {
+        return res.status(400).json({ error: "Reason must be 500 characters or fewer" });
+      }
       const bubble = await storage.rejectBubble(req.params.id, reason);
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
@@ -1716,6 +1733,11 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to edit this event" });
       }
 
+      const eventBodyParsed = updateEventSchema.safeParse(req.body);
+      if (!eventBodyParsed.success) {
+        return res.status(400).json({ error: eventBodyParsed.error.issues[0].message });
+      }
+
       const modResult = moderateText({
         title: req.body.title,
         description: req.body.description,
@@ -1724,7 +1746,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: modResult.message });
       }
 
-      let updateBody = { ...req.body };
+      let updateBody = { ...eventBodyParsed.data };
       const tz = req.body.timezone || event.timezone || 'UTC';
       if (tz !== 'UTC') {
         if (req.body.date && req.body.startTime) {
@@ -1980,6 +2002,9 @@ export async function registerRoutes(
       }
 
       const { reason } = req.body;
+      if (reason !== undefined && (typeof reason !== 'string' || reason.length > 500)) {
+        return res.status(400).json({ error: "Reason must be 500 characters or fewer" });
+      }
       const rejectedEvent = await storage.rejectEvent(req.params.id, reason);
       res.json(rejectedEvent);
     } catch (error: any) {
@@ -2929,6 +2954,18 @@ export async function registerRoutes(
         }
       }
 
+      const postParsed = insertBulletinPostSchema.safeParse({
+        boardId: 'placeholder',
+        postTypeId: req.body.postTypeId,
+        authorId: userId,
+        title: req.body.title,
+        body: req.body.body,
+        imageUrl: req.body.imageUrl || null,
+      });
+      if (!postParsed.success) {
+        return res.status(400).json({ error: postParsed.error.issues[0].message });
+      }
+
       const modResult = moderateText({ title: req.body.title, body: req.body.body });
       if (modResult.flagged) {
         return res.status(400).json({ error: modResult.message });
@@ -2937,11 +2974,11 @@ export async function registerRoutes(
       const board = await storage.getOrCreateBulletinBoard(bubbleId, userId);
       const post = await storage.createBulletinPost({
         boardId: board.id,
-        postTypeId: req.body.postTypeId,
+        postTypeId: postParsed.data.postTypeId,
         authorId: userId,
-        title: req.body.title,
-        body: req.body.body,
-        imageUrl: req.body.imageUrl || null,
+        title: postParsed.data.title,
+        body: postParsed.data.body,
+        imageUrl: postParsed.data.imageUrl || null,
       });
       res.json(post);
     } catch (error: any) {
@@ -2961,6 +2998,16 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only the author can edit this post" });
       }
 
+      const updatePostParsed = updateBulletinPostSchema.safeParse({
+        title: req.body.title,
+        body: req.body.body,
+        postTypeId: req.body.postTypeId,
+        imageUrl: req.body.imageUrl,
+      });
+      if (!updatePostParsed.success) {
+        return res.status(400).json({ error: updatePostParsed.error.issues[0].message });
+      }
+
       if (req.body.title || req.body.body) {
         const modResult = moderateText({ title: req.body.title || post.title, body: req.body.body || post.body });
         if (modResult.flagged) {
@@ -2968,12 +3015,7 @@ export async function registerRoutes(
         }
       }
 
-      const updated = await storage.updateBulletinPost(postId, {
-        title: req.body.title,
-        body: req.body.body,
-        postTypeId: req.body.postTypeId,
-        imageUrl: req.body.imageUrl,
-      }, userId);
+      const updated = await storage.updateBulletinPost(postId, updatePostParsed.data, userId);
       res.json(updated);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -3042,6 +3084,9 @@ export async function registerRoutes(
       if (!post) return res.status(404).json({ error: "Post not found" });
 
       const emoji = req.body.emoji || 'heart';
+      if (typeof emoji !== 'string' || emoji.length > 10) {
+        return res.status(400).json({ error: "emoji must be 10 characters or fewer" });
+      }
       const result = await storage.toggleBulletinReaction(req.params.postId, req.userId!, emoji);
       res.json(result);
     } catch (error: any) {
@@ -3073,16 +3118,21 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Must be a member to reply" });
       }
 
+      const replyParsed = insertBulletinReplySchema.safeParse({
+        postId: req.params.postId,
+        authorId: req.userId!,
+        body: req.body.body,
+      });
+      if (!replyParsed.success) {
+        return res.status(400).json({ error: replyParsed.error.issues[0].message });
+      }
+
       const replyModResult = moderateText({ body: req.body.body });
       if (replyModResult.flagged) {
         return res.status(400).json({ error: replyModResult.message });
       }
 
-      const reply = await storage.createBulletinReply({
-        postId: req.params.postId,
-        authorId: req.userId!,
-        body: req.body.body,
-      });
+      const reply = await storage.createBulletinReply(replyParsed.data);
       res.json(reply);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
