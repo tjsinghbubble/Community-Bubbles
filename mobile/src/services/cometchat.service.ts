@@ -39,7 +39,9 @@ class CometChatService {
       // Fetch an auth token from the backend — this also creates the CometChat user
       // server-side using the API key, which is the v4-recommended secure approach.
       const { authToken } = await apiService.getCometChatAuthToken();
-      const user = await CometChat.login(uid, authToken);
+      // Auth token login: pass ONLY the authToken (no uid).
+      // Passing (uid, authToken) makes the SDK treat authToken as an Auth Key → AUTH_ERR_APIKEY_NOT_FOUND.
+      const user = await CometChat.login(authToken);
       console.log('Login successful:', user);
       return user;
     } catch (error: any) {
