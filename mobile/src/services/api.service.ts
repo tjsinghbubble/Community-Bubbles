@@ -125,8 +125,8 @@ class ApiService {
     });
   }
 
-  async getBubble(id: string) {
-    return this.request(`/api/bubbles/${id}`, {
+  async getBubble(id: string): Promise<any> {
+    return this.request<any>(`/api/bubbles/${id}`, {
       method: "GET",
     });
   }

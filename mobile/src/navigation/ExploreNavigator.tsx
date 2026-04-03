@@ -29,8 +29,21 @@ export type BubbleData = {
   tagline?: string;
   description?: string;
   members?: number;
+  memberLimit?: number | null;
   privacy?: string;
   campusId?: number | null;
+  shortId?: string | null;
+  coverImage?: string | null;
+  images?: string[];
+  locationName?: string | null;
+  locationAddress?: string | null;
+  locationLat?: string | null;
+  locationLng?: string | null;
+  radiusMiles?: number | null;
+  creatorId?: string;
+  status?: string;
+  rules?: string[];
+  deletedAt?: string | null;
 };
 
 export type EventData = {

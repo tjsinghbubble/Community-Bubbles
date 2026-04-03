@@ -423,10 +423,9 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             <Text style={overlayStyles.sheetTitle}>{overlayEditPostId ? 'Edit Post' : 'New Post'}</Text>
 
             <ScrollView
-              style={overlayStyles.scrollContent}
+              style={[overlayStyles.scrollContent, { backgroundColor: 'transparent' }]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              backgroundColor="transparent"
             >
               <TouchableOpacity
                 style={overlayStyles.card}

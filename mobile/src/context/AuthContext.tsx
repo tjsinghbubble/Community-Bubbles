@@ -16,6 +16,7 @@ type User = {
   campusVerified?: boolean;
   dismissedCampusPrompt?: boolean;
   isSuperAdmin?: boolean;
+  updatedAt?: string | null;
 };
 
 type AuthContextType = {
