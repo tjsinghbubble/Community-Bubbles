@@ -78,7 +78,7 @@ export default function RootNavigator() {
         });
       }
     } catch (error: any) {
-      if (error?.message?.includes('404') || error?.status === 404) {
+      if (error?.status === 404) {
         Alert.alert('Bubble Not Found', 'This bubble no longer exists or may have been removed.');
       } else {
         console.error('Deep link error:', error);

@@ -235,7 +235,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       setMessages(formattedMessages);
     } catch (error: any) {
       console.error('Failed to fetch messages:', error);
-      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.message?.includes('not found')) {
+      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.status === 404) {
         setChatError('This chat is no longer available. The group may have been removed.');
       }
     } finally {
@@ -384,7 +384,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       }, 100);
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.message?.includes('not found')) {
+      if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.status === 404) {
         setChatError('This chat is no longer available.');
         return;
       }

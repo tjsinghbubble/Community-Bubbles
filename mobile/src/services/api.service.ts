@@ -69,7 +69,9 @@ class ApiService {
       if (response.status === 401 && error.error === 'Token revoked') {
         this.onTokenRevokedCallback?.();
       }
-      throw new Error(error.error || response.statusText);
+      const apiError = new Error(error.error || response.statusText) as Error & { status: number };
+      apiError.status = response.status;
+      throw apiError;
     }
 
     try {
