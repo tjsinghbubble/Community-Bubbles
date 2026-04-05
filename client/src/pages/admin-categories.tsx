@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Camera,
   ChevronDown,
   ChevronRight,
   FolderOpen,
@@ -17,6 +18,7 @@ import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import { useUpload } from "@/hooks/use-upload";
 
 interface Category {
   id: number;
@@ -37,6 +39,7 @@ interface CategoryFormData {
   displayOrder: number;
   parentId: number | null;
   header: string;
+  image: string | null;
 }
 
 const EMPTY_FORM: CategoryFormData = {
@@ -46,6 +49,7 @@ const EMPTY_FORM: CategoryFormData = {
   displayOrder: 0,
   parentId: null,
   header: "",
+  image: null,
 };
 
 function slugify(s: string) {
@@ -73,7 +77,7 @@ function Modal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
       </div>
     </div>
   );
@@ -138,6 +142,24 @@ function CategoriesUI() {
 
   const [form, setForm] = useState<CategoryFormData>(EMPTY_FORM);
   const [autoSlug, setAutoSlug] = useState(true);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: (res) => {
+      setForm((f) => ({ ...f, image: res.objectPath }));
+      setImageUploadError(null);
+    },
+    onError: (err) => setImageUploadError(err.message),
+  });
+
+  async function handleImageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setImageUploadError(null);
+    await uploadFile(file);
+  }
 
   const { data: rawCategories, isLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories/flat"],
@@ -198,6 +220,7 @@ function CategoriesUI() {
       displayOrder: category.displayOrder,
       parentId: category.parentId,
       header: category.header ?? "",
+      image: category.image ?? null,
     });
     setAutoSlug(false);
     setModal({ type: "edit", category, parentName });
@@ -223,6 +246,7 @@ function CategoriesUI() {
       icon: form.icon || undefined,
       displayOrder: form.displayOrder,
       parentId: form.parentId ?? null,
+      image: form.image ?? null,
     };
     if (!form.parentId) payload.header = form.header || undefined;
 
@@ -233,7 +257,7 @@ function CategoriesUI() {
     }
   }
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || updateMutation.isPending || isUploading;
   const saveError = createMutation.error?.message || updateMutation.error?.message;
 
   const isEdit = modal?.type === "edit";
@@ -460,6 +484,61 @@ function CategoriesUI() {
                 </select>
               </Field>
             )}
+
+            <Field label="Cover Image" hint="Shown in the category browser (optional)">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageFileChange}
+                data-testid="input-image-file"
+              />
+              {isUploading ? (
+                <div className="flex h-28 w-full items-center justify-center rounded-xl border border-black/12 bg-[#FAFAFA]">
+                  <Loader2 className="h-6 w-6 animate-spin text-[#35A8F7]" />
+                </div>
+              ) : form.image ? (
+                <div className="relative h-28 w-full overflow-hidden rounded-xl border border-black/12 bg-[#FAFAFA]">
+                  <img
+                    src={form.image}
+                    alt="Category"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/40 to-transparent p-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black/70 backdrop-blur transition hover:bg-white"
+                      data-testid="button-change-image"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setForm((f) => ({ ...f, image: null })); setImageUploadError(null); }}
+                      className="grid h-6 w-6 place-items-center rounded-full bg-white/90 backdrop-blur transition hover:bg-white"
+                      data-testid="button-remove-image"
+                    >
+                      <X className="h-3 w-3 text-black/70" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-28 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-black/20 bg-[#FAFAFA] transition hover:border-[#35A8F7] hover:bg-[#35A8F7]/4"
+                  data-testid="button-upload-image"
+                >
+                  <Camera className="h-6 w-6 text-black/30" />
+                  <span className="text-[12px] font-medium text-black/40">Upload image</span>
+                </button>
+              )}
+              {imageUploadError && (
+                <p className="text-[11px] text-red-500" data-testid="image-upload-error">{imageUploadError}</p>
+              )}
+            </Field>
 
             <Field label="Icon" hint="Ionicons name (e.g., cafe, barbell, leaf)">
               <Input
