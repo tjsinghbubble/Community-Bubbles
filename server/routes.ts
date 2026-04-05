@@ -978,16 +978,43 @@ export async function registerRoutes(
   app.get("/api/admin/stats", authMiddleware, async (req, res) => {
     interface StatsRow {
       total_users: number;
+      new_users_7d: number;
+      new_users_30d: number;
       total_bubbles: number;
       approved_bubbles: number;
       pending_bubbles: number;
       rejected_bubbles: number;
+      new_bubbles_7d: number;
+      new_bubbles_30d: number;
+      orphan_bubbles: number;
+      avg_members: number;
       total_events: number;
       approved_events: number;
       pending_events: number;
+      events_this_month: number;
+      upcoming_events: number;
       total_memberships: number;
       pending_waitlist: number;
       open_reports: number;
+      total_campuses: number;
+      campus_verified_users: number;
+      campus_bubbles: number;
+    }
+
+    // Helper: ping a URL with a timeout, return "ok" or "error"
+    async function pingUrl(url: string, timeoutMs: number, opts?: RequestInit): Promise<{ status: "ok" | "error"; latencyMs: number | null; error: string | null }> {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const start = Date.now();
+      try {
+        await fetch(url, { ...opts, signal: controller.signal });
+        clearTimeout(timer);
+        return { status: "ok", latencyMs: Date.now() - start, error: null };
+      } catch (e: unknown) {
+        clearTimeout(timer);
+        const msg = e instanceof Error ? (e.name === "AbortError" ? "Timeout" : e.message) : "Unknown error";
+        return { status: "error", latencyMs: null, error: msg };
+      }
     }
 
     try {
@@ -1013,16 +1040,27 @@ export async function registerRoutes(
         const countsResult = await db.execute<StatsRow>(drizzleSql`
           SELECT
             (SELECT COUNT(*)::int FROM users) AS total_users,
+            (SELECT COUNT(*)::int FROM users WHERE created_at >= NOW() - INTERVAL '7 days') AS new_users_7d,
+            (SELECT COUNT(*)::int FROM users WHERE created_at >= NOW() - INTERVAL '30 days') AS new_users_30d,
             (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
             (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'approved') AS approved_bubbles,
             (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'pending') AS pending_bubbles,
             (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'rejected') AS rejected_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '7 days') AS new_bubbles_7d,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '30 days') AS new_bubbles_30d,
+            (SELECT COUNT(*)::int FROM bubbles b WHERE b.deleted_at IS NULL AND b.status = 'approved' AND NOT EXISTS (SELECT 1 FROM memberships m WHERE m.bubble_id = b.id)) AS orphan_bubbles,
+            (SELECT COALESCE(ROUND(AVG(m_count))::int, 0) FROM (SELECT COUNT(*) AS m_count FROM memberships m JOIN bubbles b ON b.id = m.bubble_id WHERE b.deleted_at IS NULL AND b.status = 'approved' GROUP BY b.id) sub) AS avg_members,
             (SELECT COUNT(*)::int FROM events) AS total_events,
             (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
             (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
+            (SELECT COUNT(*)::int FROM events WHERE created_at >= DATE_TRUNC('month', NOW())) AS events_this_month,
+            (SELECT COUNT(*)::int FROM events WHERE date >= TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')) AS upcoming_events,
             (SELECT COUNT(*)::int FROM memberships) AS total_memberships,
             (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
-            (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
+            (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports,
+            (SELECT COUNT(*)::int FROM campuses) AS total_campuses,
+            (SELECT COUNT(*)::int FROM users WHERE campus_verified = true) AS campus_verified_users,
+            (SELECT COUNT(*)::int FROM bubbles WHERE campus_id IS NOT NULL AND deleted_at IS NULL) AS campus_bubbles
         `);
         counts = countsResult.rows[0] ?? {};
       } catch (e: unknown) {
@@ -1033,23 +1071,72 @@ export async function registerRoutes(
         }
       }
 
+      // Memory usage
+      const mem = process.memoryUsage();
+      const memMb = (bytes: number) => Math.round(bytes / 1024 / 1024);
+
+      // Environment
+      const environment = process.env.NODE_ENV ?? "development";
+
+      // CometChat health check
+      const cometChatAppId = process.env.COMETCHAT_APP_ID ?? "";
+      const cometChatRegion = process.env.COMETCHAT_REGION ?? "us";
+      const cometChatApiKey = process.env.COMETCHAT_API_KEY ?? process.env.COMETCHAT_AUTH_KEY ?? "";
+      let cometChat: { status: "ok" | "error" | "unconfigured"; latencyMs: number | null; error: string | null };
+      if (!cometChatAppId || !cometChatApiKey) {
+        cometChat = { status: "unconfigured", latencyMs: null, error: "COMETCHAT_APP_ID or API key not set" };
+      } else {
+        const ccUrl = `https://${cometChatAppId}.api-${cometChatRegion}.cometchat.io/v3/users?perPage=1`;
+        const result = await pingUrl(ccUrl, 5000, { headers: { apikey: cometChatApiKey, appid: cometChatAppId } });
+        cometChat = result;
+      }
+
+      // Object storage sidecar health check
+      const storageResult = await pingUrl("http://127.0.0.1:1106/", 3000);
+      const objectStorage: { status: "ok" | "error"; latencyMs: number | null; error: string | null } = storageResult;
+
       res.json({
         db: { status: dbStatus, error: dbError },
-        server: { uptimeSeconds: Math.floor(process.uptime()), nodeVersion: process.version },
+        server: {
+          uptimeSeconds: Math.floor(process.uptime()),
+          nodeVersion: process.version,
+          environment,
+          memory: {
+            heapUsedMb: memMb(mem.heapUsed),
+            heapTotalMb: memMb(mem.heapTotal),
+            rssMb: memMb(mem.rss),
+          },
+        },
+        integrations: { cometChat, objectStorage },
         stats: {
-          users: { total: counts.total_users ?? null },
+          users: {
+            total: counts.total_users ?? null,
+            new7d: counts.new_users_7d ?? null,
+            new30d: counts.new_users_30d ?? null,
+          },
           bubbles: {
             total: counts.total_bubbles ?? null,
             approved: counts.approved_bubbles ?? null,
             pending: counts.pending_bubbles ?? null,
             rejected: counts.rejected_bubbles ?? null,
+            new7d: counts.new_bubbles_7d ?? null,
+            new30d: counts.new_bubbles_30d ?? null,
+            orphan: counts.orphan_bubbles ?? null,
+            avgMembers: counts.avg_members ?? null,
           },
           events: {
             total: counts.total_events ?? null,
             approved: counts.approved_events ?? null,
             pending: counts.pending_events ?? null,
+            thisMonth: counts.events_this_month ?? null,
+            upcoming: counts.upcoming_events ?? null,
           },
           memberships: { total: counts.total_memberships ?? null },
+          campuses: {
+            total: counts.total_campuses ?? null,
+            verifiedUsers: counts.campus_verified_users ?? null,
+            campusBubbles: counts.campus_bubbles ?? null,
+          },
           pendingReview: {
             bubbles: counts.pending_bubbles ?? 0,
             events: counts.pending_events ?? 0,
