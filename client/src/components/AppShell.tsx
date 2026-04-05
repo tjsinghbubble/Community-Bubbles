@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  FolderOpen,
   HelpCircle,
   List,
   LogOut,
@@ -174,6 +175,14 @@ function NavMenu({
                 >
                   <List className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
                   <span className="text-[13px] font-medium text-black">Manage Rules</span>
+                </button>
+                <button
+                  onClick={() => go("/admin/categories")}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/4"
+                  data-testid="nav-menu-manage-categories"
+                >
+                  <FolderOpen className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                  <span className="text-[13px] font-medium text-black">Manage Categories</span>
                 </button>
                 <button
                   onClick={() => go("/admin/monitor")}

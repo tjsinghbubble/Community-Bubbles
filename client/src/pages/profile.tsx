@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock,
   FileText,
+  FolderOpen,
   List,
   Lock,
   LogOut,
@@ -254,6 +255,14 @@ export default function Profile() {
                     label="Manage Rules"
                     sublabel="App-wide and category-level rules"
                     onClick={() => navigate("/admin/rules")}
+                  />
+                )}
+                {isSuperAdmin && (
+                  <SectionRow
+                    icon={FolderOpen}
+                    label="Manage Categories"
+                    sublabel="Add, edit, and organize interest categories"
+                    onClick={() => navigate("/admin/categories")}
                   />
                 )}
                 {isSuperAdmin && (
