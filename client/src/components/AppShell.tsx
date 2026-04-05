@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   HelpCircle,
+  List,
   LogOut,
   Menu,
   Settings,
@@ -148,18 +150,57 @@ function NavMenu({
 
       <div className="mx-3 h-px bg-black/6" />
 
-      {/* Admin + settings links */}
+      {/* Admin links */}
+      {(isSuperAdmin || isBubbleAdmin) && (
+        <>
+          <div className="px-3 pb-1 pt-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-black/30">Admin</span>
+          </div>
+          <div className="p-1.5 pt-0">
+            {isSuperAdmin ? (
+              <>
+                <button
+                  onClick={() => go("/admin/pending")}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/4"
+                  data-testid="nav-menu-needs-attention"
+                >
+                  <Shield className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                  <span className="text-[13px] font-medium text-black">Needs Attention</span>
+                </button>
+                <button
+                  onClick={() => go("/admin/rules")}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/4"
+                  data-testid="nav-menu-manage-rules"
+                >
+                  <List className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                  <span className="text-[13px] font-medium text-black">Manage Rules</span>
+                </button>
+                <button
+                  onClick={() => go("/admin/monitor")}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/4"
+                  data-testid="nav-menu-system-monitor"
+                >
+                  <Activity className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                  <span className="text-[13px] font-medium text-black">System Monitor</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => go("/admin/pending")}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-black/4"
+                data-testid="nav-menu-administration"
+              >
+                <Shield className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
+                <span className="text-[13px] font-medium text-black">Administration</span>
+              </button>
+            )}
+          </div>
+          <div className="mx-3 h-px bg-black/6" />
+        </>
+      )}
+
+      {/* Settings links */}
       <div className="p-1.5">
-        {(isSuperAdmin || isBubbleAdmin) && (
-          <button
-            onClick={() => go("/admin/pending")}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
-            data-testid="nav-menu-administration"
-          >
-            <Shield className="h-[18px] w-[18px] text-[#35A8F7] shrink-0" strokeWidth={1.8} />
-            <span className="text-[13px] font-medium text-black">Administration</span>
-          </button>
-        )}
         {settingsLinks.map(({ label, icon: Icon, href }) => (
           <button
             key={label}
