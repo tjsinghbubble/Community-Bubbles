@@ -22,6 +22,7 @@ import Legal from "./pages/legal";
 import AdminPending from "./pages/admin-pending";
 import AdminRules from "./pages/admin-rules";
 import AdminMonitor from "./pages/admin-monitor";
+import AdminCategories from "./pages/admin-categories";
 
 function BubbleShortLink() {
   const { shortId } = useParams<{ shortId: string }>();
@@ -66,6 +67,7 @@ function Router() {
       <Route path="/admin/pending" component={AdminPending} />
       <Route path="/admin/rules" component={AdminRules} />
       <Route path="/admin/monitor" component={AdminMonitor} />
+      <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route component={NotFound} />
     </Switch>

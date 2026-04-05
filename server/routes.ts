@@ -6,7 +6,7 @@ import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -2740,11 +2740,15 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Super admin access required" });
       }
       const id = parseInt(req.params.id);
-      const { name, icon, parentId } = req.body;
-      const updateData: any = {};
+      const { name, displayName, header, icon, image, parentId, displayOrder } = req.body;
+      const updateData: Partial<InsertCategory> = {};
       if (name !== undefined) updateData.name = name;
+      if (displayName !== undefined) updateData.displayName = displayName;
+      if (header !== undefined) updateData.header = header;
       if (icon !== undefined) updateData.icon = icon;
-      if (parentId !== undefined) updateData.parentId = parentId;
+      if (image !== undefined) updateData.image = image;
+      if (parentId !== undefined) updateData.parentId = parentId === null ? null : Number(parentId);
+      if (displayOrder !== undefined) updateData.displayOrder = Number(displayOrder);
       const category = await storage.updateCategory(id, updateData);
       if (!category) return res.status(404).json({ error: "Category not found" });
       res.json(category);
