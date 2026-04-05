@@ -37,10 +37,10 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
     try {
       const [membersData, waitlistData] = await Promise.all([
         apiService.getBubbleMembers(bubbleId) as Promise<Member[]>,
-        apiService.getWaitlist(bubbleId) as Promise<any[]>,
+        apiService.getWaitlist(bubbleId) as Promise<any>,
       ]);
       setMembers(Array.isArray(membersData) ? membersData : []);
-      setWaitlistCount(Array.isArray(waitlistData) ? waitlistData.length : 0);
+      setWaitlistCount((waitlistData?.waitlisted?.length ?? 0) + (waitlistData?.on_hold?.length ?? 0));
     } catch {
       setMembers([]);
       setWaitlistCount(0);

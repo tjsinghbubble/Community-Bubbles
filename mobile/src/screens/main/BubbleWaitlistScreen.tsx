@@ -51,8 +51,9 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
   const fetchWaitlist = async () => {
     try {
       setIsLoading(true);
-      const data = await apiService.getWaitlist(bubbleId);
-      setWaitlist(data as WaitlistMember[]);
+      const data = await apiService.getWaitlist(bubbleId) as any;
+      const flat: WaitlistMember[] = [...(data.waitlisted ?? []), ...(data.on_hold ?? [])];
+      setWaitlist(flat);
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to load waitlist');
     } finally {
