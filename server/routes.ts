@@ -28,6 +28,33 @@ const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MI
 const SEND_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_SEND_MAX ?? "5", 10);
 const SEND_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_SEND_WINDOW_MIN ?? "60", 10) * 60 * 1000;
 
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+const loginFailures = new Map<string, { attempts: number; lockedUntil: number | null }>();
+
+function checkLoginLockout(email: string): { locked: boolean; retryAfterMs?: number } {
+  const record = loginFailures.get(email);
+  if (!record) return { locked: false };
+  if (record.lockedUntil && Date.now() < record.lockedUntil) {
+    return { locked: true, retryAfterMs: record.lockedUntil - Date.now() };
+  }
+  return { locked: false };
+}
+
+function recordLoginFailure(email: string) {
+  const record = loginFailures.get(email) ?? { attempts: 0, lockedUntil: null };
+  record.attempts += 1;
+  if (record.attempts >= LOGIN_MAX_ATTEMPTS) {
+    record.lockedUntil = Date.now() + LOGIN_LOCKOUT_MS;
+  }
+  loginFailures.set(email, record);
+}
+
+function clearLoginFailures(email: string) {
+  loginFailures.delete(email);
+}
+
 // Protects login and verify-code against brute force
 const authLimiter = rateLimit({
   windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
@@ -256,7 +283,7 @@ export async function registerRoutes(
       });
 
       const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
-        expiresIn: "30d",
+        expiresIn: "7d",
       });
 
       res.json({
@@ -387,18 +414,28 @@ export async function registerRoutes(
     try {
       const { email, password } = req.body;
 
+      const lockout = checkLoginLockout(email);
+      if (lockout.locked) {
+        const retryAfterSec = Math.ceil((lockout.retryAfterMs ?? 0) / 1000);
+        return res.status(429).json({ error: `Account temporarily locked. Try again in ${retryAfterSec} seconds.` });
+      }
+
       const user = await storage.getUserByEmail(email);
       if (!user) {
+        recordLoginFailure(email);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) {
+        recordLoginFailure(email);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      clearLoginFailures(email);
+
       const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
-        expiresIn: "30d",
+        expiresIn: "7d",
       });
 
       res.json({
@@ -836,6 +873,24 @@ export async function registerRoutes(
       res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Unlock a locked account (super admin only)
+  app.post("/api/admin/users/:id/unlock", authMiddleware, async (req, res) => {
+    try {
+      const requester = await storage.getUser(req.userId!);
+      if (!requester?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const target = await storage.getUser(req.params.id);
+      if (!target) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      clearLoginFailures(target.email);
+      res.json({ success: true, message: `Account unlocked for ${target.email}` });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
