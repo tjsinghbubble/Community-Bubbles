@@ -28,6 +28,22 @@ const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MI
 const SEND_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_SEND_MAX ?? "5", 10);
 const SEND_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_SEND_WINDOW_MIN ?? "60", 10) * 60 * 1000;
 
+const USER_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const userCache = new Map<string, { user: any; expiresAt: number }>();
+
+async function getCachedUser(userId: string) {
+  const cached = userCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) return cached.user;
+  const user = await storage.getUser(userId);
+  if (user) userCache.set(userId, { user, expiresAt: Date.now() + USER_CACHE_TTL_MS });
+  else userCache.delete(userId);
+  return user;
+}
+
+function invalidateUserCache(userId: string) {
+  userCache.delete(userId);
+}
+
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -73,7 +89,7 @@ const sendLimiter = rateLimit({
   message: { error: `Too many requests, please try again later.` },
 });
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET as string;
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required but not set");
 }
@@ -146,6 +162,11 @@ function convertEventsToLocal(events: any[]): any[] {
 
 function generateVerificationCode(): string {
   return crypto.randomInt(100000, 1000000).toString();
+}
+
+function serverError(res: any, error: unknown) {
+  console.error(error);
+  res.status(500).json({ error: "An unexpected error occurred" });
 }
 
 declare global {
@@ -406,7 +427,7 @@ export async function registerRoutes(
 
       res.json(exportData);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -462,9 +483,10 @@ export async function registerRoutes(
   app.post("/api/auth/logout", authMiddleware, async (req, res) => {
     try {
       await storage.incrementTokenVersion(req.userId!);
+      invalidateUserCache(req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -490,7 +512,7 @@ export async function registerRoutes(
         aboutMe: user.aboutMe,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -506,7 +528,7 @@ export async function registerRoutes(
       res.json({ authToken, uid });
     } catch (error: any) {
       console.error("CometChat auth-token error:", error.message);
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -523,6 +545,7 @@ export async function registerRoutes(
         aboutMe: aboutMe ?? undefined,
         interests,
       });
+      invalidateUserCache(req.userId!);
       if (!updated) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -535,7 +558,7 @@ export async function registerRoutes(
         aboutMe: updated.aboutMe,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -545,7 +568,7 @@ export async function registerRoutes(
       const bubbles = await storage.getPublicBubbles();
       res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -558,7 +581,7 @@ export async function registerRoutes(
       }));
       res.json(await enrichBubblesCategory(bubblesWithCounts));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -590,7 +613,7 @@ export async function registerRoutes(
       const realMemberCount = await storage.getRealMemberCount(bubble.id);
       res.json(await enrichBubbleCategory({ ...bubble, members: realMemberCount }));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -736,7 +759,7 @@ export async function registerRoutes(
       const updatedBubble = await storage.updateBubble(bubbleId, { images: updatedImages });
       res.json(updatedBubble);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -890,7 +913,7 @@ export async function registerRoutes(
       clearLoginFailures(target.email);
       res.json({ success: true, message: `Account unlocked for ${target.email}` });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1181,7 +1204,7 @@ export async function registerRoutes(
         }
       })));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1192,7 +1215,7 @@ export async function registerRoutes(
       const membershipStatus = await storage.getMembershipStatus(req.userId!, req.params.id);
       res.json({ isMember, role, membershipStatus });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1400,7 +1423,7 @@ export async function registerRoutes(
         }
       })));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1494,7 +1517,7 @@ export async function registerRoutes(
         },
       })));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1689,7 +1712,7 @@ export async function registerRoutes(
       const events = await storage.getPublicEvents();
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1698,7 +1721,7 @@ export async function registerRoutes(
       const events = await storage.getUpcomingEvents();
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1707,7 +1730,7 @@ export async function registerRoutes(
       const events = await storage.getUserEvents(req.userId!);
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1716,7 +1739,7 @@ export async function registerRoutes(
       const events = await storage.getUserCreatedEvents(req.userId!);
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1725,7 +1748,7 @@ export async function registerRoutes(
       const bubbles = await storage.getUserCreatedBubbles(req.userId!);
       res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1757,7 +1780,7 @@ export async function registerRoutes(
       const events = await storage.getBubbleEvents(req.params.bubbleId);
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -1790,7 +1813,7 @@ export async function registerRoutes(
       const localEvent = convertEventToLocal(event);
       res.json({ ...localEvent, creatorName: creator?.name || 'Event Creator', creatorProfilePhoto: creator?.profilePhoto || null });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2053,7 +2076,7 @@ export async function registerRoutes(
       result.sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2320,7 +2343,7 @@ export async function registerRoutes(
         }
       })));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2332,7 +2355,7 @@ export async function registerRoutes(
       const campuses = await storage.getCampuses();
       res.json(campuses);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2459,7 +2482,7 @@ export async function registerRoutes(
       const bubbles = await storage.getCampusBubbles(user.campusId);
       res.json(await enrichBubblesCategory(bubbles));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2474,7 +2497,7 @@ export async function registerRoutes(
       const events = await storage.getCampusEvents(user.campusId);
       res.json(convertEventsToLocal(events));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2496,7 +2519,7 @@ export async function registerRoutes(
         verified: user.campusVerified,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2508,7 +2531,7 @@ export async function registerRoutes(
       const session = await storage.createSession(req.userId!);
       res.json(session);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2521,13 +2544,17 @@ export async function registerRoutes(
       }
       res.json(session);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
-  // Analytics - Get all metrics
-  app.get("/api/analytics/metrics", async (req, res) => {
+  // Analytics - Get all metrics (super admin only)
+  app.get("/api/analytics/metrics", authMiddleware, async (req, res) => {
     try {
+      const user = await getCachedUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
       const [retention, dauMau, sessionLength, sessionsPerUser, overview, bubbleVisits] = await Promise.all([
         storage.getRetentionMetrics(),
         storage.getDauMauMetrics(),
@@ -2546,7 +2573,7 @@ export async function registerRoutes(
         bubbleVisits,
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2568,7 +2595,7 @@ export async function registerRoutes(
       const visit = await storage.trackBubbleVisit(bubbleId, userId);
       res.json(visit);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2618,7 +2645,7 @@ export async function registerRoutes(
       }));
       res.json(nested);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2628,7 +2655,7 @@ export async function registerRoutes(
       const sorted = allCategories.sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
       res.json(sorted.map(c => withoutLegacyPlaceholders(withAbsoluteImageUrl(req, c))));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2704,7 +2731,7 @@ export async function registerRoutes(
         description: pick(grouped.description),
       });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2716,7 +2743,7 @@ export async function registerRoutes(
       const rows = await storage.getAllCategoryPlaceholders();
       res.json(rows);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2867,7 +2894,7 @@ export async function registerRoutes(
       const filtered = reps.filter(r => r.reportedUserId !== req.userId);
       res.json(filtered);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2880,7 +2907,7 @@ export async function registerRoutes(
       const reps = await storage.getReportsForSysAdmin();
       res.json(reps);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2955,7 +2982,7 @@ export async function registerRoutes(
       const notifs = await storage.getNotifications(req.userId!, limit, offset);
       res.json(notifs);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2964,7 +2991,7 @@ export async function registerRoutes(
       const count = await storage.getUnreadNotificationCount(req.userId!);
       res.json({ count });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2976,7 +3003,7 @@ export async function registerRoutes(
       }
       res.json(notif);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2985,7 +3012,7 @@ export async function registerRoutes(
       await storage.markAllNotificationsRead(req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -2994,7 +3021,7 @@ export async function registerRoutes(
       await storage.deleteNotification(req.params.id, req.userId!);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3008,7 +3035,7 @@ export async function registerRoutes(
       const result = await storage.upsertDevicePushToken(req.userId!, token, platform);
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3021,7 +3048,7 @@ export async function registerRoutes(
       await storage.deleteDevicePushToken(req.userId!, token);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3040,7 +3067,7 @@ export async function registerRoutes(
       const types = await storage.getBulletinPostTypes();
       res.json(types);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3052,7 +3079,7 @@ export async function registerRoutes(
       const postCount = await storage.getBulletinPostCount(bubbleId);
       res.json({ board, postCount });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3074,7 +3101,7 @@ export async function registerRoutes(
       }));
       res.json(enrichedPosts);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3131,7 +3158,7 @@ export async function registerRoutes(
       });
       res.json(post);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3167,7 +3194,7 @@ export async function registerRoutes(
       const updated = await storage.updateBulletinPost(postId, updatePostParsed.data, userId);
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3178,7 +3205,7 @@ export async function registerRoutes(
       if (!post) return res.status(404).json({ error: "Post not found" });
       res.json(post);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3200,7 +3227,7 @@ export async function registerRoutes(
       await storage.deleteBulletinPost(req.params.postId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3222,7 +3249,7 @@ export async function registerRoutes(
       const result = await storage.toggleBulletinPostPin(req.params.postId, req.userId);
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3239,7 +3266,7 @@ export async function registerRoutes(
       const result = await storage.toggleBulletinReaction(req.params.postId, req.userId!, emoji);
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3249,7 +3276,7 @@ export async function registerRoutes(
       const replies = await storage.getBulletinReplies(req.params.postId);
       res.json(replies);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3284,7 +3311,7 @@ export async function registerRoutes(
       const reply = await storage.createBulletinReply(replyParsed.data);
       res.json(reply);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3297,7 +3324,7 @@ export async function registerRoutes(
       const realMemberCount = await storage.getRealMemberCount(bubble.id);
       res.json(await enrichBubbleCategory({ ...bubble, members: realMemberCount }));
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3319,7 +3346,7 @@ export async function registerRoutes(
       const all = await storage.getAllAppConfig();
       res.json(all);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3328,7 +3355,7 @@ export async function registerRoutes(
       const effectiveRules = await storage.getEffectiveRules(req.params.bubbleId);
       res.json(effectiveRules);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3337,7 +3364,7 @@ export async function registerRoutes(
       const appRulesList = await storage.getAppRules();
       res.json(appRulesList);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3351,7 +3378,7 @@ export async function registerRoutes(
       const appRule = await storage.addAppRule(rule.id, position || 0);
       res.json({ ...appRule, rule });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3364,7 +3391,7 @@ export async function registerRoutes(
       await storage.reorderAppRules(ruleIds);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3379,7 +3406,7 @@ export async function registerRoutes(
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3397,7 +3424,7 @@ export async function registerRoutes(
       }
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3407,7 +3434,7 @@ export async function registerRoutes(
       const catRules = await storage.getCategoryRules(categoryId);
       res.json(catRules);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3422,7 +3449,7 @@ export async function registerRoutes(
       const catRule = await storage.addCategoryRule(categoryId, rule.id, position || 0);
       res.json({ ...catRule, rule });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3436,7 +3463,7 @@ export async function registerRoutes(
       await storage.reorderCategoryRules(categoryId, ruleIds);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3454,7 +3481,7 @@ export async function registerRoutes(
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3473,7 +3500,7 @@ export async function registerRoutes(
       }
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3482,7 +3509,7 @@ export async function registerRoutes(
       const bubbleRulesList = await storage.getBubbleRules(req.params.bubbleId);
       res.json(bubbleRulesList);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3500,7 +3527,7 @@ export async function registerRoutes(
       const bubbleRule = await storage.addBubbleRule(bubbleId, rule.id, position || 0);
       res.json({ ...bubbleRule, rule });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3517,7 +3544,7 @@ export async function registerRoutes(
       await storage.reorderBubbleRules(bubbleId, ruleIds);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3538,7 +3565,7 @@ export async function registerRoutes(
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3560,7 +3587,7 @@ export async function registerRoutes(
       }
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
@@ -3577,7 +3604,7 @@ export async function registerRoutes(
       const override = await storage.setBubbleRuleOverride(bubbleId, ruleId, hidden);
       res.json(override);
     } catch (error: any) {
-      res.status(500).json({ error: error.message });
+      serverError(res, error);
     }
   });
 
