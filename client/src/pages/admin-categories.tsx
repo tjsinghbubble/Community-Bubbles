@@ -202,12 +202,14 @@ function CategoriesUI() {
   function openCreateParent() {
     setForm({ ...EMPTY_FORM });
     setAutoSlug(true);
+    setImageUploadError(null);
     setModal({ type: "create-parent" });
   }
 
   function openCreateChild(parentId: number, parentName: string) {
     setForm({ ...EMPTY_FORM, parentId });
     setAutoSlug(true);
+    setImageUploadError(null);
     setModal({ type: "create-child", parentId, parentName });
   }
 
@@ -223,6 +225,7 @@ function CategoriesUI() {
       image: category.image ?? null,
     });
     setAutoSlug(false);
+    setImageUploadError(null);
     setModal({ type: "edit", category, parentName });
   }
 
@@ -499,24 +502,23 @@ function CategoriesUI() {
                   <Loader2 className="h-6 w-6 animate-spin text-[#35A8F7]" />
                 </div>
               ) : form.image ? (
-                <div className="relative h-28 w-full overflow-hidden rounded-xl border border-black/12 bg-[#FAFAFA]">
+                <div
+                  className="relative h-28 w-full cursor-pointer overflow-hidden rounded-xl border border-black/12 bg-[#FAFAFA]"
+                  onClick={() => fileInputRef.current?.click()}
+                  data-testid="button-change-image"
+                >
                   <img
                     src={form.image}
                     alt="Category"
                     className="h-full w-full object-cover"
                   />
                   <div className="absolute inset-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/40 to-transparent p-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black/70 backdrop-blur transition hover:bg-white"
-                      data-testid="button-change-image"
-                    >
+                    <span className="rounded-lg bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black/70 backdrop-blur">
                       Change
-                    </button>
+                    </span>
                     <button
                       type="button"
-                      onClick={() => { setForm((f) => ({ ...f, image: null })); setImageUploadError(null); }}
+                      onClick={(e) => { e.stopPropagation(); setForm((f) => ({ ...f, image: null })); setImageUploadError(null); }}
                       className="grid h-6 w-6 place-items-center rounded-full bg-white/90 backdrop-blur transition hover:bg-white"
                       data-testid="button-remove-image"
                     >
