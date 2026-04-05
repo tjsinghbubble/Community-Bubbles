@@ -15,6 +15,8 @@ import {
   ChevronRight,
   Loader2,
   Activity,
+  BarChart2,
+  Shield,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -42,6 +44,25 @@ interface AdminStats {
   fetchedAt: string;
 }
 
+interface AnalyticsMetrics {
+  retention: { day1: number; day7: number; day30: number };
+  dauMau: { dau: number; mau: number; stickiness: number };
+  sessionLength: { averageSeconds: number };
+  sessionsPerUser: { daily: number; weekly: number };
+  overview: { totalUsers: number; totalBubbles: number; totalEvents: number; totalSessions: number };
+  bubbleVisits: { topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number };
+}
+
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  adminId: string;
+  targetId: string;
+  ip: string | null;
+  extra: string | null;
+  createdAt: string;
+}
+
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
   const m = Math.floor(seconds / 60);
@@ -60,6 +81,23 @@ function formatTime(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function formatDateTime(iso: string): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatSeconds(s: number): string {
+  if (s < 60) return `${Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  const secs = Math.round(s % 60);
+  return `${m}m ${secs}s`;
 }
 
 function StatCard({
@@ -130,6 +168,19 @@ function PendingRow({
   );
 }
 
+function MetricRow({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="flex items-center justify-between px-5 py-3">
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <span className="text-[13px] font-bold">{value}</span>
+    </div>
+  );
+}
+
+function actionLabel(action: string): string {
+  return action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function AdminMonitor() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -150,6 +201,20 @@ export default function AdminMonitor() {
   } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
     queryFn: () => apiRequest("GET", "/api/admin/stats").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 30_000,
+  });
+
+  const { data: analyticsData } = useQuery<AnalyticsMetrics>({
+    queryKey: ["/api/analytics/metrics"],
+    queryFn: () => apiRequest("GET", "/api/analytics/metrics").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 60_000,
+  });
+
+  const { data: auditData } = useQuery<{ logs: AuditLogEntry[] }>({
+    queryKey: ["/api/admin/audit-logs"],
+    queryFn: () => apiRequest("GET", "/api/admin/audit-logs?limit=20").then((r) => r.json()),
     enabled: !!user && me?.isSuperAdmin === true,
     refetchInterval: 30_000,
   });
@@ -202,6 +267,8 @@ export default function AdminMonitor() {
   const uptime = stats?.server?.uptimeSeconds ?? 0;
   const s = stats?.stats;
   const lastFetched = stats?.fetchedAt ? formatTime(stats.fetchedAt) : null;
+  const a = analyticsData;
+  const auditLogs = auditData?.logs ?? [];
 
   return (
     <AppShell active="profile">
@@ -366,6 +433,82 @@ export default function AdminMonitor() {
                   onClick={() => navigate("/admin/pending")}
                 />
               </div>
+            </div>
+
+            {/* Analytics */}
+            {a && (
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">
+                <div className="border-b border-black/5 px-5 py-3 flex items-center gap-2">
+                  <BarChart2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Analytics
+                  </span>
+                </div>
+                <div className="divide-y divide-black/5">
+                  <MetricRow label="Daily Active Users (DAU)" value={a.dauMau.dau.toLocaleString()} />
+                  <MetricRow label="Monthly Active Users (MAU)" value={a.dauMau.mau.toLocaleString()} />
+                  <MetricRow
+                    label="Stickiness (DAU/MAU)"
+                    value={`${(a.dauMau.stickiness * 100).toFixed(1)}%`}
+                  />
+                  <MetricRow label="Day-1 Retention" value={`${(a.retention.day1 * 100).toFixed(1)}%`} />
+                  <MetricRow label="Day-7 Retention" value={`${(a.retention.day7 * 100).toFixed(1)}%`} />
+                  <MetricRow label="Day-30 Retention" value={`${(a.retention.day30 * 100).toFixed(1)}%`} />
+                  <MetricRow
+                    label="Avg Session Length"
+                    value={formatSeconds(a.sessionLength.averageSeconds)}
+                  />
+                  <MetricRow label="Sessions/User (daily)" value={a.sessionsPerUser.daily.toFixed(2)} />
+                  <MetricRow label="Sessions/User (weekly)" value={a.sessionsPerUser.weekly.toFixed(2)} />
+                  <MetricRow label="Total Sessions" value={a.overview.totalSessions.toLocaleString()} />
+                </div>
+
+                {a.bubbleVisits.topBubbles.length > 0 && (
+                  <>
+                    <div className="border-t border-black/5 px-5 py-2.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Top Bubbles by Visits
+                      </span>
+                    </div>
+                    <div className="divide-y divide-black/5">
+                      {a.bubbleVisits.topBubbles.slice(0, 5).map((b) => (
+                        <div key={b.bubbleId} className="flex items-center justify-between px-5 py-2.5">
+                          <span className="flex-1 truncate text-[13px]">{b.title}</span>
+                          <span className="ml-3 text-[13px] font-bold">{b.visits.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Audit Log */}
+            <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">
+              <div className="border-b border-black/5 px-5 py-3 flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Recent Admin Actions
+                </span>
+              </div>
+              {auditLogs.length === 0 ? (
+                <div className="px-5 py-8 text-center text-[12px] text-muted-foreground">No actions recorded yet</div>
+              ) : (
+                <div className="divide-y divide-black/5">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="px-5 py-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[13px] font-semibold">{actionLabel(log.action)}</span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">{formatDateTime(log.createdAt)}</span>
+                      </div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+                        <span>Target: {log.targetId}</span>
+                        {log.ip && <span>IP: {log.ip}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

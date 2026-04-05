@@ -571,3 +571,16 @@ export type AppRule = typeof appRules.$inferSelect;
 export type CategoryRule = typeof categoryRules.$inferSelect;
 export type BubbleRule = typeof bubbleRules.$inferSelect;
 export type BubbleRuleOverride = typeof bubbleRuleOverrides.$inferSelect;
+
+// Audit log for super admin actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: text("action").notNull(),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  targetId: text("target_id").notNull(),
+  ip: text("ip"),
+  extra: text("extra"), // JSON string for additional context
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;

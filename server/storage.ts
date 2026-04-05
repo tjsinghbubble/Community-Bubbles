@@ -72,6 +72,8 @@ import {
   categoryPlaceholders,
   type CategoryPlaceholder,
   type InsertCategoryPlaceholder,
+  auditLogs,
+  type AuditLog,
 } from "@shared/schema";
 import { count, avg } from "drizzle-orm";
 
@@ -225,6 +227,10 @@ export interface IStorage {
   getDevicePushTokens(userId: string): Promise<DevicePushToken[]>;
   deleteDevicePushToken(userId: string, token: string): Promise<void>;
   deleteStaleDevicePushTokens(olderThanDays?: number): Promise<number>;
+
+  // Audit Logs
+  insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog>;
+  getAuditLogs(limit?: number): Promise<AuditLog[]>;
 
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
@@ -1760,6 +1766,15 @@ export class DatabaseStorage implements IStorage {
       .where(lt(devicePushTokens.updatedAt, cutoff))
       .returning({ id: devicePushTokens.id });
     return result.length;
+  }
+
+  async insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog> {
+    const result = await db.insert(auditLogs).values(entry).returning();
+    return result[0];
+  }
+
+  async getAuditLogs(limit = 100): Promise<AuditLog[]> {
+    return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
   }
 
   async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {

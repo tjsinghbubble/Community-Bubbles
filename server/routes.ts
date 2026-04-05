@@ -169,17 +169,15 @@ function serverError(res: any, error: unknown) {
   res.status(500).json({ error: "An unexpected error occurred" });
 }
 
-// Audit log for super admin actions
-function auditLog(action: string, adminId: string, targetId: string, ip: string, extra?: Record<string, unknown>) {
-  console.log(JSON.stringify({
-    audit: true,
-    action,
-    adminId,
-    targetId,
-    ip,
-    timestamp: new Date().toISOString(),
-    ...extra,
-  }));
+// Audit log for super admin actions — persists to DB and echoes to console
+async function auditLog(action: string, adminId: string, targetId: string, ip: string, extra?: Record<string, unknown>) {
+  const extraStr = extra ? JSON.stringify(extra) : undefined;
+  console.log(JSON.stringify({ audit: true, action, adminId, targetId, ip, timestamp: new Date().toISOString(), ...extra }));
+  try {
+    await storage.insertAuditLog({ action, adminId, targetId, ip, extra: extraStr });
+  } catch (err) {
+    console.error("[auditLog] failed to persist:", err);
+  }
 }
 
 // Allowed origins for state-changing requests (H3)
@@ -1065,6 +1063,18 @@ export async function registerRoutes(
       const message = error instanceof Error ? error.message : "Unexpected error";
       console.error("[admin/stats] error:", error);
       res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/audit-logs", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const limit = Math.min(Number(req.query.limit) || 50, 200);
+      const logs = await storage.getAuditLogs(limit);
+      res.json({ logs });
+    } catch (error: unknown) {
+      serverError(res, error);
     }
   });
 
