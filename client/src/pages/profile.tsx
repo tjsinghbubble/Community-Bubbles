@@ -1,6 +1,7 @@
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Activity,
   Bell,
   ChevronRight,
   Clock,
@@ -253,6 +254,14 @@ export default function Profile() {
                     label="Manage Rules"
                     sublabel="App-wide and category-level rules"
                     onClick={() => navigate("/admin/rules")}
+                  />
+                )}
+                {isSuperAdmin && (
+                  <SectionRow
+                    icon={Activity}
+                    label="System Monitor"
+                    sublabel="Database health, uptime, and platform stats"
+                    onClick={() => navigate("/admin/monitor")}
                   />
                 )}
               </div>

@@ -2,6 +2,8 @@ import crypto from "crypto";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { sql as drizzleSql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema } from "@shared/schema";
@@ -834,6 +836,98 @@ export async function registerRoutes(
       res.json(await enrichBubbleCategory(bubble));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // System stats (super admin only)
+  app.get("/api/admin/stats", authMiddleware, async (req, res) => {
+    interface StatsRow {
+      total_users: number;
+      total_bubbles: number;
+      approved_bubbles: number;
+      pending_bubbles: number;
+      rejected_bubbles: number;
+      total_events: number;
+      approved_events: number;
+      pending_events: number;
+      total_memberships: number;
+      pending_waitlist: number;
+      open_reports: number;
+    }
+
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+
+      // Database health check
+      let dbStatus: "connected" | "error" = "connected";
+      let dbError: string | null = null;
+      try {
+        await db.execute(drizzleSql`SELECT 1`);
+      } catch (e: unknown) {
+        dbStatus = "error";
+        dbError = e instanceof Error ? e.message : "Unknown error";
+      }
+
+      // Count queries — run independently so a DB outage returns a degraded
+      // payload (db.status='error') rather than a hard 500.
+      let counts: Partial<StatsRow> = {};
+      try {
+        const countsResult = await db.execute<StatsRow>(drizzleSql`
+          SELECT
+            (SELECT COUNT(*)::int FROM users) AS total_users,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL) AS total_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'approved') AS approved_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'pending') AS pending_bubbles,
+            (SELECT COUNT(*)::int FROM bubbles WHERE deleted_at IS NULL AND status = 'rejected') AS rejected_bubbles,
+            (SELECT COUNT(*)::int FROM events) AS total_events,
+            (SELECT COUNT(*)::int FROM events WHERE status = 'approved') AS approved_events,
+            (SELECT COUNT(*)::int FROM events WHERE status = 'pending') AS pending_events,
+            (SELECT COUNT(*)::int FROM memberships) AS total_memberships,
+            (SELECT COUNT(*)::int FROM memberships WHERE membership_status IN ('waitlisted', 'on_hold')) AS pending_waitlist,
+            (SELECT COUNT(*)::int FROM reports WHERE status = 'pending') AS open_reports
+        `);
+        counts = countsResult.rows[0] ?? {};
+      } catch (e: unknown) {
+        // DB counts unavailable — surface as null values in the response
+        if (dbStatus === "connected") {
+          dbStatus = "error";
+          dbError = e instanceof Error ? e.message : "Count query failed";
+        }
+      }
+
+      res.json({
+        db: { status: dbStatus, error: dbError },
+        server: { uptimeSeconds: Math.floor(process.uptime()), nodeVersion: process.version },
+        stats: {
+          users: { total: counts.total_users ?? null },
+          bubbles: {
+            total: counts.total_bubbles ?? null,
+            approved: counts.approved_bubbles ?? null,
+            pending: counts.pending_bubbles ?? null,
+            rejected: counts.rejected_bubbles ?? null,
+          },
+          events: {
+            total: counts.total_events ?? null,
+            approved: counts.approved_events ?? null,
+            pending: counts.pending_events ?? null,
+          },
+          memberships: { total: counts.total_memberships ?? null },
+          pendingReview: {
+            bubbles: counts.pending_bubbles ?? 0,
+            events: counts.pending_events ?? 0,
+            waitlist: counts.pending_waitlist ?? 0,
+            reports: counts.open_reports ?? 0,
+          },
+        },
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unexpected error";
+      console.error("[admin/stats] error:", error);
+      res.status(500).json({ error: message });
     }
   });
 
