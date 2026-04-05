@@ -169,6 +169,44 @@ function serverError(res: any, error: unknown) {
   res.status(500).json({ error: "An unexpected error occurred" });
 }
 
+// Audit log for super admin actions
+function auditLog(action: string, adminId: string, targetId: string, ip: string, extra?: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    audit: true,
+    action,
+    adminId,
+    targetId,
+    ip,
+    timestamp: new Date().toISOString(),
+    ...extra,
+  }));
+}
+
+// Allowed origins for state-changing requests (H3)
+const ALLOWED_WEB_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map(o => o.trim())
+  .filter(Boolean);
+
+// Profile photo URL allowlist (M5)
+const ALLOWED_PHOTO_ORIGINS = (process.env.ALLOWED_PHOTO_ORIGINS ?? "")
+  .split(",")
+  .map(o => o.trim())
+  .filter(Boolean);
+
+function isAllowedPhotoUrl(url: string | null | undefined): boolean {
+  if (!url) return true;
+  // Allow relative paths (object storage served from same origin)
+  if (url.startsWith("/")) return true;
+  try {
+    const parsed = new URL(url);
+    if (ALLOWED_PHOTO_ORIGINS.length === 0) return true; // no allowlist configured, allow all
+    return ALLOWED_PHOTO_ORIGINS.some(origin => parsed.origin === origin || parsed.hostname.endsWith(origin));
+  } catch {
+    return false; // invalid URL
+  }
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -229,6 +267,21 @@ export async function registerRoutes(
       return res.sendStatus(200);
     }
     next();
+  });
+
+  // H3: Origin guard for state-changing requests from browsers
+  app.use((req, res, next) => {
+    const method = req.method;
+    if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
+    const origin = req.headers.origin;
+    // No origin = mobile app or server-to-server — allow
+    if (!origin) return next();
+    // Known allowed origins — allow
+    if (ALLOWED_WEB_ORIGINS.includes(origin)) return next();
+    // Same-origin requests served by Express have no Origin header, or match host
+    const host = req.headers.host;
+    if (host && (origin === `https://${host}` || origin === `http://${host}`)) return next();
+    return res.status(403).json({ error: "Forbidden: cross-origin request blocked" });
   });
 
   app.post("/api/auth/send-verification", sendLimiter, async (req, res) => {
@@ -539,6 +592,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: parsed.error.issues[0].message });
       }
       const { profilePhoto, name, aboutMe, interests } = parsed.data;
+      if (!isAllowedPhotoUrl(profilePhoto)) {
+        return res.status(400).json({ error: "Profile photo URL is not from an allowed domain" });
+      }
       const updated = await storage.updateUserProfile(req.userId!, {
         profilePhoto: profilePhoto ?? undefined,
         name,
@@ -819,6 +875,7 @@ export async function registerRoutes(
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
+      auditLog("bubble_approved", req.userId!, req.params.id, req.ip ?? "");
       
       try {
         const groupType = bubble.privacy === 'Public' ? 'public' : 'private';
@@ -882,6 +939,7 @@ export async function registerRoutes(
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
+      auditLog("bubble_rejected", req.userId!, req.params.id, req.ip ?? "", { reason });
 
       if (bubble.creatorId) {
         sendNotification({
@@ -911,6 +969,7 @@ export async function registerRoutes(
         return res.status(404).json({ error: "User not found" });
       }
       clearLoginFailures(target.email);
+      auditLog("account_unlocked", req.userId!, req.params.id, req.ip ?? "");
       res.json({ success: true, message: `Account unlocked for ${target.email}` });
     } catch (error: any) {
       serverError(res, error);
@@ -1503,19 +1562,18 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only admins can view the waitlist" });
       }
       const waitlist = await storage.getWaitlistMembers(bubbleId);
-      res.json(waitlist.map(r => ({
+      const formatMember = (r: any) => ({
         id: r.id,
         userId: r.userId,
         bubbleId: r.bubbleId,
         membershipStatus: r.membershipStatus,
         joinedAt: r.joinedAt,
-        user: {
-          id: r.user.id,
-          name: r.user.name,
-          email: r.user.email,
-          profilePhoto: r.user.profilePhoto,
-        },
-      })));
+        user: { id: r.user.id, name: r.user.name, email: r.user.email, profilePhoto: r.user.profilePhoto },
+      });
+      res.json({
+        waitlisted: waitlist.filter(r => r.membershipStatus === 'waitlisted').map(formatMember),
+        on_hold: waitlist.filter(r => r.membershipStatus === 'on_hold').map(formatMember),
+      });
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2152,6 +2210,7 @@ export async function registerRoutes(
       }
 
       const approvedEvent = await storage.approveEvent(req.params.id);
+      auditLog("event_approved", req.userId!, req.params.id, req.ip ?? "");
       res.json(approvedEvent);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -2178,6 +2237,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Reason must be 500 characters or fewer" });
       }
       const rejectedEvent = await storage.rejectEvent(req.params.id, reason);
+      auditLog("event_rejected", req.userId!, req.params.id, req.ip ?? "", { reason });
       res.json(rejectedEvent);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -3051,6 +3111,27 @@ export async function registerRoutes(
       serverError(res, error);
     }
   });
+
+  // H4: Admin endpoint to purge stale push tokens globally (super admin only)
+  app.post("/api/admin/push-tokens/cleanup", authMiddleware, async (req, res) => {
+    try {
+      const user = await getCachedUser(req.userId!);
+      if (!user?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+      const days = parseInt(req.query.days as string ?? "90", 10) || 90;
+      const deleted = await storage.deleteStaleDevicePushTokens(days);
+      auditLog("push_tokens_cleanup", req.userId!, "global", req.ip ?? "", { deleted, olderThanDays: days });
+      res.json({ success: true, deleted });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // H4: Run stale push token cleanup on startup
+  storage.deleteStaleDevicePushTokens(90)
+    .then(n => { if (n > 0) console.log(`[startup] Deleted ${n} stale push tokens`); })
+    .catch(console.error);
 
   seedCampuses().catch(console.error);
   seedCategories().then(() => seedCategoryPlaceholders()).catch(console.error);
