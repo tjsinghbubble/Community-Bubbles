@@ -28,6 +28,15 @@ export function registerObjectStorageRoutes(app: Express, authMiddleware?: (req:
    *   "objectPath": "/objects/uploads/uuid"
    * }
    */
+  const ALLOWED_MIME_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+  ]);
+
   const uploadHandler = async (req: any, res: any) => {
     try {
       const { name, size, contentType } = req.body;
@@ -35,6 +44,12 @@ export function registerObjectStorageRoutes(app: Express, authMiddleware?: (req:
       if (!name) {
         return res.status(400).json({
           error: "Missing required field: name",
+        });
+      }
+
+      if (!contentType || !ALLOWED_MIME_TYPES.has(contentType)) {
+        return res.status(400).json({
+          error: "Invalid file type. Only JPEG, PNG, GIF, WebP, and HEIC images are allowed.",
         });
       }
 
