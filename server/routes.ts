@@ -3237,7 +3237,9 @@ export async function registerRoutes(
   seedCampuses().catch(console.error);
   seedCategories().then(() => seedCategoryPlaceholders()).catch(console.error);
   seedBulletinPostTypes().catch(console.error).then(() => {
-    seedData().catch(console.error);
+    if (process.env.NODE_ENV !== "production") {
+      seedData().catch(console.error);
+    }
   });
   seedAppConfig().catch(console.error);
   seedRules().catch(console.error);
