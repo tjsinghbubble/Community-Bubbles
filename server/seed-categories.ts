@@ -118,7 +118,7 @@ export async function seedCategories() {
       console.log("[SEED] Updating categories with display order, headers, and names...");
 
       for (const parent of categoryTree) {
-        const existingParent = existingCategories.find(c => c.name === parent.name);
+        let existingParent = existingCategories.find(c => c.name === parent.name);
         if (existingParent) {
           await db.update(categories)
             .set({
@@ -127,6 +127,21 @@ export async function seedCategories() {
               displayOrder: parent.displayOrder,
             })
             .where(eq(categories.name, parent.name));
+        } else {
+          const [newParent] = await db.insert(categories).values({
+            name: parent.name,
+            displayName: parent.displayName,
+            header: parent.header,
+            icon: parent.icon,
+            image: null,
+            parentId: null,
+            displayOrder: parent.displayOrder,
+            placeholderName: null,
+            placeholderTagline: null,
+            placeholderDescription: null,
+          }).returning();
+          existingParent = newParent;
+          console.log(`[SEED] Added new parent category: ${parent.name}`);
         }
 
         for (const child of parent.children) {
@@ -137,11 +152,24 @@ export async function seedCategories() {
                 displayName: child.displayName,
                 image: child.image || null,
                 displayOrder: child.displayOrder,
-                placeholderName: null,
-                placeholderTagline: null,
-                placeholderDescription: null,
+                placeholderName: child.placeholderName,
+                placeholderTagline: child.placeholderTagline,
+                placeholderDescription: child.placeholderDescription,
               })
               .where(eq(categories.name, child.name));
+          } else {
+            await db.insert(categories).values({
+              name: child.name,
+              displayName: child.displayName,
+              icon: child.icon,
+              image: child.image || null,
+              parentId: existingParent.id,
+              displayOrder: child.displayOrder,
+              placeholderName: child.placeholderName,
+              placeholderTagline: child.placeholderTagline,
+              placeholderDescription: child.placeholderDescription,
+            });
+            console.log(`[SEED] Added new subcategory: ${child.name}`);
           }
         }
       }
@@ -185,9 +213,9 @@ export async function seedCategories() {
         image: child.image || null,
         parentId: inserted.id,
         displayOrder: child.displayOrder,
-        placeholderName: null,
-        placeholderTagline: null,
-        placeholderDescription: null,
+        placeholderName: child.placeholderName,
+        placeholderTagline: child.placeholderTagline,
+        placeholderDescription: child.placeholderDescription,
       });
     }
   }

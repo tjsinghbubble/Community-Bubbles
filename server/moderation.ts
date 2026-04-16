@@ -1,6 +1,4 @@
-import { Filter } from "bad-words";
-
-const filter = new Filter();
+import leoProfanity from "leo-profanity";
 
 export interface ModerationResult {
   flagged: boolean;
@@ -14,7 +12,7 @@ export function moderateText(fields: Record<string, string | string[] | undefine
 
     if (Array.isArray(value)) {
       for (const item of value) {
-        if (typeof item === "string" && filter.isProfane(item)) {
+        if (typeof item === "string" && leoProfanity.check(item)) {
           return {
             flagged: true,
             field: fieldName,
@@ -22,7 +20,7 @@ export function moderateText(fields: Record<string, string | string[] | undefine
           };
         }
       }
-    } else if (typeof value === "string" && filter.isProfane(value)) {
+    } else if (typeof value === "string" && leoProfanity.check(value)) {
       return {
         flagged: true,
         field: fieldName,
