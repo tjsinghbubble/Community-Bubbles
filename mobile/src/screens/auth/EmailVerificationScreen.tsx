@@ -99,7 +99,15 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
       const data = await response.json();
 
       if (response.ok) {
-        setShowSuccessModal(true);
+        if (data.emailFailed && data.fallbackCode) {
+          Alert.alert(
+            'Email Delivery Failed',
+            `We couldn't send the email, but your verification code is:\n\n${data.fallbackCode}\n\nPlease copy it before continuing.`,
+            [{ text: 'OK' }]
+          );
+        } else {
+          setShowSuccessModal(true);
+        }
       } else {
         Alert.alert('Error', data.error || 'Failed to send new code');
       }

@@ -86,7 +86,13 @@ export default function SignupScreen({ navigation }: Props) {
         return;
       }
 
-      if (data.devCode) {
+      if (data.emailFailed && data.fallbackCode) {
+        Alert.alert(
+          'Email Delivery Failed',
+          `We couldn't send the email, but your verification code is:\n\n${data.fallbackCode}\n\nPlease copy it before continuing.`,
+          [{ text: 'OK' }]
+        );
+      } else if (data.devCode) {
         Alert.alert(
           'Development Mode',
           `Your verification code is: ${data.devCode}\n\nCopy this code to verify your email.`,

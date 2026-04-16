@@ -9,7 +9,7 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
   }
 
   const { error } = await resend.emails.send({
-    from: "Bubble <onboarding@resend.dev>",
+    from: process.env.EMAIL_FROM ?? "Bubble <noreply@bubble.app>",
     to,
     subject: "Your Bubble Verification Code",
     html: `

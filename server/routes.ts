@@ -303,9 +303,19 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      await sendVerificationEmail(email, code);
+      let emailFailed = false;
+      try {
+        await sendVerificationEmail(email, code);
+      } catch (emailError: any) {
+        console.error(`[EMAIL] Delivery failed for ${email}:`, emailError.message);
+        emailFailed = true;
+      }
 
       const response: any = { success: true, message: "Verification code sent" };
+      if (emailFailed) {
+        response.emailFailed = true;
+        response.fallbackCode = code;
+      }
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Verification code for ${email}: ${code}`);
         response.devCode = code;
@@ -2547,7 +2557,13 @@ export async function registerRoutes(
         expiresAt,
       });
 
-      await sendVerificationEmail(emailLower, code);
+      let emailFailed = false;
+      try {
+        await sendVerificationEmail(emailLower, code);
+      } catch (emailError: any) {
+        console.error(`[EMAIL] Delivery failed for ${emailLower}:`, emailError.message);
+        emailFailed = true;
+      }
 
       const response: any = {
         success: true,
@@ -2555,6 +2571,10 @@ export async function registerRoutes(
         campusId: campus.id,
         campusName: campus.title,
       };
+      if (emailFailed) {
+        response.emailFailed = true;
+        response.fallbackCode = code;
+      }
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
         response.devCode = code;

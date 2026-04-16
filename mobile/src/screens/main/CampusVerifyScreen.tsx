@@ -85,7 +85,13 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
     try {
       const response = await apiService.sendCampusVerification(email);
       
-      if (response.devCode) {
+      if (response.emailFailed && response.fallbackCode) {
+        Alert.alert(
+          'Email Delivery Failed',
+          `We couldn't send the email, but your verification code is:\n\n${response.fallbackCode}\n\nPlease copy it before continuing.`,
+          [{ text: 'OK' }]
+        );
+      } else if (response.devCode) {
         Alert.alert('New Code Sent', `Your new code is: ${response.devCode}`);
       } else {
         Alert.alert('Success', 'A new verification code has been sent to your email');

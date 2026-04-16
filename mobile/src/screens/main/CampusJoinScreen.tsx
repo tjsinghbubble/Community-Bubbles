@@ -45,7 +45,23 @@ export default function CampusJoinScreen({ navigation }: Props) {
     try {
       const response = await apiService.sendCampusVerification(email.trim());
       
-      if (response.devCode) {
+      if (response.emailFailed && response.fallbackCode) {
+        Alert.alert(
+          'Email Delivery Failed',
+          `We couldn't send the email, but your verification code is:\n\n${response.fallbackCode}\n\nCampus: ${response.campusName}\n\nPlease copy it before continuing.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('CampusVerify', {
+                  email: email.trim(),
+                  campusName: response.campusName,
+                });
+              },
+            },
+          ]
+        );
+      } else if (response.devCode) {
         Alert.alert(
           'Verification Code',
           `Your verification code is: ${response.devCode}\n\nCampus: ${response.campusName}`,
