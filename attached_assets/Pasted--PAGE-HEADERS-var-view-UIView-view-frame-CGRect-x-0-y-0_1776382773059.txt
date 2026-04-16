@@ -1,0 +1,57 @@
+
+PAGE HEADERS: 
+var view = UIView()
+view.frame = CGRect(x: 0, y: 0, width: 393, height: 100)
+view.layer.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1).cgColor
+view.layer.borderWidth = 1
+view.layer.borderColor = UIColor(red: 0.851, green: 0.851, blue: 0.851, alpha: 1).cgColor
+var parent = self.view!
+parent.addSubview(view)
+view.translatesAutoresizingMaskIntoConstraints = false
+view.widthAnchor.constraint(equalToConstant: 393).isActive = true
+view.heightAnchor.constraint(equalToConstant: 100).isActive = true
+view.leadingAnchor.constraint(equalTo: parent.leadingAnchor, constant: 0).isActive = true
+view.topAnchor.constraint(equalTo: parent.topAnchor, constant: 0).isActive = true
+
+System Colors
+Auto (Light)
+
+BACK NAVIGATION ARROW
+// Auto layout, grids, variables, and unit scale are not yet supported
+var view = UIView()
+view.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+var parent = self.view!
+parent.addSubview(view)
+view.translatesAutoresizingMaskIntoConstraints = false
+view.widthAnchor.constraint(equalToConstant: 24).isActive = true
+view.heightAnchor.constraint(equalToConstant: 24).isActive = true
+
+
+LINE SEPARATOR
+// Auto layout, grids, variables, and unit scale are not yet supported
+var view = UIView()
+view.frame = CGRect(x: 0, y: 0, width: 393, height: 100)
+view.layer.backgroundColor = UIColor(red: 1, green: 1, blue: 1, alpha: 1).cgColor
+view.layer.borderWidth = 1
+view.layer.borderColor = UIColor(red: 0.851, green: 0.851, blue: 0.851, alpha: 1).cgColor
+var parent = self.view!
+parent.addSubview(view)
+view.translatesAutoresizingMaskIntoConstraints = false
+view.widthAnchor.constraint(equalToConstant: 393).isActive = true
+view.heightAnchor.constraint(equalToConstant: 100).isActive = true
+view.leadingAnchor.constraint(equalTo: parent.leadingAnchor, constant: 0).isActive = true
+view.topAnchor.constraint(equalTo: parent.topAnchor, constant: 0).isActive = true
+
+System Colors
+Auto (Light)
+
+
+BACK NAVIGATION ARROW for iOS 
+// Auto layout, grids, variables, and unit scale are not yet supported
+var view = UIView()
+view.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+var parent = self.view!
+parent.addSubview(view)
+view.translatesAutoresizingMaskIntoConstraints = false
+view.widthAnchor.constraint(equalToConstant: 24).isActive = true
+view.heightAnchor.constraint(equalToConstant: 24).isActive = true
