@@ -1,21 +1,15 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendVerificationEmail(to: string, code: string): Promise<void> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log(`[EMAIL] Gmail not configured. Verification code for ${to}: ${code}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`[EMAIL] Resend not configured. Verification code for ${to}: ${code}`);
     return;
   }
 
-  await transporter.sendMail({
-    from: `"Bubble" <${process.env.GMAIL_USER}>`,
+  const { error } = await resend.emails.send({
+    from: "Bubble <onboarding@resend.dev>",
     to,
     subject: "Your Bubble Verification Code",
     html: `
@@ -31,6 +25,11 @@ export async function sendVerificationEmail(to: string, code: string): Promise<v
       </div>
     `,
   });
+
+  if (error) {
+    console.error(`[EMAIL] Failed to send verification email to ${to}:`, error);
+    throw new Error(`Email delivery failed: ${error.message}`);
+  }
 
   console.log(`[EMAIL] Verification code sent to ${to}`);
 }
