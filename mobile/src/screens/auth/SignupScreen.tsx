@@ -44,12 +44,6 @@ export default function SignupScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [tosViewed, setTosViewed] = useState(false);
-  const [privacyViewed, setPrivacyViewed] = useState(false);
-  const pendingTosView = useRef(false);
-  const pendingPrivacyView = useRef(false);
-
-  const canCheckBox = tosViewed && privacyViewed;
 
   const today = new Date();
   const [pickerDay, setPickerDay] = useState(15);
@@ -60,20 +54,6 @@ export default function SignupScreen({ navigation }: Props) {
   const yearScrollRef = useRef<ScrollView>(null);
 
   const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      if (pendingTosView.current) {
-        setTosViewed(true);
-        pendingTosView.current = false;
-      }
-      if (pendingPrivacyView.current) {
-        setPrivacyViewed(true);
-        pendingPrivacyView.current = false;
-      }
-    });
-    return unsubscribe;
-  }, [navigation]);
 
   const handlePickPhoto = async () => {
     const granted = await requestPhotoLibraryAccess();
@@ -353,26 +333,25 @@ export default function SignupScreen({ navigation }: Props) {
             <View style={styles.termsRow}>
               <TouchableOpacity
                 onPress={() => setTermsAccepted(!termsAccepted)}
-                disabled={!canCheckBox}
                 activeOpacity={0.7}
                 testID="checkbox-terms"
               >
-                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
                   {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                 </View>
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
                 <Text
-                  style={[styles.termsLink, tosViewed && styles.termsLinkViewed]}
-                  onPress={() => { pendingTosView.current = true; navigation.navigate('TermsOfService'); }}
+                  style={styles.termsLink}
+                  onPress={() => navigation.navigate('TermsOfService')}
                 >
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
                 <Text
-                  style={[styles.termsLink, privacyViewed && styles.termsLinkViewed]}
-                  onPress={() => { pendingPrivacyView.current = true; navigation.navigate('PrivacyPolicy'); }}
+                  style={styles.termsLink}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
                 >
                   Privacy Policy
                 </Text>
@@ -618,10 +597,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand.bubbleBlue,
     borderColor: Colors.brand.bubbleBlue,
   },
-  checkboxDisabled: {
-    opacity: 0.5,
-    borderColor: Colors.neutral.coolMist,
-  },
   termsText: {
     flex: 1,
     fontSize: 13,
@@ -631,9 +606,6 @@ const styles = StyleSheet.create({
   termsLink: {
     color: Colors.brand.bubbleBlue,
     textDecorationLine: 'underline',
-  },
-  termsLinkViewed: {
-    color: '#2B8AD0',
   },
   modalOverlay: {
     flex: 1,
