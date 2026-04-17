@@ -4,17 +4,17 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Image,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
-import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -76,16 +76,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
   const canContinue = selected.length >= MIN_SELECTIONS;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          data-testid="button-back"
-        >
-          <Ionicons name="chevron-back" size={22} color={Colors.text.primary} />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader onBack={() => navigation.goBack()} />
 
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack} />
@@ -155,18 +147,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 38,
-  },
-  backButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   progressContainer: {
     height: 2,
