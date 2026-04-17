@@ -17,7 +17,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'MyBubblesFromProfile'>;
@@ -54,7 +54,7 @@ export default function MyBubblesFromProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="My Bubbles" onBack={() => navigation.goBack()} />
+      <NavHeader title="My Bubbles" onBack={() => navigation.goBack()} />
 
       {loading ? (
         <View style={styles.loadingContainer}>

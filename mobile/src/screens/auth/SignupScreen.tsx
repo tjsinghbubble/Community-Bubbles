@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
@@ -225,7 +225,7 @@ export default function SignupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Sign up" onBack={() => navigation.goBack()} />
+      <NavHeader title="Sign up" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}

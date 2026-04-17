@@ -17,7 +17,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
@@ -58,7 +58,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader
+      <FlowHeader
         title="My Profile"
         onBack={() => navigation.goBack()}
         rightElement={

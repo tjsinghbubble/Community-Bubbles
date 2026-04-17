@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'EmailVerification'>;
@@ -120,7 +120,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Email Verification" onBack={() => navigation.goBack()} />
+      <NavHeader title="Email Verification" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <Text style={styles.description}>

@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 
 export default function PersonalInformationScreen() {
@@ -32,7 +32,7 @@ export default function PersonalInformationScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Personal Information" onBack={() => navigation.goBack()} />
+      <NavHeader title="Personal Information" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <View style={styles.section}>

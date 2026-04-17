@@ -14,7 +14,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
 import { API_URL } from '../../config/api';
 
@@ -128,7 +128,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader onBack={() => navigation.goBack()} />
+      <NavHeader onBack={() => navigation.goBack()} />
 
       <View style={styles.progressContainer}>
         <View style={styles.progressFill} />

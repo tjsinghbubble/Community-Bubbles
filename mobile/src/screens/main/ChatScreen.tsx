@@ -27,7 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 import { PeopleIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess, requestCameraAccess } from '../../utils/permissions';
 
@@ -686,7 +686,7 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-      <ScreenHeader
+      <FlowHeader
         title={groupName}
         onBack={() => navigation.goBack()}
         rightElement={

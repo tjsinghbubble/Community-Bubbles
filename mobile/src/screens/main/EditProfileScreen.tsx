@@ -24,7 +24,7 @@ import apiService from '../../services/api.service';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
@@ -151,7 +151,7 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Edit Profile" onBack={() => navigation.goBack()} />
+      <NavHeader title="Edit Profile" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

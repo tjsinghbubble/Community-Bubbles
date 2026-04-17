@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 
 export default function LoginSecurityScreen() {
@@ -39,7 +39,7 @@ export default function LoginSecurityScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Login & Security" onBack={() => navigation.goBack()} />
+      <NavHeader title="Login & Security" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionHeader}>Login</Text>

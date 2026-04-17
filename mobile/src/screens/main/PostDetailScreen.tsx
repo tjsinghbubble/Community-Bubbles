@@ -21,7 +21,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'PostDetail'>;
@@ -154,7 +154,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <ScreenHeader title="Post" onBack={() => navigation.goBack()} />
+      <NavHeader title="Post" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

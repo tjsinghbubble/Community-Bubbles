@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 
 export default function GetHelpScreen() {
@@ -19,7 +19,7 @@ export default function GetHelpScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Get Help" onBack={() => navigation.goBack()} />
+      <NavHeader title="Get Help" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <View style={styles.section}>

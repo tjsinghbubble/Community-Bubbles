@@ -4,17 +4,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PageHeader, BackArrow, Spacing } from '../styles/theme';
 
-type Props = {
+const backIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
+
+function BaseHeader({
+  title,
+  subtitle,
+  onBack,
+  rightElement,
+  showBorder = true,
+}: {
   title?: string;
   subtitle?: string;
   onBack?: () => void;
   rightElement?: React.ReactNode;
   showBorder?: boolean;
-};
-
-export default function ScreenHeader({ title, subtitle, onBack, rightElement, showBorder = true }: Props) {
+}) {
   const insets = useSafeAreaInsets();
-  const backIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
 
   return (
     <View
@@ -33,11 +38,7 @@ export default function ScreenHeader({ title, subtitle, onBack, rightElement, sh
               testID="button-back"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons
-                name={backIcon}
-                size={BackArrow.size}
-                color={BackArrow.color}
-              />
+              <Ionicons name={backIcon} size={BackArrow.size} color={BackArrow.color} />
             </TouchableOpacity>
           )}
         </View>
@@ -45,17 +46,11 @@ export default function ScreenHeader({ title, subtitle, onBack, rightElement, sh
         {title ? (
           subtitle ? (
             <View style={styles.titleGroup}>
-              <Text style={styles.title} numberOfLines={1}>
-                {title}
-              </Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {subtitle}
-              </Text>
+              <Text style={styles.title} numberOfLines={1}>{title}</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
             </View>
           ) : (
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
+            <Text style={styles.title} numberOfLines={1}>{title}</Text>
           )
         ) : (
           <View style={styles.titlePlaceholder} />
@@ -68,6 +63,60 @@ export default function ScreenHeader({ title, subtitle, onBack, rightElement, sh
     </View>
   );
 }
+
+/**
+ * NavHeader — Standard back-navigation header.
+ * Use for all secondary/detail screens that require a back arrow and title.
+ */
+export function NavHeader({
+  title,
+  onBack,
+  showBorder,
+}: {
+  title?: string;
+  onBack: () => void;
+  showBorder?: boolean;
+}) {
+  return <BaseHeader title={title} onBack={onBack} showBorder={showBorder} />;
+}
+
+/**
+ * FlowHeader — Wizard or tool-screen header with back arrow, title, and a
+ * right-side action element (e.g. Cancel button, Post button, icon action).
+ */
+export function FlowHeader({
+  title,
+  onBack,
+  rightElement,
+  showBorder,
+}: {
+  title: string;
+  onBack: () => void;
+  rightElement: React.ReactNode;
+  showBorder?: boolean;
+}) {
+  return <BaseHeader title={title} onBack={onBack} rightElement={rightElement} showBorder={showBorder} />;
+}
+
+/**
+ * SectionHeader — Sub-section header with back arrow, primary title, and a
+ * secondary subtitle (e.g. parent bubble name).
+ */
+export function SectionHeader({
+  title,
+  subtitle,
+  onBack,
+  showBorder,
+}: {
+  title: string;
+  subtitle: string;
+  onBack: () => void;
+  showBorder?: boolean;
+}) {
+  return <BaseHeader title={title} subtitle={subtitle} onBack={onBack} showBorder={showBorder} />;
+}
+
+export default NavHeader;
 
 const styles = StyleSheet.create({
   header: {

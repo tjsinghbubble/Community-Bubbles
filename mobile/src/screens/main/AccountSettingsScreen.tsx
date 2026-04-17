@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 
 const APP_VERSION = '26.01';
@@ -22,7 +22,7 @@ export default function AccountSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Account Settings" onBack={() => navigation.goBack()} />
+      <NavHeader title="Account Settings" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <View style={styles.section}>

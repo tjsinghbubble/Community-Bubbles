@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { CalendarIcon, LocationPinIcon, ClockIcon, PeopleIcon, CreateBubbleEventIcon } from '../../components/icons';
-import ScreenHeader from '../../components/ScreenHeader';
+import { SectionHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -142,7 +142,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScreenHeader
+        <SectionHeader
           title="Events"
           subtitle={bubbleTitle}
           onBack={() => navigation.goBack()}
@@ -156,7 +156,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader
+      <SectionHeader
         title="Events"
         subtitle={bubbleTitle}
         onBack={() => navigation.goBack()}

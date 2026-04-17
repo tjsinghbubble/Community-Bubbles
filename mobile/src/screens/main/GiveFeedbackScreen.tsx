@@ -11,14 +11,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 export default function GiveFeedbackScreen() {
   const navigation = useNavigation<any>();
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Give us Feedback" onBack={() => navigation.goBack()} />
+      <NavHeader title="Give us Feedback" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <Text style={styles.heading}>Share your feedback</Text>

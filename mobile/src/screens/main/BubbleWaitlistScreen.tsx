@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleWaitlist'>;
@@ -169,7 +169,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Waitlist" onBack={() => navigation.goBack()} />
+      <NavHeader title="Waitlist" onBack={() => navigation.goBack()} />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>

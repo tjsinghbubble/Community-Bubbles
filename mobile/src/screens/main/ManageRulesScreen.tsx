@@ -16,7 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ManageRules'>;
@@ -264,7 +264,7 @@ export default function ManageRulesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <ScreenHeader title="Manage Rules" onBack={() => navigation.goBack()} />
+      <NavHeader title="Manage Rules" onBack={() => navigation.goBack()} />
 
       <View style={styles.tabRow}>
         <TouchableOpacity

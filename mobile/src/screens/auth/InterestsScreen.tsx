@@ -14,7 +14,7 @@ import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
@@ -77,7 +77,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader onBack={() => navigation.goBack()} />
+      <NavHeader onBack={() => navigation.goBack()} />
 
       <View style={styles.progressContainer}>
         <View style={styles.progressTrack} />

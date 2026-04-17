@@ -17,7 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 import { API_URL } from '../../config/api';
 
 type Props = {
@@ -222,7 +222,7 @@ export default function CategoryPlaceholdersScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Category Placeholders" onBack={() => navigation.goBack()} />
+      <NavHeader title="Category Placeholders" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
         <TouchableOpacity

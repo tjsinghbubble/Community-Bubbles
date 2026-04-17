@@ -20,7 +20,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, BulletinPillStyles } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
 import { BulletinPostIcon } from '../../components/icons';
@@ -141,7 +141,7 @@ export default function CreatePostScreen({ navigation, route }: Props) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScreenHeader
+        <FlowHeader
           title={isEditing ? 'Edit Post' : 'New Post'}
           onBack={() => navigation.goBack()}
           rightElement={

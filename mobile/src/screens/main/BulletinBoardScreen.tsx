@@ -25,7 +25,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, CreateAPostIcon, NothingHereYetIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -786,7 +786,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <ScreenHeader
+      <FlowHeader
         title="Bulletin Board"
         onBack={() => navigation.goBack()}
         rightElement={

@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -170,7 +170,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Edit Event" onBack={() => navigation.goBack()} />
+      <NavHeader title="Edit Event" onBack={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.content}

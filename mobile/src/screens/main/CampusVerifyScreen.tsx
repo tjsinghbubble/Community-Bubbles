@@ -19,7 +19,7 @@ import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, Gradients } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -106,7 +106,7 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader onBack={() => navigation.goBack()} />
+      <NavHeader onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}

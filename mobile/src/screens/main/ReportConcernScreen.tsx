@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, InputStyles, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 const FEEDBACK_OPTIONS = ['Bubble', 'Event', 'Other'] as const;
 type FeedbackType = (typeof FEEDBACK_OPTIONS)[number];
@@ -175,7 +175,7 @@ export default function ReportConcernScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader
+      <NavHeader
         title="Report a Concern"
         onBack={() => {
           if (step === 2) {

@@ -24,7 +24,7 @@ import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDownIcon, ChevronUpIcon, BubblesIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -644,7 +644,7 @@ export default function PendingReviewsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Needs Attention" onBack={() => navigation.goBack()} />
+      <NavHeader title="Needs Attention" onBack={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.content}

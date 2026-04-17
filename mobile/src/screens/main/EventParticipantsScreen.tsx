@@ -23,7 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 import { FlagIcon } from '../../components/icons';
 
 type ParticipantsParamList = {
@@ -321,7 +321,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Participants" onBack={() => navigation.goBack()} />
+      <NavHeader title="Participants" onBack={() => navigation.goBack()} />
 
       {isLoading ? (
         <View style={styles.loading}>

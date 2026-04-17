@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../../components/ScreenHeader';
+import { SectionHeader } from '../../components/ScreenHeader';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
@@ -382,7 +382,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader
+      <SectionHeader
         title="Members"
         subtitle={bubbleTitle}
         onBack={() => navigation.goBack()}

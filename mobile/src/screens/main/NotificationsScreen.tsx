@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 
 type NotificationItem = {
   id: string;
@@ -223,7 +223,7 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
-      <ScreenHeader
+      <FlowHeader
         title="Notifications"
         onBack={() => navigation.goBack()}
         rightElement={

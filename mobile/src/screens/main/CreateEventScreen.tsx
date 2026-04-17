@@ -26,7 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
@@ -984,7 +984,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const renderSuccessScreen = () => (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
-      <ScreenHeader
+      <FlowHeader
         title={STEP_TITLES[step - 1]}
         onBack={handleBack}
         rightElement={renderCancelButton()}
@@ -1087,7 +1087,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScreenHeader
+        <FlowHeader
           title={STEP_TITLES[step - 1]}
           onBack={handleBack}
           rightElement={renderCancelButton()}

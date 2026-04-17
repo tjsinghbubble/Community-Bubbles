@@ -332,15 +332,88 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 **Token**: `PageHeader`
 **Defined in**: `mobile/src/styles/theme.ts`
 **Component**: `mobile/src/components/ScreenHeader.tsx`
-**Used by**: 36+ screens across the app
+**Used by**: 38+ screens across the app
 
-### Container
+All headers share the same visual specification:
 
-| Property | Value | Notes |
-|---|---|---|
-| Background | `#FFFFFF` (`Colors.background.primary`) | White, not the screen background |
-| Border bottom | `#D9D9D9` (`Colors.neutral.lightSilver`), 1px | Separator between header and content |
-| Height | `56` | Fixed height, no vertical padding |
+| Property | Value |
+|---|---|
+| Background | `#FFFFFF` (`Colors.background.primary`) |
+| Bottom border | `1px solid #D9D9D9` (`Colors.neutral.lightSilver`) |
+| Bottom padding | `12px` |
+| Content row height | `56px` |
+| Top padding | Device safe-area inset (auto) |
+
+### Standard Header Types
+
+Three named components are exported from `ScreenHeader.tsx`. Every screen must use one of these — do not use the generic `ScreenHeader` base directly.
+
+---
+
+#### 1. `NavHeader` — Standard navigation
+
+Back arrow + centered title. Used by all secondary/settings/detail screens.
+
+```tsx
+import { NavHeader } from '../../components/ScreenHeader';
+
+<NavHeader title="Account Settings" onBack={() => navigation.goBack()} />
+```
+
+**Props**: `title?: string`, `onBack: () => void`, `showBorder?: boolean`
+**Screens**: ~30 screens (AccountSettings, PersonalInfo, LoginSecurity, EditProfile, GetHelp, HelpCenter, AdminDashboard, Login, Signup, etc.)
+
+---
+
+#### 2. `FlowHeader` — Wizard or tool screen
+
+Back arrow + centered title + right-side action element. Used for multi-step flows and screens with a primary action (Cancel, Post, icon).
+
+```tsx
+import { FlowHeader } from '../../components/ScreenHeader';
+
+// Wizard with Cancel
+<FlowHeader
+  title="Create Bubble"
+  onBack={goBack}
+  rightElement={
+    <TouchableOpacity onPress={() => navigation.goBack()}>
+      <Text>Cancel</Text>
+    </TouchableOpacity>
+  }
+/>
+
+// Tool screen with icon action
+<FlowHeader
+  title="Hiking Club"
+  onBack={() => navigation.goBack()}
+  rightElement={<PeopleIcon size={22} color={Colors.brand.bubbleBlue} />}
+/>
+```
+
+**Props**: `title: string`, `onBack: () => void`, `rightElement: ReactNode`, `showBorder?: boolean`
+**Screens**: CreateBubble, EditBubble, CreateEvent, CreatePost, Chat, Notifications, BulletinBoard, ViewProfile
+
+---
+
+#### 3. `SectionHeader` — Bubble sub-section
+
+Back arrow + primary title + secondary subtitle (parent context). Used when a screen belongs to a specific bubble.
+
+```tsx
+import { SectionHeader } from '../../components/ScreenHeader';
+
+<SectionHeader
+  title="Events"
+  subtitle="Hiking Club"
+  onBack={() => navigation.goBack()}
+/>
+```
+
+**Props**: `title: string`, `subtitle: string`, `onBack: () => void`, `showBorder?: boolean`
+**Screens**: BubbleEvents, BubbleMembers
+
+---
 
 ### Back Arrow
 
@@ -350,67 +423,33 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 | Android icon | `arrow-back` (Ionicons) |
 | Size | `24` |
 | Color | `Colors.text.primary` (`#1E1F26`) |
-| Touch target | 40×40, centered |
+| Touch target | 40×40 with `hitSlop` |
 
 ### Title
 
 | Property | Value |
 |---|---|
 | Font size | `17` |
-| Font weight | `Typography.weights.semiBold` (`'600'`) |
+| Font weight | `'600'` (semiBold) |
 | Color | `Colors.text.primary` (`#1E1F26`) |
 | Alignment | Centered horizontally |
 
 ### Side Slots
 
-Both the left (back arrow) and right (optional action) slots are `width: 40` to ensure the title remains visually centered.
-
-### Page Background
-
-All screens using `ScreenHeader` use `Colors.background.secondary` (`#FAFAFA`) as the page/container background.
+Both the left (back arrow) and right (action) slots are `width: 40` to keep the title visually centered.
 
 ### Safe Area Handling
 
-`ScreenHeader` internally calls `useSafeAreaInsets()` to add `paddingTop: insets.top` so the header expands to sit below the status bar. Consuming screens must therefore **not** handle the top safe area themselves:
+All three header components internally call `useSafeAreaInsets()` to apply `paddingTop: insets.top`. Consuming screens must **not** add their own top safe-area handling:
 
 - Use `SafeAreaView` from `react-native-safe-area-context` with `edges={['bottom']}` on the screen container
-- Do **not** use `react-native`'s built-in `SafeAreaView` (all-edges by default) — this causes double top-padding
+- Do **not** use `react-native`'s built-in `SafeAreaView` (applies all edges — causes double top-padding)
 - Do **not** add `paddingTop: StatusBar.currentHeight` to the container style
 
-### Usage
+### Page Background
 
-```tsx
-import ScreenHeader from '../../components/ScreenHeader';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-// Basic (back only)
-function MyScreen({ navigation }) {
-  return (
-    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
-      {/* screen content */}
-    </SafeAreaView>
-  );
-}
-
-// With subtitle (e.g., BubbleEvents, BubbleMembers)
-<ScreenHeader title="Events" subtitle="Hiking Club" onBack={() => navigation.goBack()} />
-
-// With right element (e.g., Cancel for wizard screens, participants icon for ChatScreen)
-<ScreenHeader
-  title="Create Bubble"
-  onBack={goBack}
-  rightElement={
-    <TouchableOpacity onPress={() => navigation.goBack()}>
-      <Text style={{ color: Colors.status.error }}>Cancel</Text>
-    </TouchableOpacity>
-  }
-/>
-
-// Without border (e.g., sections that merge into content below)
-<ScreenHeader title="Details" onBack={() => navigation.goBack()} showBorder={false} />
-```
+All screens using any of the three header components use `Colors.background.secondary` (`#FAFAFA`) as the page/container background.
 
 ### Exception: Modal overlay screens
 
-`DataConfirmAccountScreen` renders as a full-screen modal overlay with a centered card. The card header uses an X close button (dismiss semantics), not a back arrow. `ScreenHeader` is not used in modal-card contexts — this is an intentional exception. A `ModalHeader` component could be extracted in a future pass.
+`DataConfirmAccountScreen` renders as a full-screen modal overlay with a centered card. The card header uses an X close button (dismiss semantics), not a back arrow. None of the three header types are used in modal-card contexts — this is an intentional exception.

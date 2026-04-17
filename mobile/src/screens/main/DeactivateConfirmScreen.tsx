@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import SuccessModal from '../../components/SuccessModal';
-import ScreenHeader from '../../components/ScreenHeader';
+import { NavHeader } from '../../components/ScreenHeader';
 
 
 type DeactivateConfirmParams = {
@@ -56,7 +56,7 @@ export default function DeactivateConfirmScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader title="Deactivate Account" onBack={() => navigation.goBack()} />
+      <NavHeader title="Deactivate Account" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <View style={styles.profileCard}>

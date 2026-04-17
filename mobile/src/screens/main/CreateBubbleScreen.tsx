@@ -39,7 +39,7 @@ import {
   SwitchColors,
   ModalStyles,
 } from '../../styles/theme';
-import ScreenHeader from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -939,7 +939,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScreenHeader
+      <FlowHeader
         title={step === 4 ? title ?? STEP_TITLES[step] : STEP_TITLES[step]}
         onBack={goBack}
         rightElement={
