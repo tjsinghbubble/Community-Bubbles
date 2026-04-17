@@ -43,6 +43,13 @@ export default function SignupScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [tosViewed, setTosViewed] = useState(false);
+  const [privacyViewed, setPrivacyViewed] = useState(false);
+  const pendingTosView = useRef(false);
+  const pendingPrivacyView = useRef(false);
+
+  const canCheckBox = tosViewed && privacyViewed;
 
   const today = new Date();
   const [pickerDay, setPickerDay] = useState(15);
@@ -52,7 +59,21 @@ export default function SignupScreen({ navigation }: Props) {
   const monthScrollRef = useRef<ScrollView>(null);
   const yearScrollRef = useRef<ScrollView>(null);
 
-  const isFormValid = name && email && password && gender && dateOfBirth;
+  const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      if (pendingTosView.current) {
+        setTosViewed(true);
+        pendingTosView.current = false;
+      }
+      if (pendingPrivacyView.current) {
+        setPrivacyViewed(true);
+        pendingPrivacyView.current = false;
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const handlePickPhoto = async () => {
     const granted = await requestPhotoLibraryAccess();
@@ -329,23 +350,34 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
             </View>
 
-            <Text style={styles.consentText}>
-              By selecting Agree and continue, I agree to Bubble's{' '}
-              <Text
-                style={styles.consentLink}
-                onPress={() => navigation.navigate('TermsOfService')}
+            <View style={styles.termsRow}>
+              <TouchableOpacity
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                disabled={!canCheckBox}
+                activeOpacity={0.7}
+                testID="checkbox-terms"
               >
-                Terms of Service
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked, !canCheckBox && styles.checkboxDisabled]}>
+                  {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text
+                  style={[styles.termsLink, tosViewed && styles.termsLinkViewed]}
+                  onPress={() => { pendingTosView.current = true; navigation.navigate('TermsOfService'); }}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and acknowledge the{' '}
+                <Text
+                  style={[styles.termsLink, privacyViewed && styles.termsLinkViewed]}
+                  onPress={() => { pendingPrivacyView.current = true; navigation.navigate('PrivacyPolicy'); }}
+                >
+                  Privacy Policy
+                </Text>
               </Text>
-              {' '}and acknowledge the{' '}
-              <Text
-                style={styles.consentLink}
-                onPress={() => navigation.navigate('PrivacyPolicy')}
-              >
-                Privacy Policy
-              </Text>
-              .
-            </Text>
+            </View>
 
             <BubbleButton
               title="Agree & Continue"
@@ -565,16 +597,43 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     lineHeight: 16,
   },
-  consentText: {
-    fontSize: 12,
-    color: Colors.text.tertiary,
-    lineHeight: 18,
-    textAlign: 'center',
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  consentLink: {
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral.coolMist,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+    marginTop: 4,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
+  },
+  checkboxDisabled: {
+    opacity: 0.5,
+    borderColor: Colors.neutral.coolMist,
+  },
+  termsText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text.secondary,
+    lineHeight: 18,
+  },
+  termsLink: {
     color: Colors.brand.bubbleBlue,
     textDecorationLine: 'underline',
+  },
+  termsLinkViewed: {
+    color: '#2B8AD0',
   },
   modalOverlay: {
     flex: 1,
