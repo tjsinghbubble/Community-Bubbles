@@ -157,7 +157,6 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     setMenuVisible(false);
     if (!selectedAttendee) return;
     try {
-      await cometChatService.createUserIfNotExists(selectedAttendee.userId, selectedAttendee.user.name);
       await cometChatService.sendDirectMessage(selectedAttendee.userId, `Hi ${selectedAttendee.user.name}!`);
       Alert.alert(
         'Message Sent',

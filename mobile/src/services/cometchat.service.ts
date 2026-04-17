@@ -54,20 +54,6 @@ class CometChatService {
     }
   }
 
-  async createUserIfNotExists(uid: string, name: string) {
-    // User creation is now handled server-side via /api/cometchat/auth-token.
-    // This stub is retained for callers outside the login flow (e.g. EventParticipantsScreen).
-    try {
-      const user = new CometChat.User(uid);
-      user.setName(name);
-      await CometChat.createUser(user, COMETCHAT_CONSTANTS.AUTH_KEY);
-    } catch (error: any) {
-      if (error?.code !== 'ERR_UID_ALREADY_EXISTS') {
-        console.warn('CometChat createUser (client-side) failed:', error?.code);
-      }
-    }
-  }
-
   async getGroupMembers(guid: string): Promise<Array<{ uid: string; name: string; avatar?: string; scope: string }>> {
     try {
       const limit = 100;
