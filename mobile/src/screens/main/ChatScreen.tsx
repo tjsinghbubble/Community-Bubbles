@@ -685,7 +685,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <ScreenHeader
         title={groupName}
         onBack={() => navigation.goBack()}

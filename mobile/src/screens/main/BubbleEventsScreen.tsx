@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
 import { CalendarIcon, LocationPinIcon, ClockIcon, PeopleIcon, CreateBubbleEventIcon } from '../../components/icons';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleEvents'>;
@@ -62,8 +62,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
     }
   };
 
-  const isSuperAdmin = user?.isSuperAdmin === true;
-  const canCreateEvent = true; // Any logged-in user can propose events
+  const canCreateEvent = true;
 
   const handleCreateEvent = () => {
     navigation.navigate('CreateEvent' as any, { bubbleId, bubbleTitle });
@@ -142,13 +141,12 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Events</Text>
-        </View>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <ScreenHeader
+          title="Events"
+          subtitle={bubbleTitle}
+          onBack={() => navigation.goBack()}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
@@ -157,16 +155,12 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>Events</Text>
-          <Text style={styles.headerSubtitle}>{bubbleTitle}</Text>
-        </View>
-      </View>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <ScreenHeader
+        title="Events"
+        subtitle={bubbleTitle}
+        onBack={() => navigation.goBack()}
+      />
 
       {events.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -196,33 +190,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    marginRight: 12,
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: Colors.neutral.coolMist,
-    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,

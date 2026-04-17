@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   Platform,
   StatusBar,
@@ -20,6 +19,7 @@ import {
   GestureResponderEvent,
   LayoutChangeEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -463,7 +463,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={Colors.brand.primary} />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -474,7 +474,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   if (submitSuccess) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.successContainer}>
           <View style={styles.successTopSection}>
             <Text style={styles.successTitle}>Thanks for submitting{'\n'}your bubble</Text>
@@ -939,7 +939,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
         title={step === 4 ? title ?? STEP_TITLES[step] : STEP_TITLES[step]}
         onBack={goBack}

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Platform,
   StatusBar,
@@ -18,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
@@ -389,7 +389,7 @@ export default function PendingReviewsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
@@ -644,7 +644,7 @@ export default function PendingReviewsScreen() {
   const totalItems = pendingReports.length + pendingEvents.length + pendingBubbles.length + waitlistItems.length;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader title="Needs Attention" onBack={() => navigation.goBack()} />
 
       <ScrollView 

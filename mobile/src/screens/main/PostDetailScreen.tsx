@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
@@ -14,6 +13,7 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -141,7 +141,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
 
   if (loading || !post) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.brand.primary} />
         </View>
@@ -152,7 +152,7 @@ export default function PostDetailScreen({ navigation, route }: Props) {
   const isOwnPost = user?.id === post.authorId;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" />
       <ScreenHeader title="Post" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView

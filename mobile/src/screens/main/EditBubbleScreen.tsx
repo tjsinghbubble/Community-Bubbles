@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   Platform,
   StatusBar,
@@ -20,6 +19,7 @@ import {
   GestureResponderEvent,
   LayoutChangeEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -342,7 +342,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.centeredContainer}>
           <ActivityIndicator size="large" color={Colors.brand.primary} />
           <Text style={styles.loadingText}>Saving changes...</Text>
@@ -733,7 +733,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <ScreenHeader
         title={step === 3 ? title : STEP_TITLES[step]}
         onBack={goBack}

@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Platform,
   StatusBar,
@@ -15,6 +14,7 @@ import {
   Switch,
   KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -982,7 +982,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   );
 
   const renderSuccessScreen = () => (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
       <ScreenHeader
         title={STEP_TITLES[step - 1]}
@@ -1081,7 +1081,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.secondary} />
       <KeyboardAvoidingView
         style={styles.flex1}
