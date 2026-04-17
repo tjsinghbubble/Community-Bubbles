@@ -7,7 +7,6 @@ import {
   StyleSheet,
   FlatList,
   Platform,
-  StatusBar,
   Alert,
   ActivityIndicator,
   Modal,
@@ -822,7 +821,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
 
   cancelText: {

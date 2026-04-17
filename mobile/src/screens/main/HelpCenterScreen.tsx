@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  StatusBar,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -113,7 +112,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollView: {
     flex: 1,

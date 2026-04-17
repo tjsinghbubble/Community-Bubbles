@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Platform,
-  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -153,7 +152,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   editHeaderText: {
     fontSize: Typography.sizes.base,

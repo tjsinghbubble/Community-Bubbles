@@ -332,7 +332,7 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 **Token**: `PageHeader`
 **Defined in**: `mobile/src/styles/theme.ts`
 **Component**: `mobile/src/components/ScreenHeader.tsx`
-**Used by**: ~30 screens across the app
+**Used by**: 36+ screens across the app
 
 ### Container
 
@@ -369,15 +369,34 @@ Both the left (back arrow) and right (optional action) slots are `width: 40` to 
 
 All screens using `ScreenHeader` use `Colors.background.secondary` (`#FAFAFA`) as the page/container background.
 
+### Safe Area Handling
+
+`ScreenHeader` internally calls `useSafeAreaInsets()` to add `paddingTop: insets.top` so the header expands to sit below the status bar. Consuming screens must therefore **not** handle the top safe area themselves:
+
+- Use `SafeAreaView` from `react-native-safe-area-context` with `edges={['bottom']}` on the screen container
+- Do **not** use `react-native`'s built-in `SafeAreaView` (all-edges by default) — this causes double top-padding
+- Do **not** add `paddingTop: StatusBar.currentHeight` to the container style
+
 ### Usage
 
 ```tsx
 import ScreenHeader from '../../components/ScreenHeader';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Basic (back only)
-<ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
+function MyScreen({ navigation }) {
+  return (
+    <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+      <ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
+      {/* screen content */}
+    </SafeAreaView>
+  );
+}
 
-// With right element (e.g., Cancel for wizard screens)
+// With subtitle (e.g., BubbleEvents, BubbleMembers)
+<ScreenHeader title="Events" subtitle="Hiking Club" onBack={() => navigation.goBack()} />
+
+// With right element (e.g., Cancel for wizard screens, participants icon for ChatScreen)
 <ScreenHeader
   title="Create Bubble"
   onBack={goBack}
@@ -388,15 +407,10 @@ import ScreenHeader from '../../components/ScreenHeader';
   }
 />
 
-// Without border (e.g., modal headers)
+// Without border (e.g., sections that merge into content below)
 <ScreenHeader title="Details" onBack={() => navigation.goBack()} showBorder={false} />
 ```
 
-### Variant: In-place headers (ChatScreen, wizard screens, EditEventScreen, CreatePostScreen)
+### Exception: Modal overlay screens
 
-Some screens with special headers (subtitle, custom right element, or dismiss icon) use the same visual spec applied in-place rather than the `ScreenHeader` component:
-- Same `height: 56`, white background, `#D9D9D9` bottom border
-- Same back-arrow icon selection (platform-specific) and `Colors.text.primary` color
-- ChatScreen uses right slot for the participants icon
-- Wizard screens (CreateBubble, EditBubble, CreateEvent) use right slot for "Cancel" text
-- EditEventScreen uses `close` icon (dismiss semantics) instead of back arrow
+`DataConfirmAccountScreen` renders as a full-screen modal overlay with a centered card. The card header uses an X close button (dismiss semantics), not a back arrow. `ScreenHeader` is not used in modal-card contexts — this is an intentional exception. A `ModalHeader` component could be extracted in a future pass.

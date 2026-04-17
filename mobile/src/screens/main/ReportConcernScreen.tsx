@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
-  StatusBar,
   Alert,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -381,7 +380,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   scrollView: {
     flex: 1,

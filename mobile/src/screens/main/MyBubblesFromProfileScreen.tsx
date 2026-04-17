@@ -7,7 +7,6 @@ import {
   ScrollView,
   Image,
   Platform,
-  StatusBar,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -114,7 +113,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   loadingContainer: {
     flex: 1,

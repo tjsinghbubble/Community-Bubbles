@@ -415,7 +415,7 @@ export default function ManageRulesScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.background.secondary,
   },
   tabRow: {
     flexDirection: 'row',

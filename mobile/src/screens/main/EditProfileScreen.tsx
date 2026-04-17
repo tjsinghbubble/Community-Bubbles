@@ -8,7 +8,6 @@ import {
   Image,
   TextInput,
   Platform,
-  StatusBar,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -337,7 +336,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
     flex: 1,

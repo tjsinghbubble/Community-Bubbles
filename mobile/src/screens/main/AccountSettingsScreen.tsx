@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,7 +78,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
     flex: 1,
