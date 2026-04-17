@@ -503,7 +503,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity style={styles.headerBack} onPress={goBack}>
-        <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
+        <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{step === 4 ? title : STEP_TITLES[step]}</Text>
       <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
@@ -1029,8 +1029,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background.secondary,
+    height: 56,
+    backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },

@@ -16,8 +16,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { EyeIcon, EyeOffIcon } from '../../components/icons';
-import { Ionicons } from '@expo/vector-icons';
 import BubbleButton from '../../components/BubbleButton';
 
 type Props = {
@@ -46,17 +46,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
-        <Text style={styles.navTitle}>Log In</Text>
-        <View style={styles.navSpacer} />
-      </View>
-      <View style={styles.navDivider} />
+      <ScreenHeader title="Log In" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -132,29 +122,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 8,
-  },
-  navTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.brand.midnight,
-    textAlign: 'center',
-  },
-  navSpacer: {
-    width: 40,
-  },
-  navDivider: {
-    height: 1,
-    backgroundColor: '#DDDDDD',
   },
   keyboardView: {
     flex: 1,

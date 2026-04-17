@@ -13,6 +13,7 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { Colors, Spacing, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
 
 type Props = {
@@ -82,15 +83,15 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{bubbleTitle} Dashboard</Text>
-        <TouchableOpacity style={styles.headerBtn}>
-          <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={`${bubbleTitle} Dashboard`}
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -166,28 +167,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.light,
-    backgroundColor: Colors.background.primary,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.semiBold as any,
-    color: Colors.text.primary,
   },
   loadingContainer: {
     flex: 1,

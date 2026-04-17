@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { API_URL } from '../../config/api';
 
 type Props = {
@@ -222,13 +223,7 @@ export default function CategoryPlaceholdersScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Category Placeholders</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Category Placeholders" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
         <TouchableOpacity
@@ -344,26 +339,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
-    backgroundColor: '#FAFAFA',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: Typography.weights.semiBold as any,
-    color: Colors.brand.midnight,
   },
   content: {
     flex: 1,

@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
+import ScreenHeader from '../../components/ScreenHeader';
 
 
 export default function LoginSecurityScreen() {
@@ -39,17 +40,7 @@ export default function LoginSecurityScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Login & Security</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader title="Login & Security" onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionHeader}>Login</Text>
@@ -118,26 +109,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.brand.midnight,
-  },
-  headerSpacer: {
-    width: 40,
   },
   scrollView: {
     flex: 1,

@@ -25,6 +25,7 @@ import apiService from '../../services/api.service';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
@@ -151,18 +152,7 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back-edit-profile"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
-        <View style={styles.headerPlaceholder} />
-      </View>
-      <View style={styles.separator} />
+      <ScreenHeader title="Edit Profile" onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -348,31 +338,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 14,
-    backgroundColor: Colors.background.secondary,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.neutral.charcoal,
-  },
-  headerPlaceholder: {
-    width: 40,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#D9D9D9',
   },
   content: {
     flex: 1,

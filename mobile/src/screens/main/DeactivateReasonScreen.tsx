@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 const DEACTIVATE_REASONS = [
   'I no longer use Bubble.',
@@ -33,17 +34,7 @@ export default function DeactivateReasonScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Why are you choosing to deactivate?</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader title="Why are you deactivating?" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         {DEACTIVATE_REASONS.map((reason) => (
@@ -78,28 +69,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FAFAFA',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.brand.midnight,
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
   },
   content: {
     flex: 1,

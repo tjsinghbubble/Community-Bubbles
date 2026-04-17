@@ -26,6 +26,7 @@ import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, CreateAPostIcon, NothingHereYetIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -786,15 +787,15 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bulletin Board</Text>
-        <TouchableOpacity onPress={handleCreatePost} testID="button-new-post-header">
-          <BulletinNewIcon />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Bulletin Board"
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity onPress={handleCreatePost} testID="button-new-post-header">
+            <BulletinNewIcon />
+          </TouchableOpacity>
+        }
+      />
 
       {renderFilterTabs()}
 
@@ -820,26 +821,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    backgroundColor: Colors.background.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    flex: 1,
-    textAlign: 'center',
   },
   newButton: {
     paddingHorizontal: Spacing.lg,

@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type NotificationItem = {
   id: string;
@@ -222,21 +223,17 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} data-testid="button-back">
-          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        {unreadCount > 0 ? (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton} data-testid="button-mark-all-read">
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.backButton}>
-            <View style={{ width: 24 }} />
-          </View>
-        )}
-      </View>
+      <ScreenHeader
+        title="Notifications"
+        onBack={() => navigation.goBack()}
+        rightElement={
+          unreadCount > 0 ? (
+            <TouchableOpacity onPress={handleMarkAllRead} testID="button-mark-all-read">
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
       {notifications.length === 0 ? (
         <View style={styles.empty}>
@@ -281,33 +278,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    textAlign: 'center',
-  },
-  markAllButton: {
-    paddingVertical: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md,
   },
   markAllText: {
     fontSize: Typography.sizes.base,

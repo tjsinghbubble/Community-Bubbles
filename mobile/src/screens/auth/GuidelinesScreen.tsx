@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -134,7 +135,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           data-testid="button-back"
         >
-          <Ionicons name="chevron-back" size={22} color={Colors.text.primary} />
+          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>
 

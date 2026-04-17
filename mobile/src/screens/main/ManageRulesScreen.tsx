@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ManageRules'>;
@@ -263,14 +264,7 @@ export default function ManageRulesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} data-testid="button-back">
-          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Manage Rules</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-      <View style={styles.separator} />
+      <ScreenHeader title="Manage Rules" onBack={() => navigation.goBack()} />
 
       <View style={styles.tabRow}>
         <TouchableOpacity
@@ -422,33 +416,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.primary,
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#D9D9D9',
-    marginHorizontal: Spacing.xl,
   },
   tabRow: {
     flexDirection: 'row',

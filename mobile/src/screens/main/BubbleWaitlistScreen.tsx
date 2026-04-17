@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BubbleWaitlist'>;
@@ -168,13 +169,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
-          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Waitlist</Text>
-        <View style={styles.headerBtn} />
-      </View>
+      <ScreenHeader title="Waitlist" onBack={() => navigation.goBack()} />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -227,28 +222,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.surface,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.light,
-    backgroundColor: Colors.background.primary,
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.text.primary,
   },
   loadingContainer: {
     flex: 1,

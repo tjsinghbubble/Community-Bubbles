@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'EmailVerification'>;
@@ -120,16 +121,7 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Email Verification</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader title="Email Verification" onBack={() => navigation.goBack()} />
 
       <View style={styles.content}>
         <Text style={styles.description}>
@@ -198,26 +190,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.brand.skyWhite,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
-  headerSpacer: {
-    width: 40,
   },
   content: {
     flex: 1,

@@ -25,6 +25,7 @@ import apiService from '../../services/api.service';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDownIcon, ChevronUpIcon, BubblesIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -644,16 +645,7 @@ export default function PendingReviewsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Needs Attention</Text>
-        <View style={styles.placeholder} />
-      </View>
+      <ScreenHeader title="Needs Attention" onBack={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.content}
@@ -805,27 +797,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    backgroundColor: Colors.background.secondary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
-  placeholder: {
-    width: 32,
   },
   content: {
     flex: 1,

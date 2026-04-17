@@ -21,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
@@ -225,21 +226,11 @@ export default function SignupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Sign up" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Sign up</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
         <ScrollView 
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -483,17 +474,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.coolMist,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.brand.midnight,
-  },
-  headerSpacer: {
-    width: 40,
   },
   content: {
     padding: 24,

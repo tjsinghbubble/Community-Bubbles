@@ -349,7 +349,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const renderHeader = () => (
     <View style={styles.header}>
       <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn}>
-        <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
+        <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{STEP_TITLES[step - 1]}</Text>
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn}>
@@ -1134,8 +1134,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.background.secondary,
+    height: 56,
+    backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
@@ -1146,9 +1146,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
   headerCancelBtn: {
     paddingHorizontal: 4,

@@ -687,7 +687,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.brand.bubbleBlue} />
+          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
@@ -941,22 +941,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: Colors.background.secondary,
+    paddingHorizontal: 16,
+    height: 56,
+    backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 8,
   },
   headerContent: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
   keyboardView: {
     flex: 1,

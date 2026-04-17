@@ -23,6 +23,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { FlagIcon } from '../../components/icons';
 
 type ParticipantsParamList = {
@@ -320,13 +321,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Participants</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <ScreenHeader title="Participants" onBack={() => navigation.goBack()} />
 
       {isLoading ? (
         <View style={styles.loading}>
@@ -507,25 +502,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.background.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  headerBackButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-    textAlign: 'center',
   },
   sectionLabel: {
     fontSize: 15,

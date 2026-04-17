@@ -175,7 +175,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
+          <Ionicons name="close" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Event</Text>
         <View style={styles.headerSpacer} />
@@ -405,7 +405,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Visibility</Text>
               <TouchableOpacity onPress={() => setShowVisibilityPicker(false)}>
-                <Ionicons name="close" size={24} color={Colors.neutral.charcoal} />
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
             {VISIBILITY_OPTIONS.map((option) => (
@@ -466,18 +466,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.background.secondary,
+    height: 56,
+    backgroundColor: Colors.background.primary,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutral.lightSilver,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: Colors.neutral.charcoal,
+    color: Colors.text.primary,
   },
   headerSpacer: {
     width: 40,

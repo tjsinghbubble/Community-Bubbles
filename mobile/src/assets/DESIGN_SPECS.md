@@ -324,3 +324,79 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 | `Icons/Type=group_remove, Color=Black.svg` | SVG | — | Member limit icon (Black). Variants: Blue, Grey, Red |
 | `Event Cards.svg` | SVG | Design reference | Event card layout reference (documented above) |
 | `NavBar.svg` | SVG | Design reference | NavBar layout reference (documented above) |
+
+---
+
+## Page Header
+
+**Token**: `PageHeader`
+**Defined in**: `mobile/src/styles/theme.ts`
+**Component**: `mobile/src/components/ScreenHeader.tsx`
+**Used by**: ~30 screens across the app
+
+### Container
+
+| Property | Value | Notes |
+|---|---|---|
+| Background | `#FFFFFF` (`Colors.background.primary`) | White, not the screen background |
+| Border bottom | `#D9D9D9` (`Colors.neutral.lightSilver`), 1px | Separator between header and content |
+| Height | `56` | Fixed height, no vertical padding |
+
+### Back Arrow
+
+| Property | Value |
+|---|---|
+| iOS icon | `chevron-back` (Ionicons) |
+| Android icon | `arrow-back` (Ionicons) |
+| Size | `24` |
+| Color | `Colors.text.primary` (`#1E1F26`) |
+| Touch target | 40×40, centered |
+
+### Title
+
+| Property | Value |
+|---|---|
+| Font size | `Typography.sizes.md` (`16`) |
+| Font weight | `Typography.weights.semiBold` (`'600'`) |
+| Color | `Colors.text.primary` (`#1E1F26`) |
+| Alignment | Centered horizontally |
+
+### Side Slots
+
+Both the left (back arrow) and right (optional action) slots are `width: 40` to ensure the title remains visually centered.
+
+### Page Background
+
+All screens using `ScreenHeader` use `Colors.background.secondary` (`#FAFAFA`) as the page/container background.
+
+### Usage
+
+```tsx
+import ScreenHeader from '../../components/ScreenHeader';
+
+// Basic (back only)
+<ScreenHeader title="Settings" onBack={() => navigation.goBack()} />
+
+// With right element (e.g., Cancel for wizard screens)
+<ScreenHeader
+  title="Create Bubble"
+  onBack={goBack}
+  rightElement={
+    <TouchableOpacity onPress={() => navigation.goBack()}>
+      <Text style={{ color: Colors.status.error }}>Cancel</Text>
+    </TouchableOpacity>
+  }
+/>
+
+// Without border (e.g., modal headers)
+<ScreenHeader title="Details" onBack={() => navigation.goBack()} showBorder={false} />
+```
+
+### Variant: In-place headers (ChatScreen, wizard screens, EditEventScreen, CreatePostScreen)
+
+Some screens with special headers (subtitle, custom right element, or dismiss icon) use the same visual spec applied in-place rather than the `ScreenHeader` component:
+- Same `height: 56`, white background, `#D9D9D9` bottom border
+- Same back-arrow icon selection (platform-specific) and `Colors.text.primary` color
+- ChatScreen uses right slot for the participants icon
+- Wizard screens (CreateBubble, EditBubble, CreateEvent) use right slot for "Cancel" text
+- EditEventScreen uses `close` icon (dismiss semantics) instead of back arrow

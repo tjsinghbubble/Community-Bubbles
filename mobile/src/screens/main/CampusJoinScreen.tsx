@@ -97,7 +97,7 @@ export default function CampusJoinScreen({ navigation }: Props) {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
+          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>
       <View style={styles.headerSeparator} />
@@ -169,13 +169,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.secondary,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: Colors.background.secondary,
+    paddingHorizontal: 16,
+    height: 56,
+    justifyContent: 'center',
+    backgroundColor: Colors.background.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   headerSeparator: {
-    height: 1,
-    backgroundColor: Colors.neutral.lightSilver,
+    height: 0,
   },
   content: {
     flex: 1,

@@ -18,6 +18,7 @@ import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
@@ -58,24 +59,15 @@ export default function ViewProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          testID="button-back-view-profile"
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Profile</Text>
-        <TouchableOpacity
-          style={styles.editHeaderBtn}
-          onPress={() => navigation.navigate('EditProfile')}
-          testID="button-edit-header"
-        >
-          <Text style={styles.editHeaderText}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={styles.separator} />
+      <ScreenHeader
+        title="My Profile"
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity onPress={() => navigation.navigate('EditProfile')} testID="button-edit-header">
+            <Text style={styles.editHeaderText}>Edit</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.profileCard, CardShadow]}>
@@ -162,28 +154,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 14,
-    backgroundColor: Colors.background.secondary,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold as any,
-    color: Colors.neutral.charcoal,
-  },
-  editHeaderBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   editHeaderText: {
     fontSize: Typography.sizes.base,
