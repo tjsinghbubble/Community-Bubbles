@@ -135,6 +135,7 @@ export const PageHeader = {
   borderColor: Colors.neutral.lightSilver,
   borderWidth: 1,
   height: 56,
+  paddingBottom: 12,
   titleFontSize: 17,
   titleFontWeight: Typography.weights.semiBold,
   titleColor: Colors.text.primary,

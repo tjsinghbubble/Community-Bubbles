@@ -21,7 +21,7 @@ export default function ScreenHeader({ title, subtitle, onBack, rightElement, sh
       style={[
         styles.header,
         showBorder && styles.headerBorder,
-        { paddingTop: insets.top, height: PageHeader.height + insets.top },
+        { paddingTop: insets.top, paddingBottom: PageHeader.paddingBottom },
       ]}
     >
       <View style={styles.row}>
@@ -72,8 +72,6 @@ export default function ScreenHeader({ title, subtitle, onBack, rightElement, sh
 const styles = StyleSheet.create({
   header: {
     backgroundColor: PageHeader.background,
-    borderBottomWidth: 0,
-    justifyContent: 'flex-end',
   },
   headerBorder: {
     borderBottomWidth: PageHeader.borderWidth,
