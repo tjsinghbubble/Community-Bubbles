@@ -27,6 +27,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -170,16 +171,7 @@ export default function EditEventScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="close" size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Event</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ScreenHeader title="Edit Event" onBack={() => navigation.goBack()} />
 
       <ScrollView 
         style={styles.content}
@@ -460,29 +452,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.secondary,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  headerSpacer: {
-    width: 40,
   },
   content: {
     flex: 1,

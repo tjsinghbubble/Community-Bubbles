@@ -40,6 +40,7 @@ import {
   SwitchColors,
   ModalStyles,
 } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -500,18 +501,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     );
   }
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity style={styles.headerBack} onPress={goBack}>
-        <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>{step === 4 ? title : STEP_TITLES[step]}</Text>
-      <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   const renderProgressBar = () => (
     <View style={styles.progressContainer}>
       {[0, 1, 2, 3, 4].map((i) => (
@@ -951,7 +940,15 @@ export default function CreateBubbleScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderHeader()}
+      <ScreenHeader
+        title={step === 4 ? title ?? STEP_TITLES[step] : STEP_TITLES[step]}
+        onBack={goBack}
+        rightElement={
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        }
+      />
       {renderProgressBar()}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -1024,32 +1021,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    height: 56,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  headerBack: {
-    padding: Spacing.xs,
-    width: 60,
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-    lineHeight: Typography.lineHeight.md,
-    textAlign: 'center',
-    flex: 1,
-  },
-  headerCancel: {
-    width: 60,
-    alignItems: 'flex-end',
-  },
   cancelText: {
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.medium,

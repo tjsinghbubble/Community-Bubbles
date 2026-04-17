@@ -64,18 +64,6 @@ export const Colors = {
   },
 };
 
-export const PageHeader = {
-  backgroundColor: Colors.background.primary,
-  borderBottomWidth: 1,
-  borderBottomColor: Colors.neutral.lightSilver,
-  height: 56,
-  backArrowSize: 24,
-  backArrowColor: Colors.text.primary,
-  titleFontSize: Typography.sizes.md,
-  titleFontWeight: Typography.weights.semiBold,
-  titleColor: Colors.text.primary,
-};
-
 export const CardShadow = {
   shadowColor: '#000',
   shadowOffset: { width: 0, height: 0 },
@@ -133,6 +121,23 @@ export const Typography = {
     semiBold: '600' as const,
     bold: '700' as const,
   },
+};
+
+export const PageBackground = '#FAFAFA';
+
+export const BackArrow = {
+  size: 24,
+  color: Colors.text.primary,
+};
+
+export const PageHeader = {
+  background: Colors.background.primary,
+  borderColor: Colors.neutral.lightSilver,
+  borderWidth: 1,
+  height: 56,
+  titleFontSize: 17,
+  titleFontWeight: Typography.weights.semiBold,
+  titleColor: Colors.text.primary,
 };
 
 export const Spacing = {
@@ -649,6 +654,8 @@ export const NotificationBadge = StyleSheet.create({
 
 const theme = {
   Colors,
+  PageBackground,
+  BackArrow,
   PageHeader,
   Gradients,
   Typography,

@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
@@ -345,18 +346,6 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       setLoading(false);
     }
   };
-
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn}>
-        <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>{STEP_TITLES[step - 1]}</Text>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn}>
-        <Text style={styles.headerCancelText}>Cancel</Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   const renderEventCard = () => (
     <View style={styles.successEventCard}>
@@ -986,10 +975,20 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     </View>
   );
 
+  const renderCancelButton = () => (
+    <TouchableOpacity onPress={() => navigation.goBack()}>
+      <Text style={styles.headerCancelText}>Cancel</Text>
+    </TouchableOpacity>
+  );
+
   const renderSuccessScreen = () => (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.brand.skyWhite} />
-      {renderHeader()}
+      <ScreenHeader
+        title={STEP_TITLES[step - 1]}
+        onBack={handleBack}
+        rightElement={renderCancelButton()}
+      />
       <View style={styles.stepIndicatorBar}>
         <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
         <View style={[styles.stepIndicatorSegment, styles.stepIndicatorActive]} />
@@ -1088,7 +1087,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {renderHeader()}
+        <ScreenHeader
+          title={STEP_TITLES[step - 1]}
+          onBack={handleBack}
+          rightElement={renderCancelButton()}
+        />
 
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
@@ -1128,31 +1131,6 @@ const styles = StyleSheet.create({
   },
   flex1: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  headerBackBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  headerCancelBtn: {
-    paddingHorizontal: 4,
-    paddingVertical: 8,
   },
   headerCancelText: {
     fontSize: 16,

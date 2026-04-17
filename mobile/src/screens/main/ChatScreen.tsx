@@ -27,6 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import { PeopleIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess, requestCameraAccess } from '../../utils/permissions';
 
@@ -685,17 +686,15 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
-        </View>
-        <TouchableOpacity onPress={handleShowParticipants} style={styles.participantsButton}>
-          <PeopleIcon size={22} color={Colors.brand.bubbleBlue} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={groupName}
+        onBack={() => navigation.goBack()}
+        rightElement={
+          <TouchableOpacity onPress={handleShowParticipants} testID="button-participants">
+            <PeopleIcon size={22} color={Colors.brand.bubbleBlue} />
+          </TouchableOpacity>
+        }
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -937,29 +936,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.secondary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 56,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
   },
   keyboardView: {
     flex: 1,

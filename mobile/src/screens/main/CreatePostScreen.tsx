@@ -16,14 +16,14 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Radius, Typography, BulletinPillStyles } from '../../styles/theme';
+import ScreenHeader from '../../components/ScreenHeader';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
-import { BulletinPostIcon, BulletinCancelIcon } from '../../components/icons';
+import { BulletinPostIcon } from '../../components/icons';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'CreatePost'>;
@@ -141,28 +141,28 @@ export default function CreatePostScreen({ navigation, route }: Props) {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} testID="button-cancel-post">
-            <BulletinCancelIcon width={100} height={33} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{isEditing ? 'Edit Post' : 'New Post'}</Text>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={!canSubmit || submitting}
-            testID="button-post"
-            style={{ opacity: canSubmit && !submitting ? 1 : 0.4 }}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={Colors.brand.primary} />
-            ) : isEditing ? (
-              <View style={styles.saveButton}>
-                <Text style={styles.saveButtonText}>Save</Text>
-              </View>
-            ) : (
-              <BulletinPostIcon width={100} height={33} opacity={canSubmit ? 1 : 0.4} />
-            )}
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={isEditing ? 'Edit Post' : 'New Post'}
+          onBack={() => navigation.goBack()}
+          rightElement={
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={!canSubmit || submitting}
+              testID="button-post"
+              style={{ opacity: canSubmit && !submitting ? 1 : 0.4 }}
+            >
+              {submitting ? (
+                <ActivityIndicator size="small" color={Colors.brand.primary} />
+              ) : isEditing ? (
+                <View style={styles.saveButton}>
+                  <Text style={styles.saveButtonText}>Save</Text>
+                </View>
+              ) : (
+                <BulletinPostIcon width={100} height={33} opacity={canSubmit ? 1 : 0.4} />
+              )}
+            </TouchableOpacity>
+          }
+        />
 
         <ScrollView style={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.label}>Category</Text>
@@ -237,24 +237,6 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
-    height: 56,
-    backgroundColor: Colors.background.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.lightSilver,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  headerTitle: {
-    fontSize: Typography.sizes.xl,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
   },
   postButton: {
     paddingHorizontal: Spacing.lg,

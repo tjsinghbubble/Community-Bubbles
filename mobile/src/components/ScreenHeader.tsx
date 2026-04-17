@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PageHeader, Spacing } from '../styles/theme';
+import { PageHeader, BackArrow, Spacing } from '../styles/theme';
 
 type Props = {
-  title: string;
+  title?: string;
   onBack?: () => void;
   rightElement?: React.ReactNode;
   showBorder?: boolean;
@@ -25,16 +25,20 @@ export default function ScreenHeader({ title, onBack, rightElement, showBorder =
           >
             <Ionicons
               name={backIcon}
-              size={PageHeader.backArrowSize}
-              color={PageHeader.backArrowColor}
+              size={BackArrow.size}
+              color={BackArrow.color}
             />
           </TouchableOpacity>
         )}
       </View>
 
-      <Text style={styles.title} numberOfLines={1}>
-        {title}
-      </Text>
+      {title ? (
+        <Text style={styles.title} numberOfLines={1}>
+          {title}
+        </Text>
+      ) : (
+        <View style={styles.titlePlaceholder} />
+      )}
 
       <View style={styles.side}>
         {rightElement ?? null}
@@ -46,14 +50,14 @@ export default function ScreenHeader({ title, onBack, rightElement, showBorder =
 const styles = StyleSheet.create({
   header: {
     height: PageHeader.height,
-    backgroundColor: PageHeader.backgroundColor,
+    backgroundColor: PageHeader.background,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
   },
   headerBorder: {
-    borderBottomWidth: PageHeader.borderBottomWidth,
-    borderBottomColor: PageHeader.borderBottomColor,
+    borderBottomWidth: PageHeader.borderWidth,
+    borderBottomColor: PageHeader.borderColor,
   },
   side: {
     width: 40,
@@ -69,5 +73,8 @@ const styles = StyleSheet.create({
     fontWeight: PageHeader.titleFontWeight,
     color: PageHeader.titleColor,
     textAlign: 'center',
+  },
+  titlePlaceholder: {
+    flex: 1,
   },
 });

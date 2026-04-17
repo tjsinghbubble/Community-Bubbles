@@ -356,7 +356,7 @@ Each icon follows the naming convention `Type={name}, Color={color}.svg` and is 
 
 | Property | Value |
 |---|---|
-| Font size | `Typography.sizes.md` (`16`) |
+| Font size | `17` |
 | Font weight | `Typography.weights.semiBold` (`'600'`) |
 | Color | `Colors.text.primary` (`#1E1F26`) |
 | Alignment | Centered horizontally |
