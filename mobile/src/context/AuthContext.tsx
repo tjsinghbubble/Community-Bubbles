@@ -32,12 +32,15 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const REFRESH_THROTTLE_MS = 2 * 60 * 1000;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const sessionIdRef = useRef<string | null>(null);
   const appState = useRef(AppState.currentState);
+  const lastRefreshRef = useRef<number>(0);
 
   useEffect(() => {
     loadStoredAuth();
@@ -177,14 +180,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     if (!token) return;
+    const now = Date.now();
+    if (now - lastRefreshRef.current < REFRESH_THROTTLE_MS) return;
     try {
       apiService.setToken(token);
       const response = await apiService.getProfile();
       const updatedUser = response as any;
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-    } catch (error) {
-      console.error('Failed to refresh user:', error);
+      lastRefreshRef.current = Date.now();
+    } catch (error: any) {
+      const isNetworkError =
+        error?.message === 'Network request failed' ||
+        error?.message?.includes('fetch') ||
+        error?.name === 'TypeError';
+      lastRefreshRef.current = Date.now();
+      if (isNetworkError) {
+        console.warn('refreshUser: server temporarily unreachable, using cached profile');
+      } else {
+        console.error('Failed to refresh user:', error);
+      }
     }
   };
 
