@@ -276,6 +276,8 @@ export async function registerRoutes(
     if (!origin) return next();
     // Known allowed origins — allow
     if (ALLOWED_WEB_ORIGINS.includes(origin)) return next();
+    // Expo dev tunnels (*.exp.direct) — allow for development builds
+    if (/^https:\/\/[a-zA-Z0-9-]+\.exp\.direct$/.test(origin)) return next();
     // Same-origin requests served by Express have no Origin header, or match host
     const host = req.headers.host;
     if (host && (origin === `https://${host}` || origin === `http://${host}`)) return next();
