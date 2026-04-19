@@ -515,7 +515,8 @@ export async function seedStaging(): Promise<void> {
   }
 
   // ── Step 4: Events ────────────────────────────────────────────────────────
-  // Idempotent: fetch existing event dates per bubble, only insert missing ones.
+  // Guard: if a bubble already has >= 8 seeded events, skip it entirely.
+  // Otherwise insert only missing dates for full idempotency on partial runs.
   for (const bc of BUBBLE_CONFIGS) {
     const bubbleId = bubbleMap[bc.title];
     if (!bubbleId) continue;
@@ -524,6 +525,11 @@ export async function seedStaging(): Promise<void> {
       .select({ date: events.date })
       .from(events)
       .where(and(eq(events.bubbleId, bubbleId), gte(events.date, "2026-04-20")));
+
+    if (existingRows.length >= 8) {
+      console.log(`${LOG} "${bc.title}" already has ${existingRows.length} seeded events — skipping`);
+      continue;
+    }
 
     const existingDates = new Set(existingRows.map(r => r.date));
 
