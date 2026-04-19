@@ -8,6 +8,7 @@ import bcrypt from "bcrypt";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { seedStaging } from "./seed-staging";
 
 const app = express();
 const httpServer = createServer(app);
@@ -98,6 +99,11 @@ app.use((req, res, next) => {
       }
     } catch (e) { console.error("[startup] george seed failed:", e); }
   })();
+
+  // One-time: seed staging with Seinfeld test data (production only)
+  if (process.env.NODE_ENV === "production") {
+    seedStaging().catch(e => console.error("[seed-staging] Fatal error:", e));
+  }
 
   // Clean up stale device push tokens on startup (tokens not refreshed in 90+ days)
   storage.deleteStaleDevicePushTokens().then(count => {
