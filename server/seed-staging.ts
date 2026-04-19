@@ -2,14 +2,18 @@ import { db } from "./db";
 import { storage } from "./storage";
 import { bubbles, memberships, events, users } from "@shared/schema";
 import { eq, and, gte } from "drizzle-orm";
-import { count } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 const LOG = "[seed-staging]";
 
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
-const SEED_USERS = [
+const SEED_USERS: Array<{
+  name: string;
+  email: string;
+  isSuperAdmin: boolean;
+  interests: string[];
+}> = [
   { name: "SysAdmin",         email: "sysadmin@seinfeld.com", isSuperAdmin: true,  interests: ["Running", "Tennis", "Cooking"] },
   { name: "Elaine Benes",     email: "elaine@seinfeld.com",   isSuperAdmin: false, interests: ["Dancing", "Reading", "Coffee Meetups"] },
   { name: "Estelle Costanza", email: "estelle@seinfeld.com",  isSuperAdmin: false, interests: ["Cooking", "Pets", "Wellness"] },
@@ -224,7 +228,7 @@ const BUBBLE_CONFIGS: BubbleConfig[] = [
   {
     title: "Mexican food",
     tagline: "Tacos, tamales, and tasting everything",
-    category: "Sports & Fitness",
+    category: "Food & Social",
     description: "A foodie group for exploring the best Mexican food in San Francisco. We hit a new taqueria, food truck, or restaurant every meetup — everything from street tacos to Oaxacan specialties.",
     rules: ["Come hungry", "Try something you have never had before", "Split dishes and share the experience", "No food waste — take leftovers home"],
     privacy: "Public",
@@ -345,7 +349,7 @@ const CADENCE_DATES = {
 } as const;
 
 // ─── MEMBERSHIP MATRIX ────────────────────────────────────────────────────────
-// admins = admin role (implies membership), members = approved member role
+// admins implies membership (role="admin"); members = role="member", status="approved"
 
 const MEMBERSHIP_MATRIX: Record<string, { admins: string[]; members: string[] }> = {
   "ABC Farm":            { admins: ["sysadmin@seinfeld.com", "kramer@seinfeld.com", "newman@seinfeld.com"],   members: ["elaine@seinfeld.com", "jerry@seinfeld.com"] },
@@ -376,32 +380,33 @@ export async function seedStaging(): Promise<void> {
 
   const hashedPwd = await bcrypt.hash("Bubble123!", 10);
 
-  // ── Step 1: Users ──────────────────────────────────────────────────────────
-  const userMap: Record<string, string> = {}; // email -> id
+  // ── Step 1: Users ─────────────────────────────────────────────────────────
+  // Create if missing; always update password + isSuperAdmin to guarantee login.
+  const userMap: Record<string, string> = {};
 
   for (const u of SEED_USERS) {
     try {
       const existing = await storage.getUserByEmail(u.email);
       if (existing) {
         userMap[u.email] = existing.id;
-        if (u.isSuperAdmin && !existing.isSuperAdmin) {
-          await db.update(users).set({ isSuperAdmin: true }).where(eq(users.id, existing.id));
-          console.log(`${LOG} Promoted ${u.email} to super admin`);
-        } else {
-          console.log(`${LOG} User ${u.email} already exists (${existing.id})`);
-        }
+        await db
+          .update(users)
+          .set({ password: hashedPwd, isSuperAdmin: u.isSuperAdmin })
+          .where(eq(users.id, existing.id));
+        console.log(`${LOG} Updated user ${u.email} (${existing.id})`);
       } else {
+        // Create without isSuperAdmin; apply it immediately after.
         const created = await storage.createUser({
           name: u.name,
           email: u.email,
           password: hashedPwd,
           interests: u.interests,
-          isSuperAdmin: u.isSuperAdmin,
-        } as any);
+        });
+        await db
+          .update(users)
+          .set({ isSuperAdmin: u.isSuperAdmin })
+          .where(eq(users.id, created.id));
         userMap[u.email] = created.id;
-        if (u.isSuperAdmin) {
-          await db.update(users).set({ isSuperAdmin: true }).where(eq(users.id, created.id));
-        }
         console.log(`${LOG} Created user ${u.email} (${created.id})`);
       }
     } catch (e) {
@@ -415,8 +420,8 @@ export async function seedStaging(): Promise<void> {
     return;
   }
 
-  // ── Step 2: Bubbles ────────────────────────────────────────────────────────
-  const bubbleMap: Record<string, string> = {}; // title -> id
+  // ── Step 2: Bubbles ───────────────────────────────────────────────────────
+  const bubbleMap: Record<string, string> = {};
 
   for (const bc of BUBBLE_CONFIGS) {
     try {
@@ -454,7 +459,7 @@ export async function seedStaging(): Promise<void> {
     }
   }
 
-  // ── Step 3: Memberships ────────────────────────────────────────────────────
+  // ── Step 3: Memberships ───────────────────────────────────────────────────
   for (const [bubbleTitle, { admins, members }] of Object.entries(MEMBERSHIP_MATRIX)) {
     const bubbleId = bubbleMap[bubbleTitle];
     if (!bubbleId) {
@@ -501,38 +506,37 @@ export async function seedStaging(): Promise<void> {
       }
     }
 
-    const totalCount = allEntries.length;
     await db
       .update(bubbles)
-      .set({ members: totalCount })
+      .set({ members: allEntries.length })
       .where(eq(bubbles.id, bubbleId));
 
     console.log(`${LOG} "${bubbleTitle}": ${admins.length}A + ${members.length}M (${added} new)`);
   }
 
   // ── Step 4: Events ────────────────────────────────────────────────────────
+  // Idempotent: fetch existing event dates per bubble, only insert missing ones.
   for (const bc of BUBBLE_CONFIGS) {
     const bubbleId = bubbleMap[bc.title];
     if (!bubbleId) continue;
 
-    // Skip if already has 8+ seeded events
-    const [{ value: existingCount }] = await db
-      .select({ value: count() })
+    const existingRows = await db
+      .select({ date: events.date })
       .from(events)
       .where(and(eq(events.bubbleId, bubbleId), gte(events.date, "2026-04-20")));
 
-    if (Number(existingCount) >= 8) {
-      console.log(`${LOG} "${bc.title}" already has ${existingCount} events, skipping`);
-      continue;
-    }
+    const existingDates = new Set(existingRows.map(r => r.date));
 
     const datePairs = CADENCE_DATES[bc.cadence];
     let created = 0;
 
     for (const [day1, day2] of datePairs) {
-      for (let i = 0; i < 2; i++) {
-        const date = i === 0 ? day1 : day2;
-        const title = bc.eventTitles[i];
+      const pairs: Array<[string, string]> = [
+        [day1, bc.eventTitles[0]],
+        [day2, bc.eventTitles[1]],
+      ];
+      for (const [date, title] of pairs) {
+        if (existingDates.has(date)) continue;
         try {
           await db.insert(events).values({
             title,
@@ -548,6 +552,7 @@ export async function seedStaging(): Promise<void> {
             visibility: "public",
             timezone: "America/Los_Angeles",
           });
+          existingDates.add(date);
           created++;
         } catch (e) {
           console.error(`${LOG} Failed event "${title}" on ${date} for "${bc.title}":`, e);
@@ -555,7 +560,9 @@ export async function seedStaging(): Promise<void> {
       }
     }
 
-    console.log(`${LOG} Created ${created} events for "${bc.title}"`);
+    if (created > 0 || existingDates.size > 0) {
+      console.log(`${LOG} Events for "${bc.title}": ${created} new, ${existingDates.size} total`);
+    }
   }
 
   console.log(`${LOG} ===== Staging seed complete! =====`);
