@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { PageHeader, BackArrow, Spacing } from '../styles/theme';
 
-const backIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
+const backIcon = Platform.OS !== 'android' ? 'chevron-back' : 'arrow-back';
 
 function BaseHeader({
   title,
