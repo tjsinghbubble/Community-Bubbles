@@ -45,10 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
+    const normalizedEmail = email.toLowerCase().trim();
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: normalizedEmail, password }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -62,10 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (body: { name: string; email: string; password: string; interests: string[] }) => {
+    const normalizedBody = { ...body, email: body.email.toLowerCase().trim() };
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(normalizedBody),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
