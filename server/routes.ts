@@ -286,7 +286,8 @@ export async function registerRoutes(
 
   app.post("/api/auth/send-verification", sendLimiter, async (req, res) => {
     try {
-      const { email } = req.body;
+      const { email: rawEmail } = req.body;
+      const email = (rawEmail ?? "").toLowerCase().trim();
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
@@ -353,7 +354,8 @@ export async function registerRoutes(
 
   app.post("/api/auth/signup", sendLimiter, async (req, res) => {
     try {
-      const data = insertUserSchema.parse(req.body);
+      const rawData = insertUserSchema.parse(req.body);
+      const data = { ...rawData, email: rawData.email.toLowerCase().trim() };
 
       const existing = await storage.getUserByEmail(data.email);
       if (existing) {
@@ -496,7 +498,8 @@ export async function registerRoutes(
 
   app.post("/api/auth/login", authLimiter, async (req, res) => {
     try {
-      const { email, password } = req.body;
+      const { email: rawEmail, password } = req.body;
+      const email = (rawEmail ?? "").toLowerCase().trim();
 
       const lockout = checkLoginLockout(email);
       if (lockout.locked) {

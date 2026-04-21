@@ -298,7 +298,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const hash = hashField(email);
+    const normalized = email.toLowerCase().trim();
+    const hash = hashField(normalized);
 
     // Try hash lookup (post-migration users)
     let [row] = await db
@@ -314,7 +315,7 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(users)
         .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
-        .where(eq(users.email, email))
+        .where(eq(users.email, normalized))
         .limit(1);
     }
 
@@ -324,8 +325,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const encryptedEmail = encryptField(insertUser.email);
-    const emailHash = hashField(insertUser.email);
+    const normalizedEmail = insertUser.email.toLowerCase().trim();
+    const encryptedEmail = encryptField(normalizedEmail);
+    const emailHash = hashField(normalizedEmail);
 
     const result = await db
       .insert(users)
