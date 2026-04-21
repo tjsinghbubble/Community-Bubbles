@@ -582,6 +582,20 @@ export async function registerRoutes(
     }
   });
 
+  // Crash report: receive and log JS errors from mobile and web clients
+  app.post("/api/crash-report", async (req, res) => {
+    try {
+      const { message, stack, componentStack, timestamp, platform } = req.body || {};
+      console.error(`[CRASH REPORT] platform=${platform || 'unknown'} time=${timestamp || new Date().toISOString()}`);
+      if (message) console.error(`[CRASH] message: ${message}`);
+      if (stack) console.error(`[CRASH] stack: ${stack}`);
+      if (componentStack) console.error(`[CRASH] componentStack: ${componentStack}`);
+      res.json({ received: true });
+    } catch (e) {
+      res.json({ received: true });
+    }
+  });
+
   // CometChat: generate auth token for the authenticated user (creates CC user if needed)
   app.post("/api/cometchat/auth-token", authMiddleware, async (req, res) => {
     try {
@@ -590,8 +604,17 @@ export async function registerRoutes(
       const uid = String(user.id);
       const name = user.name || user.email;
       await ensureCometChatUser(uid, name);
-      const authToken = await generateAuthToken(uid);
-      res.json({ authToken, uid });
+      try {
+        const authToken = await generateAuthToken(uid);
+        res.json({ authToken, uid });
+      } catch (tokenError: any) {
+        const errCode = tokenError?.code || '';
+        if (errCode === 'AUTH_ERR_NO_ACCESS' || errCode?.startsWith('HTTP_4')) {
+          console.warn('CometChat: API key lacks auth-token scope. Grant "Full Access" in CometChat dashboard.');
+          return res.status(503).json({ error: 'CometChat not available — API key requires Full Access scope.' });
+        }
+        throw tokenError;
+      }
     } catch (error: any) {
       console.error("CometChat auth-token error:", error.message);
       serverError(res, error);

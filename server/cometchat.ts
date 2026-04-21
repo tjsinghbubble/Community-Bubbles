@@ -1,5 +1,4 @@
 const COMETCHAT_APP_ID = process.env.COMETCHAT_APP_ID || '';
-// Some deployments use a single key for both REST API and client auth — fall back to AUTH_KEY
 const COMETCHAT_API_KEY = process.env.COMETCHAT_API_KEY || process.env.COMETCHAT_AUTH_KEY || '';
 const COMETCHAT_REGION = process.env.COMETCHAT_REGION || 'us';
 
@@ -20,6 +19,13 @@ class CometChatApiError extends Error {
   }
 }
 
+const EXPECTED_CODES = new Set([
+  'ERR_UID_ALREADY_EXISTS',
+  'ERR_ALREADY_EXISTS',
+  'ERR_GUID_ALREADY_EXISTS',
+  'ERR_ALREADY_JOINED',
+]);
+
 async function apiCall(method: string, path: string, body?: any): Promise<any> {
   const url = `${BASE_URL}${path}`;
   const options: RequestInit = { method, headers };
@@ -31,21 +37,33 @@ async function apiCall(method: string, path: string, body?: any): Promise<any> {
   if (!response.ok) {
     const errCode = data?.error?.code || `HTTP_${response.status}`;
     const errMsg = data?.error?.message || data?.message || `CometChat API error ${response.status}`;
-    console.error(`CometChat API error [${method} ${path}]:`, data);
+    if (!EXPECTED_CODES.has(errCode)) {
+      console.error(`CometChat API error [${method} ${path}]:`, JSON.stringify(data));
+    }
     throw new CometChatApiError(errMsg, errCode);
   }
   return data;
 }
 
+const NO_ACCESS_CODES = new Set([
+  'AUTH_ERR_NO_ACCESS',
+  'ERR_AUTH_TOKEN_NOT_FOUND',
+  'HTTP_401',
+  'HTTP_403',
+]);
+
 export async function ensureCometChatUser(uid: string, name: string): Promise<void> {
   try {
     await apiCall('POST', '/users', { uid, name });
   } catch (e: any) {
-    if (e instanceof CometChatApiError && (e.code === 'ERR_UID_ALREADY_EXISTS' || e.code === 'ERR_ALREADY_EXISTS')) {
-      return;
+    if (e instanceof CometChatApiError) {
+      if (EXPECTED_CODES.has(e.code)) return;
+      if (NO_ACCESS_CODES.has(e.code)) {
+        console.warn(`CometChat: API key lacks user-creation scope — user ${uid} not synced. Grant "Full Access" in CometChat dashboard.`);
+        return;
+      }
     }
     console.error(`CometChat: Failed to ensure user ${uid}:`, e.message);
-    throw e;
   }
 }
 
@@ -54,8 +72,12 @@ export async function ensureCometChatGroup(guid: string, name: string, type: str
     await apiCall('POST', '/groups', { guid, name, type });
     return;
   } catch (e: any) {
-    if (e instanceof CometChatApiError && (e.code === 'ERR_GUID_ALREADY_EXISTS' || e.code === 'ERR_ALREADY_EXISTS')) {
-      return;
+    if (e instanceof CometChatApiError) {
+      if (EXPECTED_CODES.has(e.code)) return;
+      if (NO_ACCESS_CODES.has(e.code)) {
+        console.warn(`CometChat: API key lacks group-creation scope — group ${guid} not created. Grant "Full Access" in CometChat dashboard.`);
+        return;
+      }
     }
     console.error(`CometChat: POST /groups failed for ${guid}:`, e.message);
   }
@@ -63,20 +85,26 @@ export async function ensureCometChatGroup(guid: string, name: string, type: str
   try {
     await apiCall('GET', `/groups/${guid}`);
   } catch (getErr: any) {
+    if (getErr instanceof CometChatApiError && NO_ACCESS_CODES.has(getErr.code)) {
+      console.warn(`CometChat: Cannot verify group ${guid} — API key lacks access.`);
+      return;
+    }
     console.error(`CometChat: Group ${guid} does not exist and could not be created`);
-    throw new CometChatApiError(`Failed to create or find group ${guid}`, 'ERR_GROUP_CREATE_FAILED');
   }
 }
 
 export async function addMemberToGroup(groupGuid: string, userUid: string, scope: string = 'participant'): Promise<boolean> {
   try {
     const members = [{ uid: userUid, scope }];
-    const result = await apiCall('POST', `/groups/${groupGuid}/members`, { members });
-    console.log(`CometChat: Added user ${userUid} to group ${groupGuid}`, result);
+    await apiCall('POST', `/groups/${groupGuid}/members`, { members });
     return true;
   } catch (e: any) {
-    if (e instanceof CometChatApiError && (e.code === 'ERR_ALREADY_JOINED' || e.message?.includes('already'))) {
-      return true;
+    if (e instanceof CometChatApiError) {
+      if (EXPECTED_CODES.has(e.code) || e.message?.includes('already')) return true;
+      if (NO_ACCESS_CODES.has(e.code)) {
+        console.warn(`CometChat: API key lacks member-add scope for group ${groupGuid}.`);
+        return false;
+      }
     }
     console.error(`CometChat: Failed to add user ${userUid} to group ${groupGuid}:`, e.message);
     return false;
@@ -87,10 +115,13 @@ export async function addMembersToGroupBatch(groupGuid: string, memberUids: Arra
   if (memberUids.length === 0) return true;
   try {
     const members = memberUids.map(m => ({ uid: m.uid, scope: m.scope || 'participant' }));
-    const result = await apiCall('POST', `/groups/${groupGuid}/members`, { members });
-    console.log(`CometChat: Batch added ${memberUids.length} users to group ${groupGuid}`);
+    await apiCall('POST', `/groups/${groupGuid}/members`, { members });
     return true;
   } catch (e: any) {
+    if (e instanceof CometChatApiError && NO_ACCESS_CODES.has(e.code)) {
+      console.warn(`CometChat: API key lacks batch member-add scope for group ${groupGuid}.`);
+      return false;
+    }
     console.error(`CometChat: Batch add to group ${groupGuid} failed:`, e.message);
     return false;
   }
@@ -180,10 +211,13 @@ export async function generateAuthToken(uid: string): Promise<string> {
 
 export async function removeMemberFromGroup(groupGuid: string, userUid: string): Promise<boolean> {
   try {
-    const result = await apiCall('DELETE', `/groups/${groupGuid}/members/${userUid}`);
-    console.log(`CometChat: Removed user ${userUid} from group ${groupGuid}`, result);
+    await apiCall('DELETE', `/groups/${groupGuid}/members/${userUid}`);
     return true;
   } catch (e: any) {
+    if (e instanceof CometChatApiError && NO_ACCESS_CODES.has(e.code)) {
+      console.warn(`CometChat: API key lacks member-remove scope for group ${groupGuid}.`);
+      return false;
+    }
     console.error(`CometChat: Failed to remove user ${userUid} from group ${groupGuid}:`, e.message);
     return false;
   }
