@@ -1,0 +1,135 @@
+#47 - Standardize Screen Headers Across All Screens
+
+What & Why
+
+All 45+ screens currently implement their own custom header layouts independently, leading to visual inconsistencies. The user has provided iOS UIKit specs for a uniform page header: white background, 1px #D9D9D9 bottom border, platform-appropriate back arrow (chevron < on iOS, arrow ← on Android), and #FAFAFA page background. These should be codified in the design system and applied universally.
+
+Done looks like
+
+theme.ts has a new PageHeader export with all header tokens (background, border color, border width, height)
+
+DESIGN_SPECS.md documents the Page Header, Back Arrow (iOS vs Android), Line Separator, and Page Background specs with the UIKit source values
+
+A reusable ScreenHeader component exists at mobile/src/components/ScreenHeader.tsx with props: title, onBack (optional), rightElement (optional), and showBorder (default true). It renders the platform-correct back arrow automatically via Platform.OS
+
+All screens that currently render a custom header row are updated to use ScreenHeader instead of their individual inline header implementations
+
+Page background color is #FAFAFA consistently across all screens
+
+The header separator line is #D9D9D9 at 1px consistently
+
+Out of scope
+
+Screens with full-bleed image headers (BubbleDetails, JoinBubble, EventDetails) that intentionally have no standard header — these keep their custom hero layouts
+
+Tab bar root screens (Explore, Upcoming, Bubbles, Messages, Profile) which have their own top bars
+
+Any changes to navigation logic or screen content below the header
+
+Tasks
+
+Add PageHeader tokens to theme.ts — Add a PageHeader exported object with: background: '#FFFFFF', borderColor: '#D9D9D9' (= Colors.neutral.lightSilver), borderWidth: 1, height: 56. Also add PageBackground: '#FAFAFA' constant. Add BackArrow spec: size: 24, color: Colors.text.primary.
+
+Document in DESIGN_SPECS.md — Add a "Page Header" section with the UIKit source values, a "Back Navigation Arrow" section (iOS: chevron-back, Android: arrow-back, both 24x24), a "Line Separator" section, and a "Page Background" section.
+
+Create ScreenHeader component — Build mobile/src/components/ScreenHeader.tsx. It should use SafeAreaView edges top only, render a white header row (height 56) with optional back chevron/arrow (platform-detected), centered title text in Colors.text.primary at 17pt semibold, optional right element slot, and a 1px #D9D9D9 bottom border. Import tokens from theme.ts.
+
+Roll out to all secondary screens — Replace inline header implementations in all screens that have a back button with the new ScreenHeader component. Screens with full-bleed hero images (BubbleDetails, JoinBubble, EventDetails) are excluded and keep their current custom headers. Ensure page background is #FAFAFA on all updated screens.
+
+Relevant files
+
+mobile/src/styles/theme.ts
+
+mobile/src/assets/DESIGN_SPECS.md
+
+mobile/src/screens/main/AccountSettingsScreen.tsx
+
+mobile/src/screens/main/PersonalInformationScreen.tsx
+
+mobile/src/screens/main/LoginSecurityScreen.tsx
+
+mobile/src/screens/main/PrivacyScreen.tsx
+
+mobile/src/screens/main/NotificationsScreen.tsx
+
+mobile/src/screens/main/GetHelpScreen.tsx
+
+mobile/src/screens/main/HelpCenterScreen.tsx
+
+mobile/src/screens/main/GiveFeedbackScreen.tsx
+
+mobile/src/screens/main/ReportConcernScreen.tsx
+
+mobile/src/screens/main/ManageRulesScreen.tsx
+
+mobile/src/screens/main/PendingReviewsScreen.tsx
+
+mobile/src/screens/main/ViewProfileScreen.tsx
+
+mobile/src/screens/main/EditProfileScreen.tsx
+
+mobile/src/screens/main/MyBubblesFromProfileScreen.tsx
+
+mobile/src/screens/main/CreateBubbleScreen.tsx
+
+mobile/src/screens/main/EditBubbleScreen.tsx
+
+mobile/src/screens/main/CreateEventScreen.tsx
+
+mobile/src/screens/main/EditEventScreen.tsx
+
+mobile/src/screens/main/BubbleEventsScreen.tsx
+
+mobile/src/screens/main/BubbleMembersScreen.tsx
+
+mobile/src/screens/main/EventParticipantsScreen.tsx
+
+mobile/src/screens/main/BulletinBoardScreen.tsx
+
+mobile/src/screens/main/PostDetailScreen.tsx
+
+mobile/src/screens/main/CreatePostScreen.tsx
+
+mobile/src/screens/main/CampusJoinScreen.tsx
+
+mobile/src/screens/main/CampusVerifyScreen.tsx
+
+mobile/src/screens/main/ChatScreen.tsx
+
+mobile/src/screens/main/DeactivateReasonScreen.tsx
+
+mobile/src/screens/main/DeactivateConfirmScreen.tsx
+
+mobile/src/screens/main/DataRequestReasonScreen.tsx
+
+mobile/src/screens/main/DataConfirmAccountScreen.tsx
+
+mobile/src/screens/main/AdminDashboardScreen.tsx
+
+mobile/src/screens/main/BubbleWaitlistScreen.tsx
+
+mobile/src/screens/main/CategoryPlaceholdersScreen.tsx
+
+mobile/src/screens/auth/LoginScreen.tsx
+
+mobile/src/screens/auth/EmailVerificationScreen.tsx
+
+mobile/src/screens/auth/TermsOfServiceScreen.tsx
+
+mobile/src/screens/auth/PrivacyPolicyScreen.tsx
+
+mobile/src/screens/auth/GuidelinesScreen.tsx
+
+
+
+he task is complete and approved. Here's a summary of everything that was standardized across the mobile app:
+
+ScreenHeader component — now handles the top safe area internally using useSafeAreaInsets(), so consuming screens no longer need to manage it. Added a subtitle prop for screens like Events and Members.
+
+37 screens migrated — every secondary screen (auth flows, settings, admin, bubbles, events, posts, campus) now uses the shared ScreenHeader component with a consistent white header, #D9D9D9 bottom border, and proper platform-specific back arrow. This includes InterestsScreen, BubbleEventsScreen, BubbleMembersScreen, and GuidelinesScreen which were converted in this session.
+
+Safe area approach standardized — all screen containers now use SafeAreaView edges={['bottom']} from react-native-safe-area-context, and legacy StatusBar.currentHeight top padding was removed from 22+ screens to avoid double-padding.
+
+Page backgrounds fixed — SignupScreen, EmailVerificationScreen, AdminDashboardScreen, BubbleWaitlistScreen, and ManageRulesScreen all now use #FAFAFA consistently.
+
+Documented exceptions — DataConfirmAccountScreen (modal overlay with X close), and the hero-image overlay screens (EventDetails, BubbleDetails, JoinBubble) remain intentionally as-is and are documented in the design specs.
