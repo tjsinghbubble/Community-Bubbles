@@ -71,6 +71,7 @@ function Router() {
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route path="/mobile" component={MobileQR} />
+      <Route path="/qr-code" component={MobileQR} />
       <Route component={NotFound} />
     </Switch>
   );
