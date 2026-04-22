@@ -472,7 +472,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
         <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>

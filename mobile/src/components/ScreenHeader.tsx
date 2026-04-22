@@ -1,10 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ChevronLeftIcon } from './icons';
 import { PageHeader, BackArrow, Spacing } from '../styles/theme';
-
-const backIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
 
 function BaseHeader({
   title,
@@ -38,7 +36,7 @@ function BaseHeader({
               testID="button-back"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name={backIcon} size={BackArrow.size} color={BackArrow.color} />
+              <ChevronLeftIcon size={BackArrow.size} color={BackArrow.color} />
             </TouchableOpacity>
           )}
         </View>

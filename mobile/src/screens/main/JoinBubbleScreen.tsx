@@ -235,7 +235,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
             style={styles.backButton}
             data-testid="button-back"
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+            <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1} data-testid="text-header-title">
             {bubble.title}
@@ -258,7 +258,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           style={styles.backButton}
           data-testid="button-back"
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
+          <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1} data-testid="text-header-title">
           {bubble.title}
