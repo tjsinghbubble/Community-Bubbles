@@ -206,6 +206,10 @@ export default function ChatScreen({ navigation, route }: Props) {
   const fetchMessages = async () => {
     try {
       const data = await cometChatService.getMessages(groupId);
+      if (data && (data as any).notMember) {
+        setChatError("You're not a member of this group. You may have been removed or your request is still pending.");
+        return;
+      }
       const formattedMessages = await Promise.all(
         (data as any[])
           .filter((msg: any) => msg.type === 'text' || msg.type === 'image')

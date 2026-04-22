@@ -211,7 +211,10 @@ class CometChatService {
       const message = await CometChat.sendMessage(textMessage);
       console.log('Message sent successfully:', message);
       return message;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        throw new Error('You are not a member of this group and cannot send messages.');
+      }
       console.error('Message sending failed:', error);
       throw error;
     }
@@ -300,7 +303,10 @@ class CometChatService {
       
       const messages = await messagesRequest.fetchPrevious();
       return messages;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        return { notMember: true, messages: [] };
+      }
       console.error('Failed to fetch messages:', error);
       throw error;
     }
