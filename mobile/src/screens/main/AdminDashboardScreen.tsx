@@ -13,7 +13,7 @@ import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { Colors, Spacing, Typography } from '../../styles/theme';
-import { NavHeader } from '../../components/ScreenHeader';
+import { FlowHeader } from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
 
 type Props = {
@@ -83,7 +83,7 @@ export default function AdminDashboardScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader
+      <FlowHeader
         title={`${bubbleTitle} Dashboard`}
         onBack={() => navigation.goBack()}
         rightElement={
