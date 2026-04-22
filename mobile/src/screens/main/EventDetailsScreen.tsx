@@ -454,7 +454,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
-          <Ionicons name={Platform.OS !== 'android' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.navRightActions}>

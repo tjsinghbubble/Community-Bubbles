@@ -346,7 +346,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       {fromBubble ? (
         <View style={styles.navHeader}>
           <TouchableOpacity onPress={handleBackPress} style={styles.navBackButton}>
-            <Ionicons name={Platform.OS !== 'android' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
+            <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.navTitle} numberOfLines={1}>{bubbleDisplayTitle}</Text>
           <TouchableOpacity onPress={handleShare} style={styles.navShareButton}>

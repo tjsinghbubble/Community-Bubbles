@@ -91,14 +91,14 @@ class ApiService {
   }): Promise<AuthResponse> {
     return this.request<AuthResponse>("/api/auth/signup", {
       method: "POST",
-      body: JSON.stringify({ ...data, email: data.email.toLowerCase().trim() }),
+      body: JSON.stringify(data),
     });
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
     return this.request<AuthResponse>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
+      body: JSON.stringify({ email, password }),
     });
   }
 
