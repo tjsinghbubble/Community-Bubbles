@@ -69,60 +69,58 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const { signup } = useAuth();
 
+  const uploadProfilePhoto = async (profilePhotoUri: string) => {
+    const photoResponse = await fetch(profilePhotoUri);
+    const blob = await photoResponse.blob();
+    const ext = profilePhotoUri.split('.').pop()?.toLowerCase() || 'jpg';
+    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    const token = apiService.getToken();
+
+    const uploadRes = await fetch(`${API_URL}/api/uploads/request-url`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ name: `profile.${ext}`, contentType: mimeType }),
+    });
+    const uploadData = await uploadRes.json();
+
+    if (uploadData.uploadURL) {
+      await fetch(uploadData.uploadURL, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType },
+        body: blob,
+      });
+
+      const photoUrl = uploadData.objectPath.startsWith('http')
+        ? uploadData.objectPath
+        : `${API_URL}${uploadData.objectPath}`;
+      await fetch(`${API_URL}/api/users/me`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ profilePhoto: photoUrl }),
+      });
+    }
+  };
+
   const handleAgree = async () => {
     setIsLoading(true);
     try {
       const { name, email, password, interests, profilePhotoUri } = route.params;
       await signup(name, email, password, interests);
-
+      setIsLoading(false);
       if (profilePhotoUri) {
-        try {
-          const photoResponse = await fetch(profilePhotoUri);
-          const blob = await photoResponse.blob();
-          const ext = profilePhotoUri.split('.').pop()?.toLowerCase() || 'jpg';
-          const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
-          const token = apiService.getToken();
-
-          const uploadRes = await fetch(`${API_URL}/api/uploads/request-url`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              name: `profile.${ext}`,
-              contentType: mimeType,
-            }),
-          });
-          const uploadData = await uploadRes.json();
-
-          if (uploadData.uploadURL) {
-            await fetch(uploadData.uploadURL, {
-              method: 'PUT',
-              headers: { 'Content-Type': mimeType },
-              body: blob,
-            });
-
-            const photoUrl = uploadData.objectPath.startsWith('http')
-              ? uploadData.objectPath
-              : `${API_URL}${uploadData.objectPath}`;
-            await fetch(`${API_URL}/api/users/me`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-              },
-              body: JSON.stringify({ profilePhoto: photoUrl }),
-            });
-          }
-        } catch (photoErr) {
-          console.log('Profile photo upload failed (non-blocking):', photoErr);
-        }
+        uploadProfilePhoto(profilePhotoUri).catch((photoErr) =>
+          console.log('Profile photo upload failed (non-blocking):', photoErr)
+        );
       }
     } catch (error: any) {
-      Alert.alert('Signup Failed', error.message || 'Something went wrong');
-    } finally {
       setIsLoading(false);
+      Alert.alert('Signup Failed', error.message || 'Something went wrong');
     }
   };
 

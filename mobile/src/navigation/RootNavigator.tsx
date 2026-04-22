@@ -133,7 +133,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef} linking={linkingConfig}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
         ) : (
