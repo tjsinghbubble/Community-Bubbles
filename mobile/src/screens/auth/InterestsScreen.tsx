@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
 import { NavHeader } from '../../components/ScreenHeader';
