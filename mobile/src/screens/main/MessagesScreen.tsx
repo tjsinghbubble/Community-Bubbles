@@ -43,7 +43,7 @@ type Conversation = {
   unreadMessageCount: number;
 };
 
-type FilterTab = 'general' | 'member' | 'non-member';
+type FilterTab = 'all' | 'bubbles' | 'dms';
 
 type Props = {
   navigation: NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
@@ -58,7 +58,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
   const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('general');
+  const [approvedBubbleIds, setApprovedBubbleIds] = useState<Set<string>>(new Set());
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const hasAutoNavigated = React.useRef(false);
 
@@ -164,7 +165,15 @@ export default function MessagesScreen({ navigation, route }: Props) {
           console.error('CometChat re-login failed:', loginErr);
         }
       }
-      const data = await cometChatService.getConversations();
+
+      const [data, myBubbles] = await Promise.all([
+        cometChatService.getConversations(),
+        apiService.getMyBubbles().catch(() => []),
+      ]);
+
+      const ids = new Set<string>((myBubbles as any[]).map((b: any) => String(b.id)));
+      setApprovedBubbleIds(ids);
+
       const convs = data as unknown as Conversation[];
       setConversations(convs);
       fetchBubbleImages(convs);
@@ -292,9 +301,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
   );
 
   const FILTER_OPTIONS: { key: FilterTab; label: string }[] = [
-    { key: 'general', label: 'General' },
-    { key: 'member', label: 'Member' },
-    { key: 'non-member', label: 'Non-member' },
+    { key: 'all', label: 'All' },
+    { key: 'bubbles', label: 'Bubbles' },
+    { key: 'dms', label: 'DMs' },
   ];
 
   const hamburgerButton = (
@@ -352,13 +361,15 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   const filteredConversations = conversations.filter((conv) => {
     const guid = conv.conversationWith.guid;
-    const name = conv.conversationWith.name;
-    const isContactGroup = guid.startsWith('contact_');
-    const isMemberChat = isContactGroup && name.includes('(member)') && !name.includes('(non-member)');
-    const isNonMemberChat = isContactGroup && name.includes('(non-member)');
+    const isDm = guid.startsWith('contact_') || guid.startsWith('adm_');
 
-    if (activeFilter === 'member') return isMemberChat;
-    if (activeFilter === 'non-member') return isNonMemberChat;
+    // Permission check: bubble group chats are only shown when the user
+    // is a current approved member of that bubble.
+    if (!isDm && !approvedBubbleIds.has(guid)) return false;
+
+    // Tab filter
+    if (activeFilter === 'bubbles') return !isDm;
+    if (activeFilter === 'dms') return isDm;
     return true;
   });
 
