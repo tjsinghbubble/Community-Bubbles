@@ -448,8 +448,10 @@ export class DatabaseStorage implements IStorage {
     // 13. Delete remaining memberships for user (in other bubbles)
     await db.delete(memberships).where(eq(memberships.userId, id));
 
-    // 14. Delete user record
-    await db.delete(users).where(eq(users.id, id));
+    // 14. Set user as inactive (soft delete) instead of deleting the row
+    await db.update(users)
+      .set({ isActive: false, tokenVersion: sql`token_version + 1` })
+      .where(eq(users.id, id));
   }
 
   async incrementTokenVersion(id: string): Promise<void> {

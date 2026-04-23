@@ -227,6 +227,9 @@ async function authMiddleware(req: any, res: any, next: any) {
     if (!user || user.tokenVersion !== decoded.tokenVersion) {
       return res.status(401).json({ error: "Token revoked" });
     }
+    if (user.isActive === false) {
+      return res.status(403).json({ error: "This account has been deactivated." });
+    }
     req.userId = decoded.userId;
     next();
   } catch (error) {
@@ -544,6 +547,10 @@ export async function registerRoutes(
       }
 
       clearLoginFailures(email);
+
+      if (user.isActive === false) {
+        return res.status(403).json({ error: "This account has been deactivated." });
+      }
 
       const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
         expiresIn: "7d",
