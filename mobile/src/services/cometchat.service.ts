@@ -363,7 +363,10 @@ class CometChatService {
       const message = await CometChat.sendMessage(textMessage);
       console.log('Reply message sent successfully:', message);
       return message;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        throw new Error('You are not a member of this group and cannot send messages.');
+      }
       console.error('Reply message sending failed:', error);
       throw error;
     }
@@ -402,7 +405,10 @@ class CometChatService {
       const message = await CometChat.sendMediaMessage(mediaMessage);
       console.log('Media message sent successfully:', message);
       return message;
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        throw new Error('You are not a member of this group and cannot send images.');
+      }
       console.error('Media message sending failed:', error);
       throw error;
     }

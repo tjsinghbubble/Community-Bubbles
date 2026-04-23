@@ -16,6 +16,7 @@ import {
   Pressable,
   Animated,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LongPressGestureHandler, State as GestureState } from 'react-native-gesture-handler';
@@ -393,6 +394,10 @@ export default function ChatScreen({ navigation, route }: Props) {
         setChatError('This chat is no longer available.');
         return;
       }
+      if (error?.message?.includes('not a member')) {
+        setChatError("You're no longer a member of this group and cannot send messages.");
+        return;
+      }
       setNewMessage(messageText);
       setReplyingTo(replyTo);
     } finally {
@@ -464,8 +469,12 @@ export default function ChatScreen({ navigation, route }: Props) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send image:', error);
+      const msg = error?.message?.includes('not a member')
+        ? "You're no longer a member of this group."
+        : 'Failed to send image. Please try again.';
+      Alert.alert('Image not sent', msg);
     } finally {
       setIsUploadingImage(false);
     }
@@ -516,8 +525,9 @@ export default function ChatScreen({ navigation, route }: Props) {
           return m;
         }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to toggle reaction:', error);
+      Alert.alert('Reaction failed', 'Could not update your reaction. Please try again.');
     }
   };
 
