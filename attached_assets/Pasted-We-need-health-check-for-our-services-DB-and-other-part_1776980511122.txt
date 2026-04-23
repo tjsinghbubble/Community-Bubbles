@@ -1,0 +1,94 @@
+We need health check for our services, DB, and other parts of the infra. Here is the high level strategy 
+PART 1: Start with The "No-Op" Alternative
+PART 2: Shallow check
+PART 3: Deep check
+
+
+PART 1: Start with The "No-Op" Alternative
+Start monitoring with No-Op (No Operation) call. This is a "do-nothing" request that simply proves the connection is alive without taxing our database.
+* Suggested No-Op: A GET /api/v1/ping that returns a plain text pong.
+* Why use it? It has the lowest possible latency. It confirms our SSL (the Let's Encrypt cert we checked) is valid and our DNS is routing correctly without the overhead of a database handshake.
+To be thorough, our health check should also report "Maintenance Mode". 
+
+If we set a flag in our DB to true, the health check should immediately start returning 503 so we can push updates without users seeing half-broken pages.
+
+If No-Op fails, do a shallow check to identify problem area
+
+PART 2: Shallow check
+For a single endpoint that aggregates the status of our "Vitals."
+Shallow Check: Simply returns 200 OK if the web server is running. This is used by load balancers to ensure the "lights are on."
+
+
+The "Lovely JSON" Structure
+
+
+JSON
+
+{
+  "status": "fail",
+  "version": "1.0.4-alpha",
+  "uptime": "14d 6h 22m",
+  "timestamp": "2026-04-23T14:28:02Z",
+  "services": {
+    "database": {
+      "status": "up",
+      "latency_ms": 12
+    },
+    "storage": {
+      "status": "up"
+    },
+    "third_party_auth": {
+      "status": "down",
+      "error": "Timeout"
+    }
+  }
+}
+
+IF shallow check fails, do a deep check 
+
+PART 3: Deep check
+Perform a deep check, if shallow checks is returning error conditions 
+Verifies the "plumbing"—database connectivity, cache (Redis), and third-party APIs. This is what we're describing.
+
+
+
+Tier 1: The "No-Op" (The Heartbeat)
+This is our first line of defense. It bypasses all logic to tell we if our domain, SSL, and server process are reachable.
+* Endpoint: GET /api/v1/ping
+* Response: 200 OK (Text: "pong")
+* Failure Meaning: If this fails, our server is crashed, our SSL has expired, or our Netlify DNS is down.
+
+Tier 2: The "Shallow Check" (The App Logic)
+This proves our application code is actually executing and can handle incoming requests, even if the database is struggling.
+* Endpoint: GET /api/v1/status
+* Logic: Returns 200 OK without a DB query. It should include our version and uptime strings.
+* Failure Meaning: our server is "up," but the app process is locked or out of memory (OOM).
+
+Tier 3: The "Deep Check" (The Plumbing)
+This is the "Lovely JSON" we described. It actively tests the connection to every dependency.
+* Endpoint: GET /api/v1/health
+* Response: 200 OK if all services are green; 503 Service Unavailable if a critical service (DB) is red.
+
+
+{ "status": "partial_fail", "version": "1.0.4-alpha", "uptime": "14d 6h 22m", "timestamp": "2026-04-23T14:28:02Z", "services": { "database": { "status": "up", "latency_ms": 12 }, "storage": { "status": "up" }, "third_party_auth": { "status": "down", "error": "Timeout" } } }
+
+
+
+Implementation Workflow
+
+1
+Build the No-Op
+Route: /ping
+Create a static route that returns "pong". Use this for  our 1-minute interval monitoring. It keeps  our database logs clean.
+2
+Set the 'Maintenance' Flag
+The Kill-Switch
+Add a maintenance_mode field to  our database. If this is true, force Tier 2 and Tier 3 to return 503. This tells Apple/Google reviewers  we  are "updating" rather than "broken."
+3
+Script the Deep Logic
+Dependency Testing
+In  our backend, create a function that runs a trivial query (e.g., SELECT 1) to the DB and pings  our storage bucket. Aggregate these results into the JSON object above.
+4
+Set Alert Thresholds
+Notification
+Point  our monitoring tool (like UptimeRobot) at the No-Op. Only trigger a "Critical" alert if Tier 1 fails. Use Tier 3 for "Warning" alerts (e.g., if just 3rd party auth is down).
