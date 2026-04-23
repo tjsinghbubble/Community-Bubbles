@@ -206,6 +206,8 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const fetchMessages = async () => {
     try {
+      if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+
       // For DM threads, validate the associated bubble before fetching messages.
       // This provides a clear "Bubble no longer available" message when deep-linking
       // into a stale thread instead of showing a raw CometChat error or crashing.
@@ -247,7 +249,14 @@ export default function ChatScreen({ navigation, route }: Props) {
         }
       }
 
-      const data = await cometChatService.getMessages(groupId);
+      let data = await cometChatService.getMessages(groupId);
+      if (data && (data as any).notMember && !isAdminDmChat && !isContactDmChat) {
+        // Bubble group: user may have joined the bubble before their CometChat
+        // session was established. Lazily create+join the group now.
+        try { await cometChatService.createGroup(groupId, groupName || 'Bubble Chat', 'public'); } catch (_) {}
+        try { await cometChatService.joinGroup(groupId, 'public'); } catch (_) {}
+        data = await cometChatService.getMessages(groupId);
+      }
       if (data && (data as any).notMember) {
         setChatError("You're not a member of this group. You may have been removed or your request is still pending.");
         return;
