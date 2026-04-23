@@ -4,6 +4,7 @@ import apiService from './api.service';
 
 class CometChatService {
   private initialized = false;
+  private _conversationsRequest: CometChat.ConversationsRequest | null = null;
 
   async init() {
     if (this.initialized) return;
@@ -263,18 +264,20 @@ class CometChatService {
     CometChat.removeMessageListener(listenerID);
   }
 
-  async getConversations() {
+  buildConversationsRequest(limit: number = 30) {
+    this._conversationsRequest = new CometChat.ConversationsRequestBuilder()
+      .setLimit(limit)
+      .setConversationType('group')
+      .build();
+  }
+
+  async fetchConversationsPage(): Promise<{ conversations: any[]; hasMore: boolean }> {
+    if (!this._conversationsRequest) this.buildConversationsRequest();
     try {
-      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
-        .setLimit(30)
-        .setConversationType('group')
-        .build();
-      
-      const conversations = await conversationsRequest.fetchNext();
-      console.log('Fetched conversations:', conversations.length);
-      return conversations;
+      const page = await this._conversationsRequest!.fetchNext();
+      return { conversations: page, hasMore: page.length > 0 };
     } catch (error) {
-      console.error('Failed to fetch conversations:', error);
+      console.error('Failed to fetch conversations page:', error);
       throw error;
     }
   }

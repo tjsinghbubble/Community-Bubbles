@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -54,6 +54,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
@@ -155,34 +157,55 @@ export default function MessagesScreen({ navigation, route }: Props) {
       }
     });
     await Promise.all(fetchPromises);
-    setBubbleImages(imageMap);
-    setDmAvatarData(dmData);
+    setBubbleImages(prev => ({ ...prev, ...imageMap }));
+    setDmAvatarData(prev => ({ ...prev, ...dmData }));
     if (deletedBubbles.size > 0) {
-      setDeletedContactBubbleIds(deletedBubbles);
+      setDeletedContactBubbleIds(prev => new Set([...prev, ...deletedBubbles]));
     }
   };
 
   const fetchConversations = async () => {
     setDeletedContactBubbleIds(new Set());
+    setBubbleImages({});
+    setDmAvatarData({});
     try {
       if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
 
-      const [data, myBubbles] = await Promise.all([
-        cometChatService.getConversations(),
+      cometChatService.buildConversationsRequest(30);
+
+      const [{ conversations: firstPage, hasMore: more }, myBubbles] = await Promise.all([
+        cometChatService.fetchConversationsPage(),
         apiService.getMyBubbles().catch(() => []),
       ]);
 
       const ids = new Set<string>((myBubbles as any[]).map((b: any) => String(b.id)));
       setApprovedBubbleIds(ids);
 
-      const convs = data as unknown as Conversation[];
+      const convs = firstPage as unknown as Conversation[];
       setConversations(convs);
+      setHasMore(more);
       fetchBubbleImages(convs);
     } catch (error) {
       console.error('Failed to fetch conversations:', error);
     } finally {
       setIsLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const loadMoreConversations = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const { conversations: nextPage, hasMore: more } = await cometChatService.fetchConversationsPage();
+      const convs = nextPage as unknown as Conversation[];
+      setConversations(prev => [...prev, ...convs]);
+      setHasMore(more);
+      fetchBubbleImages(convs);
+    } catch (error) {
+      console.error('Failed to load more conversations:', error);
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -439,21 +462,32 @@ export default function MessagesScreen({ navigation, route }: Props) {
       </View>
       {renderFilterMenu()}
 
-      <ScrollView
+      <FlatList
+        data={filteredConversations}
+        keyExtractor={(item) => item.conversationId}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
-        {filteredConversations.map((conversation) => (
+        onEndReached={loadMoreConversations}
+        onEndReachedThreshold={0.2}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <ActivityIndicator
+              size="small"
+              color={Colors.brand.bubbleBlue}
+              style={{ paddingVertical: 16 }}
+            />
+          ) : null
+        }
+        renderItem={({ item: conversation }) => (
           <AnimatedPressable
-            key={conversation.conversationId}
             style={styles.conversationItem}
             scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
           >
             {renderAvatar(conversation)}
-            
+
             <View style={styles.conversationContent}>
               <View style={styles.conversationHeader}>
                 <Text style={styles.groupName} numberOfLines={1}>
@@ -465,10 +499,10 @@ export default function MessagesScreen({ navigation, route }: Props) {
                   </Text>
                 )}
               </View>
-              
+
               <View style={styles.conversationFooter}>
                 <Text style={styles.lastMessage} numberOfLines={1}>
-                  {conversation.lastMessage?.text 
+                  {conversation.lastMessage?.text
                     ? `${conversation.lastMessage.sender?.name || 'Someone'}: ${conversation.lastMessage.text}`
                     : 'No messages yet'}
                 </Text>
@@ -482,8 +516,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
               </View>
             </View>
           </AnimatedPressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     </SafeAreaView>
   );
 }
