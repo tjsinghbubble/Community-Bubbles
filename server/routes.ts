@@ -1011,7 +1011,7 @@ export async function registerRoutes(
 
   // System stats (super admin only)
   app.get("/api/admin/stats", authMiddleware, async (req, res) => {
-    interface StatsRow {
+    interface StatsRow extends Record<string, unknown> {
       total_users: number;
       new_users_7d: number;
       new_users_30d: number;
