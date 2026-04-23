@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   RefreshCw,
@@ -24,6 +24,7 @@ import {
   Ghost,
   BarChart2,
   Shield,
+  Wrench,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -317,6 +318,8 @@ function actionLabel(action: string): string {
 export default function AdminMonitor() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const [showConfirmEnable, setShowConfirmEnable] = useState(false);
 
   const { data: me, isLoading: meLoading, isError: meError } = useQuery<AuthMe>({
     queryKey: ["/api/auth/me"],
@@ -351,6 +354,49 @@ export default function AdminMonitor() {
     enabled: !!user && me?.isSuperAdmin === true,
     refetchInterval: 30_000,
   });
+
+  const {
+    data: maintenanceData,
+    isLoading: maintenanceLoading,
+    isError: maintenanceError,
+  } = useQuery<{ maintenance_mode: boolean }>({
+    queryKey: ["/api/admin/maintenance-mode"],
+    queryFn: () => apiRequest("GET", "/api/admin/maintenance-mode").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 30_000,
+  });
+
+  const maintenanceMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      apiRequest("PATCH", "/api/admin/maintenance-mode", { enabled }).then((r) => r.json()),
+    onMutate: async (enabled: boolean) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/admin/maintenance-mode"] });
+      const previous = queryClient.getQueryData(["/api/admin/maintenance-mode"]);
+      queryClient.setQueryData(["/api/admin/maintenance-mode"], { maintenance_mode: enabled });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(["/api/admin/maintenance-mode"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/maintenance-mode"] });
+    },
+  });
+
+  function handleMaintenanceToggle(desiredState: boolean) {
+    if (desiredState) {
+      setShowConfirmEnable(true);
+    } else {
+      maintenanceMutation.mutate(false);
+    }
+  }
+
+  function confirmEnableMaintenance() {
+    setShowConfirmEnable(false);
+    maintenanceMutation.mutate(true);
+  }
 
   useEffect(() => {
     if (!user && !meLoading) {
@@ -426,6 +472,43 @@ export default function AdminMonitor() {
           </button>
         </div>
 
+        {/* ── Confirmation Dialog ── */}
+        {showConfirmEnable && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6"
+            data-testid="dialog-maintenance-confirm"
+          >
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-amber-100">
+                <AlertTriangle className="h-6 w-6 text-amber-600" />
+              </div>
+              <h2 className="text-[17px] font-bold" data-testid="text-confirm-title">Enable Maintenance Mode?</h2>
+              <p className="mt-2 text-[13px] text-muted-foreground" data-testid="text-confirm-body">
+                This will return a <strong>503 Service Unavailable</strong> response from all health-check
+                endpoints, causing app stores to show the app as under maintenance. All users will be
+                affected immediately.
+              </p>
+              <div className="mt-5 flex gap-3">
+                <button
+                  onClick={() => setShowConfirmEnable(false)}
+                  className="flex-1 rounded-xl border border-black/10 px-4 py-2.5 text-[13px] font-semibold transition hover:bg-black/5"
+                  data-testid="button-cancel-maintenance"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmEnableMaintenance}
+                  disabled={maintenanceMutation.isPending}
+                  className="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                  data-testid="button-confirm-enable-maintenance"
+                >
+                  {maintenanceMutation.isPending ? "Enabling…" : "Enable"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {statsLoading ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[#35A8F7]" />
@@ -448,6 +531,83 @@ export default function AdminMonitor() {
           </div>
         ) : (
           <div className="space-y-5">
+
+            {/* ── Maintenance Mode ── */}
+            <div
+              className={cn(
+                "overflow-hidden rounded-2xl ring-1",
+                maintenanceData?.maintenance_mode
+                  ? "bg-amber-50 ring-amber-300"
+                  : "bg-white/70 ring-black/8"
+              )}
+              data-testid="section-maintenance-mode"
+            >
+              <div className="px-5 py-4 flex items-center gap-3">
+                <div className={cn(
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+                  maintenanceData?.maintenance_mode ? "bg-amber-100" : "bg-black/6"
+                )}>
+                  <Wrench className={cn(
+                    "h-5 w-5",
+                    maintenanceData?.maintenance_mode ? "text-amber-600" : "text-muted-foreground"
+                  )} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-bold">Maintenance Mode</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {maintenanceError
+                      ? "Could not load status — toggle disabled until resolved"
+                      : maintenanceData?.maintenance_mode
+                      ? "Active — health endpoints are returning 503"
+                      : "Inactive — platform is operating normally"}
+                  </div>
+                </div>
+                {maintenanceLoading || maintenanceMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : maintenanceError ? (
+                  <span className="rounded-full bg-red-100 px-3 py-1 text-[11px] font-bold text-red-600" data-testid="text-maintenance-status-error">
+                    Status unknown
+                  </span>
+                ) : (
+                  <button
+                    role="switch"
+                    aria-checked={maintenanceData?.maintenance_mode ?? false}
+                    onClick={() => handleMaintenanceToggle(!(maintenanceData?.maintenance_mode ?? false))}
+                    disabled={maintenanceData === undefined}
+                    className={cn(
+                      "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                      maintenanceData?.maintenance_mode
+                        ? "bg-amber-500 focus-visible:ring-amber-500"
+                        : "bg-black/15 focus-visible:ring-[#35A8F7]"
+                    )}
+                    data-testid="toggle-maintenance-mode"
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200",
+                        maintenanceData?.maintenance_mode ? "translate-x-6" : "translate-x-1"
+                      )}
+                    />
+                  </button>
+                )}
+              </div>
+              {maintenanceData?.maintenance_mode && (
+                <div className="border-t border-amber-200 px-5 py-2.5 flex items-center gap-2 bg-amber-100/50">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                  <span className="text-[11px] font-semibold text-amber-700" data-testid="text-maintenance-warning">
+                    All app store health checks are receiving 503 — users are being shown the maintenance screen.
+                  </span>
+                </div>
+              )}
+              {maintenanceMutation.isError && (
+                <div className="border-t border-red-200 px-5 py-2.5 flex items-center gap-2 bg-red-50">
+                  <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                  <span className="text-[11px] font-semibold text-red-600" data-testid="text-maintenance-error">
+                    Failed to update maintenance mode. Please try again.
+                  </span>
+                </div>
+              )}
+            </div>
 
             {/* ── Status ── */}
             <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">

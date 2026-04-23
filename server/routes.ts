@@ -19,7 +19,7 @@ const objectStorageService = new ObjectStorageService();
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble, generateAuthToken, deleteCometChatGroup } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
-import { pingUrl, setMaintenanceModeCache } from "./health";
+import { pingUrl, setMaintenanceModeCache, getMaintenanceMode } from "./health";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
@@ -1170,6 +1170,17 @@ export async function registerRoutes(
       const message = error instanceof Error ? error.message : "Unexpected error";
       console.error("[admin/stats] error:", error);
       res.status(500).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/maintenance-mode", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const enabled = await getMaintenanceMode();
+      return res.json({ maintenance_mode: enabled });
+    } catch (error: unknown) {
+      serverError(res, error);
     }
   });
 
