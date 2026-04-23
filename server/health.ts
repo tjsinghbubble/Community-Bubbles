@@ -40,10 +40,14 @@ export async function pingUrl(
   }
 }
 
+const MAINTENANCE_CACHE_TTL_MS = 30_000;
 let _maintenanceModeCache: boolean | null = null;
+let _maintenanceCacheExpiry = 0;
 
 export async function getMaintenanceMode(): Promise<boolean> {
-  if (_maintenanceModeCache !== null) return _maintenanceModeCache;
+  if (_maintenanceModeCache !== null && Date.now() < _maintenanceCacheExpiry) {
+    return _maintenanceModeCache;
+  }
   try {
     const rows = await db
       .select()
@@ -51,13 +55,15 @@ export async function getMaintenanceMode(): Promise<boolean> {
       .where(eq(appConfig.key, "maintenance_mode"));
     _maintenanceModeCache = rows[0]?.value === "true";
   } catch {
-    _maintenanceModeCache = false;
+    _maintenanceModeCache = _maintenanceModeCache ?? false;
   }
+  _maintenanceCacheExpiry = Date.now() + MAINTENANCE_CACHE_TTL_MS;
   return _maintenanceModeCache;
 }
 
 export function setMaintenanceModeCache(value: boolean): void {
   _maintenanceModeCache = value;
+  _maintenanceCacheExpiry = Date.now() + MAINTENANCE_CACHE_TTL_MS;
 }
 
 export function registerHealthRoutes(app: Express): void {
