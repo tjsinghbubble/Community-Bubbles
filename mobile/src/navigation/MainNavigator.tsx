@@ -57,14 +57,11 @@ export default function MainNavigator() {
   useFocusEffect(
     useCallback(() => {
       fetchAdminCount();
-      fetchUnreadMessages();
       const adminInterval = setInterval(fetchAdminCount, 30000);
-      const msgInterval = setInterval(fetchUnreadMessages, 15000);
       return () => {
         clearInterval(adminInterval);
-        clearInterval(msgInterval);
       };
-    }, [fetchAdminCount, fetchUnreadMessages])
+    }, [fetchAdminCount])
   );
 
   const visibleUnreadCount = isMessagesActive ? 0 : unreadMessages;
@@ -150,7 +147,10 @@ export default function MainNavigator() {
             setIsMessagesActive(true);
             setUnreadMessages(0);
           },
-          blur: () => setIsMessagesActive(false),
+          blur: () => {
+            setIsMessagesActive(false);
+            fetchUnreadMessages();
+          },
           tabPress: (e) => {
             e.preventDefault();
             (navigation as any).navigate('Messages', { screen: 'MessagesList' });
