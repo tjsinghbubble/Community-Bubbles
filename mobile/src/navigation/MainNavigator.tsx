@@ -30,8 +30,7 @@ export default function MainNavigator() {
   const { user } = useAuth();
   const [adminCount, setAdminCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  
-  const isAdmin = user?.isSuperAdmin === true;
+  const [isMessagesActive, setIsMessagesActive] = useState(false);
 
   const fetchAdminCount = useCallback(async () => {
     if (!user) return;
@@ -46,7 +45,9 @@ export default function MainNavigator() {
   const fetchUnreadMessages = useCallback(async () => {
     if (!user) return;
     try {
-      const count = await cometChatService.getTotalUnreadCount();
+      const myBubbles = await apiService.getMyBubbles().catch(() => []);
+      const approvedBubbleIds = new Set<string>((myBubbles as any[]).map((b: any) => String(b.id)));
+      const count = await cometChatService.getPermissionFilteredUnreadCount(approvedBubbleIds);
       setUnreadMessages(count);
     } catch {
       setUnreadMessages(0);
@@ -65,6 +66,8 @@ export default function MainNavigator() {
       };
     }, [fetchAdminCount, fetchUnreadMessages])
   );
+
+  const visibleUnreadCount = isMessagesActive ? 0 : unreadMessages;
 
   return (
     <Tab.Navigator
@@ -134,15 +137,20 @@ export default function MainNavigator() {
           tabBarIcon: ({ color, size }) => (
             <View>
               <MessagesIcon size={size} color={color} />
-              {unreadMessages > 0 && (
+              {visibleUnreadCount > 0 && (
                 <View style={badgeStyles.badge}>
-                  <Text style={badgeStyles.badgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+                  <Text style={badgeStyles.badgeText}>{visibleUnreadCount > 99 ? '99+' : visibleUnreadCount}</Text>
                 </View>
               )}
             </View>
           ),
         }}
         listeners={({ navigation }) => ({
+          focus: () => {
+            setIsMessagesActive(true);
+            setUnreadMessages(0);
+          },
+          blur: () => setIsMessagesActive(false),
           tabPress: (e) => {
             e.preventDefault();
             (navigation as any).navigate('Messages', { screen: 'MessagesList' });

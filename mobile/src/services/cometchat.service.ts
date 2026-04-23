@@ -294,6 +294,35 @@ class CometChatService {
     }
   }
 
+  async getPermissionFilteredUnreadCount(approvedBubbleIds: Set<string>): Promise<number> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) {
+        return 0;
+      }
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(100)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      let total = 0;
+      for (const conv of conversations) {
+        const guid: string = (conv as any).conversationWith?.guid || '';
+        const isDm = guid.startsWith('contact_') || guid.startsWith('adm_');
+        if (!isDm && !approvedBubbleIds.has(guid)) continue;
+        const count = (conv as any).unreadMessageCount || 0;
+        total += count;
+      }
+      return total;
+    } catch (error: any) {
+      if (error?.code === 'USER_NOT_LOGED_IN') {
+        return 0;
+      }
+      console.error('Failed to get filtered unread count:', error);
+      return 0;
+    }
+  }
+
   async getMessages(guid: string, limit: number = 50) {
     try {
       const messagesRequest = new CometChat.MessagesRequestBuilder()
