@@ -188,3 +188,17 @@ export async function removeMemberFromGroup(groupGuid: string, userUid: string):
     return false;
   }
 }
+
+export async function deleteCometChatGroup(guid: string): Promise<boolean> {
+  try {
+    await apiCall('DELETE', `/groups/${guid}`);
+    console.log(`CometChat: Deleted group ${guid}`);
+    return true;
+  } catch (e: any) {
+    if (e instanceof CometChatApiError && (e.code === 'ERR_GUID_NOT_FOUND' || e.code === 'ERR_NOT_FOUND')) {
+      return true;
+    }
+    console.error(`CometChat: Failed to delete group ${guid}:`, e.message);
+    return false;
+  }
+}

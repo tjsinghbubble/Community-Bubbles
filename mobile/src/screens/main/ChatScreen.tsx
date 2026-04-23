@@ -206,6 +206,47 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const fetchMessages = async () => {
     try {
+      // For DM threads, validate the associated bubble before fetching messages.
+      // This provides a clear "Bubble no longer available" message when deep-linking
+      // into a stale thread instead of showing a raw CometChat error or crashing.
+      //
+      // - adm_ threads require approved membership, so we check getMyBubbles().
+      // - contact_ threads can be initiated by non-members, so we only check that
+      //   the bubble itself still exists (not that the user is an approved member).
+      if (isAdminDmChat || isContactDmChat) {
+        const prefix = isAdminDmChat ? 'adm_' : 'contact_';
+        const rest = groupId.slice(prefix.length);
+        const uuidSuffix = rest.match(/_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (uuidSuffix) {
+          const bubbleId = rest.slice(0, rest.length - uuidSuffix[0].length);
+          try {
+            if (isAdminDmChat) {
+              const myBubbles = await apiService.getMyBubbles() as any[];
+              const isMember = myBubbles.some((b: any) => String(b.id) === String(bubbleId));
+              if (!isMember) {
+                setChatError('Bubble no longer available. You may have been removed or the bubble was deleted.');
+                setIsLoading(false);
+                return;
+              }
+            } else {
+              const bubble = await apiService.getBubble(bubbleId);
+              if (!bubble) {
+                setChatError('Bubble no longer available. This bubble has been deleted.');
+                setIsLoading(false);
+                return;
+              }
+            }
+          } catch (checkErr: any) {
+            if (checkErr?.status === 404 || checkErr?.response?.status === 404) {
+              setChatError('Bubble no longer available. This bubble has been deleted.');
+              setIsLoading(false);
+              return;
+            }
+            // For other errors (network, etc.), fall through and let CometChat surface any error
+          }
+        }
+      }
+
       const data = await cometChatService.getMessages(groupId);
       if (data && (data as any).notMember) {
         setChatError("You're not a member of this group. You may have been removed or your request is still pending.");

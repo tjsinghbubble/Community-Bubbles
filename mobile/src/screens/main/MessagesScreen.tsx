@@ -59,6 +59,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [bubbleImages, setBubbleImages] = useState<Record<string, string | null>>({});
   const [dmAvatarData, setDmAvatarData] = useState<Record<string, { memberPhoto: string | null; bubbleCover: string | null }>>({});
   const [approvedBubbleIds, setApprovedBubbleIds] = useState<Set<string>>(new Set());
+  const [deletedContactBubbleIds, setDeletedContactBubbleIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const hasAutoNavigated = React.useRef(false);
@@ -66,6 +67,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const fetchBubbleImages = async (convs: Conversation[]) => {
     const imageMap: Record<string, string | null> = {};
     const dmData: Record<string, { memberPhoto: string | null; bubbleCover: string | null }> = {};
+    const deletedBubbles = new Set<string>();
     const fetchPromises = convs.map(async (conv) => {
       const guid = conv.conversationWith.guid;
       if (conv.conversationWith.icon) {
@@ -126,7 +128,11 @@ export default function MessagesScreen({ navigation, route }: Props) {
             } else if (bubble?.images?.length > 0) {
               bubbleCover = bubble.images[0];
             }
-          } catch {}
+          } catch (err: any) {
+            if (err?.status === 404) {
+              deletedBubbles.add(bubbleId);
+            }
+          }
           dmData[guid] = { memberPhoto, bubbleCover };
           imageMap[guid] = memberPhoto;
         } else {
@@ -151,9 +157,13 @@ export default function MessagesScreen({ navigation, route }: Props) {
     await Promise.all(fetchPromises);
     setBubbleImages(imageMap);
     setDmAvatarData(dmData);
+    if (deletedBubbles.size > 0) {
+      setDeletedContactBubbleIds(deletedBubbles);
+    }
   };
 
   const fetchConversations = async () => {
+    setDeletedContactBubbleIds(new Set());
     try {
       // Ensure CometChat session is active before fetching conversations.
       // The session can be lost if init/login silently failed at startup.
@@ -363,9 +373,27 @@ export default function MessagesScreen({ navigation, route }: Props) {
     const guid = conv.conversationWith.guid;
     const isDm = guid.startsWith('contact_') || guid.startsWith('adm_');
 
-    // Permission check: bubble group chats are only shown when the user
-    // is a current approved member of that bubble.
-    if (!isDm && !approvedBubbleIds.has(guid)) return false;
+    if (isDm) {
+      // `adm_` threads are only created for approved bubble members. Hide them if the
+      // user is no longer a member of the associated bubble (e.g. was kicked/left).
+      if (guid.startsWith('adm_')) {
+        const m = guid.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (m && !approvedBubbleIds.has(m[1])) return false;
+      }
+      // `contact_` threads can be initiated by non-members contacting admins, so we
+      // do NOT gate them on approved membership. However, if we detected the associated
+      // bubble was deleted (via a 404 during image fetch), we hide the stale thread.
+      // CometChat-level cleanup (removing the user from the group) also handles the
+      // post-kick/leave case for most threads.
+      if (guid.startsWith('contact_')) {
+        const m = guid.match(/^contact_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (m && deletedContactBubbleIds.has(m[1])) return false;
+      }
+    } else {
+      // Permission check: bubble group chats are only shown when the user
+      // is a current approved member of that bubble.
+      if (!approvedBubbleIds.has(guid)) return false;
+    }
 
     // Tab filter
     if (activeFilter === 'bubbles') return !isDm;

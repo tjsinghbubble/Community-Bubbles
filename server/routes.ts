@@ -16,7 +16,7 @@ import { seedRules } from "./seed-rules";
 import { seedCategoryPlaceholders } from "./seed-category-placeholders";
 import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
 const objectStorageService = new ObjectStorageService();
-import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble, generateAuthToken } from "./cometchat";
+import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble, generateAuthToken, deleteCometChatGroup } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { moderateText } from "./moderation";
@@ -846,11 +846,34 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Not authorized to delete this bubble" });
       }
 
+      // Gather DM records before archiving so we have the CometChat group IDs
+      const [adminMemberChatRecords, bubbleMemberships] = await Promise.all([
+        storage.getAdminMemberChatsForBubble(bubbleId).catch(() => []),
+        storage.getBubbleMemberships(bubbleId).catch(() => []),
+      ]);
+
       try {
         await storage.archiveAdminMemberChatsForBubble(bubbleId);
         await storage.updateBubbleChatStatus(bubbleId, 'archived');
       } catch (e) {
         console.error('Archive chats on bubble delete:', e);
+      }
+
+      // Delete CometChat groups for all DM threads tied to this bubble
+      try {
+        for (const chat of adminMemberChatRecords) {
+          deleteCometChatGroup(chat.cometChatGroupId).catch((e: any) =>
+            console.error(`CometChat: delete adm group ${chat.cometChatGroupId}:`, e.message)
+          );
+        }
+        for (const membership of bubbleMemberships) {
+          const contactGuid = `contact_${bubbleId}_${membership.userId}`;
+          deleteCometChatGroup(contactGuid).catch((e: any) =>
+            console.error(`CometChat: delete contact group ${contactGuid}:`, e.message)
+          );
+        }
+      } catch (e) {
+        console.error('CometChat group cleanup on bubble delete:', e);
       }
 
       await storage.deleteBubble(bubbleId);
@@ -1291,8 +1314,31 @@ export async function registerRoutes(
               console.error(`CometChat: remove leaving admin from DM group ${chat.cometChatGroupId}:`, e);
             }
           }
+          // Remove departing admin from all member contact_ groups for this bubble,
+          // and also from their own contact group if they had one (e.g. contacted
+          // admins before being promoted to admin themselves).
+          const allMemberships = await storage.getBubbleMemberships(bubbleId).catch(() => []);
+          for (const membership of allMemberships) {
+            if (String(membership.userId) === String(req.userId)) continue;
+            removeMemberFromGroup(`contact_${bubbleId}_${membership.userId}`, String(req.userId!)).catch((e: any) =>
+              console.error(`CometChat: remove leaving admin from contact group contact_${bubbleId}_${membership.userId}:`, e.message)
+            );
+          }
+          removeMemberFromGroup(`contact_${bubbleId}_${req.userId}`, String(req.userId!)).catch((e: any) =>
+            console.error(`CometChat: remove leaving admin from own contact group contact_${bubbleId}_${req.userId}:`, e.message)
+          );
         } else {
+          const memberChats = await storage.getAdminMemberChatsForBubble(bubbleId);
+          const myChats = memberChats.filter(c => c.memberId === req.userId);
           await storage.archiveAdminMemberChatsForMember(bubbleId, req.userId!);
+          for (const chat of myChats) {
+            removeMemberFromGroup(chat.cometChatGroupId, String(req.userId!)).catch((e: any) =>
+              console.error(`CometChat: remove leaving member from adm group ${chat.cometChatGroupId}:`, e.message)
+            );
+          }
+          removeMemberFromGroup(`contact_${bubbleId}_${req.userId}`, String(req.userId!)).catch((e: any) =>
+            console.error(`CometChat: remove leaving member from contact group contact_${bubbleId}_${req.userId}:`, e.message)
+          );
         }
       } catch (e) {
         console.error('Handle admin-member chats on leave:', e);
@@ -1541,8 +1587,30 @@ export async function registerRoutes(
               console.error(`CometChat: remove kicked admin from DM group ${chat.cometChatGroupId}:`, e);
             }
           }
+          // Remove kicked admin from all member contact_ groups for this bubble,
+          // and also from their own contact group if they had one.
+          const allMemberships = await storage.getBubbleMemberships(bubbleId).catch(() => []);
+          for (const membership of allMemberships) {
+            if (String(membership.userId) === String(userId)) continue;
+            removeMemberFromGroup(`contact_${bubbleId}_${membership.userId}`, String(userId)).catch((e: any) =>
+              console.error(`CometChat: remove kicked admin from contact group contact_${bubbleId}_${membership.userId}:`, e.message)
+            );
+          }
+          removeMemberFromGroup(`contact_${bubbleId}_${userId}`, String(userId)).catch((e: any) =>
+            console.error(`CometChat: remove kicked admin from own contact group contact_${bubbleId}_${userId}:`, e.message)
+          );
         } else {
+          const memberChats = await storage.getAdminMemberChatsForBubble(bubbleId);
+          const myChats = memberChats.filter(c => c.memberId === userId);
           await storage.archiveAdminMemberChatsForMember(bubbleId, userId);
+          for (const chat of myChats) {
+            removeMemberFromGroup(chat.cometChatGroupId, String(userId)).catch((e: any) =>
+              console.error(`CometChat: remove kicked member from adm group ${chat.cometChatGroupId}:`, e.message)
+            );
+          }
+          removeMemberFromGroup(`contact_${bubbleId}_${userId}`, String(userId)).catch((e: any) =>
+            console.error(`CometChat: remove kicked member from contact group contact_${bubbleId}_${userId}:`, e.message)
+          );
         }
       } catch (e) {
         console.error('Handle admin-member chats on kick:', e);
