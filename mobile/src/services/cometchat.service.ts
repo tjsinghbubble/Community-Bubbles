@@ -301,7 +301,7 @@ class CometChatService {
         return 0;
       }
       const conversationsRequest = new CometChat.ConversationsRequestBuilder()
-        .setLimit(100)
+        .setLimit(50)
         .setConversationType('group')
         .build();
       const conversations = await conversationsRequest.fetchNext();
