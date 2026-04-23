@@ -73,6 +73,17 @@ class CometChatService {
     }
   }
 
+  async ensureLoggedIn(userId: number | string, userName: string): Promise<void> {
+    try {
+      if (!this.initialized) await this.init();
+      const existing = await CometChat.getLoggedinUser();
+      if (existing) return;
+      await this.loginUser(String(userId), userName);
+    } catch (error) {
+      console.log('CometChat ensureLoggedIn error:', error);
+    }
+  }
+
   async logoutUser() {
     try {
       await CometChat.logout();

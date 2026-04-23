@@ -165,16 +165,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const fetchConversations = async () => {
     setDeletedContactBubbleIds(new Set());
     try {
-      // Ensure CometChat session is active before fetching conversations.
-      // The session can be lost if init/login silently failed at startup.
-      const loggedInUser = await CometChat.getLoggedinUser();
-      if (!loggedInUser && user) {
-        try {
-          await cometChatService.loginUser(user.id, user.name);
-        } catch (loginErr) {
-          console.error('CometChat re-login failed:', loginErr);
-        }
-      }
+      if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
 
       const [data, myBubbles] = await Promise.all([
         cometChatService.getConversations(),

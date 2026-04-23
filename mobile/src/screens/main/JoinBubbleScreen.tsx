@@ -162,6 +162,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       const groupName = `${bubbleTitle}: ${userName} (${memberLabel})`;
 
       const otherUids = adminUids.filter(uid => uid !== String(user.id));
+      await cometChatService.ensureLoggedIn(user.id, user.name);
       await cometChatService.createContactGroup(guid, groupName, otherUids);
 
       const parent = navigation.getParent();

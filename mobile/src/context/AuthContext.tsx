@@ -99,11 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         apiService.setToken(storedToken);
         apiService.setOnTokenRevoked(() => clearLocalAuth());
         
-        try {
-          await cometChatService.loginUser(parsedUser.id, parsedUser.name);
-        } catch (e) {
-          console.log('CometChat login error:', e);
-        }
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -121,12 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
     
-    try {
-      await cometChatService.loginUser(response.user.id, response.user.name);
-    } catch (e) {
-      console.log('CometChat login error:', e);
-    }
-    
     // Start session on login
     await startSession();
   };
@@ -139,12 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    
-    try {
-      await cometChatService.loginUser(response.user.id, response.user.name);
-    } catch (e) {
-      console.log('CometChat login error:', e);
-    }
     
     // Start session on signup
     await startSession();

@@ -185,6 +185,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         targetUser?: { uid: string; name: string };
       };
 
+      if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
       try {
         await cometChatService.createGroup(result.groupId, result.groupName, 'private');
       } catch (groupErr: any) {
