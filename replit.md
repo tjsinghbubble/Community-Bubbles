@@ -102,6 +102,17 @@ Membership statuses (`approved`, `pending`) control access and actions.
 -   **PostgreSQL**: The primary relational database.
 -   **Drizzle ORM**: Used for type-safe database interactions.
 
+### App Versioning
+
+The app version is defined in `package.json` at the project root. Node.js automatically exposes it as `process.env.npm_package_version` when the server starts via `npm`, and the health endpoints (`GET /api/v1/status` and `GET /api/v1/health`) return it in the `version` field.
+
+**Convention (semantic versioning):**
+- Bump the **patch** version (e.g. `1.1.0` → `1.1.1`) for bug fixes and small tweaks.
+- Bump the **minor** version (e.g. `1.1.0` → `1.2.0`) for each backend/feature release.
+- Bump the **major** version (e.g. `1.1.0` → `2.0.0`) for breaking API or data-model changes.
+
+Update the version with: `node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('package.json','utf8')); p.version='X.Y.Z'; fs.writeFileSync('package.json', JSON.stringify(p,null,2)+'\n');"`
+
 ### Key NPM Dependencies
 
 **Backend**: `express`, `drizzle-orm`, `pg`, `bcrypt`, `jsonwebtoken`.
