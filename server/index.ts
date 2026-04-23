@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerHealthRoutes } from "./health";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startEventReminderScheduler } from "./notifications";
@@ -81,6 +82,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  registerHealthRoutes(app);
   await registerRoutes(httpServer, app);
 
   // One-time: ensure george@seinfeld.com super admin exists

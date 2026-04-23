@@ -6,7 +6,7 @@ import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory } from "@shared/schema";
+import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -19,6 +19,7 @@ const objectStorageService = new ObjectStorageService();
 import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembersToGroupBatch, removeMemberFromGroup, syncAdminDmGroup, syncAllAdminDmGroupsForBubble, generateAuthToken, deleteCometChatGroup } from "./cometchat";
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
+import { pingUrl, setMaintenanceModeCache } from "./health";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
@@ -1036,22 +1037,6 @@ export async function registerRoutes(
       campus_bubbles: number;
     }
 
-    // Helper: ping a URL with a timeout, return "ok" or "error"
-    async function pingUrl(url: string, timeoutMs: number, opts?: RequestInit): Promise<{ status: "ok" | "error"; latencyMs: number | null; error: string | null }> {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const start = Date.now();
-      try {
-        await fetch(url, { ...opts, signal: controller.signal });
-        clearTimeout(timer);
-        return { status: "ok", latencyMs: Date.now() - start, error: null };
-      } catch (e: unknown) {
-        clearTimeout(timer);
-        const msg = e instanceof Error ? (e.name === "AbortError" ? "Timeout" : e.message) : "Unknown error";
-        return { status: "error", latencyMs: null, error: msg };
-      }
-    }
-
     try {
       const user = await storage.getUser(req.userId!);
       if (!user?.isSuperAdmin) {
@@ -1185,6 +1170,26 @@ export async function registerRoutes(
       const message = error instanceof Error ? error.message : "Unexpected error";
       console.error("[admin/stats] error:", error);
       res.status(500).json({ error: message });
+    }
+  });
+
+  app.patch("/api/admin/maintenance-mode", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") {
+        return res.status(400).json({ error: "enabled must be a boolean" });
+      }
+      const value = enabled ? "true" : "false";
+      await db
+        .insert(appConfig)
+        .values({ key: "maintenance_mode", value })
+        .onConflictDoUpdate({ target: appConfig.key, set: { value } });
+      setMaintenanceModeCache(enabled);
+      return res.json({ maintenance_mode: enabled });
+    } catch (error: unknown) {
+      serverError(res, error);
     }
   });
 

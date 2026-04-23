@@ -52,7 +52,13 @@ The project comprises a monorepo structure with distinct frontend (web and mobil
 
 **Database Schema**: Core entities include `users`, `campuses`, `bubbles`, `memberships`, `events`, `event_attendees`, `verification_codes`, `categories`, and `app_config`, managed by Drizzle ORM.
 
-**App Config**: The `app_config` table stores runtime-configurable key-value pairs (key TEXT PK, value TEXT, updated_at TIMESTAMP). Values can be changed directly in the database without code redeployment. Seeded on startup via `server/seed-app-config.ts`. Current keys: `max_bubble_photos` (default "20"). API: `GET /api/config/app` (all keys), `GET /api/config/app?key=<name>` (single key). No auth required.
+**App Config**: The `app_config` table stores runtime-configurable key-value pairs (key TEXT PK, value TEXT, updated_at TIMESTAMP). Values can be changed directly in the database without code redeployment. Seeded on startup via `server/seed-app-config.ts`. Current keys: `max_bubble_photos` (default "20"), `maintenance_mode` (default "false"). API: `GET /api/config/app` (all keys), `GET /api/config/app?key=<name>` (single key). No auth required.
+
+**Health Check API**: Three-tier public (no-auth) monitoring endpoints in `server/health.ts`, registered before all other routes:
+- `GET /api/v1/ping` — Tier 1 heartbeat; returns plain text `pong` (200). Never blocked. Use for UptimeRobot 1-min polling.
+- `GET /api/v1/status` — Tier 2 shallow check; returns JSON with `status`, `version`, `uptime`, `timestamp`. No DB query at runtime (maintenance flag cached in memory). Returns 503 if maintenance mode is on.
+- `GET /api/v1/health` — Tier 3 deep check; runs `SELECT 1` against DB, pings object storage sidecar, pings CometChat REST API. Returns 503 if DB is down (critical) or maintenance mode is on. Returns `status: "partial_fail"` (200) if only non-critical services fail.
+- `PATCH /api/admin/maintenance-mode` — Super-admin only; body `{ "enabled": true|false }`. Updates `app_config` and invalidates the in-memory cache.
 
 **Categories**: Hierarchical category system with parent-child relationships. The `categories` table has `id` (serial PK), `name`, `displayName`, `icon`, `image`, and `parentId` (nullable integer, null = top-level). 8 parent categories (Active, Creative, Food & Social, Lifestyle, Adventure & Outdoors, Community, Professional, Campus) with 39 subcategories total. Categories are seeded on startup from `server/seed-categories.ts`. The Create Bubble flow shows only subcategories as selectable chips grouped under parent headings. The `bubbles.category` field stores the subcategory displayName as text. API endpoints: GET `/api/categories` (nested tree), GET `/api/categories/flat`, POST/PUT/DELETE `/api/categories/:id` (super admin only).
 
