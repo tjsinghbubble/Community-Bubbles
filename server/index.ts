@@ -4,6 +4,11 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startEventReminderScheduler } from "./notifications";
 import { storage } from "./storage";
+import bcrypt from "bcrypt";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { seedStaging } from "./seed-staging";
 
 const app = express();
 const httpServer = createServer(app);
@@ -77,6 +82,28 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+
+  // One-time: ensure george@seinfeld.com super admin exists
+  (async () => {
+    try {
+      const existing = await storage.getUserByEmail("george@seinfeld.com");
+      if (existing) {
+        if (!existing.isSuperAdmin) {
+          await db.update(users).set({ isSuperAdmin: true }).where(eq(users.id, existing.id));
+          console.log("[startup] george@seinfeld.com promoted to super admin");
+        }
+      } else {
+        const hashed = await bcrypt.hash("Bubble123!", 10);
+        await storage.createUser({ name: "George Costanza", email: "george@seinfeld.com", password: hashed, interests: [], isSuperAdmin: true } as any);
+        console.log("[startup] george@seinfeld.com super admin created");
+      }
+    } catch (e) { console.error("[startup] george seed failed:", e); }
+  })();
+
+  // One-time: seed staging with Seinfeld test data (production only)
+  if (process.env.NODE_ENV === "production") {
+    seedStaging().catch(e => console.error("[seed-staging] Fatal error:", e));
+  }
 
   // Clean up stale device push tokens on startup (tokens not refreshed in 90+ days)
   storage.deleteStaleDevicePushTokens().then(count => {
