@@ -203,7 +203,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         if (result.status === 'waitlisted') {
           setMembershipStatus('waitlisted');
           setShowWaitlistModal(true);
-        } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Private') {
+        } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
           setMembershipStatus('pending');
           setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
           setShowSuccessModal(true);
@@ -780,7 +780,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       disabled = true;
     } else if (isFull) {
       title = 'Join Waitlist';
-    } else if (privacy === 'Request to Join' || privacy === 'Private') {
+    } else if (privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
       title = 'Request to Join';
     }
 

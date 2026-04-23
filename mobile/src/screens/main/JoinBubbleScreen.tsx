@@ -91,7 +91,7 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   };
 
   const privacy = bubbleDetails?.privacy || bubble.privacy || 'Public';
-  const isRequestBased = privacy === 'Request to Join' || privacy === 'Private';
+  const isRequestBased = privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private';
   const memberLimit = bubbleDetails?.memberLimit || null;
   const spotsLeftCount = memberLimit ? Math.max(0, memberLimit - memberCount) : null;
   const isFull = memberLimit != null && memberCount >= memberLimit;

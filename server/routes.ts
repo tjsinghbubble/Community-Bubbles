@@ -1218,7 +1218,7 @@ export async function registerRoutes(
         }
       }
 
-      if (bubble.privacy === 'Request to Join' || bubble.privacy === 'Private') {
+      if (bubble.privacy === 'Request to Join' || bubble.privacy === 'Request' || bubble.privacy === 'Private') {
         await storage.createMembershipWithStatus({
           userId: req.userId!,
           bubbleId,

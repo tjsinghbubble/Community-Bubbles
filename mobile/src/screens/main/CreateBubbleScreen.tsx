@@ -88,7 +88,7 @@ const FALLBACK_RULES: RuleEntry[] = [
 
 const PRIVACY_OPTIONS = [
   { value: 'Public', label: 'Public', subtitle: 'Anyone can discover and join' },
-  { value: 'Request', label: 'Request to Join', subtitle: 'Admin approval required before joining' },
+  { value: 'Request to Join', label: 'Request to Join', subtitle: 'Admin approval required before joining' },
   { value: 'Private', label: 'Private', subtitle: 'Invite-only event' },
 ];
 
