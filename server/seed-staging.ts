@@ -1,8 +1,9 @@
 import { db } from "./db";
 import { storage } from "./storage";
 import { bubbles, memberships, events, users, eventAttendees } from "@shared/schema";
-import { eq, and, gte } from "drizzle-orm";
+import { eq, and, gte, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
+import { seedBubbleImages } from "./seed-bubble-images";
 
 const LOG = "[seed-staging]";
 
@@ -631,6 +632,40 @@ export async function seedStaging(): Promise<void> {
     }
 
     console.log(`${LOG} "${bc.title}": ${bubbleEvents.length} events, ${totalAdded} RSVPs added`);
+  }
+
+  // ── Step 6: Fix unreliable cover image URLs ───────────────────────────────
+  // Clear any cover_image values that are not stored in object storage
+  // (e.g. Google Share links, newspaper websites, or other third-party URLs).
+  // seed-bubble-images will then re-upload the correct images from Unsplash.
+  try {
+    const allBubbles = await db
+      .select({ id: bubbles.id, title: bubbles.title, coverImage: bubbles.coverImage })
+      .from(bubbles);
+
+    const badUrls = allBubbles.filter(
+      b => b.coverImage && !b.coverImage.includes("/objects/uploads/")
+    );
+
+    if (badUrls.length > 0) {
+      await db
+        .update(bubbles)
+        .set({ coverImage: null })
+        .where(inArray(bubbles.id, badUrls.map(b => b.id)));
+      console.log(
+        `${LOG} Cleared ${badUrls.length} unreliable cover image URL(s): ` +
+        badUrls.map(b => `"${b.title}"`).join(", ")
+      );
+    }
+  } catch (e) {
+    console.error(`${LOG} Failed to patch bad cover image URLs:`, e);
+  }
+
+  // ── Step 7: Seed bubble + event cover images from Unsplash ────────────────
+  try {
+    await seedBubbleImages();
+  } catch (e) {
+    console.error(`${LOG} seedBubbleImages failed:`, e);
   }
 
   console.log(`${LOG} ===== Staging seed complete! =====`);
