@@ -951,10 +951,23 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     );
   };
 
+  const renderPendingBanner = () => {
+    if (bubbleDetails?.status !== 'pending') return null;
+    return (
+      <View style={styles.pendingBanner}>
+        <Ionicons name="time-outline" size={16} color="#92400E" style={{ marginRight: 6 }} />
+        <Text style={styles.pendingBannerText}>
+          Your bubble is under review. It will be visible to others once our team approves it. You already have full admin access.
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       {renderHeader()}
+      {renderPendingBanner()}
       {renderAdminDashboardEntry()}
       {renderTabs()}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -1181,6 +1194,22 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+  },
+  pendingBannerText: {
+    flex: 1,
+    fontSize: Typography.sizes.sm,
+    color: '#92400E',
+    lineHeight: 18,
   },
   adminDashboardCard: {
     flexDirection: 'row',

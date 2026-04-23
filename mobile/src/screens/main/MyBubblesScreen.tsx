@@ -213,7 +213,7 @@ export default function MyBubblesScreen() {
                   />
                   {bubble.status === 'pending' ? (
                     <View style={styles.gridPendingBadge}>
-                      <Text style={styles.gridPendingText}>Pending</Text>
+                      <Text style={styles.gridPendingText}>Under Review</Text>
                     </View>
                   ) : bubble.status === 'rejected' ? (
                     <View style={styles.gridRejectedBadge}>
