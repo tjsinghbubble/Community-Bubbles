@@ -183,6 +183,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       if (isMember) {
         await apiService.leaveBubble(bubble.id);
         try {
+          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
           await cometChatService.leaveGroup(bubble.id);
         } catch (e) {
           console.log('CometChat leave error (may not be in group):', e);
@@ -208,6 +209,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
           setShowSuccessModal(true);
         } else {
+          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
           try {
             await cometChatService.createGroup(bubble.id, bubble.title);
           } catch (e) {
@@ -361,6 +363,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     const groupId = String(bubble.id);
     const groupName = bubble.title || 'Bubble Chat';
 
+    if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
     try {
       await cometChatService.createGroup(groupId, groupName, 'public');
     } catch (e: any) {

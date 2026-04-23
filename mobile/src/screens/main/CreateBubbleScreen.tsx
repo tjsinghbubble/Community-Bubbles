@@ -436,6 +436,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       }
 
       try {
+        if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
         const groupType = privacy === 'Public' ? 'public' : 'private';
         await cometChatService.createGroup(data.id, title, groupType);
         try {
