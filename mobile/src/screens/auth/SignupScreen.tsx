@@ -32,6 +32,16 @@ type Props = {
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+const PICKER_ITEM_HEIGHT = 36;
+const PICKER_VISIBLE_COUNT = 5;
+const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
+const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
+const YEAR_MIN = 1910;
+const YEAR_MAX = new Date().getFullYear() - 18;
+
+const DAYS_LIST: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
+const YEARS_LIST: number[] = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
+
 export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,17 +55,18 @@ export default function SignupScreen({ navigation }: Props) {
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const today = new Date();
+  const initialYear = YEAR_MAX - 20 > YEAR_MIN ? YEAR_MAX - 20 : YEAR_MIN + 30;
   const [pickerDay, setPickerDay] = useState(15);
-  const [pickerMonth, setPickerMonth] = useState(today.getMonth());
-  const [pickerYear, setPickerYear] = useState(today.getFullYear() - 20);
+  const [pickerMonth, setPickerMonth] = useState(5);
+  const [pickerYear, setPickerYear] = useState(initialYear);
+
   const dayScrollRef = useRef<ScrollView>(null);
   const monthScrollRef = useRef<ScrollView>(null);
   const yearScrollRef = useRef<ScrollView>(null);
 
-  const isFormValid = name && email && password && gender && dateOfBirth && termsAccepted;
+  const isFormValid = !!(name && email && password && gender && dateOfBirth && termsAccepted);
 
-  const handlePickPhoto = async () => {
+  const handlePickPhoto = useCallback(async () => {
     const granted = await requestPhotoLibraryAccess();
     if (!granted) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -67,9 +78,9 @@ export default function SignupScreen({ navigation }: Props) {
     if (!result.canceled && result.assets[0]) {
       setProfilePhotoUri(result.assets[0].uri);
     }
-  };
+  }, []);
 
-  const handleContinue = async () => {
+  const handleContinue = useCallback(async () => {
     if (!isFormValid) return;
 
     setLoading(true);
@@ -101,7 +112,7 @@ export default function SignupScreen({ navigation }: Props) {
         );
       }
 
-      navigation.navigate('EmailVerification', { 
+      navigation.navigate('EmailVerification', {
         name,
         email,
         password,
@@ -114,22 +125,7 @@ export default function SignupScreen({ navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const PICKER_ITEM_HEIGHT = 36;
-  const PICKER_VISIBLE_COUNT = 5;
-  const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
-  const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
-  const YEAR_MIN = 1910;
-  const YEAR_MAX = today.getFullYear() - 18;
-
-  const daysList = Array.from({ length: 31 }, (_, i) => i + 1);
-  const yearsList = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
-
-  const clampDay = useCallback((day: number, month: number, year: number) => {
-    const maxDay = new Date(year, month + 1, 0).getDate();
-    return Math.min(day, maxDay);
-  }, []);
+  }, [isFormValid, email, name, password, gender, dateOfBirth, profilePhotoUri, navigation]);
 
   const scrollToValue = useCallback((ref: React.RefObject<ScrollView>, index: number) => {
     setTimeout(() => {
@@ -155,8 +151,9 @@ export default function SignupScreen({ navigation }: Props) {
     setter(idx + offset);
   }, []);
 
-  const handleConfirmDate = () => {
-    const day = clampDay(pickerDay, pickerMonth, pickerYear);
+  const handleConfirmDate = useCallback(() => {
+    const maxDay = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+    const day = Math.min(pickerDay, maxDay);
     const dob = new Date(pickerYear, pickerMonth, day);
     const todayDate = new Date();
 
@@ -180,7 +177,17 @@ export default function SignupScreen({ navigation }: Props) {
     const dd = String(day).padStart(2, '0');
     setDateOfBirth(`${mm}/${dd}/${pickerYear}`);
     setShowDatePicker(false);
-  };
+  }, [pickerDay, pickerMonth, pickerYear]);
+
+  const handleBack = useCallback(() => navigation.goBack(), [navigation]);
+  const togglePassword = useCallback(() => setShowPassword(v => !v), []);
+  const openGenderPicker = useCallback(() => setShowGenderPicker(true), []);
+  const closeGenderPicker = useCallback(() => setShowGenderPicker(false), []);
+  const openDatePicker = useCallback(() => setShowDatePicker(true), []);
+  const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
+  const toggleTerms = useCallback(() => setTermsAccepted(v => !v), []);
+  const goToTerms = useCallback(() => navigation.navigate('TermsOfService'), [navigation]);
+  const goToPrivacy = useCallback(() => navigation.navigate('PrivacyPolicy'), [navigation]);
 
   const renderWheelColumn = (
     data: (string | number)[],
@@ -224,16 +231,30 @@ export default function SignupScreen({ navigation }: Props) {
     </View>
   );
 
+  const dayScrollHandler = useCallback(
+    (e: any) => handlePickerScroll(e, setPickerDay, 1),
+    [handlePickerScroll],
+  );
+  const monthScrollHandler = useCallback(
+    (e: any) => handlePickerScroll(e, setPickerMonth, 0),
+    [handlePickerScroll],
+  );
+  const yearScrollHandler = useCallback(
+    (e: any) => handlePickerScroll(e, (v: number) => setPickerYear(v + YEAR_MIN), 0),
+    [handlePickerScroll],
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Sign up" onBack={() => navigation.goBack()} />
+      <NavHeader title="Sign up" onBack={handleBack} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
             <TouchableOpacity style={styles.photoPickerContainer} onPress={handlePickPhoto} testID="button-pick-photo">
@@ -258,6 +279,7 @@ export default function SignupScreen({ navigation }: Props) {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                textContentType="name"
               />
               <Text style={styles.helperText}>
                 Make sure this matches the name on your government ID.
@@ -266,9 +288,9 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Gender</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.selectInput}
-                onPress={() => setShowGenderPicker(true)}
+                onPress={openGenderPicker}
               >
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
@@ -279,9 +301,9 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.selectInput}
-                onPress={() => setShowDatePicker(true)}
+                onPress={openDatePicker}
               >
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
@@ -304,6 +326,7 @@ export default function SignupScreen({ navigation }: Props) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
               />
               <Text style={styles.helperText}>
                 We'll email you with occasional updates on your communities.
@@ -314,27 +337,32 @@ export default function SignupScreen({ navigation }: Props) {
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, { paddingRight: 48 }]}
+                  style={[styles.input, styles.passwordInput]}
                   placeholder="Create a password"
                   placeholderTextColor={Colors.neutral.coolMist}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  textContentType="newPassword"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
+                  onPress={togglePassword}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
+                  {showPassword
+                    ? <EyeIcon size={22} color="#969696" />
+                    : <EyeOffIcon size={22} color="#969696" />}
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.termsRow}>
               <TouchableOpacity
-                onPress={() => setTermsAccepted(!termsAccepted)}
+                onPress={toggleTerms}
                 activeOpacity={0.7}
                 testID="checkbox-terms"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
                   {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
@@ -342,17 +370,11 @@ export default function SignupScreen({ navigation }: Props) {
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => navigation.navigate('TermsOfService')}
-                >
+                <Text style={styles.termsLink} onPress={goToTerms}>
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => navigation.navigate('PrivacyPolicy')}
-                >
+                <Text style={styles.termsLink} onPress={goToPrivacy}>
                   Privacy Policy
                 </Text>
               </Text>
@@ -373,17 +395,17 @@ export default function SignupScreen({ navigation }: Props) {
         visible={showGenderPicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowGenderPicker(false)}
+        onRequestClose={closeGenderPicker}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowGenderPicker(false)}
+          onPress={closeGenderPicker}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
-              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+              <TouchableOpacity onPress={closeGenderPicker}>
                 <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
@@ -415,13 +437,13 @@ export default function SignupScreen({ navigation }: Props) {
         visible={showDatePicker}
         transparent
         animationType="slide"
-        onRequestClose={() => setShowDatePicker(false)}
+        onRequestClose={closeDatePicker}
       >
         <View style={styles.wheelOverlay}>
-          <Pressable style={styles.wheelBackdrop} onPress={() => setShowDatePicker(false)} />
+          <Pressable style={styles.wheelBackdrop} onPress={closeDatePicker} />
           <View style={styles.wheelModalContent}>
             <View style={styles.wheelHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.wheelHeaderButton}>
+              <TouchableOpacity onPress={closeDatePicker} style={styles.wheelHeaderButton}>
                 <Text style={styles.wheelCancelText}>Cancel</Text>
               </TouchableOpacity>
               <Text style={styles.wheelTitle}>Date of Birth</Text>
@@ -434,10 +456,10 @@ export default function SignupScreen({ navigation }: Props) {
               <View style={[styles.wheelHighlight, { top: PICKER_PADDING + 3 }]} pointerEvents="none" />
 
               {renderWheelColumn(
-                daysList,
+                DAYS_LIST,
                 pickerDay - 1,
                 dayScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, setPickerDay, 1),
+                dayScrollHandler,
                 1,
                 'flex-start',
               )}
@@ -446,16 +468,16 @@ export default function SignupScreen({ navigation }: Props) {
                 MONTH_NAMES,
                 pickerMonth,
                 monthScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, setPickerMonth, 0),
+                monthScrollHandler,
                 2,
                 'center',
               )}
 
               {renderWheelColumn(
-                yearsList,
+                YEARS_LIST,
                 pickerYear - YEAR_MIN,
                 yearScrollRef as React.RefObject<ScrollView>,
-                (e: any) => handlePickerScroll(e, (v: number) => setPickerYear(v + YEAR_MIN), 0),
+                yearScrollHandler,
                 1.2,
                 'flex-end',
               )}
@@ -545,6 +567,9 @@ const styles = StyleSheet.create({
   },
   passwordContainer: {
     position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 48,
   },
   eyeIcon: {
     position: 'absolute',

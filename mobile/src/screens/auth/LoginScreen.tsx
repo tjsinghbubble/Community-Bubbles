@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,9 +30,9 @@ export default function LoginScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
     if (!email || !password) return;
-    
+
     setIsLoading(true);
     try {
       await login(email, password);
@@ -41,11 +41,15 @@ export default function LoginScreen({ navigation }: Props) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, password, login]);
+
+  const handleBack = useCallback(() => navigation.goBack(), [navigation]);
+  const togglePassword = useCallback(() => setShowPassword(v => !v), []);
+  const goToSignup = useCallback(() => navigation.navigate('Signup'), [navigation]);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Log In" onBack={() => navigation.goBack()} />
+      <NavHeader title="Log In" onBack={handleBack} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -54,6 +58,7 @@ export default function LoginScreen({ navigation }: Props) {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>Welcome back!</Text>
 
@@ -69,6 +74,7 @@ export default function LoginScreen({ navigation }: Props) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="emailAddress"
               />
             </View>
 
@@ -76,18 +82,22 @@ export default function LoginScreen({ navigation }: Props) {
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, { paddingRight: 48 }]}
+                  style={[styles.input, styles.passwordInput]}
                   placeholder=""
                   placeholderTextColor="#969696"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  textContentType="password"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
+                  onPress={togglePassword}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  {showPassword ? <EyeIcon size={24} color="#969696" /> : <EyeOffIcon size={24} color="#969696" />}
+                  {showPassword
+                    ? <EyeIcon size={24} color="#969696" />
+                    : <EyeOffIcon size={24} color="#969696" />}
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={() => {}}>
@@ -106,7 +116,7 @@ export default function LoginScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <TouchableOpacity onPress={goToSignup}>
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -155,6 +165,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: Colors.brand.skyWhite,
     color: Colors.neutral.charcoal,
+  },
+  passwordInput: {
+    paddingRight: 48,
   },
   passwordContainer: {
     position: 'relative',

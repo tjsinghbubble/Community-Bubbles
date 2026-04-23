@@ -59,7 +59,15 @@ function getBackgroundStyle(
   return {};
 }
 
-export default function BubbleButton({
+function getTextColor(variant: BubbleButtonVariant, isDisabled: boolean): string {
+  if (variant === 'primary') return B.primary.text;
+  if (variant === 'outline') return isDisabled ? B.outline.disabledText : B.outline.text;
+  if (variant === 'destructive') return B.destructive.text;
+  if (variant === 'ghost') return B.ghost.text;
+  return B.primary.text;
+}
+
+function BubbleButton({
   title,
   onPress,
   variant = 'primary',
@@ -71,16 +79,8 @@ export default function BubbleButton({
   testID,
 }: BubbleButtonProps) {
   const isDisabled = disabled || loading;
-
-  const getTextColor = (): string => {
-    if (variant === 'primary') return B.primary.text;
-    if (variant === 'outline') return isDisabled ? B.outline.disabledText : B.outline.text;
-    if (variant === 'destructive') return B.destructive.text;
-    if (variant === 'ghost') return B.ghost.text;
-    return B.primary.text;
-  };
-
   const usesGradient = variant === 'primary' && !isDisabled;
+  const textColor = getTextColor(variant, isDisabled);
 
   return (
     <Pressable
@@ -115,7 +115,7 @@ export default function BubbleButton({
                 <Text
                   style={[
                     styles.text,
-                    { color: getTextColor() },
+                    { color: textColor },
                     textStyle,
                   ]}
                 >
@@ -129,6 +129,8 @@ export default function BubbleButton({
     </Pressable>
   );
 }
+
+export default React.memo(BubbleButton);
 
 const styles = StyleSheet.create({
   wrapper: {
