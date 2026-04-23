@@ -285,6 +285,32 @@ export async function registerRoutes(
     return res.status(403).json({ error: "Forbidden: cross-origin request blocked" });
   });
 
+  const crashReportLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  app.post("/api/crash-report", crashReportLimiter, async (req, res) => {
+    try {
+      const { message, stack, context, platform, timestamp, isFatal, appVersion } = req.body ?? {};
+      if (!message) {
+        return res.status(400).json({ error: "message is required" });
+      }
+      const level = isFatal ? "FATAL" : "ERROR";
+      console.error(
+        `[CrashReport] ${level} | platform=${platform ?? "unknown"} | context=${context ?? "unknown"} | version=${appVersion ?? "unknown"} | ts=${timestamp ?? new Date().toISOString()}\n` +
+        `  message: ${message}\n` +
+        (stack ? `  stack: ${stack}` : "  stack: (none)"),
+      );
+      return res.status(200).json({ received: true });
+    } catch (e) {
+      console.error("[CrashReport] Failed to log crash report:", e);
+      return res.status(500).json({ error: "Failed to log report" });
+    }
+  });
+
   app.post("/api/auth/send-verification", sendLimiter, async (req, res) => {
     try {
       const { email } = req.body;
