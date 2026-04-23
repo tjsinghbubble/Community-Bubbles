@@ -56,7 +56,7 @@ function BaseHeader({
           <View style={styles.titlePlaceholder} />
         )}
 
-        <View style={styles.side}>
+        <View style={styles.rightSide}>
           {rightElement ?? null}
         </View>
       </View>
@@ -135,6 +135,11 @@ const styles = StyleSheet.create({
   side: {
     width: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightSide: {
+    minWidth: 40,
+    alignItems: 'flex-end',
     justifyContent: 'center',
   },
   backButton: {
