@@ -236,6 +236,7 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
                       {bubble.category}
                     </Text>
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
                 </TouchableOpacity>
               ))}
             </View>
