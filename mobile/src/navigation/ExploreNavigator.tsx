@@ -109,22 +109,22 @@ export default function ExploreNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
-      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} />
+      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
       <Stack.Screen name="BubbleEvents" component={BubbleEventsScreen} />
-      <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} />
-      <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
-      <Stack.Screen name="EventDetails" component={EventDetailsScreen} />
+      <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CampusJoin" component={CampusJoinScreen} />
       <Stack.Screen name="CampusVerify" component={CampusVerifyScreen} />
-      <Stack.Screen name="EditBubble" component={EditBubbleScreen} />
-      <Stack.Screen name="EditEvent" component={EditEventScreen} />
+      <Stack.Screen name="EditBubble" component={EditBubbleScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="EditEvent" component={EditEventScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="EventParticipants" component={EventParticipantsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="BulletinBoard" component={BulletinBoardScreenWithBoundary} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
-      <Stack.Screen name="CreatePost" component={CreatePostScreen} />
-      <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} />
+      <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="BubbleWaitlist" component={BubbleWaitlistScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />

@@ -71,7 +71,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreen} />
-      <Stack.Screen name="ManageRules" component={ManageRulesScreen} />
+      <Stack.Screen name="ManageRules" component={ManageRulesScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />

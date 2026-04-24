@@ -24,8 +24,8 @@ export default function BubblesNavigator() {
       }}
     >
       <Stack.Screen name="MyBubblesList" component={MyBubblesScreen} />
-      <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} />
-      <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+      <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
