@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { storage } from "./storage";
-import { bubbles, memberships, events, users, eventAttendees } from "@shared/schema";
+import { bubbles, memberships, events, users, eventAttendees, bulletinBoards, bulletinPosts, bulletinPostTypes } from "@shared/schema";
 import { eq, and, gte, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { seedBubbleImages } from "./seed-bubble-images";
@@ -634,7 +634,205 @@ export async function seedStaging(): Promise<void> {
     console.log(`${LOG} "${bc.title}": ${bubbleEvents.length} events, ${totalAdded} RSVPs added`);
   }
 
-  // ── Step 6: Fix unreliable cover image URLs ───────────────────────────────
+  // ── Step 6: Bulletin Board Posts ─────────────────────────────────────────
+  // For each bubble, ensure a bulletin board exists then seed 2–4 thematic posts.
+  // Idempotent: if the board already has ≥ 2 posts it is skipped entirely.
+  console.log(`${LOG} ── Step 6: seeding bulletin board posts ──`);
+
+  const postTypeRows = await db
+    .select({ id: bulletinPostTypes.id, name: bulletinPostTypes.name })
+    .from(bulletinPostTypes);
+  const postTypeMap: Record<string, number> = {};
+  for (const pt of postTypeRows) postTypeMap[pt.name] = pt.id;
+
+  const annType  = postTypeMap["announcements"];
+  const genType  = postTypeMap["general"];
+  const helpType = postTypeMap["help_exchange"];
+
+  if (!annType || !genType) {
+    console.warn(`${LOG} Post types not found — skipping bulletin board seeding`);
+  } else {
+    // Seeded post definitions keyed by bubble title.
+    // typeKey → "ann" = announcements, "gen" = general, "help" = help_exchange
+    type PostDef = { typeKey: "ann" | "gen" | "help"; authorEmail: string; title: string; body: string; isPinned?: boolean; daysAgo: number };
+    const BULLETIN_POSTS: Record<string, PostDef[]> = {
+      "Basketball": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Season kick-off — Monday at Dolores!",          body: "We're back at Mission Dolores Park every Monday and Wednesday at 6 PM. First come, first court. Bring water and energy. Winners stay, losers rotate.", isPinned: true, daysAgo: 10 },
+        { typeKey: "gen",  authorEmail: "frank@seinfeld.com",    title: "Who's bringing a ball this Wednesday?",          body: "Lost mine at last session. Who's got one? Two would be better — we had 10 people last time and the wait between runs was brutal.", daysAgo: 7 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "3-on-3 tournament — sign up by Friday",         body: "We're running a casual 3-on-3 bracket next month. All skill levels welcome. Drop your name below or DM me. Need at least 6 teams.", daysAgo: 4 },
+        { typeKey: "gen",  authorEmail: "george@seinfeld.com",   title: "Best warmup before pickup?",                    body: "Keep rolling an ankle on cold starts. What are you doing to warm up before games? Suggestions appreciated.", daysAgo: 2 },
+      ],
+      "Tennis": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Court resurfacing done — we're back!",          body: "Dolores Park courts finished resurfacing last week. Same schedule, same vibe. Bring your racket and a can of balls to share.", isPinned: true, daysAgo: 9 },
+        { typeKey: "gen",  authorEmail: "elaine@seinfeld.com",   title: "Looking for a hitting partner Tuesdays",        body: "Anyone free 30 min before the group session to rally? Happy to meet at 8:30 AM and warm up together.", daysAgo: 5 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Thursday session: doubles format this week",    body: "We have enough people signed up to run full doubles. Come ready to partner up — we'll assign pairs at the gate.", daysAgo: 2 },
+      ],
+      "Cricket": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Format vote — tape-ball or hardball this Sat?", body: "Depending on turnout we may go hardball. Cast your vote in the thread so we can prep the right kit. Majority rules.", isPinned: true, daysAgo: 8 },
+        { typeKey: "gen",  authorEmail: "kramer@seinfeld.com",   title: "Anyone have a spare bat for Sunday?",           body: "Our second bat has a crack in the handle. Don't want to break it mid-match. If someone has a spare, please bring it.", daysAgo: 5 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Park permit confirmed through June",            body: "Good news — Crocker Amazon permit is renewed. We're locked in every Saturday and Sunday through end of June. No field conflicts.", daysAgo: 3 },
+      ],
+      "Soccer": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Turf rules reminder — no slide tackles",        body: "The Beach Chalet turf is new this season and the park district has asked us to keep slide tackles off the table. Agreed fouls only. Let's keep the field.", isPinned: true, daysAgo: 11 },
+        { typeKey: "gen",  authorEmail: "newman@seinfeld.com",   title: "7-a-side this Monday if we hit 14 RSVP",        body: "We're at 11 confirmed. Need 3 more for full 7-a-side. Reply here if you can make it or invite a friend. Starts 6 PM sharp.", daysAgo: 4 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "New sub rotation — read before Wednesday",      body: "Going forward: subs rotate every 10 minutes regardless of score. Keeps things fair, reduces arguments. Any issues, bring them to me.", daysAgo: 2 },
+      ],
+      "Tennis Circle": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Level reminder — intermediate+ only",          body: "We've had a few beginners join and it's disrupting the flow. Please remind guests of the level requirement before they show up. Appreciate it.", isPinned: true, daysAgo: 12 },
+        { typeKey: "ann",  authorEmail: "george@seinfeld.com",   title: "Bring two cans per session — new policy",      body: "Starting this week each member brings 2 fresh cans per session. Balls were getting too dead mid-drill. Easy fix.", daysAgo: 6 },
+        { typeKey: "gen",  authorEmail: "frank@seinfeld.com",    title: "Anyone up for extra drilling Sunday AM?",       body: "Want to work on serve-and-volley. Happy to book a court independently. Let me know if interested — looking for 2–3 others.", daysAgo: 3 },
+      ],
+      "SF Pickleball Crew": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Noe Valley courts confirmed both days!",       body: "Permit came through — we've got the outdoor courts at Noe Valley Rec Center all weekend. Saturday and Sunday 9–11 AM. See you there.", isPinned: true, daysAgo: 9 },
+        { typeKey: "gen",  authorEmail: "jerry@seinfeld.com",    title: "Paddle recommendations for beginners?",        body: "A friend wants to join but doesn't have gear. What paddles are you all using? Looking for something under $60 that's good for a first-timer.", daysAgo: 5 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Beginner-friendly rotation this Sunday",       body: "We're opening Sunday to mixed skill levels. Experienced players, please be patient with newer folks. It's how we grow the community.", daysAgo: 2 },
+      ],
+      "Campus hoops": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "SFSU gym check-in policy updated",             body: "The front desk now requires a photo ID to check in. Bring your ID every time — no exceptions from gym staff. Don't blame me, blame policy.", isPinned: true, daysAgo: 10 },
+        { typeKey: "gen",  authorEmail: "larry@seinfeld.com",    title: "Dunking ban — who actually reads the rules?",  body: "Rims at SFSU are fragile. Please no dunking — it's been flagged twice now and we risk losing court access. Thank you.", daysAgo: 6 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Wednesday is packed — arrive early",           body: "Last Wednesday we had 22 people show up. If you want court time, aim for 5:45 PM. We do our best to keep runs moving.", daysAgo: 3 },
+      ],
+      "Billiards": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Slate Billiards: table reservation confirmed",  body: "We've pre-reserved 4 tables every Tuesday and Thursday from 7–10 PM. Check in at the bar under 'Billiards Group.' No walk-in fee for members.", isPinned: true, daysAgo: 8 },
+        { typeKey: "gen",  authorEmail: "george@seinfeld.com",   title: "9-ball bracket idea — thoughts?",              body: "We've been doing mostly 8-ball. Anyone keen on running a 9-ball bracket one night? Something casual, buy-in optional.", daysAgo: 5 },
+        { typeKey: "gen",  authorEmail: "frank@seinfeld.com",    title: "Table etiquette reminder",                     body: "Few folks have been jumping on occupied tables. If the balls are racked, the table is taken. Ask before you rack.", daysAgo: 2 },
+      ],
+      "Karting": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Sign your waiver before you arrive!",          body: "K1 Speed requires a waiver on file. Sign online at k1speed.com/waiver before Saturday so we don't lose 15 minutes at the front desk.", isPinned: true, daysAgo: 9 },
+        { typeKey: "gen",  authorEmail: "peterman@seinfeld.com", title: "Saturday lap records — who's on top?",         body: "Best time last weekend was 28.4 seconds on the main track. Post your personal best below. Let's keep a leaderboard going.", daysAgo: 6 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Group discount unlocked — 8+ confirmed",       body: "We hit the 8-person threshold so K1 is giving us the group rate. That's $8 off per session per person. RSVP in the event to lock it in.", daysAgo: 3 },
+      ],
+      "ABC Farm": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Spring planting has started — all hands!",     body: "We kicked off spring planting this weekend. Tomatoes, peppers, and beans are in the ground. Come out to help with watering and composting.", isPinned: true, daysAgo: 11 },
+        { typeKey: "gen",  authorEmail: "kramer@seinfeld.com",   title: "Gloves needed — anyone have extras?",          body: "We're short on medium gloves. If you have a spare pair collecting dust, please bring them Saturday. Or just buy a cheap pair — they last a season.", daysAgo: 6 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "First harvest share next Sunday!",             body: "We'll be harvesting lettuce and radishes for the first time this season. Bring a bag. Shares go to members who showed up this month first.", daysAgo: 2 },
+        { typeKey: "help", authorEmail: "newman@seinfeld.com",   title: "Anyone know how to fix a drip irrigator?",     body: "One of the drip lines near row 3 is leaking at the joint. I've wrapped it but it's still slow-dripping. Anyone with irrigation know-how?", daysAgo: 1 },
+      ],
+      "Bark at Dogpatch": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Vaccination reminder — required to join!",     body: "Esprit Park off-leash area requires current vaccinations. Please bring your dog's vaccination record to the next meetup or share it with me.", isPinned: true, daysAgo: 8 },
+        { typeKey: "gen",  authorEmail: "jerry@seinfeld.com",    title: "Any reactive dogs coming Saturday?",           body: "Just a heads up — I'm bringing my rescue who can be a bit tense with certain dogs. Happy to arrive 15 min late if it helps any owners.", daysAgo: 4 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "New off-leash rules at Esprit — read this",   body: "The park now enforces off-leash areas strictly. Keep dogs on leash until you reach the fenced section. City patrol has been active on weekends.", daysAgo: 2 },
+      ],
+      "Corgi Farm": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Corgi Farm Saturday: potluck theme is brunch", body: "This Saturday's food theme is brunch. Think quiches, pastries, fruit salads. Corgis will enjoy the chaos. Sign up what you're bringing below.", isPinned: true, daysAgo: 9 },
+        { typeKey: "gen",  authorEmail: "estelle@seinfeld.com",  title: "My corgi just turned 2 — mini celebration?",  body: "Bagelach turns 2 this weekend! I'm bringing a dog-safe cake. Hope that's welcome. She loves other corgis and will be very wiggly.", daysAgo: 5 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Reminder: leashes until the open area",       body: "Let's keep dogs leashed on the street and in the cafe area. Once we're in the open courtyard it's free range. Keeps everyone safe and the neighbors happy.", daysAgo: 2 },
+      ],
+      "Mexican food": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "This Friday: La Taqueria on Mission",          body: "We're hitting La Taqueria at 7 PM. No reservations — we'll split into groups and reconvene. Come hungry. The carnitas burrito is non-negotiable.", isPinned: true, daysAgo: 7 },
+        { typeKey: "gen",  authorEmail: "george@seinfeld.com",   title: "Best Oaxacan spot in the Mission?",           body: "Trying to plan a future stop. Has anyone been to Taqueria Cancun on Mission? Or is there a better Oaxacan place we should hit as a group?", daysAgo: 4 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Saturday: street food tour route published",   body: "The Saturday route hits 4 stops in the Mission over 2 hours. Bring $30 cash and an empty stomach. Full route pinned in the event details.", daysAgo: 2 },
+        { typeKey: "gen",  authorEmail: "kramer@seinfeld.com",   title: "Tamale recommendation — El Buen Sabor",        body: "Stumbled on El Buen Sabor on 24th St. Their tamales are outstanding. Worth adding to a future group night.", daysAgo: 1 },
+      ],
+      "Mexican Food Truck": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Location unlocked — this Wednesday's truck",   body: "Wednesday night we're hitting a new truck on Capp St near 22nd. Location stays in this group. Meet at SoMa StrEat first for parking then carpool.", isPinned: true, daysAgo: 6 },
+        { typeKey: "gen",  authorEmail: "elaine@seinfeld.com",   title: "Best fish taco truck in the city — debate",   body: "I say Gott's, Peterman says some truck in Daly City. Someone settle this. What's the best fish taco truck you've had in the Bay Area?", daysAgo: 3 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "New truck map updated — 7 spots added",        body: "Added 7 new verified trucks to the curated map. Link goes out to members only tonight. Keep it internal — these spots fill up fast on weekends.", daysAgo: 1 },
+      ],
+      "Mindful Mamas": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Monday Walk: Bernal Heights loop route",       body: "This Monday we're doing the full Bernal loop — about 2.2 miles with the hill. Stroller-friendly, pram-friendly, baby carrier welcome. Meet at the park entrance at 8 AM.", isPinned: true, daysAgo: 8 },
+        { typeKey: "ann",  authorEmail: "elaine@seinfeld.com",   title: "Wednesday: guided meditation, 20 min",         body: "This week's circle starts with a 20-minute guided meditation led by a local practitioner. Free for all members. Bring a mat or blanket if you have one.", daysAgo: 5 },
+        { typeKey: "gen",  authorEmail: "sysadmin@seinfeld.com", title: "Resources thread — share what's helped you",   body: "Share a book, podcast, app, or practitioner that's made a difference in your wellness journey. Let's build a resource list together.", daysAgo: 2 },
+      ],
+      "My Test Bubble nRgP": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Saturday run: Crissy Field to the bridge",     body: "This Saturday we're running the full waterfront route from Crissy Field to the Golden Gate overlook. About 5 miles round trip. Split into pace groups at the start.", isPinned: true, daysAgo: 7 },
+        { typeKey: "gen",  authorEmail: "jerry@seinfeld.com",    title: "Fueling strategy for longer runs?",            body: "Starting to feel the bonk around mile 8. What are people using for fuel? Gels, dates, something else? Looking for real-food options if possible.", daysAgo: 4 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Sunday long run — pace groups confirmed",      body: "Sunday we have three groups: easy (11+ min/mi), moderate (9–10 min/mi), and fast (sub-9). Start together, split at the first mile marker.", daysAgo: 2 },
+      ],
+      "Larry Bubble": [
+        { typeKey: "ann",  authorEmail: "larry@seinfeld.com",    title: "Tuesday activity: tennis at GG Park",          body: "This Tuesday we're doing tennis at Golden Gate Park courts. Intermediate level. I've booked two courts. Bring a racket and one can of balls.", isPinned: true, daysAgo: 9 },
+        { typeKey: "gen",  authorEmail: "larry@seinfeld.com",    title: "Thursday TBD — suggestions welcome",           body: "Haven't decided Thursday yet. Open to basketball, bowling, or something new. Drop your vote below. Majority wins. I reserve the right to veto bowling.", daysAgo: 5 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Reminder: cancel 24 hours ahead",             body: "If you RSVP and can't make it, cancel at least 24 hours in advance. Last minute no-shows throw off the court booking. Thanks everyone.", daysAgo: 2 },
+      ],
+      "foo ar": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Tuesday: trying something completely different", body: "This Tuesday we're doing an urban orienteering challenge around SoMa. No experience needed. Start at the usual spot. Dress to move.", isPinned: true, daysAgo: 8 },
+        { typeKey: "gen",  authorEmail: "frank@seinfeld.com",    title: "Wildest activity suggestion thread",            body: "What's something you've always wanted to try as a group but thought was too weird? Drop it here. We'll actually vote on it.", daysAgo: 4 },
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Friday location: outdoor venue in the Presidio", body: "Friday session is moving to a Presidio field. Exact location sent to confirmed RSVPs only. Expect to be outside and active for 2 hours.", daysAgo: 2 },
+      ],
+      "Testing": [
+        { typeKey: "ann",  authorEmail: "sysadmin@seinfeld.com", title: "Bulletin board seeding test — all systems go", body: "This is a seeded announcement for testing the bulletin board feature. Notifications, reactions, and reply counts should all work from this post.", isPinned: true, daysAgo: 7 },
+        { typeKey: "gen",  authorEmail: "george@seinfeld.com",   title: "Test general post — reply flow check",         body: "Testing the reply thread on a general post. If you're reading this, the board is rendering correctly. Feel free to leave a test reaction.", daysAgo: 3 },
+        { typeKey: "help", authorEmail: "kramer@seinfeld.com",   title: "Help post test — is this rendering?",          body: "This is a help post to verify the help_exchange post type renders with the correct color and badge. Looks green? Great.", daysAgo: 1 },
+      ],
+    };
+
+    const typeIdByKey = { ann: annType, gen: genType, help: helpType ?? genType };
+
+    let boardsSeeded = 0;
+    let postsSeeded = 0;
+
+    for (const bc of BUBBLE_CONFIGS) {
+      const bubbleId = bubbleMap[bc.title];
+      if (!bubbleId) continue;
+
+      const postDefs = BULLETIN_POSTS[bc.title];
+      if (!postDefs) continue;
+
+      try {
+        // Get or create the bulletin board for this bubble.
+        const existingBoards = await db
+          .select({ id: bulletinBoards.id })
+          .from(bulletinBoards)
+          .where(eq(bulletinBoards.bubbleId, bubbleId))
+          .limit(1);
+
+        let boardId: string;
+        if (existingBoards.length > 0) {
+          boardId = existingBoards[0].id;
+        } else {
+          const [newBoard] = await db
+            .insert(bulletinBoards)
+            .values({ bubbleId, createdBy: sysAdminId, updatedBy: sysAdminId })
+            .returning({ id: bulletinBoards.id });
+          boardId = newBoard.id;
+          boardsSeeded++;
+        }
+
+        // Check existing post count — skip if already populated.
+        const existingPosts = await db
+          .select({ id: bulletinPosts.id })
+          .from(bulletinPosts)
+          .where(eq(bulletinPosts.boardId, boardId));
+
+        if (existingPosts.length >= 2) {
+          console.log(`${LOG} "${bc.title}" board already has ${existingPosts.length} posts — skipping`);
+          continue;
+        }
+
+        const matrix = MEMBERSHIP_MATRIX[bc.title];
+        const adminEmails = matrix?.admins ?? [sysAdminId];
+
+        for (const def of postDefs) {
+          // Resolve author: prefer specified email, fall back to first admin.
+          const authorId = userMap[def.authorEmail] ?? userMap[adminEmails[0]] ?? sysAdminId;
+          const typeId = typeIdByKey[def.typeKey];
+          const createdAt = new Date(Date.now() - def.daysAgo * 24 * 60 * 60 * 1000);
+
+          await db.insert(bulletinPosts).values({
+            boardId,
+            postTypeId: typeId,
+            authorId,
+            title: def.title,
+            body: def.body,
+            isPinned: def.isPinned ?? false,
+            createdBy: authorId,
+            updatedBy: authorId,
+            createdAt,
+            updatedAt: createdAt,
+          });
+          postsSeeded++;
+        }
+
+        console.log(`${LOG} "${bc.title}": seeded ${postDefs.length} post(s)`);
+      } catch (e) {
+        console.error(`${LOG} Failed bulletin posts for "${bc.title}":`, e);
+      }
+    }
+
+    console.log(`${LOG} Bulletin boards: ${boardsSeeded} created; posts: ${postsSeeded} inserted`);
+  }
+
+  // ── Step 7: Fix unreliable cover image URLs ───────────────────────────────
   // Clear any cover_image values that are not stored in object storage
   // (e.g. Google Share links, newspaper websites, or other third-party URLs).
   // seed-bubble-images will then re-upload the correct images from Unsplash.
@@ -661,7 +859,7 @@ export async function seedStaging(): Promise<void> {
     console.error(`${LOG} Failed to patch bad cover image URLs:`, e);
   }
 
-  // ── Step 7: Seed bubble + event cover images from Unsplash ────────────────
+  // ── Step 8: Seed bubble + event cover images from Unsplash ────────────────
   try {
     await seedBubbleImages();
   } catch (e) {
