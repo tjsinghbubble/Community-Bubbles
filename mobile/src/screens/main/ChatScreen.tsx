@@ -101,6 +101,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = useState<string | null>(null);
+  const [peerDisplayName, setPeerDisplayName] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,6 +119,15 @@ export default function ChatScreen({ navigation, route }: Props) {
   const isAdminDmChat = groupId.startsWith('adm_');
   const isContactDmChat = groupId.startsWith('contact_');
   const isPeerDmChat = groupId.startsWith('peer_');
+
+  useEffect(() => {
+    setPeerDisplayName(null);
+    if (!isPeerDmChat || !user) return;
+    cometChatService.getGroupMembers(groupId).then((members) => {
+      const other = members.find((m: any) => m.uid !== user.id);
+      if (other?.name) setPeerDisplayName(other.name);
+    }).catch(() => {});
+  }, [groupId, isPeerDmChat, user?.id]);
 
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
@@ -789,7 +799,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <FlowHeader
-        title={groupName}
+        title={isPeerDmChat && peerDisplayName ? peerDisplayName : groupName}
         onBack={() => navigation.goBack()}
         rightElement={
           <TouchableOpacity onPress={handleShowParticipants} testID="button-participants">
