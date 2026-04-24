@@ -31,6 +31,10 @@ export function initSentry(): void {
     environment: __DEV__ ? 'development' : 'production',
     debug: __DEV__,
     enableNativeNagger: false,
+    _experiments: { enableLogs: true },
+    integrations: [
+      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
+    ],
   });
 }
 
@@ -57,11 +61,9 @@ function sendToServer(report: CrashReport): void {
 
 export function reportError(error: Error, context?: string): void {
   const report = buildReport(error, context, false);
-  console.error(
-    `[CrashReporter] ERROR${context ? ` in ${context}` : ''}:`,
-    report.message,
-    '\nStack:', report.stack ?? 'no stack',
-    '\nTimestamp:', report.timestamp,
+  Sentry.logger.warn(
+    `[CrashReporter] ERROR${context ? ` in ${context}` : ''}: ${report.message}`,
+    { stack: report.stack ?? 'no stack', timestamp: report.timestamp },
   );
   Sentry.withScope((scope) => {
     if (context) scope.setTag('screen', context);
@@ -92,11 +94,9 @@ export function reportFatalError(
   componentStack?: string,
 ): void {
   const report = buildReport(error, context, true);
-  console.error(
-    `[CrashReporter] FATAL${context ? ` in ${context}` : ''}:`,
-    report.message,
-    '\nStack:', report.stack ?? 'no stack',
-    '\nTimestamp:', report.timestamp,
+  Sentry.logger.error(
+    `[CrashReporter] FATAL${context ? ` in ${context}` : ''}: ${report.message}`,
+    { stack: report.stack ?? 'no stack', timestamp: report.timestamp },
   );
   Sentry.withScope((scope) => {
     if (context) scope.setTag('screen', context);
