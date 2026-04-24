@@ -20,6 +20,7 @@ import { CometChat } from '@cometchat/chat-sdk-react-native';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -185,7 +186,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
       setConversations(convs);
       setHasMore(more);
       fetchBubbleImages(convs);
+      logAppEvent('[Screen] MessagesScreen conversations loaded', { conversationCount: convs.length });
     } catch (error) {
+      logAppWarn('[Screen] MessagesScreen conversations fetch failed', { error: String(error) });
       console.error('Failed to fetch conversations:', error);
     } finally {
       setIsLoading(false);

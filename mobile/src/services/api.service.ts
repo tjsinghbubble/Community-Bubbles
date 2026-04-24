@@ -1,3 +1,5 @@
+import * as Sentry from '@sentry/react-native';
+
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   "https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev" ||
@@ -68,6 +70,15 @@ class ApiService {
       }
       if (response.status === 401 && error.error === 'Token revoked') {
         this.onTokenRevokedCallback?.();
+      }
+      const method = options?.method || 'GET';
+      const statusCode = response.status;
+      if (statusCode >= 500) {
+        Sentry.logger.error(`[API] Server error: ${method} ${endpoint}`, { endpoint, method, statusCode });
+      } else if (statusCode === 401) {
+        Sentry.logger.warn(`[API] Unauthorized: ${method} ${endpoint}`, { endpoint, method, statusCode });
+      } else if (statusCode >= 400) {
+        Sentry.logger.warn(`[API] Client error: ${method} ${endpoint}`, { endpoint, method, statusCode, errorMessage: error.error ?? '' });
       }
       const apiError = new Error(error.error || response.statusText) as Error & { status: number };
       apiError.status = response.status;

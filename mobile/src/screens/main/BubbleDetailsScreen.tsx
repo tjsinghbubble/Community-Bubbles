@@ -38,6 +38,7 @@ import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from 
 import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -129,7 +130,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       const details = await apiService.getBubble(bubble.id);
       setBubbleDetails(details);
       apiService.trackBubbleVisit(bubble.id).catch(() => {});
+      logAppEvent('[Screen] BubbleDetailsScreen loaded', { bubbleId: bubble.id, bubbleTitle: bubble.title });
     } catch (error) {
+      logAppWarn('[Screen] BubbleDetailsScreen fetch failed', { bubbleId: bubble.id, error: String(error) });
       console.error('Failed to fetch bubble details:', error);
     }
   };
@@ -191,6 +194,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         setIsMember(false);
         setMembershipStatus(null);
         setMemberCount(prev => Math.max(0, prev - 1));
+        logAppEvent('[Bubble] User left bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
         setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
         setShowSuccessModal(true);
       } else if (membershipStatus === 'pending') {
@@ -223,6 +227,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           setIsMember(true);
           setMembershipStatus('approved');
           setMemberCount(prev => prev + 1);
+          logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
           setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
           setShowSuccessModal(true);
         }

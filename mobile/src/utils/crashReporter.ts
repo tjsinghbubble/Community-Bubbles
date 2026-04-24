@@ -112,6 +112,20 @@ export function reportFatalError(
   sendToServer(report);
 }
 
+export function logAppEvent(
+  message: string,
+  attributes?: Record<string, string | number | boolean>,
+): void {
+  Sentry.logger.info(message, attributes ?? {});
+}
+
+export function logAppWarn(
+  message: string,
+  attributes?: Record<string, string | number | boolean>,
+): void {
+  Sentry.logger.warn(message, attributes ?? {});
+}
+
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
   Sentry.setUser({ id, username });
   Sentry.getCurrentScope().setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');

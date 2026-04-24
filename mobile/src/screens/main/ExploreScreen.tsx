@@ -27,6 +27,7 @@ import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavig
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -103,6 +104,10 @@ export default function ExploreScreen() {
       if (isMountedRef.current) {
         setBubbles(transformedBubbles);
         setEvents(eventsData || []);
+        logAppEvent('[Screen] ExploreScreen data loaded', {
+          bubbleCount: transformedBubbles.length,
+          eventCount: (eventsData || []).length,
+        });
       }
 
       if (isCampusVerified && token) {
@@ -117,6 +122,7 @@ export default function ExploreScreen() {
         }
       }
     } catch (error) {
+      logAppWarn('[Screen] ExploreScreen data fetch failed', { error: String(error) });
       console.error('Failed to fetch data:', error);
     } finally {
       if (isMountedRef.current) {

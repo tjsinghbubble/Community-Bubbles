@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, AppStateStatus } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
-import { setSentryUser, clearSentryUser } from '../utils/crashReporter';
+import { setSentryUser, clearSentryUser, logAppEvent } from '../utils/crashReporter';
 
 type User = {
   id: string;
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await apiService.startSession() as { id: string };
       sessionIdRef.current = response.id;
+      logAppEvent('[Session] App session started', { sessionId: response.id });
     } catch (e) {
       console.log('Failed to start session:', e);
     }
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const endSession = async () => {
     if (sessionIdRef.current) {
       try {
+        logAppEvent('[Session] App session ended', { sessionId: sessionIdRef.current });
         await apiService.endSession(sessionIdRef.current);
         sessionIdRef.current = null;
       } catch (e) {
@@ -100,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         apiService.setToken(storedToken);
         apiService.setOnTokenRevoked(() => clearLocalAuth());
         setSentryUser(parsedUser.id, parsedUser.name, parsedUser.isSuperAdmin);
+        logAppEvent('[Auth] Session restored from storage', { userId: parsedUser.id, name: parsedUser.name });
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -117,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
     setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
+    logAppEvent('[Auth] User logged in', { userId: response.user.id, name: response.user.name });
     // Start session on login
     await startSession();
   };
@@ -130,6 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
     setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
+    logAppEvent('[Auth] User signed up', { userId: response.user.id, name: response.user.name, interestCount: interests.length });
     // Start session on signup
     await startSession();
   };
@@ -150,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    logAppEvent('[Auth] User logged out', { userId: user?.id ?? 'unknown' });
     // End session on logout
     await endSession();
 
