@@ -173,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const updatedUser = response as any;
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      setSentryUser(updatedUser.id, updatedUser.name, updatedUser.isSuperAdmin);
       lastRefreshRef.current = Date.now();
     } catch (error: any) {
       const isNetworkError =
