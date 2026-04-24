@@ -322,7 +322,7 @@ class CometChatService {
       let total = 0;
       for (const conv of conversations) {
         const guid: string = (conv as any).conversationWith?.guid || '';
-        const isDm = guid.startsWith('contact_') || guid.startsWith('adm_');
+        const isDm = guid.startsWith('contact_') || guid.startsWith('adm_') || guid.startsWith('peer_');
         if (!isDm && !approvedBubbleIds.has(guid)) continue;
         const count = (conv as any).unreadMessageCount || 0;
         total += count;

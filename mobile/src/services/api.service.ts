@@ -321,6 +321,12 @@ class ApiService {
     });
   }
 
+  async initiatePeerDm(userId: string) {
+    return this.request(`/api/users/${userId}/peer-dm`, {
+      method: "POST",
+    });
+  }
+
   async getMyCreatedBubbles() {
     return this.request("/api/bubbles/created/my", {
       method: "GET",

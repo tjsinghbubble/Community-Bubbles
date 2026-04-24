@@ -6,16 +6,28 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { NavHeader } from '../../components/ScreenHeader';
 import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
 import apiService from '../../services/api.service';
+import cometChatService from '../../services/cometchat.service';
+import { useAuth } from '../../context/AuthContext';
 
 export type MemberProfileStackParamList = {
   MemberProfile: { userId: string };
+};
+
+type PeerDmResult = {
+  groupId: string;
+  groupName: string;
+  requester: { uid: string; name: string };
+  targetUser: { uid: string; name: string };
 };
 
 type Props = {
@@ -39,6 +51,13 @@ type PublicProfile = {
   sharedBubbles: SharedBubble[];
 };
 
+type PeerDmResult = {
+  groupId: string;
+  groupName: string;
+  requester: { uid: string; name: string };
+  targetUser: { uid: string; name: string };
+};
+
 function getInitials(name: string): string {
   if (!name) return '?';
   return name
@@ -52,9 +71,13 @@ function getInitials(name: string): string {
 
 export default function MemberProfileScreen({ navigation, route }: Props) {
   const { userId } = route.params;
+  const { user } = useAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isStartingDm, setIsStartingDm] = useState(false);
+
+  const isOwnProfile = user && String(user.id) === String(userId);
 
   useEffect(() => {
     apiService
@@ -63,6 +86,49 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
       .catch(() => setError('Could not load profile.'))
       .finally(() => setIsLoading(false));
   }, [userId]);
+
+  const handleMessage = async () => {
+    if (!user || !profile) return;
+    setIsStartingDm(true);
+    try {
+      const result = await apiService.initiatePeerDm(userId) as PeerDmResult;
+
+      await cometChatService.ensureLoggedIn(user.id, user.name);
+
+      try {
+        await cometChatService.createGroup(result.groupId, result.groupName, 'private');
+      } catch {
+        // Group may already exist — not an error
+      }
+
+      try {
+        await cometChatService.joinGroup(result.groupId, 'private');
+      } catch {
+        // Already a member — not an error
+      }
+
+      await cometChatService.addMembersToGroup(result.groupId, [
+        { uid: result.requester.uid, name: result.requester.name, scope: 'participant' },
+        { uid: result.targetUser.uid, name: result.targetUser.name, scope: 'participant' },
+      ]);
+
+      const parentNav = navigation.getParent();
+      if (parentNav) {
+        parentNav.navigate('Messages', {
+          screen: 'MessagesList',
+          params: {
+            openGroupId: result.groupId,
+            openGroupName: result.groupName,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Peer DM error:', err);
+      Alert.alert('Error', 'Failed to open a conversation. Please try again.');
+    } finally {
+      setIsStartingDm(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -100,6 +166,24 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
             {profile.aboutMe ? (
               <Text style={styles.aboutMe} testID="text-member-about">{profile.aboutMe}</Text>
             ) : null}
+
+            {!isOwnProfile && (
+              <TouchableOpacity
+                style={[styles.messageButton, isStartingDm && styles.messageButtonDisabled]}
+                onPress={handleMessage}
+                disabled={isStartingDm}
+                testID="button-message-member"
+              >
+                {isStartingDm ? (
+                  <ActivityIndicator size="small" color={Colors.brand.skyWhite} />
+                ) : (
+                  <>
+                    <Ionicons name="chatbubble-outline" size={18} color={Colors.brand.skyWhite} style={styles.messageIcon} />
+                    <Text style={styles.messageButtonText}>Message</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Interests */}
@@ -217,6 +301,28 @@ const styles = StyleSheet.create({
     marginTop: 12,
     lineHeight: 20,
   },
+  messageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    marginTop: 24,
+    minWidth: 140,
+  },
+  messageButtonDisabled: {
+    opacity: 0.6,
+  },
+  messageIcon: {
+    marginRight: 6,
+  },
+  messageButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.skyWhite,
+  },
   sectionCard: {
     backgroundColor: Colors.background.primary,
     borderRadius: 16,
@@ -270,20 +376,20 @@ const styles = StyleSheet.create({
   },
   bubbleThumbInitial: {
     fontSize: Typography.sizes.base,
-    fontWeight: '600' as const,
+    fontWeight: Typography.weights.semiBold as any,
     color: Colors.brand.primary,
   },
   bubbleInfo: {
     flex: 1,
   },
   bubbleTitle: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: '600' as const,
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.medium as any,
     color: Colors.text.primary,
-    marginBottom: 2,
   },
   bubbleCategory: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
+    color: Colors.text.secondary,
+    marginTop: 2,
   },
 });

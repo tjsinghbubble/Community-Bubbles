@@ -78,6 +78,24 @@ export default function MessagesScreen({ navigation, route }: Props) {
         return;
       }
 
+      const isPeerDm = guid.startsWith('peer_');
+      if (isPeerDm) {
+        const peerMatch = guid.match(/^peer_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        if (peerMatch) {
+          const otherUserId = peerMatch[1] === String(user?.id) ? peerMatch[2] : peerMatch[1];
+          let memberPhoto: string | null = null;
+          try {
+            const profile = await apiService.getUserPublicProfile(otherUserId) as any;
+            if (profile?.profilePhoto) memberPhoto = profile.profilePhoto;
+          } catch {}
+          dmData[guid] = { memberPhoto, bubbleCover: null };
+          imageMap[guid] = memberPhoto;
+        } else {
+          imageMap[guid] = null;
+        }
+        return;
+      }
+
       const isAdminDm = guid.startsWith('adm_');
       if (isAdminDm) {
         const dmMatch = guid.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
@@ -265,8 +283,26 @@ export default function MessagesScreen({ navigation, route }: Props) {
     const guid = conversation.conversationWith.guid;
     const isAdminDm = guid.startsWith('adm_');
     const isContactGroup = guid.startsWith('contact_');
+    const isPeerDm = guid.startsWith('peer_');
     const imageUrl = bubbleImages[guid] || conversation.conversationWith.icon;
     const dmData = dmAvatarData[guid];
+
+    if (isPeerDm) {
+      const memberPhoto = dmData?.memberPhoto || imageUrl;
+      return (
+        <View style={styles.dmAvatarContainer}>
+          {memberPhoto ? (
+            <Image source={{ uri: memberPhoto }} style={styles.dmMemberPhoto} />
+          ) : (
+            <View style={[styles.dmMemberPhoto, styles.dmMemberPhotoPlaceholder]}>
+              <Text style={styles.avatarText}>
+                {conversation.conversationWith.name.charAt(0).toUpperCase() || '?'}
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
 
     if (isAdminDm || isContactGroup) {
       const memberPhoto = dmData?.memberPhoto || imageUrl;
@@ -388,9 +424,15 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   const filteredConversations = conversations.filter((conv) => {
     const guid = conv.conversationWith.guid;
-    const isDm = guid.startsWith('contact_') || guid.startsWith('adm_');
+    const isPeerDm = guid.startsWith('peer_');
+    const isDm = guid.startsWith('contact_') || guid.startsWith('adm_') || isPeerDm;
 
     if (isDm) {
+      // `peer_` threads are direct user-to-user DMs — always show them.
+      if (isPeerDm) {
+        if (activeFilter === 'bubbles') return false;
+        return true;
+      }
       // `adm_` threads are only created for approved bubble members. Hide them if the
       // user is no longer a member of the associated bubble (e.g. was kicked/left).
       if (guid.startsWith('adm_')) {

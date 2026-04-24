@@ -117,11 +117,15 @@ export default function ChatScreen({ navigation, route }: Props) {
 
   const isAdminDmChat = groupId.startsWith('adm_');
   const isContactDmChat = groupId.startsWith('contact_');
+  const isPeerDmChat = groupId.startsWith('peer_');
 
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
     try {
-      if (isAdminDmChat) {
+      if (isPeerDmChat) {
+        const ccMembers = await cometChatService.getGroupMembers(groupId);
+        setParticipants(ccMembers);
+      } else if (isAdminDmChat) {
         const dmMatch = groupId.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
         const bubbleId = dmMatch ? dmMatch[1] : '';
         const memberId = dmMatch ? dmMatch[2] : '';
@@ -254,7 +258,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       }
 
       let data = await cometChatService.getMessages(groupId);
-      if (data && (data as any).notMember && !isAdminDmChat && !isContactDmChat) {
+      if (data && (data as any).notMember && !isAdminDmChat && !isContactDmChat && !isPeerDmChat) {
         // Bubble group: user may have joined the bubble before their CometChat
         // session was established. Lazily create+join the group now.
         try { await cometChatService.createGroup(groupId, groupName || 'Bubble Chat', 'public'); } catch (_) {}

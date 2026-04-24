@@ -2109,6 +2109,41 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/users/:userId/peer-dm", authMiddleware, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const requesterId = req.userId!;
+
+      if (requesterId === userId) {
+        return res.status(400).json({ error: "Cannot start a DM with yourself" });
+      }
+
+      const targetUser = await storage.getUser(userId);
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const requester = await storage.getUser(requesterId);
+      if (!requester) {
+        return res.status(404).json({ error: "Requester not found" });
+      }
+
+      const ids = [requesterId, userId].sort();
+      const dmGuid = `peer_${ids[0]}_${ids[1]}`;
+      const groupName = `${requester.name || requester.email} & ${targetUser.name || targetUser.email}`;
+
+      res.json({
+        groupId: dmGuid,
+        groupName,
+        requester: { uid: requesterId, name: requester.name || requester.email },
+        targetUser: { uid: userId, name: targetUser.name || targetUser.email },
+      });
+    } catch (error: any) {
+      console.error('Peer DM creation failed:', error);
+      res.status(500).json({ error: "Failed to create peer DM. Please try again." });
+    }
+  });
+
   // Events API
   app.get("/api/events", async (req, res) => {
     try {
