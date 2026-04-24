@@ -112,6 +112,14 @@ export function reportFatalError(
   sendToServer(report);
 }
 
+export function setSentryUser(id: string, username: string): void {
+  Sentry.setUser({ id, username });
+}
+
+export function clearSentryUser(): void {
+  Sentry.setUser(null);
+}
+
 export function installGlobalHandlers(): void {
   const globalObj = global as Record<string, unknown>;
 

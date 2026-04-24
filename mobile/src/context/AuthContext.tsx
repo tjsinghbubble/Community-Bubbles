@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, AppStateStatus } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
+import { setSentryUser, clearSentryUser } from '../utils/crashReporter';
 
 type User = {
   id: string;
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(parsedUser);
         apiService.setToken(storedToken);
         apiService.setOnTokenRevoked(() => clearLocalAuth());
-        
+        setSentryUser(parsedUser.id, parsedUser.name);
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -115,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    
+    setSentryUser(response.user.id, response.user.name);
     // Start session on login
     await startSession();
   };
@@ -128,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    
+    setSentryUser(response.user.id, response.user.name);
     // Start session on signup
     await startSession();
   };
@@ -140,6 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     apiService.setToken(null);
+    clearSentryUser();
     try {
       await cometChatService.logoutUser();
     } catch (e) {
