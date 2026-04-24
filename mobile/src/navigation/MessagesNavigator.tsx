@@ -4,11 +4,14 @@ import { ScreenErrorBoundary } from '../components/ErrorBoundary';
 import MessagesScreen from '../screens/main/MessagesScreen';
 import ChatScreen from '../screens/main/ChatScreen';
 import MemberProfileScreen from '../screens/main/MemberProfileScreen';
+import BubbleDetailsScreen from '../screens/main/BubbleDetailsScreen';
+import { BubbleData } from './ExploreNavigator';
 
 export type MessagesStackParamList = {
   MessagesList: { openGroupId?: string; openGroupName?: string } | undefined;
   Chat: { groupId: string; groupName: string };
   MemberProfile: { userId: string };
+  BubbleDetails: { bubble: BubbleData };
 };
 
 const Stack = createNativeStackNavigator<MessagesStackParamList>();
@@ -27,6 +30,7 @@ export default function MessagesNavigator() {
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreenWithBoundary} />
       <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
+      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreen} options={{ gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }

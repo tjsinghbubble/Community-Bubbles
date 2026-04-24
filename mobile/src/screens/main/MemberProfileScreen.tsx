@@ -18,9 +18,11 @@ import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/th
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import { useAuth } from '../../context/AuthContext';
+import { BubbleData } from '../../navigation/ExploreNavigator';
 
 export type MemberProfileStackParamList = {
   MemberProfile: { userId: string };
+  BubbleDetails: { bubble: BubbleData };
 };
 
 type PeerDmResult = {
@@ -49,13 +51,6 @@ type PublicProfile = {
   aboutMe: string | null;
   interests: string[];
   sharedBubbles: SharedBubble[];
-};
-
-type PeerDmResult = {
-  groupId: string;
-  groupName: string;
-  requester: { uid: string; name: string };
-  targetUser: { uid: string; name: string };
 };
 
 function getInitials(name: string): string {
@@ -205,7 +200,22 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
             <View style={[styles.sectionCard, CardShadow]}>
               <Text style={styles.sectionTitle}>Bubbles in Common</Text>
               {profile.sharedBubbles.map((bubble) => (
-                <View key={bubble.id} style={styles.bubbleRow} testID={`row-shared-bubble-${bubble.id}`}>
+                <TouchableOpacity
+                  key={bubble.id}
+                  style={styles.bubbleRow}
+                  testID={`row-shared-bubble-${bubble.id}`}
+                  activeOpacity={0.7}
+                  onPress={() =>
+                    navigation.navigate('BubbleDetails', {
+                      bubble: {
+                        id: bubble.id,
+                        title: bubble.title,
+                        category: bubble.category,
+                        coverImage: bubble.coverImage ?? null,
+                      },
+                    })
+                  }
+                >
                   {bubble.coverImage ? (
                     <Image source={{ uri: bubble.coverImage }} style={styles.bubbleThumb} />
                   ) : (
@@ -223,7 +233,7 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
                       {bubble.category}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
