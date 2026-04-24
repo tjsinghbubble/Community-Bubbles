@@ -6,13 +6,13 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   RefreshControl,
   Platform,
   StatusBar,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
@@ -207,11 +207,9 @@ export default function MyBubblesScreen() {
                 <View style={styles.gridImageShadowWrapper}>
                   <View style={styles.gridImageContainer}>
                   <Image
-                    source={{
-                      uri: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
-                    }}
+                    source={resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400'}
                     style={styles.gridImage}
-                    resizeMode="cover"
+                    contentFit="cover"
                     onError={() => console.warn('[Image] bubble load failed:', bubble.coverImage?.slice(0, 80))}
                   />
                   {bubble.status === 'pending' ? (

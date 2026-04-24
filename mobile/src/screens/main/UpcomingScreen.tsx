@@ -6,12 +6,12 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   RefreshControl,
   Platform,
   StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -245,11 +245,9 @@ export default function UpcomingScreen() {
                   )}
                   <View style={styles.eventCardInner}>
                     <Image
-                      source={{
-                        uri: resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
-                      }}
+                      source={resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400'}
                       style={styles.eventImage}
-                      resizeMode="cover"
+                      contentFit="cover"
                       onError={() => console.warn('[Image] event load failed:', event.coverImage?.slice(0, 80))}
                     />
                     <View style={styles.eventInfo}>

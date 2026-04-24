@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Platform,
   StatusBar,
   ActivityIndicator,
@@ -16,6 +15,7 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -375,9 +375,9 @@ export default function ExploreScreen() {
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: bubble.image }}
+            source={bubble.image}
             style={styles.image}
-            resizeMode="cover"
+            contentFit="cover"
             onError={() => console.warn('[Image] bubble load failed:', bubble.image?.slice(0, 80))}
           />
           <View style={styles.badge}>
@@ -402,9 +402,11 @@ export default function ExploreScreen() {
     >
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: event.coverImage || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400' }} 
-            style={styles.image} 
+          <Image
+            source={resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400'}
+            style={styles.image}
+            contentFit="cover"
+            onError={() => console.warn('[Image] event load failed:', event.coverImage?.slice(0, 80))}
           />
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{event.bubble.category}</Text>

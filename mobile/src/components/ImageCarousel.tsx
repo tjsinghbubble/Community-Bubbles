@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import {
   View,
-  Image,
   StyleSheet,
   Dimensions,
   FlatList,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { Image } from 'expo-image';
 
 interface ImageCarouselProps {
   images: string[];
@@ -43,9 +43,9 @@ export default function ImageCarousel({
 
   const renderItem = ({ item }: { item: string }) => (
     <Image
-      source={{ uri: item }}
+      source={item}
       style={{ height, width: imageWidth }}
-      resizeMode="cover"
+      contentFit="cover"
     />
   );
 
@@ -53,9 +53,9 @@ export default function ImageCarousel({
     return (
       <View style={[{ borderRadius, overflow: 'hidden' as const }]}>
         <Image
-          source={{ uri: displayImages[0] }}
+          source={displayImages[0]}
           style={{ height, width: imageWidth }}
-          resizeMode="cover"
+          contentFit="cover"
         />
       </View>
     );
@@ -92,9 +92,6 @@ export default function ImageCarousel({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-  },
-  image: {
-    backgroundColor: '#f0f0f0',
   },
   pagination: {
     position: 'absolute',

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Image } from 'expo-image';
 import {
   View,
   Text,
@@ -6,7 +7,6 @@ import {
   SafeAreaView,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
   Modal,
@@ -888,10 +888,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       onPress={() => handleEventPress(event)}
     >
       <Image
-        source={{
-          uri: resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
-        }}
+        source={resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400'}
         style={styles.eventImage}
+        contentFit="cover"
       />
       <View style={styles.eventInfo}>
         <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
