@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react-native';
+import { reportError } from '../utils/crashReporter';
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -74,11 +74,12 @@ class ApiService {
       const method = options?.method || 'GET';
       const statusCode = response.status;
       if (statusCode >= 500) {
-        Sentry.logger.error(`[API] Server error: ${method} ${endpoint}`, { endpoint, method, statusCode });
+        console.error(`[API] Server error: ${method} ${endpoint} (${statusCode})`);
+        reportError(new Error(`Server error ${statusCode}: ${method} ${endpoint}`), 'API');
       } else if (statusCode === 401) {
-        Sentry.logger.warn(`[API] Unauthorized: ${method} ${endpoint}`, { endpoint, method, statusCode });
+        console.warn(`[API] Unauthorized: ${method} ${endpoint}`);
       } else if (statusCode >= 400) {
-        Sentry.logger.warn(`[API] Client error: ${method} ${endpoint}`, { endpoint, method, statusCode, errorMessage: error.error ?? '' });
+        console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode})`);
       }
       const apiError = new Error(error.error || response.statusText) as Error & { status: number };
       apiError.status = response.status;

@@ -31,10 +31,6 @@ export function initSentry(): void {
     environment: __DEV__ ? 'development' : 'production',
     debug: __DEV__,
     enableNativeNagger: false,
-    _experiments: { enableLogs: true },
-    integrations: [
-      Sentry.consoleLoggingIntegration({ levels: ['log', 'warn', 'error'] }),
-    ],
   });
 }
 
@@ -55,16 +51,12 @@ function sendToServer(report: CrashReport): void {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(report),
-  }).catch(() => {
-  });
+  }).catch(() => {});
 }
 
 export function reportError(error: Error, context?: string): void {
   const report = buildReport(error, context, false);
-  Sentry.logger.warn(
-    `[CrashReporter] ERROR${context ? ` in ${context}` : ''}: ${report.message}`,
-    { stack: report.stack ?? 'no stack', timestamp: report.timestamp },
-  );
+  console.error(`[CrashReporter] ERROR${context ? ` in ${context}` : ''}: ${report.message}`);
   Sentry.withScope((scope) => {
     if (context) scope.setTag('screen', context);
     scope.setTag('platform', report.platform);
@@ -75,29 +67,13 @@ export function reportError(error: Error, context?: string): void {
   sendToServer(report);
 }
 
-/**
- * Report a fatal error to Sentry and the crash-report endpoint.
- *
- * @param error          The error that was caught.
- * @param context        A short label for the screen or module where the error
- *                       occurred (e.g. "BubbleDetailsScreen"). This value is
- *                       stored as the `screen` tag in Sentry so issues are
- *                       grouped and searchable by screen name.
- * @param componentStack The React component stack captured by ErrorBoundary's
- *                       componentDidCatch `ErrorInfo`. Attached as extra data
- *                       on the Sentry event so it is visible in the issue detail
- *                       view without polluting the tag index.
- */
 export function reportFatalError(
   error: Error,
   context?: string,
   componentStack?: string,
 ): void {
   const report = buildReport(error, context, true);
-  Sentry.logger.error(
-    `[CrashReporter] FATAL${context ? ` in ${context}` : ''}: ${report.message}`,
-    { stack: report.stack ?? 'no stack', timestamp: report.timestamp },
-  );
+  console.error(`[CrashReporter] FATAL${context ? ` in ${context}` : ''}: ${report.message}`);
   Sentry.withScope((scope) => {
     if (context) scope.setTag('screen', context);
     scope.setTag('platform', report.platform);
@@ -116,24 +92,30 @@ export function logAppEvent(
   message: string,
   attributes?: Record<string, string | number | boolean>,
 ): void {
-  Sentry.logger.info(message, attributes ?? {});
+  if (__DEV__) {
+    console.log(`[AppEvent] ${message}`, attributes ?? {});
+  }
 }
 
 export function logAppWarn(
   message: string,
   attributes?: Record<string, string | number | boolean>,
 ): void {
-  Sentry.logger.warn(message, attributes ?? {});
+  console.warn(`[AppWarn] ${message}`, attributes ?? {});
 }
 
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
   Sentry.setUser({ id, username });
-  Sentry.getCurrentScope().setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
+  Sentry.configureScope((scope) => {
+    scope.setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
+  });
 }
 
 export function clearSentryUser(): void {
   Sentry.setUser(null);
-  Sentry.getCurrentScope().setTag('isSuperAdmin', 'false');
+  Sentry.configureScope((scope) => {
+    scope.setTag('isSuperAdmin', 'false');
+  });
 }
 
 export function installGlobalHandlers(): void {
