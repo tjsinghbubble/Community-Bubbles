@@ -64,7 +64,7 @@ export function reportError(error: Error, context?: string): void {
     '\nTimestamp:', report.timestamp,
   );
   Sentry.withScope((scope) => {
-    if (context) scope.setTag('context', context);
+    if (context) scope.setTag('screen', context);
     scope.setTag('platform', report.platform);
     scope.setTag('appVersion', report.appVersion);
     scope.setLevel('error');
@@ -73,7 +73,24 @@ export function reportError(error: Error, context?: string): void {
   sendToServer(report);
 }
 
-export function reportFatalError(error: Error, context?: string): void {
+/**
+ * Report a fatal error to Sentry and the crash-report endpoint.
+ *
+ * @param error          The error that was caught.
+ * @param context        A short label for the screen or module where the error
+ *                       occurred (e.g. "BubbleDetailsScreen"). This value is
+ *                       stored as the `screen` tag in Sentry so issues are
+ *                       grouped and searchable by screen name.
+ * @param componentStack The React component stack captured by ErrorBoundary's
+ *                       componentDidCatch `ErrorInfo`. Attached as extra data
+ *                       on the Sentry event so it is visible in the issue detail
+ *                       view without polluting the tag index.
+ */
+export function reportFatalError(
+  error: Error,
+  context?: string,
+  componentStack?: string,
+): void {
   const report = buildReport(error, context, true);
   console.error(
     `[CrashReporter] FATAL${context ? ` in ${context}` : ''}:`,
@@ -82,10 +99,14 @@ export function reportFatalError(error: Error, context?: string): void {
     '\nTimestamp:', report.timestamp,
   );
   Sentry.withScope((scope) => {
-    if (context) scope.setTag('context', context);
+    if (context) scope.setTag('screen', context);
     scope.setTag('platform', report.platform);
     scope.setTag('appVersion', report.appVersion);
     scope.setLevel('fatal');
+    if (componentStack) scope.setExtra('componentStack', componentStack);
+    if (context) {
+      scope.setFingerprint(['{{ default }}', context]);
+    }
     Sentry.captureException(error);
   });
   sendToServer(report);

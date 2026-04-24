@@ -27,9 +27,24 @@ EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:3000
 COMETCHAT_APP_ID=your_app_id
 COMETCHAT_REGION=us
 COMETCHAT_AUTH_KEY=your_auth_key
+SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project>
 ```
 
 **Important**: Replace `YOUR_COMPUTER_IP` with your actual local IP address (not localhost) so the mobile app can connect to the backend server.
+
+#### Crash Reporting (Sentry)
+
+The app uses Sentry to capture and report screen-level crashes to the team. `ScreenErrorBoundary` automatically sends every caught error to Sentry, tagged with the screen context so issues appear grouped in the Sentry dashboard.
+
+To enable crash reporting:
+
+1. Create a project in [Sentry](https://sentry.io) (React Native platform).
+2. Copy the **DSN** from your project's *Settings → Client Keys*.
+3. Set `SENTRY_DSN` in your `.env` file (see above) or as an environment secret in your CI/CD pipeline.
+
+`app.config.js` reads `SENTRY_DSN` and passes it to the app at build time via `Constants.expoConfig.extra.sentryDsn`. If the variable is not set, Sentry is silently disabled and a warning is printed to the console — all other app functionality is unaffected.
+
+For production builds (EAS Build / standalone), add `SENTRY_DSN` to your EAS secret environment variables so it is baked into the release bundle.
 
 ### 3. Start the Backend Server
 

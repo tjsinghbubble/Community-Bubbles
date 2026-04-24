@@ -25,7 +25,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     const context = this.props.context ?? 'ErrorBoundary';
-    reportFatalError(error, `${context} — componentStack: ${info.componentStack ?? ''}`);
+    reportFatalError(error, context, info.componentStack ?? undefined);
   }
 
   private handleReset = (): void => {
@@ -99,7 +99,7 @@ export class ScreenErrorBoundary extends Component<ScreenErrorBoundaryProps, Scr
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    reportFatalError(error, `${this.props.context} — componentStack: ${info.componentStack ?? ''}`);
+    reportFatalError(error, this.props.context, info.componentStack ?? undefined);
   }
 
   private handleReset = (): void => {
