@@ -25,6 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronDownIcon, ChevronUpIcon, BubblesIcon } from '../../components/icons';
 import { Colors, Spacing, Radius, Typography, Gradients, CardShadow } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -137,6 +138,7 @@ export default function PendingReviewsScreen() {
 
   const loadAllItems = async () => {
     try {
+      let pendingBubblesCount = 0;
       if (isSuperAdmin) {
         const [bubbles, adminReports] = await Promise.all([
           apiService.getPendingBubbles(),
@@ -144,6 +146,7 @@ export default function PendingReviewsScreen() {
         ]);
         setPendingBubbles(bubbles);
         setReports(adminReports);
+        pendingBubblesCount = (bubbles as PendingBubble[]).length;
       } else {
         const myBubbles = await apiService.getMyBubbles();
         const adminBubbles = (myBubbles as any[]).filter((b: any) => b.role === 'admin');
@@ -162,8 +165,16 @@ export default function PendingReviewsScreen() {
 
       const waitlist = await apiService.getAdminWaitlist() as WaitlistItem[];
       setWaitlistItems(waitlist);
-    } catch (error) {
+
+      logAppEvent('PendingReviews:loaded', {
+        pendingBubblesCount,
+        pendingEventsCount: (events as PendingEvent[]).length,
+        waitlistCount: (waitlist as WaitlistItem[]).length,
+        isSuperAdmin,
+      });
+    } catch (error: any) {
       console.error('Failed to load pending items:', error);
+      logAppWarn('PendingReviews:loadFailed', { error: error?.message ?? 'unknown' });
     } finally {
       setLoading(false);
       setRefreshing(false);

@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import { FlowHeader } from '../../components/ScreenHeader';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
@@ -45,7 +46,13 @@ export default function ViewProfileScreen({ navigation }: Props) {
           const list = bubbles || [];
           setMyBubbles(list);
           isBubbleAdmin.current = list.some((b: any) => b.role === 'admin');
-        }).catch(() => {});
+          logAppEvent('ViewProfile:bubblesLoaded', {
+            bubblesCount: list.length,
+            isBubbleAdmin: isBubbleAdmin.current,
+          });
+        }).catch((err: any) => {
+          logAppWarn('ViewProfile:bubblesLoadFailed', { error: err?.message ?? 'unknown' });
+        });
       }
     }, [token])
   );

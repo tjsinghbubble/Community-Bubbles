@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { ChevronDownIcon, LocationPinIcon } from '../../components/icons';
 import { NavHeader } from '../../components/ScreenHeader';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -41,6 +42,15 @@ const VISIBILITY_OPTIONS = [
 
 export default function EditEventScreen({ navigation, route }: Props) {
   const { event } = route.params as { event: any };
+
+  useEffect(() => {
+    logAppEvent('EditEvent:loaded', {
+      eventId: event.id,
+      bubbleId: event.bubbleId ?? '',
+      visibility: event.visibility ?? 'public',
+      hasImages: !!(Array.isArray(event.images) ? event.images.length > 0 : !!event.coverImage),
+    });
+  }, []);
   
   const [title, setTitle] = useState(event.title || '');
   const [description, setDescription] = useState(event.description || '');
@@ -95,8 +105,16 @@ export default function EditEventScreen({ navigation, route }: Props) {
         timezone: event.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
+      logAppEvent('EditEvent:saveSuccess', {
+        eventId: event.id,
+        bubbleId: event.bubbleId ?? '',
+        visibility,
+        hasImages: images.length > 0,
+        attendeeLimitEnabled,
+      });
       setShowSuccessModal(true);
     } catch (error: any) {
+      logAppWarn('EditEvent:saveFailed', { eventId: event.id, error: error?.message ?? 'unknown' });
       Alert.alert('Error', error.message || 'Failed to update event. Please try again.');
     } finally {
       setLoading(false);

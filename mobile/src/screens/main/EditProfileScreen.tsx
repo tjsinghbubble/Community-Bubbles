@@ -25,6 +25,7 @@ import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
@@ -117,8 +118,12 @@ export default function EditProfileScreen({ navigation }: Props) {
       if (token) {
         apiService.setToken(token);
         apiService.getMyBubbles().then((bubbles: any) => {
-          setMyBubbles(bubbles || []);
-        }).catch(() => {});
+          const list = bubbles || [];
+          setMyBubbles(list);
+          logAppEvent('EditProfile:bubblesLoaded', { bubblesCount: list.length });
+        }).catch((err: any) => {
+          logAppWarn('EditProfile:bubblesLoadFailed', { error: err?.message ?? 'unknown' });
+        });
       }
     }, [token])
   );
@@ -139,8 +144,14 @@ export default function EditProfileScreen({ navigation }: Props) {
         interests: selectedInterests,
       });
       if (refreshUser) await refreshUser();
+      logAppEvent('EditProfile:saveSuccess', {
+        fieldCount: (aboutMe.trim() ? 1 : 0) + selectedInterests.length,
+        interestCount: selectedInterests.length,
+        hasAboutMe: !!aboutMe.trim(),
+      });
       navigation.goBack();
     } catch (err: any) {
+      logAppWarn('EditProfile:saveFailed', { error: err?.message ?? 'unknown' });
       Alert.alert('Error', err.message || 'Failed to save profile');
     } finally {
       setSaving(false);

@@ -27,6 +27,7 @@ import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
 import { Colors, Spacing, Radius, Typography, SwitchColors } from '../../styles/theme';
 import { FlowHeader } from '../../components/ScreenHeader';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { CalendarIcon, LocationPinIcon, CheckboxIcon, ChevronDownIcon, ClockIcon, PeopleIcon } from '../../components/icons';
 
 type Props = {
@@ -153,6 +154,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getMyCreatedBubbles() as Bubble[];
       setMyBubbles(data);
+      logAppEvent('CreateEvent:bubblesLoaded', { bubblesCount: data.length });
       if (routeParams?.bubbleId) {
         const preselected = data.find(b => b.id === routeParams.bubbleId);
         if (preselected) {
@@ -166,8 +168,9 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch bubbles:', error);
+      logAppWarn('CreateEvent:bubblesLoadFailed', { error: error?.message ?? 'unknown' });
     }
   };
 
@@ -348,8 +351,16 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
       const event = await apiService.createEvent(eventData);
       setCreatedEvent(event);
+      logAppEvent('CreateEvent:publishSuccess', {
+        eventId: event?.id ?? '',
+        bubbleId: selectedBubble!.id,
+        visibility,
+        hasImages: images.length > 0,
+        isRecurring: recurringEnabled,
+      });
       setShowSuccess(true);
     } catch (error: any) {
+      logAppWarn('CreateEvent:publishFailed', { error: error?.message ?? 'unknown' });
       Alert.alert('Error', error.message || 'Failed to create event');
     } finally {
       setLoading(false);
