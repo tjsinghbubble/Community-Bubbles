@@ -191,6 +191,7 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.approveBubble(bubbleId);
       setPendingBubbles(prev => prev.filter(b => b.id !== bubbleId));
+      logAppEvent('PendingReviews:approveBubble', { bubbleId });
     } catch (error) {
       Alert.alert('Error', 'Failed to approve bubble');
     } finally {
@@ -199,6 +200,7 @@ export default function PendingReviewsScreen() {
   };
 
   const handleRejectBubble = (bubbleId: string) => {
+    logAppEvent('PendingReviews:rejectBubble:initiated', { bubbleId });
     setRejectReason('');
     setRejectTarget({ type: 'bubble', id: bubbleId });
     setRejectModalVisible(true);
@@ -209,6 +211,7 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.approveEvent(eventId);
       setPendingEvents(prev => prev.filter(e => e.id !== eventId));
+      logAppEvent('PendingReviews:approveEvent', { eventId });
     } catch (error) {
       Alert.alert('Error', 'Failed to approve event');
     } finally {
@@ -217,6 +220,7 @@ export default function PendingReviewsScreen() {
   };
 
   const handleRejectEvent = (eventId: string) => {
+    logAppEvent('PendingReviews:rejectEvent:initiated', { eventId });
     setRejectReason('');
     setRejectTarget({ type: 'event', id: eventId });
     setRejectModalVisible(true);
@@ -231,17 +235,35 @@ export default function PendingReviewsScreen() {
       if (type === 'bubble') {
         await apiService.rejectBubble(id, rejectReason || undefined);
         setPendingBubbles(prev => prev.filter(b => b.id !== id));
+        logAppEvent('PendingReviews:rejectBubble:confirmed', {
+          bubbleId: id,
+          reason: rejectReason || '',
+        });
         Alert.alert('Rejected', 'Bubble has been rejected');
       } else if (type === 'event') {
         await apiService.rejectEvent(id, rejectReason || undefined);
         setPendingEvents(prev => prev.filter(e => e.id !== id));
+        logAppEvent('PendingReviews:rejectEvent:confirmed', {
+          eventId: id,
+          reason: rejectReason || '',
+        });
         Alert.alert('Rejected', 'Event has been rejected');
       } else if (type === 'waitlist_hold' && bubbleId) {
         await apiService.holdWaitlist(bubbleId, id, rejectReason || undefined);
         setWaitlistItems(prev => prev.filter(w => !(w.userId === id && w.bubbleId === bubbleId)));
+        logAppEvent('PendingReviews:holdWaitlist:confirmed', {
+          userId: id,
+          bubbleId,
+          reason: rejectReason || '',
+        });
       } else if (type === 'waitlist_reject' && bubbleId) {
         await apiService.rejectWaitlist(bubbleId, id, rejectReason || undefined);
         setWaitlistItems(prev => prev.filter(w => !(w.userId === id && w.bubbleId === bubbleId)));
+        logAppEvent('PendingReviews:rejectWaitlist:confirmed', {
+          userId: id,
+          bubbleId,
+          reason: rejectReason || '',
+        });
       }
     } catch (error) {
       Alert.alert('Error', `Failed to update waitlist`);
@@ -295,6 +317,7 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.approveWaitlist(item.bubbleId, item.userId);
       setWaitlistItems(prev => prev.filter(w => !(w.userId === item.userId && w.bubbleId === item.bubbleId)));
+      logAppEvent('PendingReviews:approveWaitlist', { userId: item.userId, bubbleId: item.bubbleId });
     } catch (error) {
       Alert.alert('Error', 'Failed to approve waitlist member');
     } finally {
@@ -303,12 +326,14 @@ export default function PendingReviewsScreen() {
   };
 
   const handleHoldWaitlist = (item: WaitlistItem) => {
+    logAppEvent('PendingReviews:holdWaitlist:initiated', { userId: item.userId, bubbleId: item.bubbleId });
     setRejectReason('');
     setRejectTarget({ type: 'waitlist_hold', id: item.userId, bubbleId: item.bubbleId });
     setRejectModalVisible(true);
   };
 
   const handleRejectWaitlist = (item: WaitlistItem) => {
+    logAppEvent('PendingReviews:rejectWaitlist:initiated', { userId: item.userId, bubbleId: item.bubbleId });
     setRejectReason('');
     setRejectTarget({ type: 'waitlist_reject', id: item.userId, bubbleId: item.bubbleId });
     setRejectModalVisible(true);
