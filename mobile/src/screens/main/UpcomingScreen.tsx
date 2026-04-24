@@ -266,6 +266,7 @@ export default function UpcomingScreen() {
                         </Text>
                       )}
                     </View>
+                    <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
                   </View>
                 </AnimatedPressable>
               ))}

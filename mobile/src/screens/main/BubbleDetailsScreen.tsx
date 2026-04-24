@@ -664,8 +664,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionHeading}>Bulletin Board</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
-          <Text style={styles.linkText}>view all {'>'}</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          accessibilityLabel="View all bulletin board posts"
+        >
+          <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
       </View>
       {announcements.length > 0 ? (
@@ -756,8 +759,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>
-        <TouchableOpacity onPress={handleViewMembers}>
-          <Text style={styles.linkText}>view {'>'}</Text>
+        <TouchableOpacity onPress={handleViewMembers} accessibilityLabel="View all members">
+          <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
       </View>
     </View>
@@ -812,8 +815,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <View style={styles.section}>
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionHeading}>Waitlist</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
-            <Text style={styles.linkText}>manage {'>'}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+            accessibilityLabel="Manage waitlist"
+          >
+            <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         </View>
       </View>
@@ -902,7 +908,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         )}
       </View>
       <View style={styles.eventHeartContainer}>
-        <Ionicons name="heart-outline" size={22} color={Colors.text.tertiary} />
+        <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
       </View>
     </TouchableOpacity>
   );
@@ -1334,10 +1340,6 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: Colors.neutral.charcoal,
-  },
-  linkText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.brand.primary,
   },
   bulletinGrid: {
     flexDirection: 'row',

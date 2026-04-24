@@ -382,6 +382,9 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
               {isItemAdmin ? 'Admin' : 'Member'}
             </Text>
           </View>
+          {!isMe && (
+            <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
+          )}
         </TouchableOpacity>
 
         {!isMe && (
