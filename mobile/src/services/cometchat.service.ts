@@ -457,6 +457,18 @@ class CometChatService {
     }
   }
 
+  async markAsRead(guid: string, lastMessageId: string, lastMessageSenderUid: string): Promise<void> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) return;
+      const numericId = parseInt(lastMessageId, 10);
+      if (isNaN(numericId)) return;
+      await CometChat.markAsRead(numericId, guid, CometChat.RECEIVER_TYPE.GROUP, lastMessageSenderUid);
+    } catch (error) {
+      console.log('markAsRead error (non-critical):', error);
+    }
+  }
+
   getFullMessageListener(
     listenerID: string, 
     onTextMessage: (message: any) => void,

@@ -31,6 +31,7 @@ import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/th
 import { FlowHeader } from '../../components/ScreenHeader';
 import { PeopleIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess, requestCameraAccess } from '../../utils/permissions';
+import unreadEvents from '../../utils/unreadEvents';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -292,6 +293,12 @@ export default function ChatScreen({ navigation, route }: Props) {
           })
       );
       setMessages(formattedMessages);
+
+      const lastMsg = formattedMessages[formattedMessages.length - 1];
+      if (lastMsg) {
+        await cometChatService.markAsRead(groupId, lastMsg.id, lastMsg.sender.uid);
+        unreadEvents.emit();
+      }
     } catch (error: any) {
       console.error('Failed to fetch messages:', error);
       if (error?.code === 'ERR_GUID_NOT_FOUND' || error?.status === 404) {
@@ -341,6 +348,10 @@ export default function ChatScreen({ navigation, route }: Props) {
           imageUrl: type === 'image' ? message.data?.url || message.url : undefined,
         };
         setMessages((prev) => [...prev, newMsg]);
+
+        cometChatService.markAsRead(groupId, message.id?.toString(), message.sender?.uid || '').then(() => {
+          unreadEvents.emit();
+        });
       }
     };
 

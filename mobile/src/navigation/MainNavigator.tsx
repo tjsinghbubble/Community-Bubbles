@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
 import { ExploreIcon, UpcomingIcon, BubblesIcon, MessagesIcon, ProfileIcon } from '../components/icons';
+import unreadEvents from '../utils/unreadEvents';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -30,7 +31,6 @@ export default function MainNavigator() {
   const { user } = useAuth();
   const [adminCount, setAdminCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [isMessagesActive, setIsMessagesActive] = useState(false);
 
   const fetchAdminCount = useCallback(async () => {
     if (!user) return;
@@ -54,6 +54,13 @@ export default function MainNavigator() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const unsubscribe = unreadEvents.onRefresh(() => {
+      fetchUnreadMessages();
+    });
+    return unsubscribe;
+  }, [fetchUnreadMessages]);
+
   useFocusEffect(
     useCallback(() => {
       fetchAdminCount();
@@ -63,8 +70,6 @@ export default function MainNavigator() {
       };
     }, [fetchAdminCount])
   );
-
-  const visibleUnreadCount = isMessagesActive ? 0 : unreadMessages;
 
   return (
     <Tab.Navigator
@@ -134,9 +139,9 @@ export default function MainNavigator() {
           tabBarIcon: ({ color, size }) => (
             <View>
               <MessagesIcon size={size} color={color} />
-              {visibleUnreadCount > 0 && (
+              {unreadMessages > 0 && (
                 <View style={badgeStyles.badge}>
-                  <Text style={badgeStyles.badgeText}>{visibleUnreadCount > 99 ? '99+' : visibleUnreadCount}</Text>
+                  <Text style={badgeStyles.badgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
                 </View>
               )}
             </View>
@@ -144,11 +149,9 @@ export default function MainNavigator() {
         }}
         listeners={({ navigation }) => ({
           focus: () => {
-            setIsMessagesActive(true);
-            setUnreadMessages(0);
+            fetchUnreadMessages();
           },
           blur: () => {
-            setIsMessagesActive(false);
             fetchUnreadMessages();
           },
           tabPress: (e) => {
