@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { SectionHeader } from '../../components/ScreenHeader';
 import { useAuth } from '../../context/AuthContext';
@@ -62,6 +62,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportFreeText, setReportFreeText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const lastFetchRef = useRef(0);
 
   const REPORT_REASONS = [
     'Harassment or inappropriate behavior',
@@ -71,10 +72,15 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     'Other',
   ];
 
-  useEffect(() => {
-    fetchMembers();
-    checkMyRole();
-  }, [bubbleId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - lastFetchRef.current > 30_000) {
+        fetchMembers();
+        checkMyRole();
+        lastFetchRef.current = Date.now();
+      }
+    }, [bubbleId])
+  );
 
   const fetchMembers = async () => {
     try {

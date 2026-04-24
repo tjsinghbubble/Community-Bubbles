@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
@@ -221,10 +221,17 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  useEffect(() => {
-    fetchEvent();
-    fetchAttendees();
-  }, [eventId]);
+  const lastFetchRef = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - lastFetchRef.current > 30_000) {
+        fetchEvent();
+        fetchAttendees();
+        lastFetchRef.current = Date.now();
+      }
+    }, [eventId])
+  );
 
   const fetchEvent = async () => {
     try {

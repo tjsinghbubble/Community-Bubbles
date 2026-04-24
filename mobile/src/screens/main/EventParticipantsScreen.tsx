@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp } from '@react-navigation/native';
+import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
@@ -75,9 +75,16 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
   const [reportFreeText, setReportFreeText] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, [eventId]);
+  const lastFetchRef = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Date.now() - lastFetchRef.current > 30_000) {
+        fetchData();
+        lastFetchRef.current = Date.now();
+      }
+    }, [eventId])
+  );
 
   const fetchData = async () => {
     try {
