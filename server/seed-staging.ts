@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { storage } from "./storage";
-import { bubbles, memberships, events, users, eventAttendees, bulletinBoards, bulletinPosts, bulletinPostTypes, bulletinPostReactions } from "@shared/schema";
+import { bubbles, memberships, events, users, eventAttendees, bulletinBoards, bulletinPosts, bulletinPostTypes, bulletinPostReactions, bulletinReplies } from "@shared/schema";
 import { eq, and, gte, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { seedBubbleImages } from "./seed-bubble-images";
@@ -831,6 +831,351 @@ export async function seedStaging(): Promise<void> {
 
     console.log(`${LOG} Bulletin boards: ${boardsSeeded} created; posts: ${postsSeeded} inserted`);
   }
+
+  // ── Step 6.5: Bulletin Board Replies ─────────────────────────────────────
+  // Seed 1–3 realistic replies per post to make boards feel active.
+  // Idempotent: skips any post that already has ≥ 1 reply.
+  console.log(`${LOG} ── Step 6.5: seeding bulletin board replies ──`);
+
+  type ReplyDef = { authorEmail: string; body: string; hoursAfterPost?: number };
+  // Keys: bubble title → post title → reply array
+  const BULLETIN_REPLIES: Record<string, Record<string, ReplyDef[]>> = {
+    "Basketball": {
+      "Season kick-off — Monday at Dolores!": [
+        { authorEmail: "george@seinfeld.com", body: "Monday works. Will we have enough for full-court or are we splitting into half-court runs?", hoursAfterPost: 3 },
+        { authorEmail: "peterman@seinfeld.com", body: "First session back is always the best. I'll be there early to warm up the court.", hoursAfterPost: 6 },
+      ],
+      "Who's bringing a ball this Wednesday?": [
+        { authorEmail: "elaine@seinfeld.com", body: "I've got one. A little flat but I can pump it up before we start.", hoursAfterPost: 2 },
+        { authorEmail: "george@seinfeld.com", body: "I'll bring mine too. Better to have two than fight over one with 10 people.", hoursAfterPost: 5 },
+      ],
+      "3-on-3 tournament — sign up by Friday": [
+        { authorEmail: "george@seinfeld.com", body: "I'm in. Any chance we can seed teams by skill so it's not a blowout in round one?", hoursAfterPost: 4 },
+        { authorEmail: "elaine@seinfeld.com", body: "Count me in. Should we do a group chat for team coordination once the bracket is set?", hoursAfterPost: 8 },
+      ],
+      "Best warmup before pickup?": [
+        { authorEmail: "frank@seinfeld.com", body: "Ten minutes of jump rope and dynamic stretches — hamstrings, hip circles, high knees. Never rolled an ankle since I started.", hoursAfterPost: 3 },
+        { authorEmail: "peterman@seinfeld.com", body: "I do a short jog to the court then two laps around the half-court line. Simple but it works.", hoursAfterPost: 7 },
+      ],
+    },
+    "Tennis": {
+      "Court resurfacing done — we're back!": [
+        { authorEmail: "george@seinfeld.com", body: "Finally. The old surface was basically sandpaper. Looking forward to a proper bounce.", hoursAfterPost: 4 },
+        { authorEmail: "jerry@seinfeld.com", body: "I'll be there Thursday. Same time as usual?", hoursAfterPost: 9 },
+      ],
+      "Looking for a hitting partner Tuesdays": [
+        { authorEmail: "george@seinfeld.com", body: "I can do 8:30. Bring your own balls — I'll cover the other can.", hoursAfterPost: 3 },
+        { authorEmail: "peterman@seinfeld.com", body: "I might join if I can get there in time. Is the gate open before 9?", hoursAfterPost: 7 },
+      ],
+      "Thursday session: doubles format this week": [
+        { authorEmail: "elaine@seinfeld.com", body: "I'd prefer to partner with someone around my level. Can we try to balance the pairs?", hoursAfterPost: 2 },
+        { authorEmail: "george@seinfeld.com", body: "I'm flexible on partners. Happy to fill whatever spot is needed.", hoursAfterPost: 5 },
+      ],
+    },
+    "Cricket": {
+      "Format vote — tape-ball or hardball this Sat?": [
+        { authorEmail: "newman@seinfeld.com", body: "Hardball if we've got enough helmets. Otherwise tape-ball is still a good match.", hoursAfterPost: 4 },
+        { authorEmail: "kramer@seinfeld.com", body: "Tape-ball is faster to set up and easier on the outfield. My vote.", hoursAfterPost: 9 },
+      ],
+      "Anyone have a spare bat for Sunday?": [
+        { authorEmail: "larry@seinfeld.com", body: "I have a Gray-Nicolls in my car. It's a bit heavy but it's solid. Happy to bring it.", hoursAfterPost: 5 },
+      ],
+      "Park permit confirmed through June": [
+        { authorEmail: "kramer@seinfeld.com", body: "Great news. I was worried we'd lose the field again. Let's make sure turnout stays strong.", hoursAfterPost: 3 },
+        { authorEmail: "estelle@seinfeld.com", body: "Appreciate you handling the permit. One less thing to stress about.", hoursAfterPost: 8 },
+      ],
+    },
+    "Soccer": {
+      "Turf rules reminder — no slide tackles": [
+        { authorEmail: "jerry@seinfeld.com", body: "Completely fair. One bad slide and someone's out for weeks. Not worth it.", hoursAfterPost: 3 },
+        { authorEmail: "frank@seinfeld.com", body: "Understood. What about shoulder-to-shoulder challenges? Those still okay?", hoursAfterPost: 7 },
+      ],
+      "7-a-side this Monday if we hit 14 RSVP": [
+        { authorEmail: "jerry@seinfeld.com", body: "I'm confirmed. Bringing a friend who played college intramurals — hope that's okay.", hoursAfterPost: 2 },
+        { authorEmail: "frank@seinfeld.com", body: "In. I'll post it in the neighborhood group to get the last three spots filled.", hoursAfterPost: 6 },
+      ],
+      "New sub rotation — read before Wednesday": [
+        { authorEmail: "newman@seinfeld.com", body: "10-minute rotations work for me. Keeps the legs fresher and cuts down on the arguing.", hoursAfterPost: 4 },
+        { authorEmail: "jerry@seinfeld.com", body: "Good call. The old system was chaos in the second half.", hoursAfterPost: 10 },
+      ],
+    },
+    "Tennis Circle": {
+      "Level reminder — intermediate+ only": [
+        { authorEmail: "george@seinfeld.com", body: "Agreed. It's not about being exclusionary — the flow just breaks down when there's too wide a skill gap.", hoursAfterPost: 3 },
+        { authorEmail: "frank@seinfeld.com", body: "Maybe we add a beginner session one Sunday a month? That way the door is open without disrupting our regular sessions.", hoursAfterPost: 7 },
+      ],
+      "Bring two cans per session — new policy": [
+        { authorEmail: "frank@seinfeld.com", body: "Makes sense. Pressure balls make such a difference in feel. I'll start stocking up.", hoursAfterPost: 4 },
+        { authorEmail: "kramer@seinfeld.com", body: "Two cans is easy. Thanks for making this official.", hoursAfterPost: 9 },
+      ],
+      "Anyone up for extra drilling Sunday AM?": [
+        { authorEmail: "george@seinfeld.com", body: "I'm in. I need to work on my return game anyway. What time were you thinking?", hoursAfterPost: 5 },
+        { authorEmail: "kramer@seinfeld.com", body: "Would love to if you do it before noon. What court are you booking?", hoursAfterPost: 11 },
+      ],
+    },
+    "SF Pickleball Crew": {
+      "Noe Valley courts confirmed both days!": [
+        { authorEmail: "jerry@seinfeld.com", body: "Perfect. Saturday works better for me. Will there be loaner paddles for anyone who doesn't have their own?", hoursAfterPost: 4 },
+        { authorEmail: "estelle@seinfeld.com", body: "Great news. I'll spread the word to a couple people who asked about coming.", hoursAfterPost: 8 },
+      ],
+      "Paddle recommendations for beginners?": [
+        { authorEmail: "elaine@seinfeld.com", body: "The Engage Poach Advantage is around $50 and really forgiving for beginners. A friend started with it and still uses it.", hoursAfterPost: 3 },
+        { authorEmail: "estelle@seinfeld.com", body: "I started with a Selkirk Latitude. It's lightweight and easy to control. Good first paddle.", hoursAfterPost: 7 },
+      ],
+      "Beginner-friendly rotation this Sunday": [
+        { authorEmail: "jerry@seinfeld.com", body: "Love this. I have two friends who've been wanting to try. Mind if I bring them?", hoursAfterPost: 2 },
+        { authorEmail: "elaine@seinfeld.com", body: "Good move. Growing the group is worth a slightly slower Sunday now and then.", hoursAfterPost: 6 },
+      ],
+    },
+    "Campus hoops": {
+      "SFSU gym check-in policy updated": [
+        { authorEmail: "larry@seinfeld.com", body: "Got it. Will leave my ID in my bag from now on. Thanks for the heads up.", hoursAfterPost: 3 },
+        { authorEmail: "george@seinfeld.com", body: "Any chance student IDs count or does it have to be government-issued?", hoursAfterPost: 7 },
+      ],
+      "Dunking ban — who actually reads the rules?": [
+        { authorEmail: "george@seinfeld.com", body: "Hard to resist when you're in the zone but losing the court would be much worse. Message received.", hoursAfterPost: 4 },
+        { authorEmail: "frank@seinfeld.com", body: "Worth posting a sign near the rim so new people know before they try something.", hoursAfterPost: 9 },
+      ],
+      "Wednesday is packed — arrive early": [
+        { authorEmail: "larry@seinfeld.com", body: "5:45 noted. I've been showing up at 6:15 and waiting forever. Won't happen again.", hoursAfterPost: 5 },
+        { authorEmail: "george@seinfeld.com", body: "22 people is wild. Is there a way to cap RSVPs so it doesn't get that crowded?", hoursAfterPost: 10 },
+      ],
+    },
+    "Billiards": {
+      "Slate Billiards: table reservation confirmed": [
+        { authorEmail: "george@seinfeld.com", body: "Four tables is plenty. Much better than scrambling for open spots like last month.", hoursAfterPost: 4 },
+        { authorEmail: "frank@seinfeld.com", body: "This is great. I'll start telling people to check in under the group name so the staff stays familiar with us.", hoursAfterPost: 9 },
+      ],
+      "9-ball bracket idea — thoughts?": [
+        { authorEmail: "frank@seinfeld.com", body: "I'm for it. 9-ball moves faster than 8-ball anyway. One night of experimenting won't hurt.", hoursAfterPost: 4 },
+        { authorEmail: "elaine@seinfeld.com", body: "Open to it. I'd want a quick rules refresher since I mostly play 8-ball, but I'm in.", hoursAfterPost: 8 },
+      ],
+      "Table etiquette reminder": [
+        { authorEmail: "george@seinfeld.com", body: "Guilty of assuming once. I'll always ask now. Good reminder.", hoursAfterPost: 3 },
+        { authorEmail: "elaine@seinfeld.com", body: "This is basic courtesy. Should just be obvious, but apparently it needs saying.", hoursAfterPost: 6 },
+      ],
+    },
+    "Karting": {
+      "Sign your waiver before you arrive!": [
+        { authorEmail: "peterman@seinfeld.com", body: "Signed mine last night. Takes two minutes. Everyone else do it now so we start on time.", hoursAfterPost: 5 },
+        { authorEmail: "newman@seinfeld.com", body: "Done. Also downloaded the K1 app — apparently you can track your session times there.", hoursAfterPost: 10 },
+      ],
+      "Saturday lap records — who's on top?": [
+        { authorEmail: "newman@seinfeld.com", body: "28.4 is fast. My best was 29.1 last session. Still working out the braking point on the hairpin.", hoursAfterPost: 5 },
+      ],
+      "Group discount unlocked — 8+ confirmed": [
+        { authorEmail: "peterman@seinfeld.com", body: "Eight dollars back per person adds up nicely. Well done on getting us to the threshold.", hoursAfterPost: 3 },
+        { authorEmail: "newman@seinfeld.com", body: "RSVPed. Make sure people don't bail last minute or we might lose the rate.", hoursAfterPost: 7 },
+      ],
+    },
+    "ABC Farm": {
+      "Spring planting has started — all hands!": [
+        { authorEmail: "kramer@seinfeld.com", body: "I'll be there Saturday morning. Should we bring our own trowels or does the farm have tools?", hoursAfterPost: 4 },
+        { authorEmail: "newman@seinfeld.com", body: "Excited for the tomatoes. Last year's were incredible. I'll be there with my gloves.", hoursAfterPost: 9 },
+      ],
+      "Gloves needed — anyone have extras?": [
+        { authorEmail: "newman@seinfeld.com", body: "I have an extra medium pair that I barely use. Will bring them Saturday.", hoursAfterPost: 3 },
+        { authorEmail: "elaine@seinfeld.com", body: "I'll grab a cheap pair from the hardware store on the way. Better to have spares.", hoursAfterPost: 6 },
+      ],
+      "First harvest share next Sunday!": [
+        { authorEmail: "kramer@seinfeld.com", body: "This is the best part of the season. Bringing a big bag. Lettuce and radishes sound perfect.", hoursAfterPost: 4 },
+        { authorEmail: "newman@seinfeld.com", body: "I've been there every weekend this month so I'm looking forward to actually eating some of what we grew.", hoursAfterPost: 8 },
+      ],
+      "Anyone know how to fix a drip irrigator?": [
+        { authorEmail: "kramer@seinfeld.com", body: "Sounds like the ferrule fitting is cracked. A compression coupling from the hardware store should fix it — around $2.", hoursAfterPost: 2 },
+        { authorEmail: "elaine@seinfeld.com", body: "Kramer's right. I've patched those before. Come early Saturday and we can take a look together.", hoursAfterPost: 5 },
+      ],
+    },
+    "Bark at Dogpatch": {
+      "Vaccination reminder — required to join!": [
+        { authorEmail: "jerry@seinfeld.com", body: "My dog is up to date on everything. Happy to share the vet records digitally if it helps streamline check-in.", hoursAfterPost: 5 },
+        { authorEmail: "kramer@seinfeld.com", body: "Good reminder. Some people bring dogs assuming it's fine. Appreciate you enforcing this.", hoursAfterPost: 10 },
+      ],
+      "Any reactive dogs coming Saturday?": [
+        { authorEmail: "kramer@seinfeld.com", body: "Mine can be selective too. Arriving late sounds like a good call — I'll plan the same if my dog is having an off day.", hoursAfterPost: 4 },
+      ],
+      "New off-leash rules at Esprit — read this": [
+        { authorEmail: "jerry@seinfeld.com", body: "Good to know. I've seen people letting their dogs off-leash at the entrance. I'll say something next time.", hoursAfterPost: 4 },
+        { authorEmail: "kramer@seinfeld.com", body: "City patrol on weekends is no joke. Let's not risk the group getting flagged.", hoursAfterPost: 9 },
+      ],
+    },
+    "Corgi Farm": {
+      "Corgi Farm Saturday: potluck theme is brunch": [
+        { authorEmail: "estelle@seinfeld.com", body: "I'll bring a frittata — easy to slice and share. Do we need to coordinate to avoid doubles?", hoursAfterPost: 4 },
+        { authorEmail: "frank@seinfeld.com", body: "Bringing overnight oats with berries and some mini croissants from the bakery on Valencia.", hoursAfterPost: 9 },
+      ],
+      "My corgi just turned 2 — mini celebration?": [
+        { authorEmail: "jerry@seinfeld.com", body: "Happy birthday Bagelach! My corgi will absolutely be her hype dog. We'll be there.", hoursAfterPost: 3 },
+        { authorEmail: "frank@seinfeld.com", body: "Dog-safe cake sounds amazing. What's it made from? My guy has a wheat allergy.", hoursAfterPost: 7 },
+      ],
+      "Reminder: leashes until the open area": [
+        { authorEmail: "estelle@seinfeld.com", body: "My neighbor's corgi bolted into the cafe last time. This reminder is very much needed.", hoursAfterPost: 4 },
+        { authorEmail: "jerry@seinfeld.com", body: "Will do. My pup is leashed until we hit the courtyard anyway — she learned her lesson.", hoursAfterPost: 8 },
+      ],
+    },
+    "Mexican food": {
+      "This Friday: La Taqueria on Mission": [
+        { authorEmail: "george@seinfeld.com", body: "I'm in. Should we show up all at once or trickle in and grab tables as they open?", hoursAfterPost: 3 },
+        { authorEmail: "kramer@seinfeld.com", body: "La Taqueria is the right call. Best carnitas in the city, no question.", hoursAfterPost: 7 },
+      ],
+      "Best Oaxacan spot in the Mission?": [
+        { authorEmail: "kramer@seinfeld.com", body: "Taqueria Cancun is solid but it's more Jalisco-style. For real Oaxacan, try Tlayuda on 24th — mole is outstanding.", hoursAfterPost: 4 },
+        { authorEmail: "elaine@seinfeld.com", body: "Seconding Tlayuda. The tlayuda with black beans and quesillo is worth the trip.", hoursAfterPost: 9 },
+      ],
+      "Saturday: street food tour route published": [
+        { authorEmail: "george@seinfeld.com", body: "Route looks great. Pacing 4 stops over 2 hours is ambitious but doable if we keep moving.", hoursAfterPost: 3 },
+        { authorEmail: "kramer@seinfeld.com", body: "I've already got my $30 in cash. Ready.", hoursAfterPost: 7 },
+      ],
+      "Tamale recommendation — El Buen Sabor": [
+        { authorEmail: "george@seinfeld.com", body: "I walked past that place last week. Good to know it's worth going in. Will try it this weekend.", hoursAfterPost: 3 },
+        { authorEmail: "elaine@seinfeld.com", body: "Noted. The pork tamales or the sweet ones?", hoursAfterPost: 6 },
+      ],
+    },
+    "Mexican Food Truck": {
+      "Location unlocked — this Wednesday's truck": [
+        { authorEmail: "elaine@seinfeld.com", body: "Perfect. I know exactly where Capp and 22nd is. Will carpool from SoMa StrEat — anyone want to join?", hoursAfterPost: 4 },
+        { authorEmail: "frank@seinfeld.com", body: "The carpool idea is smart. Parking in that area is brutal on Wednesday nights.", hoursAfterPost: 8 },
+      ],
+      "Best fish taco truck in the city — debate": [
+        { authorEmail: "newman@seinfeld.com", body: "Gordo Taqueria on Judah. Not a truck technically but the fish taco is better than anything on wheels.", hoursAfterPost: 3 },
+        { authorEmail: "frank@seinfeld.com", body: "The Daly City truck is called El Paisa and it's genuinely good. Worth making the trip.", hoursAfterPost: 7 },
+      ],
+      "New truck map updated — 7 spots added": [
+        { authorEmail: "elaine@seinfeld.com", body: "Got the link. Three of those spots are new to me. Looking forward to working through them.", hoursAfterPost: 5 },
+        { authorEmail: "newman@seinfeld.com", body: "Appreciate you keeping this internal. No one wants these spots to blow up.", hoursAfterPost: 10 },
+      ],
+    },
+    "Mindful Mamas": {
+      "Monday Walk: Bernal Heights loop route": [
+        { authorEmail: "elaine@seinfeld.com", body: "I'll be there with the stroller. Is the path paved all the way up or does it get rough near the top?", hoursAfterPost: 4 },
+      ],
+      "Wednesday: guided meditation, 20 min": [
+        { authorEmail: "sysadmin@seinfeld.com", body: "Twenty minutes is very approachable. Can't wait to try this — will bring a mat.", hoursAfterPost: 5 },
+      ],
+      "Resources thread — share what's helped you": [
+        { authorEmail: "elaine@seinfeld.com", body: "The book 'Burnout' by Emily and Amelia Nagoski changed how I think about stress and rest. Highly recommend.", hoursAfterPost: 4 },
+      ],
+    },
+    "My Test Bubble nRgP": {
+      "Saturday run: Crissy Field to the bridge": [
+        { authorEmail: "jerry@seinfeld.com", body: "I'll be in the moderate pace group. Anyone else aiming for the 9–10 min/mi range?", hoursAfterPost: 4 },
+        { authorEmail: "elaine@seinfeld.com", body: "That route is beautiful on a clear morning. Fingers crossed the fog stays off.", hoursAfterPost: 9 },
+      ],
+      "Fueling strategy for longer runs?": [
+        { authorEmail: "larry@seinfeld.com", body: "I switched to medjool dates around mile 6 and the bonk disappeared. Takes a bit to digest but works great for me.", hoursAfterPost: 3 },
+        { authorEmail: "elaine@seinfeld.com", body: "Banana and peanut butter before the run, gel at mile 7. Two things, works every time.", hoursAfterPost: 7 },
+      ],
+      "Sunday long run — pace groups confirmed": [
+        { authorEmail: "jerry@seinfeld.com", body: "Moderate group for me. I'll be at the start line at the first mile marker. See you there.", hoursAfterPost: 5 },
+        { authorEmail: "estelle@seinfeld.com", body: "Easy group this week — my legs are still recovering from Thursday. Thanks for organizing this.", hoursAfterPost: 10 },
+      ],
+    },
+    "Larry Bubble": {
+      "Tuesday activity: tennis at GG Park": [
+        { authorEmail: "george@seinfeld.com", body: "Two courts is plenty. Should we bring extra balls in case someone doesn't have a can?", hoursAfterPost: 4 },
+        { authorEmail: "kramer@seinfeld.com", body: "GG Park courts are great. I'll bring a can and a backup racket in case someone needs to borrow.", hoursAfterPost: 9 },
+      ],
+      "Thursday TBD — suggestions welcome": [
+        { authorEmail: "george@seinfeld.com", body: "Basketball. Always basketball. Golden Gate Park courts on Fulton if the weather's good.", hoursAfterPost: 3 },
+        { authorEmail: "elaine@seinfeld.com", body: "Bowling is underrated. Have you been to Presidio Bowl? It's weirdly great.", hoursAfterPost: 7 },
+      ],
+      "Reminder: cancel 24 hours ahead": [
+        { authorEmail: "george@seinfeld.com", body: "Noted. I'll set a reminder the day before any event I RSVP to.", hoursAfterPost: 4 },
+        { authorEmail: "kramer@seinfeld.com", body: "Fair rule. Court bookings are hard enough to get without last-minute gaps messing up the count.", hoursAfterPost: 9 },
+      ],
+    },
+    "foo ar": {
+      "Tuesday: trying something completely different": [
+        { authorEmail: "frank@seinfeld.com", body: "Orienteering in SoMa sounds genuinely interesting. Do we need to download an app beforehand?", hoursAfterPost: 5 },
+        { authorEmail: "newman@seinfeld.com", body: "I've never done this. Looking forward to being completely lost for 90 minutes.", hoursAfterPost: 10 },
+      ],
+      "Wildest activity suggestion thread": [
+        { authorEmail: "larry@seinfeld.com", body: "Urban archery range. There's one in Hunters Point. Strange enough that I think we'd love it.", hoursAfterPost: 4 },
+        { authorEmail: "jerry@seinfeld.com", body: "Improv comedy class. One session. Nobody has to be funny — that's kind of the point.", hoursAfterPost: 8 },
+      ],
+      "Friday location: outdoor venue in the Presidio": [
+        { authorEmail: "frank@seinfeld.com", body: "RSVPed. I'll park on the Lincoln side and walk in from there. See you at the field.", hoursAfterPost: 3 },
+        { authorEmail: "newman@seinfeld.com", body: "The Presidio in the evening is gorgeous. Good pick for a Friday session.", hoursAfterPost: 7 },
+      ],
+    },
+    "Testing": {
+      "Bulletin board seeding test — all systems go": [
+        { authorEmail: "george@seinfeld.com", body: "Seeing this fine on my end. Announcement badge, pinned indicator, and reply count all showing correctly.", hoursAfterPost: 3 },
+        { authorEmail: "kramer@seinfeld.com", body: "Looks good on my screen too. Ready for the next round of testing.", hoursAfterPost: 7 },
+      ],
+      "Test general post — reply flow check": [
+        { authorEmail: "newman@seinfeld.com", body: "Reply loaded correctly with the right author avatar and timestamp. Thread is working.", hoursAfterPost: 4 },
+        { authorEmail: "jerry@seinfeld.com", body: "Confirmed on my device as well. Reply count increments immediately after posting.", hoursAfterPost: 9 },
+      ],
+      "Help post test — is this rendering?": [
+        { authorEmail: "george@seinfeld.com", body: "Green badge is showing and the help_exchange label is correct. Looks like it's working.", hoursAfterPost: 5 },
+      ],
+    },
+  };
+
+  let repliesSeeded = 0;
+
+  for (const bc of BUBBLE_CONFIGS) {
+    const bubbleId = bubbleMap[bc.title];
+    if (!bubbleId) continue;
+
+    const replyMap = BULLETIN_REPLIES[bc.title];
+    if (!replyMap) continue;
+
+    try {
+      const existingBoards = await db
+        .select({ id: bulletinBoards.id })
+        .from(bulletinBoards)
+        .where(eq(bulletinBoards.bubbleId, bubbleId))
+        .limit(1);
+
+      if (existingBoards.length === 0) continue;
+      const boardId = existingBoards[0].id;
+
+      const posts = await db
+        .select({ id: bulletinPosts.id, title: bulletinPosts.title, createdAt: bulletinPosts.createdAt })
+        .from(bulletinPosts)
+        .where(eq(bulletinPosts.boardId, boardId));
+
+      for (const post of posts) {
+        const replyDefs = replyMap[post.title];
+        if (!replyDefs || replyDefs.length === 0) continue;
+
+        // Idempotency: skip if this post already has replies.
+        const existing = await db
+          .select({ id: bulletinReplies.id })
+          .from(bulletinReplies)
+          .where(eq(bulletinReplies.postId, post.id))
+          .limit(1);
+
+        if (existing.length > 0) continue;
+
+        for (let i = 0; i < replyDefs.length; i++) {
+          const def = replyDefs[i];
+          const authorId = userMap[def.authorEmail] ?? sysAdminId;
+          const hoursAfter = def.hoursAfterPost ?? (i + 1) * 3;
+          const createdAt = new Date(post.createdAt.getTime() + hoursAfter * 60 * 60 * 1000);
+
+          await db.insert(bulletinReplies).values({
+            postId: post.id,
+            authorId,
+            body: def.body,
+            createdBy: authorId,
+            updatedBy: authorId,
+            createdAt,
+            updatedAt: createdAt,
+          });
+          repliesSeeded++;
+        }
+      }
+
+      console.log(`${LOG} "${bc.title}": replies seeded`);
+    } catch (e) {
+      console.error(`${LOG} Failed bulletin replies for "${bc.title}":`, e);
+    }
+  }
+
+  console.log(`${LOG} Bulletin replies: ${repliesSeeded} inserted`);
 
   // ── Step 6b: Bulletin Board Post Reactions ────────────────────────────────
   // For each seeded post, add 1–4 heart reactions from bubble members.
