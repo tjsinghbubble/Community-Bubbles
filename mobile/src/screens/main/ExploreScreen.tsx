@@ -26,6 +26,7 @@ import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { getFallbackImage } from '../../utils/categoryImages';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
@@ -375,7 +376,7 @@ export default function ExploreScreen() {
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
           <Image
-            source={bubble.image}
+            source={resolveMediaUrl(bubble.image) ?? getFallbackImage(bubble.category)}
             style={styles.image}
             contentFit="cover"
             onError={() => console.warn('[Image] bubble load failed:', bubble.image?.slice(0, 80))}
@@ -403,7 +404,7 @@ export default function ExploreScreen() {
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
           <Image
-            source={resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400'}
+            source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(event.bubble?.category)}
             style={styles.image}
             contentFit="cover"
             onError={() => console.warn('[Image] event load failed:', event.coverImage?.slice(0, 80))}

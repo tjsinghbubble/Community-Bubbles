@@ -40,6 +40,7 @@ import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { getFallbackImage } from '../../utils/categoryImages';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -888,7 +889,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       onPress={() => handleEventPress(event)}
     >
       <Image
-        source={resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400'}
+        source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
         style={styles.eventImage}
         contentFit="cover"
       />

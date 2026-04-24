@@ -8,13 +8,16 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { resolveMediaUrl } from '../utils/mediaUrl';
+import { getFallbackImage } from '../utils/categoryImages';
 
 interface ImageCarouselProps {
   images: string[];
   height?: number;
-  fallbackImage?: string;
+  fallbackImage?: string | number;
   width?: number;
   borderRadius?: number;
+  category?: string | null;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -22,15 +25,18 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function ImageCarousel({
   images,
   height = 200,
-  fallbackImage = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800',
+  fallbackImage,
   width,
   borderRadius = 0,
+  category,
 }: ImageCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const imageWidth = width || SCREEN_WIDTH;
 
-  const displayImages = images.length > 0 ? images : [fallbackImage];
+  const localFallback = fallbackImage ?? getFallbackImage(category);
+  const resolvedImages = images.map(url => resolveMediaUrl(url) ?? localFallback);
+  const displayImages: (string | number)[] = resolvedImages.length > 0 ? resolvedImages : [localFallback];
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const slideSize = event.nativeEvent.layoutMeasurement.width;
@@ -41,7 +47,7 @@ export default function ImageCarousel({
     }
   };
 
-  const renderItem = ({ item }: { item: string }) => (
+  const renderItem = ({ item }: { item: string | number }) => (
     <Image
       source={item}
       style={{ height, width: imageWidth }}

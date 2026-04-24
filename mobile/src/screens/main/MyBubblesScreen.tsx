@@ -19,6 +19,7 @@ import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
+import { getFallbackImage } from '../../utils/categoryImages';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -207,7 +208,7 @@ export default function MyBubblesScreen() {
                 <View style={styles.gridImageShadowWrapper}>
                   <View style={styles.gridImageContainer}>
                   <Image
-                    source={resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400'}
+                    source={resolveMediaUrl(bubble.coverImage) ?? getFallbackImage(bubble.category)}
                     style={styles.gridImage}
                     contentFit="cover"
                     onError={() => console.warn('[Image] bubble load failed:', bubble.coverImage?.slice(0, 80))}
