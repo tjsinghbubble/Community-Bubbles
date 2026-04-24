@@ -373,7 +373,12 @@ export default function ExploreScreen() {
     >
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
-          <Image source={{ uri: bubble.image }} style={styles.image} />
+          <Image
+            source={{ uri: bubble.image }}
+            style={styles.image}
+            resizeMode="cover"
+            onError={() => console.warn('[Image] bubble load failed:', bubble.image?.slice(0, 80))}
+          />
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{bubble.category}</Text>
           </View>

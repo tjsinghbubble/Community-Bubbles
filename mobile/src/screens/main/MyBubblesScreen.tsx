@@ -210,6 +210,8 @@ export default function MyBubblesScreen() {
                       uri: bubble.coverImage || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
                     }}
                     style={styles.gridImage}
+                    resizeMode="cover"
+                    onError={() => console.warn('[Image] bubble load failed:', bubble.coverImage?.slice(0, 80))}
                   />
                   {bubble.status === 'pending' ? (
                     <View style={styles.gridPendingBadge}>

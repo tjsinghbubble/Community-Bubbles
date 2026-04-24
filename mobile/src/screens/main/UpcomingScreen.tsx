@@ -248,6 +248,8 @@ export default function UpcomingScreen() {
                         uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
                       }}
                       style={styles.eventImage}
+                      resizeMode="cover"
+                      onError={() => console.warn('[Image] event load failed:', event.coverImage?.slice(0, 80))}
                     />
                     <View style={styles.eventInfo}>
                       <Text style={styles.eventTitle} numberOfLines={1}>{event.title.length > 15 ? event.title.substring(0, 15) + '...' : event.title}</Text>
