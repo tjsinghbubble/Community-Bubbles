@@ -65,6 +65,14 @@ class ApiService {
       rawText.substring(0, 500),
     );
 
+    if (endpoint !== "/api/telemetry/latency") {
+      fetch(`${API_URL}/api/telemetry/latency`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint, method, durationMs, statusCode: response.status }),
+      }).catch(() => {});
+    }
+
     if (!response.ok) {
       let error;
       try {

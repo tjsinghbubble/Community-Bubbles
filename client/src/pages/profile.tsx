@@ -273,6 +273,14 @@ export default function Profile() {
                     onClick={() => navigate("/admin/monitor")}
                   />
                 )}
+                {isSuperAdmin && (
+                  <SectionRow
+                    icon={Clock}
+                    label="Latency Dashboard"
+                    sublabel="p50 / p95 response times per endpoint"
+                    onClick={() => navigate("/admin/latency")}
+                  />
+                )}
               </div>
             </div>
           )}

@@ -23,6 +23,7 @@ import AdminPending from "./pages/admin-pending";
 import AdminRules from "./pages/admin-rules";
 import AdminMonitor from "./pages/admin-monitor";
 import AdminCategories from "./pages/admin-categories";
+import AdminLatency from "./pages/admin-latency";
 import MobileQR from "./pages/mobile-qr";
 
 function BubbleShortLink() {
@@ -69,6 +70,7 @@ function Router() {
       <Route path="/admin/rules" component={AdminRules} />
       <Route path="/admin/monitor" component={AdminMonitor} />
       <Route path="/admin/categories" component={AdminCategories} />
+      <Route path="/admin/latency" component={AdminLatency} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route path="/mobile" component={MobileQR} />
       <Route path="/qr-code" component={MobileQR} />

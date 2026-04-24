@@ -20,9 +20,11 @@ import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembers
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { pingUrl, setMaintenanceModeCache, getMaintenanceMode } from "./health";
+import { getMetrics, resetMetrics, recordRequest } from "./metrics";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
+import { z } from "zod";
 
 const AUTH_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_AUTH_MAX ?? "10", 10);
 const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MIN ?? "15", 10) * 60 * 1000;
@@ -1259,6 +1261,59 @@ export async function registerRoutes(
       const limit = Math.min(Number(req.query.limit) || 50, 200);
       const logs = await storage.getAuditLogs(limit);
       res.json({ logs });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  const telemetryRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many telemetry reports, slow down" },
+  });
+
+  const telemetrySampleSchema = z.object({
+    endpoint: z.string().max(500),
+    method: z.string().max(10),
+    durationMs: z.number().int().nonnegative().max(60_000),
+    statusCode: z.number().int().min(100).max(599),
+  });
+
+  const telemetryBodySchema = z.union([
+    telemetrySampleSchema,
+    z.array(telemetrySampleSchema).max(50),
+  ]);
+
+  app.post("/api/telemetry/latency", telemetryRateLimit, (req, res) => {
+    const parsed = telemetryBodySchema.safeParse(req.body);
+    if (parsed.success) {
+      const reports = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+      for (const report of reports) {
+        recordRequest(report.method, report.endpoint, report.statusCode, report.durationMs);
+      }
+    }
+    res.status(204).end();
+  });
+
+  app.get("/api/admin/latency", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const metrics = getMetrics();
+      res.json({ metrics, generatedAt: new Date().toISOString() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.delete("/api/admin/latency", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      resetMetrics();
+      res.json({ ok: true });
     } catch (error: unknown) {
       serverError(res, error);
     }
