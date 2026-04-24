@@ -2131,6 +2131,15 @@ export async function registerRoutes(
       const ids = [requesterId, userId].sort();
       const dmGuid = `peer_${ids[0]}_${ids[1]}`;
       const groupName = `${requester.name || requester.email} & ${targetUser.name || targetUser.email}`;
+      const requesterName = requester.name || requester.email || 'Someone';
+
+      await sendNotification({
+        recipientId: userId,
+        type: "peer_dm_started",
+        title: "New Message",
+        body: `${requesterName} started a conversation with you`,
+        metadata: { userId: requesterId, userName: requesterName },
+      });
 
       res.json({
         groupId: dmGuid,

@@ -29,7 +29,8 @@ export type NotificationType =
   | "membership_request"
   | "report_submitted"
   | "report_resolved"
-  | "admin_announcement";
+  | "admin_announcement"
+  | "peer_dm_started";
 
 type NotificationMetadata = {
   bubbleId?: string;

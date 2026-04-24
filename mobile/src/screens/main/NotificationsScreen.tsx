@@ -69,6 +69,7 @@ const ICON_MAP: Record<string, { name: keyof typeof Ionicons.glyphMap; color: st
   report_submitted: { name: 'flag', color: Colors.status.warning, bg: Colors.background.warningTint },
   report_resolved: { name: 'checkmark-done', color: Colors.status.success, bg: Colors.background.successTint },
   admin_announcement: { name: 'megaphone', color: Colors.brand.primary, bg: Colors.background.brandTint },
+  peer_dm_started: { name: 'chatbubble-ellipses', color: Colors.brand.primary, bg: Colors.background.brandTint },
 };
 
 function getTimeAgo(dateStr: string): string {
