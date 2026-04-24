@@ -112,12 +112,14 @@ export function reportFatalError(
   sendToServer(report);
 }
 
-export function setSentryUser(id: string, username: string): void {
+export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
   Sentry.setUser({ id, username });
+  Sentry.getCurrentScope().setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
 }
 
 export function clearSentryUser(): void {
   Sentry.setUser(null);
+  Sentry.getCurrentScope().setTag('isSuperAdmin', 'false');
 }
 
 export function installGlobalHandlers(): void {

@@ -99,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(parsedUser);
         apiService.setToken(storedToken);
         apiService.setOnTokenRevoked(() => clearLocalAuth());
-        setSentryUser(parsedUser.id, parsedUser.name);
+        setSentryUser(parsedUser.id, parsedUser.name, parsedUser.isSuperAdmin);
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -116,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    setSentryUser(response.user.id, response.user.name);
+    setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
     // Start session on login
     await startSession();
   };
@@ -129,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(response.user);
     apiService.setToken(response.token);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    setSentryUser(response.user.id, response.user.name);
+    setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
     // Start session on signup
     await startSession();
   };
