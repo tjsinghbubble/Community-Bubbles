@@ -158,9 +158,12 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
             <Text style={styles.userName} testID="text-member-name">{profile.name}</Text>
             <Text style={styles.userRole}>Member</Text>
 
-            {profile.aboutMe ? (
-              <Text style={styles.aboutMe} testID="text-member-about">{profile.aboutMe}</Text>
-            ) : null}
+            <Text
+              style={[styles.aboutMe, !profile.aboutMe && styles.aboutMePlaceholder]}
+              testID="text-member-about"
+            >
+              {profile.aboutMe || 'No bio yet'}
+            </Text>
 
             {!isOwnProfile && (
               <TouchableOpacity
@@ -310,6 +313,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
     lineHeight: 20,
+  },
+  aboutMePlaceholder: {
+    color: Colors.text.tertiary,
+    fontStyle: 'italic',
   },
   messageButton: {
     flexDirection: 'row',

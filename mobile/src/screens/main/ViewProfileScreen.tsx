@@ -88,6 +88,19 @@ export default function ViewProfileScreen({ navigation }: Props) {
           )}
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userRole}>{roleLabel}</Text>
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.7}
+            testID="button-edit-bio"
+          >
+            <Text
+              style={[styles.aboutMe, !user.aboutMe && styles.aboutMePlaceholder]}
+              testID="text-my-about"
+            >
+              {user.aboutMe || 'Add a bio…'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.completeSection}>
@@ -182,7 +195,6 @@ const styles = StyleSheet.create({
     paddingVertical: 28,
     paddingHorizontal: 24,
     marginBottom: 15,
-    aspectRatio: 1.15,
     justifyContent: 'center',
   },
   avatarImage: {
@@ -215,6 +227,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.neutral.charcoal,
     marginTop: 2,
+  },
+  aboutMe: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 20,
+    paddingHorizontal: 8,
+  },
+  aboutMePlaceholder: {
+    color: Colors.text.tertiary,
+    fontStyle: 'italic',
   },
   completeSection: {
     alignItems: 'center',
