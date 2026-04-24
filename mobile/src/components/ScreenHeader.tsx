@@ -10,12 +10,14 @@ function BaseHeader({
   title,
   subtitle,
   onBack,
+  onTitlePress,
   rightElement,
   showBorder = true,
 }: {
   title?: string;
   subtitle?: string;
   onBack?: () => void;
+  onTitlePress?: () => void;
   rightElement?: React.ReactNode;
   showBorder?: boolean;
 }) {
@@ -45,12 +47,25 @@ function BaseHeader({
 
         {title ? (
           subtitle ? (
-            <View style={styles.titleGroup}>
-              <Text style={styles.title} numberOfLines={1}>{title}</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
-            </View>
+            onTitlePress ? (
+              <TouchableOpacity style={styles.titleGroup} onPress={onTitlePress} testID="button-header-title" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.titleGroup}>
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+              </View>
+            )
           ) : (
-            <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            onTitlePress ? (
+              <TouchableOpacity style={styles.titleTouchable} onPress={onTitlePress} testID="button-header-title" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.title} numberOfLines={1}>{title}</Text>
+            )
           )
         ) : (
           <View style={styles.titlePlaceholder} />
@@ -87,15 +102,17 @@ export function NavHeader({
 export function FlowHeader({
   title,
   onBack,
+  onTitlePress,
   rightElement,
   showBorder,
 }: {
   title: string;
   onBack: () => void;
+  onTitlePress?: () => void;
   rightElement: React.ReactNode;
   showBorder?: boolean;
 }) {
-  return <BaseHeader title={title} onBack={onBack} rightElement={rightElement} showBorder={showBorder} />;
+  return <BaseHeader title={title} onBack={onBack} onTitlePress={onTitlePress} rightElement={rightElement} showBorder={showBorder} />;
 }
 
 /**
@@ -151,6 +168,11 @@ const styles = StyleSheet.create({
     fontWeight: PageHeader.titleFontWeight,
     color: PageHeader.titleColor,
     textAlign: 'center',
+  },
+  titleTouchable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleGroup: {
     flex: 1,
