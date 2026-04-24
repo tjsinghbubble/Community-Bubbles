@@ -907,7 +907,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
         )}
       </View>
-      <View style={styles.eventHeartContainer}>
+      <View style={styles.eventChevronContainer}>
         <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
       </View>
     </TouchableOpacity>
@@ -1556,7 +1556,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.status.error,
   },
-  eventHeartContainer: {
+  eventChevronContainer: {
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
