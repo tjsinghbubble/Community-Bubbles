@@ -25,6 +25,7 @@ import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
 import { API_URL } from '../../config/api';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
@@ -96,7 +97,7 @@ export default function ExploreScreen() {
         category: bubble.category,
         description: bubble.description,
         members: bubble.members || 0,
-        image: bubble.coverImage || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
+        image: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
         distance: '~',
         campusId: bubble.campusId || null,
       }));

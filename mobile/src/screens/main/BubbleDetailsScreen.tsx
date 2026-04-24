@@ -39,6 +39,7 @@ import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -888,7 +889,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     >
       <Image
         source={{
-          uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+          uri: resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
         }}
         style={styles.eventImage}
       />

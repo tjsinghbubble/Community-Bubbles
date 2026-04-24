@@ -17,6 +17,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import { EventCardTokens } from '../../styles/design-tokens';
 import { UpcomingScreenSkeleton } from '../../components/SkeletonLoader';
@@ -245,7 +246,7 @@ export default function UpcomingScreen() {
                   <View style={styles.eventCardInner}>
                     <Image
                       source={{
-                        uri: event.coverImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
+                        uri: resolveMediaUrl(event.coverImage) || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400',
                       }}
                       style={styles.eventImage}
                       resizeMode="cover"

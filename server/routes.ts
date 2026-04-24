@@ -103,6 +103,30 @@ function truncateCoord(value: string | null | undefined): string | null | undefi
   return isNaN(num) ? value : num.toFixed(2);
 }
 
+function getBaseUrl(req: any): string {
+  const proto = req.headers["x-forwarded-proto"] || req.protocol || "https";
+  const host = req.headers["x-forwarded-host"] || req.get("host") || "";
+  return `${proto}://${host}`;
+}
+
+function absoluteMediaUrl(url: string | null | undefined, baseUrl: string): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${baseUrl}${url}`;
+  return url;
+}
+
+function absoluteMediaUrls(item: any, baseUrl: string): any {
+  if (!item) return item;
+  const result: any = { ...item };
+  if (result.coverImage !== undefined) result.coverImage = absoluteMediaUrl(result.coverImage, baseUrl);
+  if (Array.isArray(result.images)) {
+    result.images = result.images.map((u: string) => absoluteMediaUrl(u, baseUrl) ?? u);
+  }
+  if (result.bubble) result.bubble = absoluteMediaUrls(result.bubble, baseUrl);
+  return result;
+}
+
 async function resolveCategoryName(categoryId: number | null | undefined): Promise<string | null> {
   if (!categoryId) return null;
   const cat = await storage.getCategory(categoryId);
@@ -681,9 +705,10 @@ export async function registerRoutes(
 
   app.get("/api/bubbles", async (req, res) => {
     try {
-      // Return only public bubbles (excludes campus-specific ones)
+      const baseUrl = getBaseUrl(req);
       const bubbles = await storage.getPublicBubbles();
-      res.json(await enrichBubblesCategory(bubbles));
+      const enriched = await enrichBubblesCategory(bubbles);
+      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -691,12 +716,14 @@ export async function registerRoutes(
 
   app.get("/api/bubbles/my", authMiddleware, async (req, res) => {
     try {
+      const baseUrl = getBaseUrl(req);
       const membershipList = await storage.getUserMemberships(req.userId!);
       const bubblesWithCounts = await Promise.all(membershipList.map(async (m) => {
         const realCount = await storage.getRealMemberCount(m.bubble.id);
         return { ...m.bubble, members: realCount, role: m.role };
       }));
-      res.json(await enrichBubblesCategory(bubblesWithCounts));
+      const enriched = await enrichBubblesCategory(bubblesWithCounts);
+      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -727,8 +754,10 @@ export async function registerRoutes(
         }
       }
       
+      const baseUrl = getBaseUrl(req);
       const realMemberCount = await storage.getRealMemberCount(bubble.id);
-      res.json(await enrichBubbleCategory({ ...bubble, members: realMemberCount }));
+      const enriched = await enrichBubbleCategory({ ...bubble, members: realMemberCount });
+      res.json(absoluteMediaUrls(enriched, baseUrl));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2063,8 +2092,9 @@ export async function registerRoutes(
   // Events API
   app.get("/api/events", async (req, res) => {
     try {
+      const baseUrl = getBaseUrl(req);
       const events = await storage.getPublicEvents();
-      res.json(convertEventsToLocal(events));
+      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2072,8 +2102,9 @@ export async function registerRoutes(
 
   app.get("/api/events/upcoming", async (req, res) => {
     try {
+      const baseUrl = getBaseUrl(req);
       const events = await storage.getUpcomingEvents();
-      res.json(convertEventsToLocal(events));
+      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2081,8 +2112,9 @@ export async function registerRoutes(
 
   app.get("/api/events/my", authMiddleware, async (req, res) => {
     try {
+      const baseUrl = getBaseUrl(req);
       const events = await storage.getUserEvents(req.userId!);
-      res.json(convertEventsToLocal(events));
+      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2090,8 +2122,9 @@ export async function registerRoutes(
 
   app.get("/api/events/created", authMiddleware, async (req, res) => {
     try {
+      const baseUrl = getBaseUrl(req);
       const events = await storage.getUserCreatedEvents(req.userId!);
-      res.json(convertEventsToLocal(events));
+      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2131,8 +2164,9 @@ export async function registerRoutes(
         }
       }
       
+      const baseUrl = getBaseUrl(req);
       const events = await storage.getBubbleEvents(req.params.bubbleId);
-      res.json(convertEventsToLocal(events));
+      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);
     }

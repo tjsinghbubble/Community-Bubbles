@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -207,7 +208,7 @@ export default function MyBubblesScreen() {
                   <View style={styles.gridImageContainer}>
                   <Image
                     source={{
-                      uri: bubble.coverImage || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
+                      uri: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400',
                     }}
                     style={styles.gridImage}
                     resizeMode="cover"
