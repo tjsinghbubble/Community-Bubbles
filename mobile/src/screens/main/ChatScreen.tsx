@@ -100,6 +100,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [chatError, setChatError] = useState<string | null>(null);
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetchMessages();
@@ -108,6 +109,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     return () => {
       cometChatService.removeMessageListener(`chat_${groupId}`);
       cometChatService.removeMessageListener(`reactions_${groupId}`);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     };
   }, [groupId]);
 
@@ -434,8 +436,8 @@ export default function ChatScreen({ navigation, route }: Props) {
         type: 'text',
       };
       setMessages((prev) => [...prev, newMsg]);
-      
-      setTimeout(() => {
+
+      scrollTimeoutRef.current = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error: any) {
@@ -515,8 +517,8 @@ export default function ChatScreen({ navigation, route }: Props) {
         imageUrl: sentMessage.data?.url || sentMessage.url || asset.uri,
       };
       setMessages((prev) => [...prev, newMsg]);
-      
-      setTimeout(() => {
+
+      scrollTimeoutRef.current = setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error: any) {

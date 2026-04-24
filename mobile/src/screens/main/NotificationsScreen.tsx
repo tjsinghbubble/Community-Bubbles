@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -89,16 +89,23 @@ export default function NotificationsScreen() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const data = await apiService.getNotifications(50, 0);
-      setNotifications(data);
+      if (isMountedRef.current) setNotifications(data);
     } catch (e) {
       console.error('Failed to fetch notifications:', e);
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 

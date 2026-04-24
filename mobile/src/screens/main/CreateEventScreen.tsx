@@ -89,6 +89,15 @@ export default function CreateEventScreen({ navigation, route }: Props) {
   const isCampusVerified = user?.campusVerified && user?.campusId;
   const step3ScrollRef = useRef<ScrollView>(null);
   const rsvpSectionY = useRef(0);
+  const rsvpScrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewEventTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (rsvpScrollTimeoutRef.current) clearTimeout(rsvpScrollTimeoutRef.current);
+      if (viewEventTimeoutRef.current) clearTimeout(viewEventTimeoutRef.current);
+    };
+  }, []);
 
   const [myBubbles, setMyBubbles] = useState<Bubble[]>([]);
   const [showBubblePicker, setShowBubblePicker] = useState(false);
@@ -861,7 +870,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           style={styles.fieldInput}
           onPress={() => {
             setShowRsvpDatePicker(true);
-            setTimeout(() => {
+            rsvpScrollTimeoutRef.current = setTimeout(() => {
               step3ScrollRef.current?.scrollTo({ y: rsvpSectionY.current - 40, animated: true });
             }, 100);
           }}
@@ -899,7 +908,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   const handleViewEventNavigation = () => {
     setShowSuccess(false);
-    setTimeout(() => {
+    viewEventTimeoutRef.current = setTimeout(() => {
       if (createdEvent?.id) {
         navigation.replace('EventDetails', {
           eventId: createdEvent.id,

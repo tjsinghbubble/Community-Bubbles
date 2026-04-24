@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -69,6 +69,11 @@ export default function ExploreScreen() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
@@ -95,14 +100,16 @@ export default function ExploreScreen() {
         campusId: bubble.campusId || null,
       }));
       
-      setBubbles(transformedBubbles);
-      setEvents(eventsData || []);
-      
+      if (isMountedRef.current) {
+        setBubbles(transformedBubbles);
+        setEvents(eventsData || []);
+      }
+
       if (isCampusVerified && token) {
         apiService.setToken(token);
         try {
           const myCampus = await apiService.getMyCampus();
-          if (myCampus.campus) {
+          if (isMountedRef.current && myCampus.campus) {
             setCampusInfo({ name: myCampus.campus.name });
           }
         } catch (error) {
@@ -112,8 +119,10 @@ export default function ExploreScreen() {
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 

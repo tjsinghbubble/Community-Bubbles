@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -72,10 +72,12 @@ export default function CategoryPlaceholdersScreen({ navigation }: Props) {
   const [saving, setSaving] = useState(false);
 
   const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     fetchCategories();
     fetchAllPlaceholders();
+    return () => { isMountedRef.current = false; };
   }, []);
 
   const fetchCategories = async () => {
@@ -83,27 +85,27 @@ export default function CategoryPlaceholdersScreen({ navigation }: Props) {
       const res = await fetch(`${API_URL}/api/categories`, { headers });
       if (res.ok) {
         const data: (CategoryGroup & { children: CategoryItem[] })[] = await res.json();
-        setCategoryGroups(data.filter(g => g.children && g.children.length > 0));
+        if (isMountedRef.current) setCategoryGroups(data.filter(g => g.children && g.children.length > 0));
       }
     } catch (e) {
       console.error('Failed to fetch categories:', e);
     } finally {
-      setLoadingCategories(false);
+      if (isMountedRef.current) setLoadingCategories(false);
     }
   };
 
   const fetchAllPlaceholders = async () => {
-    setLoadingPlaceholders(true);
+    if (isMountedRef.current) setLoadingPlaceholders(true);
     try {
       const res = await fetch(`${API_URL}/api/category-placeholders`, { headers });
       if (res.ok) {
         const data: PlaceholderRow[] = await res.json();
-        setAllPlaceholders(data);
+        if (isMountedRef.current) setAllPlaceholders(data);
       }
     } catch (e) {
       console.error('Failed to fetch placeholders:', e);
     } finally {
-      setLoadingPlaceholders(false);
+      if (isMountedRef.current) setLoadingPlaceholders(false);
     }
   };
 
