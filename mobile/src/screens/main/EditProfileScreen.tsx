@@ -68,7 +68,10 @@ export default function EditProfileScreen({ navigation }: Props) {
 
   const handlePickPhoto = async () => {
     const granted = await requestPhotoLibraryAccess();
-    if (!granted) return;
+    if (!granted) {
+      logAppWarn('EditProfile:photoLibraryPermissionDenied', { platform: Platform.OS });
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
