@@ -20,6 +20,7 @@ import CreatePostScreen from '../screens/main/CreatePostScreen';
 import JoinBubbleScreen from '../screens/main/JoinBubbleScreen';
 import BubbleWaitlistScreen from '../screens/main/BubbleWaitlistScreen';
 import AdminDashboardScreen from '../screens/main/AdminDashboardScreen';
+import MemberProfileScreen from '../screens/main/MemberProfileScreen';
 
 export type BubbleData = {
   id: string;
@@ -83,6 +84,7 @@ export type ExploreStackParamList = {
   JoinBubble: { bubble: BubbleData };
   BubbleWaitlist: { bubbleId: string; bubbleTitle: string };
   AdminDashboard: { bubbleId: string; bubbleTitle: string; bubble: BubbleData };
+  MemberProfile: { userId: string };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -125,6 +127,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} />
       <Stack.Screen name="BubbleWaitlist" component={BubbleWaitlistScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
     </Stack.Navigator>
   );
 }

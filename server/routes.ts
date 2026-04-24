@@ -432,6 +432,21 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/:userId/profile", authMiddleware, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      res.json({
+        id: user.id,
+        name: user.name,
+        profilePhoto: user.profilePhoto ?? null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.get("/api/users/me/export", authMiddleware, async (req, res) => {
     try {
       const userId = req.userId!;

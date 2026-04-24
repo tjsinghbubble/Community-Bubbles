@@ -35,6 +35,7 @@ type ParticipantsParamList = {
     bubblePrivacy?: string;
     eventCreatorId?: string;
   };
+  MemberProfile: { userId: string };
 };
 
 type Props = {
@@ -295,6 +296,10 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
     }
   };
 
+  const navigateToProfile = (attendee: Attendee) => {
+    navigation.navigate('MemberProfile', { userId: attendee.userId });
+  };
+
   const renderAttendeeRow = (attendee: Attendee, showOrganizer?: boolean) => {
     const isMe = attendee.userId === user?.id;
     const isOrganizer = showOrganizer && attendee.userId === eventCreatorId;
@@ -302,21 +307,29 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
 
     return (
       <View style={styles.attendeeRow} key={attendee.id}>
-        {attendee.user.profilePhoto ? (
-          <Image source={{ uri: attendee.user.profilePhoto }} style={styles.avatarImage} />
-        ) : (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials(attendee.user.name)}</Text>
-          </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.attendeeName} numberOfLines={1}>
-            {displayName}{isOrganizer ? '' : ''}
-          </Text>
-          {isOrganizer && (
-            <Text style={styles.organizerLabel}>(Organizer)</Text>
+        <TouchableOpacity
+          style={styles.attendeeTappable}
+          onPress={() => !isMe && navigateToProfile(attendee)}
+          activeOpacity={isMe ? 1 : 0.6}
+          disabled={isMe}
+          testID={`button-attendee-profile-${attendee.userId}`}
+        >
+          {attendee.user.profilePhoto ? (
+            <Image source={{ uri: attendee.user.profilePhoto }} style={styles.avatarImage} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{getInitials(attendee.user.name)}</Text>
+            </View>
           )}
-        </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.attendeeName} numberOfLines={1}>
+              {displayName}{isOrganizer ? '' : ''}
+            </Text>
+            {isOrganizer && (
+              <Text style={styles.organizerLabel}>(Organizer)</Text>
+            )}
+          </View>
+        </TouchableOpacity>
         {!isMe && (
           <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(attendee)}>
             <Ionicons name="ellipsis-horizontal" size={20} color={Colors.neutral.coolMist} />
@@ -530,6 +543,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: Colors.background.primary,
+  },
+  attendeeTappable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
     width: 40,

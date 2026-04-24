@@ -37,6 +37,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 type MessagesStackParamList = {
   MessagesList: undefined;
   Chat: { groupId: string; groupName: string };
+  MemberProfile: { userId: string };
 };
 
 type Props = {
@@ -601,17 +602,31 @@ export default function ChatScreen({ navigation, route }: Props) {
     return senderId === user?.id;
   };
 
-  const renderAvatar = (sender: Message['sender']) => {
-    if (sender.avatar) {
-      return (
-        <Image source={{ uri: sender.avatar }} style={styles.avatar} />
-      );
-    }
-    return (
+  const navigateToMemberProfile = (uid: string) => {
+    navigation.navigate('MemberProfile', { userId: uid });
+  };
+
+  const renderAvatar = (sender: Message['sender'], tappable?: boolean) => {
+    const inner = sender.avatar ? (
+      <Image source={{ uri: sender.avatar }} style={styles.avatar} />
+    ) : (
       <View style={[styles.avatar, styles.avatarPlaceholder]}>
         <Text style={styles.avatarInitials}>{getInitials(sender.name)}</Text>
       </View>
     );
+
+    if (tappable) {
+      return (
+        <TouchableOpacity
+          onPress={() => navigateToMemberProfile(sender.uid)}
+          activeOpacity={0.7}
+          testID={`button-chat-avatar-${sender.uid}`}
+        >
+          {inner}
+        </TouchableOpacity>
+      );
+    }
+    return inner;
   };
 
   const renderReactions = (message: Message) => {
@@ -686,11 +701,17 @@ export default function ChatScreen({ navigation, route }: Props) {
           onPress={() => { if (showReactionPicker && showReactionPicker !== message.id) setShowReactionPicker(null); }}
         >
           <View style={[styles.messageRow, isOwn && styles.messageRowOwn]}>
-            {!isOwn && renderAvatar(message.sender)}
+            {!isOwn && renderAvatar(message.sender, true)}
             
             <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
               {!isOwn && (
-                <Text style={styles.senderName}>{message.sender.name}</Text>
+                <TouchableOpacity
+                  onPress={() => navigateToMemberProfile(message.sender.uid)}
+                  activeOpacity={0.7}
+                  testID={`button-sender-name-${message.sender.uid}`}
+                >
+                  <Text style={styles.senderName}>{message.sender.name}</Text>
+                </TouchableOpacity>
               )}
               
               {message.parentMessage && renderReplyPreview(message.parentMessage)}
@@ -926,29 +947,39 @@ export default function ChatScreen({ navigation, route }: Props) {
               </View>
             ) : (
               <ScrollView style={styles.participantsList}>
-                {participants.map((p) => (
-                  <View key={p.uid} style={styles.participantRow}>
-                    {p.avatar ? (
-                      <Image source={{ uri: p.avatar }} style={styles.participantAvatar} />
-                    ) : (
-                      <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder]}>
-                        <Text style={styles.participantInitials}>{getInitials(p.name)}</Text>
+                {participants.map((p) => {
+                  const isMe = p.uid === user?.id;
+                  return (
+                    <TouchableOpacity
+                      key={p.uid}
+                      style={styles.participantRow}
+                      onPress={() => !isMe && navigateToMemberProfile(p.uid)}
+                      activeOpacity={isMe ? 1 : 0.6}
+                      disabled={isMe}
+                      testID={`button-participant-profile-${p.uid}`}
+                    >
+                      {p.avatar ? (
+                        <Image source={{ uri: p.avatar }} style={styles.participantAvatar} />
+                      ) : (
+                        <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder]}>
+                          <Text style={styles.participantInitials}>{getInitials(p.name)}</Text>
+                        </View>
+                      )}
+                      <View style={styles.participantInfo}>
+                        <Text style={styles.participantName}>{p.name}</Text>
+                        {p.scope === 'admin' && (
+                          <Text style={styles.participantRole}>Admin</Text>
+                        )}
+                        {p.scope === 'owner' && (
+                          <Text style={styles.participantRole}>Owner</Text>
+                        )}
                       </View>
-                    )}
-                    <View style={styles.participantInfo}>
-                      <Text style={styles.participantName}>{p.name}</Text>
-                      {p.scope === 'admin' && (
-                        <Text style={styles.participantRole}>Admin</Text>
+                      {isMe && (
+                        <Text style={styles.participantYou}>You</Text>
                       )}
-                      {p.scope === 'owner' && (
-                        <Text style={styles.participantRole}>Owner</Text>
-                      )}
-                    </View>
-                    {p.uid === user?.id && (
-                      <Text style={styles.participantYou}>You</Text>
-                    )}
-                  </View>
-                ))}
+                    </TouchableOpacity>
+                  );
+                })}
                 {participants.length === 0 && (
                   <Text style={styles.noParticipants}>No participants found</Text>
                 )}

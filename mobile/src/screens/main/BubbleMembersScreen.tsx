@@ -28,6 +28,7 @@ import { FlagIcon } from '../../components/icons';
 
 type MembersStackParamList = {
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
+  MemberProfile: { userId: string };
 };
 
 type Props = {
@@ -341,35 +342,47 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
   const admins = uniqueMembers.filter(m => m.role === 'admin');
   const regularMembers = uniqueMembers.filter(m => m.role === 'member');
 
+  const navigateToProfile = (member: Member) => {
+    navigation.navigate('MemberProfile', { userId: member.userId });
+  };
+
   const renderMember = ({ item }: { item: Member }) => {
     const isMe = item.userId === user?.id;
     const isItemAdmin = item.role === 'admin';
     
     return (
       <View style={styles.memberRow}>
-        <View style={styles.avatarContainer}>
-          {item.user.profilePhoto ? (
-            <Image source={{ uri: item.user.profilePhoto }} style={[styles.avatarImage, isItemAdmin && styles.adminAvatarBorder]} />
-          ) : (
-            <View style={[styles.avatar, isItemAdmin && styles.adminAvatar]}>
-              <Text style={styles.avatarText}>{getInitials(item.user.name)}</Text>
-            </View>
-          )}
-          {isItemAdmin && (
-            <View style={styles.adminBadge}>
-              <Ionicons name="shield-checkmark" size={12} color={Colors.brand.skyWhite} />
-            </View>
-          )}
-        </View>
-        
-        <View style={styles.memberInfo}>
-          <Text style={styles.memberName}>
-            {item.user.name} {isMe && '(You)'}
-          </Text>
-          <Text style={styles.memberRole}>
-            {isItemAdmin ? 'Admin' : 'Member'}
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.memberTappable}
+          onPress={() => !isMe && navigateToProfile(item)}
+          activeOpacity={isMe ? 1 : 0.6}
+          disabled={isMe}
+          testID={`button-member-profile-${item.userId}`}
+        >
+          <View style={styles.avatarContainer}>
+            {item.user.profilePhoto ? (
+              <Image source={{ uri: item.user.profilePhoto }} style={[styles.avatarImage, isItemAdmin && styles.adminAvatarBorder]} />
+            ) : (
+              <View style={[styles.avatar, isItemAdmin && styles.adminAvatar]}>
+                <Text style={styles.avatarText}>{getInitials(item.user.name)}</Text>
+              </View>
+            )}
+            {isItemAdmin && (
+              <View style={styles.adminBadge}>
+                <Ionicons name="shield-checkmark" size={12} color={Colors.brand.skyWhite} />
+              </View>
+            )}
+          </View>
+          
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName}>
+              {item.user.name} {isMe && '(You)'}
+            </Text>
+            <Text style={styles.memberRole}>
+              {isItemAdmin ? 'Admin' : 'Member'}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {!isMe && (
           <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(item)}>
@@ -601,6 +614,11 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 8,
+  },
+  memberTappable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatarContainer: {
     position: 'relative',

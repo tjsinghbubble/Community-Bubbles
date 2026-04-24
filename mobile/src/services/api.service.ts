@@ -142,6 +142,10 @@ class ApiService {
     });
   }
 
+  async getUserPublicProfile(userId: string): Promise<{ id: string; name: string; profilePhoto: string | null }> {
+    return this.request<{ id: string; name: string; profilePhoto: string | null }>(`/api/users/${userId}/profile`);
+  }
+
   async getBubbles() {
     return this.request("/api/bubbles", {
       method: "GET",

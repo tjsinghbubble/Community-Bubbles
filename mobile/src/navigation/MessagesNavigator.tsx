@@ -3,10 +3,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ScreenErrorBoundary } from '../components/ErrorBoundary';
 import MessagesScreen from '../screens/main/MessagesScreen';
 import ChatScreen from '../screens/main/ChatScreen';
+import MemberProfileScreen from '../screens/main/MemberProfileScreen';
 
 export type MessagesStackParamList = {
   MessagesList: { openGroupId?: string; openGroupName?: string } | undefined;
   Chat: { groupId: string; groupName: string };
+  MemberProfile: { userId: string };
 };
 
 const Stack = createNativeStackNavigator<MessagesStackParamList>();
@@ -24,6 +26,7 @@ export default function MessagesNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreenWithBoundary} />
+      <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
     </Stack.Navigator>
   );
 }
