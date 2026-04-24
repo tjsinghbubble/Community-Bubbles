@@ -461,12 +461,32 @@ export async function registerRoutes(
   app.get("/api/users/:userId/profile", authMiddleware, async (req, res) => {
     try {
       const { userId } = req.params;
+      const viewerId = req.userId!;
       const user = await storage.getUser(userId);
       if (!user) return res.status(404).json({ error: "User not found" });
+
+      const [targetMemberships, viewerMemberships] = await Promise.all([
+        storage.getUserMemberships(userId),
+        storage.getUserMemberships(viewerId),
+      ]);
+
+      const viewerBubbleIds = new Set(viewerMemberships.map((m) => m.bubbleId));
+      const sharedBubbles = targetMemberships
+        .filter((m) => viewerBubbleIds.has(m.bubbleId))
+        .map((m) => ({
+          id: m.bubble.id,
+          title: m.bubble.title,
+          coverImage: m.bubble.coverImage ?? null,
+          category: m.bubble.category,
+        }));
+
       res.json({
         id: user.id,
         name: user.name,
         profilePhoto: user.profilePhoto ?? null,
+        aboutMe: user.aboutMe ?? null,
+        interests: user.interests ?? [],
+        sharedBubbles,
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

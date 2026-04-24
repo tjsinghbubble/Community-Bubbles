@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { NavHeader } from '../../components/ScreenHeader';
-import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
 import apiService from '../../services/api.service';
 
 export type MemberProfileStackParamList = {
@@ -23,10 +23,20 @@ type Props = {
   route: RouteProp<MemberProfileStackParamList, 'MemberProfile'>;
 };
 
+type SharedBubble = {
+  id: string;
+  title: string;
+  coverImage: string | null;
+  category: string;
+};
+
 type PublicProfile = {
   id: string;
   name: string;
   profilePhoto: string | null;
+  aboutMe: string | null;
+  interests: string[];
+  sharedBubbles: SharedBubble[];
 };
 
 function getInitials(name: string): string {
@@ -75,6 +85,7 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* Avatar & Name Card */}
           <View style={[styles.profileCard, CardShadow]}>
             {profile.profilePhoto ? (
               <Image source={{ uri: profile.profilePhoto }} style={styles.avatarImage} />
@@ -85,7 +96,53 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
             )}
             <Text style={styles.userName} testID="text-member-name">{profile.name}</Text>
             <Text style={styles.userRole}>Member</Text>
+
+            {profile.aboutMe ? (
+              <Text style={styles.aboutMe} testID="text-member-about">{profile.aboutMe}</Text>
+            ) : null}
           </View>
+
+          {/* Interests */}
+          {profile.interests.length > 0 && (
+            <View style={[styles.sectionCard, CardShadow]}>
+              <Text style={styles.sectionTitle}>Interests</Text>
+              <View style={styles.tagsRow}>
+                {profile.interests.map((interest) => (
+                  <View key={interest} style={styles.interestTag} testID={`tag-interest-${interest}`}>
+                    <Text style={styles.interestTagText}>{interest}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Shared Bubbles */}
+          {profile.sharedBubbles.length > 0 && (
+            <View style={[styles.sectionCard, CardShadow]}>
+              <Text style={styles.sectionTitle}>Bubbles in Common</Text>
+              {profile.sharedBubbles.map((bubble) => (
+                <View key={bubble.id} style={styles.bubbleRow} testID={`row-shared-bubble-${bubble.id}`}>
+                  {bubble.coverImage ? (
+                    <Image source={{ uri: bubble.coverImage }} style={styles.bubbleThumb} />
+                  ) : (
+                    <View style={styles.bubbleThumbPlaceholder}>
+                      <Text style={styles.bubbleThumbInitial}>
+                        {bubble.title.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.bubbleInfo}>
+                    <Text style={styles.bubbleTitle} numberOfLines={1} testID={`text-bubble-title-${bubble.id}`}>
+                      {bubble.title}
+                    </Text>
+                    <Text style={styles.bubbleCategory} numberOfLines={1}>
+                      {bubble.category}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -111,6 +168,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.lg,
+    gap: 12,
   },
   profileCard: {
     backgroundColor: Colors.background.primary,
@@ -118,7 +176,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
     paddingHorizontal: 24,
-    marginBottom: 15,
     justifyContent: 'center',
   },
   avatarImage: {
@@ -152,5 +209,81 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.neutral.charcoal,
     marginTop: 2,
+  },
+  aboutMe: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  sectionCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: 16,
+    padding: Spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600' as const,
+    color: Colors.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 12,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  interestTag: {
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: Radius.md,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  interestTagText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: '500',
+    color: Colors.brand.primary,
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border.light,
+  },
+  bubbleThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.sm,
+    marginRight: 12,
+  },
+  bubbleThumbPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.sm,
+    marginRight: 12,
+    backgroundColor: Colors.background.brandTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bubbleThumbInitial: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600' as const,
+    color: Colors.brand.primary,
+  },
+  bubbleInfo: {
+    flex: 1,
+  },
+  bubbleTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600' as const,
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  bubbleCategory: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
   },
 });

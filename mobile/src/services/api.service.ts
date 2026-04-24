@@ -161,8 +161,22 @@ class ApiService {
     });
   }
 
-  async getUserPublicProfile(userId: string): Promise<{ id: string; name: string; profilePhoto: string | null }> {
-    return this.request<{ id: string; name: string; profilePhoto: string | null }>(`/api/users/${userId}/profile`);
+  async getUserPublicProfile(userId: string): Promise<{
+    id: string;
+    name: string;
+    profilePhoto: string | null;
+    aboutMe: string | null;
+    interests: string[];
+    sharedBubbles: { id: string; title: string; coverImage: string | null; category: string }[];
+  }> {
+    return this.request<{
+      id: string;
+      name: string;
+      profilePhoto: string | null;
+      aboutMe: string | null;
+      interests: string[];
+      sharedBubbles: { id: string; title: string; coverImage: string | null; category: string }[];
+    }>(`/api/users/${userId}/profile`);
   }
 
   async getBubbles() {
