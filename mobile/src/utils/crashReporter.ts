@@ -32,6 +32,13 @@ export function initSentry(): void {
     debug: __DEV__,
     enableNativeNagger: false,
   });
+  Sentry.addBreadcrumb({
+    category: 'app.lifecycle',
+    message: 'Sentry initialized',
+    level: 'info',
+    data: { environment: __DEV__ ? 'development' : 'production' },
+  });
+  console.log('[CrashReporter] Sentry initialized successfully');
 }
 
 function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
@@ -95,6 +102,12 @@ export function logAppEvent(
   if (__DEV__) {
     console.log(`[AppEvent] ${message}`, attributes ?? {});
   }
+  Sentry.addBreadcrumb({
+    category: 'app.event',
+    message,
+    data: attributes,
+    level: 'info',
+  });
 }
 
 export function logAppWarn(
@@ -102,6 +115,13 @@ export function logAppWarn(
   attributes?: Record<string, string | number | boolean>,
 ): void {
   console.warn(`[AppWarn] ${message}`, attributes ?? {});
+  Sentry.withScope((scope) => {
+    if (attributes) {
+      Object.entries(attributes).forEach(([k, v]) => scope.setExtra(k, v));
+    }
+    scope.setTag('alert_type', 'app_warning');
+    Sentry.captureMessage(message, 'warning');
+  });
 }
 
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {

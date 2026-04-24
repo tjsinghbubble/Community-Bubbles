@@ -112,8 +112,8 @@ class ApiService {
           scope.setExtra('threshold', SLOW_CALL_THRESHOLD_MS);
           Sentry.captureMessage(`[API] Slow response: ${method} ${endpoint}`, 'warning');
         });
-      } else {
-        Sentry.logger.info(`[API] ${method} ${endpoint} completed in ${durationMs} ms`, { endpoint, method, durationMs });
+      } else if (__DEV__) {
+        console.log(`[API] ${method} ${endpoint} completed in ${durationMs} ms`);
       }
       return result;
     } catch (parseError) {
