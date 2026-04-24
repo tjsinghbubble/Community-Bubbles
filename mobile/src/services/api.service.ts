@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { reportError } from '../utils/crashReporter';
 
 const API_URL =
@@ -44,8 +45,10 @@ class ApiService {
     }
 
     const url = `${API_URL}${endpoint}`;
-    console.log(`[API] Request: ${options?.method || "GET"} ${url}`);
+    const method = options?.method || 'GET';
+    console.log(`[API] Request: ${method} ${url}`);
 
+    const startTime = Date.now();
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -56,6 +59,7 @@ class ApiService {
 
     // Get raw text first for debugging
     const rawText = await response.text();
+    const durationMs = Date.now() - startTime;
     console.log(
       `[API] Response ${endpoint} (status ${response.status}):`,
       rawText.substring(0, 500),
@@ -71,15 +75,14 @@ class ApiService {
       if (response.status === 401 && error.error === 'Token revoked') {
         this.onTokenRevokedCallback?.();
       }
-      const method = options?.method || 'GET';
       const statusCode = response.status;
       if (statusCode >= 500) {
-        console.error(`[API] Server error: ${method} ${endpoint} (${statusCode})`);
+        console.error(`[API] Server error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
         reportError(new Error(`Server error ${statusCode}: ${method} ${endpoint}`), 'API');
       } else if (statusCode === 401) {
-        console.warn(`[API] Unauthorized: ${method} ${endpoint}`);
+        console.warn(`[API] Unauthorized: ${method} ${endpoint} in ${durationMs} ms`);
       } else if (statusCode >= 400) {
-        console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode})`);
+        console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
       }
       const apiError = new Error(error.error || response.statusText) as Error & { status: number };
       apiError.status = response.status;
@@ -87,7 +90,13 @@ class ApiService {
     }
 
     try {
-      return JSON.parse(rawText);
+      const result = JSON.parse(rawText);
+      if (durationMs > 2000) {
+        Sentry.logger.warn(`[API] Slow response: ${method} ${endpoint} completed in ${durationMs} ms`, { endpoint, method, durationMs });
+      } else {
+        Sentry.logger.info(`[API] ${method} ${endpoint} completed in ${durationMs} ms`, { endpoint, method, durationMs });
+      }
+      return result;
     } catch (parseError) {
       console.error(`[API] JSON parse error for ${endpoint}:`, parseError);
       console.error(`[API] Raw response was:`, rawText.substring(0, 1000));
