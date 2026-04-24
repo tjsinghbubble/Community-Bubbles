@@ -120,7 +120,7 @@ export function logAppWarn(
       Object.entries(attributes).forEach(([k, v]) => scope.setExtra(k, v));
     }
     scope.setTag('alert_type', 'app_warning');
-    Sentry.captureMessage(message, 'warning');
+    Sentry.captureMessage(`[AppWarn] ${message}`, 'warning');
   });
 }
 
