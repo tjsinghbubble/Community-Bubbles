@@ -46,6 +46,69 @@ To enable crash reporting:
 
 For production builds (EAS Build / standalone), add `SENTRY_DSN` to your EAS secret environment variables so it is baked into the release bundle.
 
+#### Sentry Alert Rules
+
+Configure the following alert rules in **Sentry → Alerts → Create Alert** so the team is notified automatically when crashes spike:
+
+**Rule 1 — New issue (immediate notification)**
+
+| Setting | Value |
+|---|---|
+| Alert type | Issue alert |
+| Condition | "A new issue is created" |
+| Action | Send a Slack notification to `#bubble-alerts` (or email the on-call address — see destinations below) |
+| Environment | `production` |
+
+This fires once the very first time a brand-new crash type is seen, giving the team early warning before the issue accumulates volume.
+
+**Rule 2 — Error volume spike (threshold alert)**
+
+| Setting | Value |
+|---|---|
+| Alert type | Metric alert — Error rate |
+| Metric | Number of errors |
+| Threshold | CRITICAL when errors > **50 in 5 minutes**; WARNING when errors > **20 in 5 minutes** |
+| Action | Slack `#bubble-alerts` for WARNING; Slack `#bubble-alerts` + email on-call for CRITICAL |
+| Environment | `production` |
+
+Adjust the thresholds to match your typical traffic baseline once the app has a few days of production data.
+
+**Rule 3 — Regression (fixed issue re-appears)**
+
+| Setting | Value |
+|---|---|
+| Alert type | Issue alert |
+| Condition | "A previously resolved issue is seen again" (regression) |
+| Action | Send a Slack notification to `#bubble-alerts` |
+| Environment | `production` |
+
+#### Alert Destinations
+
+> **Action required:** Replace every placeholder below with real values before the rules go live.
+
+| Destination | Details |
+|---|---|
+| **Slack channel** | `#bubble-alerts` *(rename to match your actual channel)* — connect via *Sentry → Settings → Integrations → Slack* and follow the OAuth flow |
+| **On-call email** | `team@yourdomain.com` *(replace with your team's real distribution list)* — add via *Sentry → Settings → Notifications* |
+| **PagerDuty** (optional) | Connect via *Sentry → Settings → Integrations → PagerDuty* if 24/7 paging is required for CRITICAL rules |
+
+> **Tip:** To add the Slack integration, a Sentry org admin must visit *Settings → Integrations → Slack* in the Sentry dashboard, click **Add Workspace**, and authorise the target channel. After that, the channel name is available as an action in any alert rule.
+
+#### Verifying alerts end-to-end
+
+After creating the rules in the Sentry dashboard, do a one-time smoke test to confirm delivery:
+
+1. Temporarily lower the metric-alert WARNING threshold to **1 error in 5 minutes**.
+2. Trigger a test error from a development build:
+   ```ts
+   import * as Sentry from '@sentry/react-native';
+   Sentry.captureException(new Error('Alert smoke test'));
+   ```
+3. Confirm the Slack message or email arrives within a few minutes.
+4. Restore the threshold to its production value (`20 errors / 5 min` for WARNING).
+
+Record the date of the test and who performed it in the Sentry alert rule description field so the team knows the rules have been validated.
+
 ### 3. Start the Backend Server
 
 In the main project directory (not mobile/):
