@@ -28,6 +28,7 @@ export default function AuthNavigator() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        gestureEnabled: true,
       }}
       initialRouteName="Welcome"
     >

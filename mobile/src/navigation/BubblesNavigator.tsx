@@ -20,6 +20,7 @@ export default function BubblesNavigator() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
+        gestureEnabled: true,
       }}
     >
       <Stack.Screen name="MyBubblesList" component={MyBubblesScreen} />

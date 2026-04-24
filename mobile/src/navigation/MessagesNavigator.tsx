@@ -21,7 +21,7 @@ function ChatScreenWithBoundary(props: React.ComponentProps<typeof ChatScreen>) 
 
 export default function MessagesNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="MessagesList" component={MessagesScreen} />
       <Stack.Screen name="Chat" component={ChatScreenWithBoundary} />
     </Stack.Navigator>

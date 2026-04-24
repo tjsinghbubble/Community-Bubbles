@@ -52,7 +52,7 @@ const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
 export default function ProfileNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />

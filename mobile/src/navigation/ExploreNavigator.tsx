@@ -105,7 +105,7 @@ function BulletinBoardScreenWithBoundary(props: React.ComponentProps<typeof Bull
 
 export default function ExploreNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
       <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} />
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
