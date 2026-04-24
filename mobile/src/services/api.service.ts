@@ -6,6 +6,8 @@ const API_URL =
   "https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev" ||
   "http://localhost:3000";
 
+const SLOW_CALL_THRESHOLD_MS = 2000;
+
 type AuthResponse = {
   user: {
     id: string;
@@ -99,8 +101,17 @@ class ApiService {
 
     try {
       const result = JSON.parse(rawText);
-      if (durationMs > 2000) {
-        Sentry.logger.warn(`[API] Slow response: ${method} ${endpoint} completed in ${durationMs} ms`, { endpoint, method, durationMs });
+      if (durationMs > SLOW_CALL_THRESHOLD_MS) {
+        console.warn(`[API] Slow response: ${method} ${endpoint} completed in ${durationMs} ms`);
+        Sentry.withScope((scope) => {
+          scope.setLevel('warning');
+          scope.setTag('alert_type', 'slow_api_response');
+          scope.setTag('endpoint', endpoint);
+          scope.setTag('method', method);
+          scope.setExtra('durationMs', durationMs);
+          scope.setExtra('threshold', SLOW_CALL_THRESHOLD_MS);
+          Sentry.captureMessage(`[API] Slow response: ${method} ${endpoint}`, 'warning');
+        });
       } else {
         Sentry.logger.info(`[API] ${method} ${endpoint} completed in ${durationMs} ms`, { endpoint, method, durationMs });
       }
