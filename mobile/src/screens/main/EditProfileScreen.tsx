@@ -92,22 +92,45 @@ export default function EditProfileScreen({ navigation }: Props) {
           },
           body: JSON.stringify({ name: `profile.${ext}`, contentType: mimeType }),
         });
+
+        if (!uploadRes.ok) {
+          logAppWarn('EditProfile:photoUploadFailed', { error: `presigned-url-request-failed: ${uploadRes.status}` });
+          Alert.alert('Error', 'Failed to upload photo. Please try again.');
+          return;
+        }
+
         const uploadData = await uploadRes.json();
 
-        if (uploadData.uploadURL) {
-          await fetch(uploadData.uploadURL, {
-            method: 'PUT',
-            headers: { 'Content-Type': mimeType },
-            body: blob,
-          });
-
-          const photoUrl = uploadData.objectPath.startsWith('http')
-            ? uploadData.objectPath
-            : `${API_URL}${uploadData.objectPath}`;
-          await apiService.updateProfile({ profilePhoto: photoUrl });
-          if (refreshUser) await refreshUser();
+        if (!uploadData.uploadURL) {
+          logAppWarn('EditProfile:photoUploadFailed', { error: 'missing-upload-url' });
+          Alert.alert('Error', 'Failed to upload photo. Please try again.');
+          return;
         }
-      } catch (err) {
+
+        const putRes = await fetch(uploadData.uploadURL, {
+          method: 'PUT',
+          headers: { 'Content-Type': mimeType },
+          body: blob,
+        });
+
+        if (!putRes.ok) {
+          logAppWarn('EditProfile:photoUploadFailed', { error: `upload-put-failed:${putRes.status}` });
+          Alert.alert('Error', 'Failed to upload photo. Please try again.');
+          return;
+        }
+
+        const photoUrl = uploadData.objectPath.startsWith('http')
+          ? uploadData.objectPath
+          : `${API_URL}${uploadData.objectPath}`;
+        await apiService.updateProfile({ profilePhoto: photoUrl });
+        if (refreshUser) await refreshUser();
+        logAppEvent('EditProfile:photoUploadSuccess', {
+          mimeType,
+          ...(result.assets[0].fileSize != null ? { fileSize: result.assets[0].fileSize } : {}),
+        });
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : 'unknown';
+        logAppWarn('EditProfile:photoUploadFailed', { error: errMsg });
         Alert.alert('Error', 'Failed to upload photo. Please try again.');
       }
     }
