@@ -81,7 +81,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd mobile && REACT_NATIVE_PACKAGER_HOSTNAME=163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev npx expo start --port 8080 --clear"
+args = "cd mobile && REACT_NATIVE_PACKAGER_HOSTNAME=163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev npx expo start --port 8081 --clear"
 
 [agent]
 stack = "MOCKUP_JS"
