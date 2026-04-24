@@ -184,6 +184,18 @@ export class ObjectStorageService {
   normalizeObjectEntityPath(
     rawPath: string,
   ): string {
+    // Already a relative path — nothing to do.
+    if (!rawPath.startsWith("http://") && !rawPath.startsWith("https://")) {
+      return rawPath;
+    }
+
+    // Handle Replit-hosted absolute URLs (e.g. https://<hostname>/objects/uploads/<uuid>)
+    // Extract the /objects/uploads/... portion regardless of the hostname.
+    const replitMatch = rawPath.match(/(\/objects\/uploads\/[^?#]+)/);
+    if (replitMatch) {
+      return replitMatch[1];
+    }
+
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
       return rawPath;
     }
