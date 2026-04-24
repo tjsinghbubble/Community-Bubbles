@@ -61,7 +61,8 @@ function BaseHeader({
           ) : (
             onTitlePress ? (
               <TouchableOpacity style={styles.titleTouchable} onPress={onTitlePress} testID="button-header-title" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <Text style={[styles.title, styles.titleInRow]} numberOfLines={1}>{title}</Text>
+                <Ionicons name="chevron-forward" size={14} color={PageHeader.titleColor} style={styles.titleChevron} />
               </TouchableOpacity>
             ) : (
               <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -171,8 +172,18 @@ const styles = StyleSheet.create({
   },
   titleTouchable: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  titleInRow: {
+    flex: 0,
+    flexShrink: 1,
+  },
+  titleChevron: {
+    opacity: 0.5,
+    marginLeft: 2,
+    flexShrink: 0,
   },
   titleGroup: {
     flex: 1,
