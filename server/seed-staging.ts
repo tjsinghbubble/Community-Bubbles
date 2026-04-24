@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { storage } from "./storage";
-import { bubbles, memberships, events, users, eventAttendees, bulletinBoards, bulletinPosts, bulletinPostTypes } from "@shared/schema";
+import { bubbles, memberships, events, users, eventAttendees, bulletinBoards, bulletinPosts, bulletinPostTypes, bulletinPostReactions } from "@shared/schema";
 import { eq, and, gte, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { seedBubbleImages } from "./seed-bubble-images";
@@ -830,6 +830,74 @@ export async function seedStaging(): Promise<void> {
     }
 
     console.log(`${LOG} Bulletin boards: ${boardsSeeded} created; posts: ${postsSeeded} inserted`);
+  }
+
+  // ── Step 6b: Bulletin Board Post Reactions ────────────────────────────────
+  // For each seeded post, add 1–4 heart reactions from bubble members.
+  // Idempotent: skips any post that already has at least one reaction.
+  console.log(`${LOG} ── Step 6b: seeding bulletin post reactions ──`);
+
+  for (const bc of BUBBLE_CONFIGS) {
+    const bubbleId = bubbleMap[bc.title];
+    if (!bubbleId) continue;
+
+    const matrix = MEMBERSHIP_MATRIX[bc.title];
+    if (!matrix) continue;
+
+    const allEmails = [...matrix.admins, ...matrix.members];
+    const memberIds = allEmails.map(e => userMap[e]).filter(Boolean) as string[];
+    if (memberIds.length === 0) continue;
+
+    try {
+      // Find the board for this bubble.
+      const boardRows = await db
+        .select({ id: bulletinBoards.id })
+        .from(bulletinBoards)
+        .where(eq(bulletinBoards.bubbleId, bubbleId))
+        .limit(1);
+      if (boardRows.length === 0) continue;
+      const boardId = boardRows[0].id;
+
+      // Fetch all posts for this board.
+      const postRows = await db
+        .select({ id: bulletinPosts.id })
+        .from(bulletinPosts)
+        .where(eq(bulletinPosts.boardId, boardId));
+      if (postRows.length === 0) continue;
+
+      let totalAdded = 0;
+      let postsSkipped = 0;
+
+      for (const post of postRows) {
+        // Check if this post already has any reactions — skip if so.
+        const existing = await db
+          .select({ id: bulletinPostReactions.id })
+          .from(bulletinPostReactions)
+          .where(eq(bulletinPostReactions.postId, post.id))
+          .limit(1);
+        if (existing.length > 0) { postsSkipped++; continue; }
+
+        // Deterministically pick 1–4 reactors using the post id as a seed.
+        const hash = post.id.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+        const count = 1 + (hash % Math.min(4, memberIds.length));
+        const offset = hash % memberIds.length;
+        const rotated = [...memberIds.slice(offset), ...memberIds.slice(0, offset)];
+        const picks = rotated.slice(0, count);
+
+        for (const userId of picks) {
+          await db.insert(bulletinPostReactions).values({
+            postId: post.id,
+            userId,
+            emoji: "heart",
+          });
+          totalAdded++;
+        }
+      }
+
+      console.log(`${LOG} "${bc.title}": ${postRows.length} post(s) scanned, ${postsSkipped} skipped, ${totalAdded} heart reaction(s) added`);
+    } catch (e) {
+      console.error(`${LOG} Failed reactions for "${bc.title}":`, e);
+    }
   }
 
   // ── Step 7: Fix unreliable cover image URLs ───────────────────────────────
