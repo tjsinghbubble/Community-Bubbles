@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { version } from '../../package.json';
+import * as Sentry from '@sentry/react-native';
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -16,6 +18,20 @@ export interface CrashReport {
   timestamp: string;
   isFatal: boolean;
   appVersion: string;
+}
+
+export function initSentry(): void {
+  const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
+  if (!dsn) {
+    console.warn('[CrashReporter] SENTRY_DSN not configured — Sentry disabled');
+    return;
+  }
+  Sentry.init({
+    dsn,
+    environment: __DEV__ ? 'development' : 'production',
+    debug: __DEV__,
+    enableNativeNagger: false,
+  });
 }
 
 function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
@@ -47,6 +63,13 @@ export function reportError(error: Error, context?: string): void {
     '\nStack:', report.stack ?? 'no stack',
     '\nTimestamp:', report.timestamp,
   );
+  Sentry.withScope((scope) => {
+    if (context) scope.setTag('context', context);
+    scope.setTag('platform', report.platform);
+    scope.setTag('appVersion', report.appVersion);
+    scope.setLevel('error');
+    Sentry.captureException(error);
+  });
   sendToServer(report);
 }
 
@@ -58,6 +81,13 @@ export function reportFatalError(error: Error, context?: string): void {
     '\nStack:', report.stack ?? 'no stack',
     '\nTimestamp:', report.timestamp,
   );
+  Sentry.withScope((scope) => {
+    if (context) scope.setTag('context', context);
+    scope.setTag('platform', report.platform);
+    scope.setTag('appVersion', report.appVersion);
+    scope.setLevel('fatal');
+    Sentry.captureException(error);
+  });
   sendToServer(report);
 }
 

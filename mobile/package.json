@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@sentry/react-native": "^8.9.1",
     "@cometchat/chat-sdk-react-native": "^4.0.10",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",

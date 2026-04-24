@@ -6,8 +6,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { installGlobalHandlers } from './src/utils/crashReporter';
+import { initSentry, installGlobalHandlers } from './src/utils/crashReporter';
 
+initSentry();
 installGlobalHandlers();
 
 const queryClient = new QueryClient();
