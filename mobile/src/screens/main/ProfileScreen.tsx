@@ -17,6 +17,7 @@ import { useNavigation, useFocusEffect, NavigationProp } from '@react-navigation
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import { ClockIcon, EditIcon } from '../../components/icons';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -44,7 +45,15 @@ export default function ProfileScreen() {
     try {
       const bubbles: any[] = await apiService.getMyBubbles() as any[];
       setMyBubbles(bubbles);
+      logAppEvent('profile.loaded', {
+        bubbleCount: bubbles.length,
+        adminBubbleCount: bubbles.filter((b: any) => b.role === 'admin').length,
+        isSuperAdmin: user?.isSuperAdmin === true,
+        hasProfilePhoto: !!user?.profilePhoto,
+        interestCount: user?.interests?.length ?? 0,
+      });
     } catch (error) {
+      logAppWarn('profile.bubbles_load_failed', { error: String(error) });
       setMyBubbles([]);
     }
   };

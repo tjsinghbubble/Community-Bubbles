@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { FlowHeader } from '../../components/ScreenHeader';
@@ -99,7 +100,12 @@ export default function NotificationsScreen() {
     try {
       const data = await apiService.getNotifications(50, 0);
       if (isMountedRef.current) setNotifications(data);
+      logAppEvent('notifications.loaded', {
+        notificationCount: data.length,
+        unreadCount: data.filter((n: NotificationItem) => !n.read).length,
+      });
     } catch (e) {
+      logAppWarn('notifications.load_failed', { error: String(e) });
       console.error('Failed to fetch notifications:', e);
     } finally {
       if (isMountedRef.current) {

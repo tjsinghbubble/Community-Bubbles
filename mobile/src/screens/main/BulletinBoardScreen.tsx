@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, Gradients, BulletinPillStyles, BulletinPillColors, CardShadow } from '../../styles/theme';
 import { FlowHeader } from '../../components/ScreenHeader';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
@@ -182,7 +183,14 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       setPosts(postsRes);
       const myMembership = (memberships as any[]).find?.((m: any) => m.userId === user?.id);
       setCurrentUserRole(myMembership?.role || null);
+      logAppEvent('bulletinBoard.loaded', {
+        bubbleId,
+        postCount: postsRes.length,
+        postTypeCount: typesRes.length,
+        userRole: myMembership?.role || 'none',
+      });
     } catch (err) {
+      logAppWarn('bulletinBoard.load_failed', { bubbleId, error: String(err) });
       console.error('Failed to load bulletin board:', err);
     } finally {
       setLoading(false);

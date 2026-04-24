@@ -23,6 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import SuccessModal from '../../components/SuccessModal';
 import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, PeopleIcon, FlagIcon, CrownIcon } from '../../components/icons';
 import ImageCarousel from '../../components/ImageCarousel';
@@ -238,7 +239,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       const data = await apiService.getEvent(eventId) as Event;
       setEvent(data);
       fetchBubble(data.bubbleId);
+      logAppEvent('eventDetails.loaded', {
+        eventId,
+        bubbleId: data.bubbleId,
+        hasImages: (data.images?.length > 0 || !!data.coverImage) ? true : false,
+        hasLocation: !!data.locationName,
+        hasAttendeeLimit: !!data.attendeeLimit,
+      });
     } catch (error) {
+      logAppWarn('eventDetails.load_failed', { eventId, error: String(error) });
       console.error('Failed to fetch event:', error);
       Alert.alert('Error', 'Failed to load event');
     } finally {
@@ -266,7 +275,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       const myAttendance = data.find(a => a.userId === user?.id);
       setIsRsvpd(!!myAttendance);
       setRsvpStatus(myAttendance?.status || null);
+      logAppEvent('eventDetails.attendees_loaded', {
+        eventId,
+        attendeeCount: data.length,
+        goingCount: data.filter(a => a.status === 'going').length,
+        waitlistedCount: data.filter(a => a.status === 'waitlisted').length,
+        userStatus: myAttendance?.status || 'none',
+      });
     } catch (error) {
+      logAppWarn('eventDetails.attendees_load_failed', { eventId, error: String(error) });
       console.error('Failed to fetch attendees:', error);
     }
   };
