@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ScreenErrorBoundary } from '../components/ErrorBoundary';
 import ExploreScreen from '../screens/main/ExploreScreen';
 import BubbleDetailsScreen from '../screens/main/BubbleDetailsScreen';
 import BubbleMembersScreen from '../screens/main/BubbleMembersScreen';
@@ -86,11 +87,27 @@ export type ExploreStackParamList = {
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
 
+function BubbleDetailsScreenWithBoundary(props: React.ComponentProps<typeof BubbleDetailsScreen>) {
+  return (
+    <ScreenErrorBoundary context="BubbleDetailsScreen" message="Couldn't load this bubble — tap to retry">
+      <BubbleDetailsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function BulletinBoardScreenWithBoundary(props: React.ComponentProps<typeof BulletinBoardScreen>) {
+  return (
+    <ScreenErrorBoundary context="BulletinBoardScreen" message="Couldn't load the bulletin board — tap to retry">
+      <BulletinBoardScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ExploreNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
-      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreen} />
+      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} />
       <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
       <Stack.Screen name="BubbleEvents" component={BubbleEventsScreen} />
       <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} />
@@ -102,7 +119,7 @@ export default function ExploreNavigator() {
       <Stack.Screen name="EditEvent" component={EditEventScreen} />
       <Stack.Screen name="EventParticipants" component={EventParticipantsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="BulletinBoard" component={BulletinBoardScreen} />
+      <Stack.Screen name="BulletinBoard" component={BulletinBoardScreenWithBoundary} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} />
       <Stack.Screen name="CreatePost" component={CreatePostScreen} />
       <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} />

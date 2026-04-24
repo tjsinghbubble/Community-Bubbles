@@ -77,6 +77,69 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+interface ScreenErrorBoundaryProps {
+  children: ReactNode;
+  context: string;
+  message?: string;
+}
+
+interface ScreenErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+export class ScreenErrorBoundary extends Component<ScreenErrorBoundaryProps, ScreenErrorBoundaryState> {
+  constructor(props: ScreenErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ScreenErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    reportFatalError(error, `${this.props.context} — componentStack: ${info.componentStack ?? ''}`);
+  }
+
+  private handleReset = (): void => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render(): ReactNode {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    const isDev = __DEV__;
+    const message = this.props.message ?? 'Something went wrong — tap to retry';
+
+    return (
+      <View style={screenStyles.container} testID={`screen-error-boundary-${this.props.context}`}>
+        <View style={screenStyles.card}>
+          <Text style={screenStyles.icon}>⚠️</Text>
+          <Text style={screenStyles.message} testID={`screen-error-message-${this.props.context}`}>
+            {message}
+          </Text>
+          {isDev && this.state.error ? (
+            <ScrollView style={screenStyles.debugBox} testID={`screen-error-debug-${this.props.context}`}>
+              <Text style={screenStyles.debugText}>{this.state.error.message}</Text>
+            </ScrollView>
+          ) : null}
+          <TouchableOpacity
+            style={screenStyles.retryButton}
+            onPress={this.handleReset}
+            testID={`screen-error-retry-${this.props.context}`}
+            activeOpacity={0.8}
+          >
+            <Text style={screenStyles.retryText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -159,5 +222,66 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.bold,
     color: '#FFFFFF',
     letterSpacing: -0.3,
+  },
+});
+
+const screenStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xxl,
+    backgroundColor: Colors.background.secondary,
+  },
+  card: {
+    backgroundColor: Colors.background.card,
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  icon: {
+    fontSize: 32,
+    marginBottom: Spacing.md,
+  },
+  message: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+    lineHeight: Typography.lineHeight.base,
+  },
+  debugBox: {
+    backgroundColor: Colors.background.surface,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    marginBottom: Spacing.md,
+    maxHeight: 100,
+    width: '100%',
+  },
+  debugText: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.status.error,
+    fontFamily: 'monospace',
+  },
+  retryButton: {
+    height: 40,
+    paddingHorizontal: Spacing.xl,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
 });
