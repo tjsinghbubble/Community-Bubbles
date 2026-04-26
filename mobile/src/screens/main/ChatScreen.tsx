@@ -123,6 +123,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const isAdminDmChat = groupId.startsWith('adm_');
   const isContactDmChat = groupId.startsWith('contact_');
   const isPeerDmChat = groupId.startsWith('peer_');
+  const isDmChat = isPeerDmChat || isAdminDmChat || isContactDmChat;
 
   useEffect(() => {
     setPeerDisplayName(null);
@@ -130,24 +131,40 @@ export default function ChatScreen({ navigation, route }: Props) {
     setPeerAvatar(null);
     setPeerOnline(null);
     setPeerLastActive(null);
-    if (!isPeerDmChat || !user) return;
-    cometChatService.getGroupMembers(groupId).then(async (members) => {
-      const other = members.find((m: any) => m.uid !== user.id);
-      if (other?.name) setPeerDisplayName(other.name);
-      if (other?.avatar) setPeerAvatar(other.avatar);
-      if (other?.uid) {
-        setPeerUserId(other.uid);
-        try {
-          const { status, lastActiveAt } = await cometChatService.getPeerUser(other.uid);
-          setPeerOnline(status === 'online');
-          if (status !== 'online') setPeerLastActive(lastActiveAt);
-        } catch (_) {}
+    if (!isDmChat || !user) return;
+
+    const resolvePeerUid = async (): Promise<string | null> => {
+      if (isPeerDmChat) {
+        const members = await cometChatService.getGroupMembers(groupId);
+        const other = members.find((m: any) => m.uid !== user.id);
+        if (other?.name) setPeerDisplayName(other.name);
+        if (other?.avatar) setPeerAvatar(other.avatar);
+        return other?.uid ?? null;
       }
+      if (isAdminDmChat) {
+        const dmMatch = groupId.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        return dmMatch ? dmMatch[2] : null;
+      }
+      if (isContactDmChat) {
+        const contactMatch = groupId.match(/^contact_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+        return contactMatch ? contactMatch[2] : null;
+      }
+      return null;
+    };
+
+    resolvePeerUid().then(async (uid) => {
+      if (!uid) return;
+      setPeerUserId(uid);
+      try {
+        const { status, lastActiveAt } = await cometChatService.getPeerUser(uid);
+        setPeerOnline(status === 'online');
+        if (status !== 'online') setPeerLastActive(lastActiveAt);
+      } catch (_) {}
     }).catch(() => {});
-  }, [groupId, isPeerDmChat, user?.id]);
+  }, [groupId, isDmChat, user?.id]);
 
   useEffect(() => {
-    if (!isPeerDmChat || !peerUserId) return;
+    if (!isDmChat || !peerUserId) return;
     const listenerID = `presence_${groupId}`;
     cometChatService.addUserPresenceListener(
       listenerID,
@@ -168,7 +185,7 @@ export default function ChatScreen({ navigation, route }: Props) {
     return () => {
       cometChatService.removeUserPresenceListener(listenerID);
     };
-  }, [peerUserId, isPeerDmChat, groupId]);
+  }, [peerUserId, isDmChat, groupId]);
 
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
@@ -854,7 +871,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         onBack={() => navigation.goBack()}
         onTitlePress={isPeerDmChat && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
         subtitleElement={
-          isPeerDmChat && peerOnline !== null ? (
+          isDmChat && peerOnline !== null ? (
             <View style={styles.peerStatusRow} testID="status-peer-online">
               {peerOnline ? (
                 <>
