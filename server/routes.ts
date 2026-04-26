@@ -728,7 +728,10 @@ export async function registerRoutes(
       const baseUrl = getBaseUrl(req);
       const bubbles = await storage.getPublicBubbles();
       const enriched = await enrichBubblesCategory(bubbles);
-      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
+      res.json(enriched.map((b: any) => {
+        const { rules, images, attachments, ...rest } = absoluteMediaUrls(b, baseUrl);
+        return rest;
+      }));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2158,7 +2161,13 @@ export async function registerRoutes(
     try {
       const baseUrl = getBaseUrl(req);
       const events = await storage.getPublicEvents();
-      res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
+      res.json(convertEventsToLocal(events).map((e: any) => {
+        const { bubble, ...rest } = absoluteMediaUrls(e, baseUrl);
+        return {
+          ...rest,
+          bubble: bubble ? { id: bubble.id, title: bubble.title, category: bubble.category } : null,
+        };
+      }));
     } catch (error: any) {
       serverError(res, error);
     }
