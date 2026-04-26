@@ -483,6 +483,34 @@ class CometChatService {
       },
     });
   }
+
+  async getPeerUser(uid: string): Promise<{ status: 'online' | 'offline'; lastActiveAt: number | null }> {
+    try {
+      const user = await CometChat.getUser(uid);
+      const status = (user as any).getStatus?.() === 'online' ? 'online' : 'offline';
+      const lastActiveAt = (user as any).getLastActiveAt?.() ?? null;
+      return { status, lastActiveAt };
+    } catch (error) {
+      console.log('getPeerUser error (non-critical):', error);
+      return { status: 'offline', lastActiveAt: null };
+    }
+  }
+
+  addUserPresenceListener(
+    listenerID: string,
+    onUserOnline: (user: any) => void,
+    onUserOffline: (user: any) => void
+  ) {
+    const listener = new CometChat.UserListener({
+      onUserOnline: (user: any) => onUserOnline(user),
+      onUserOffline: (user: any) => onUserOffline(user),
+    });
+    CometChat.addUserListener(listenerID, listener);
+  }
+
+  removeUserPresenceListener(listenerID: string) {
+    CometChat.removeUserListener(listenerID);
+  }
 }
 
 export default new CometChatService();

@@ -9,6 +9,7 @@ const backIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
 function BaseHeader({
   title,
   subtitle,
+  subtitleElement,
   onBack,
   onTitlePress,
   rightElement,
@@ -16,6 +17,7 @@ function BaseHeader({
 }: {
   title?: string;
   subtitle?: string;
+  subtitleElement?: React.ReactNode;
   onBack?: () => void;
   onTitlePress?: () => void;
   rightElement?: React.ReactNode;
@@ -46,16 +48,19 @@ function BaseHeader({
         </View>
 
         {title ? (
-          subtitle ? (
+          (subtitle || subtitleElement) ? (
             onTitlePress ? (
               <TouchableOpacity style={styles.titleGroup} onPress={onTitlePress} testID="button-header-title" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.title, styles.titleInRow]} numberOfLines={1}>{title}</Text>
+                  <Ionicons name="chevron-forward" size={14} color={PageHeader.titleColor} style={styles.titleChevron} />
+                </View>
+                {subtitleElement ?? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
               </TouchableOpacity>
             ) : (
               <View style={styles.titleGroup}>
                 <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
+                {subtitleElement ?? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
               </View>
             )
           ) : (
@@ -102,18 +107,22 @@ export function NavHeader({
  */
 export function FlowHeader({
   title,
+  subtitle,
+  subtitleElement,
   onBack,
   onTitlePress,
   rightElement,
   showBorder,
 }: {
   title: string;
+  subtitle?: string;
+  subtitleElement?: React.ReactNode;
   onBack: () => void;
   onTitlePress?: () => void;
   rightElement: React.ReactNode;
   showBorder?: boolean;
 }) {
-  return <BaseHeader title={title} onBack={onBack} onTitlePress={onTitlePress} rightElement={rightElement} showBorder={showBorder} />;
+  return <BaseHeader title={title} subtitle={subtitle} subtitleElement={subtitleElement} onBack={onBack} onTitlePress={onTitlePress} rightElement={rightElement} showBorder={showBorder} />;
 }
 
 /**
@@ -187,6 +196,11 @@ const styles = StyleSheet.create({
   },
   titleGroup: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },

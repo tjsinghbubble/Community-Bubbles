@@ -104,6 +104,8 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [peerDisplayName, setPeerDisplayName] = useState<string | null>(null);
   const [peerUserId, setPeerUserId] = useState<string | null>(null);
   const [peerAvatar, setPeerAvatar] = useState<string | null>(null);
+  const [peerOnline, setPeerOnline] = useState<boolean | null>(null);
+  const [peerLastActive, setPeerLastActive] = useState<number | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,14 +128,47 @@ export default function ChatScreen({ navigation, route }: Props) {
     setPeerDisplayName(null);
     setPeerUserId(null);
     setPeerAvatar(null);
+    setPeerOnline(null);
+    setPeerLastActive(null);
     if (!isPeerDmChat || !user) return;
-    cometChatService.getGroupMembers(groupId).then((members) => {
+    cometChatService.getGroupMembers(groupId).then(async (members) => {
       const other = members.find((m: any) => m.uid !== user.id);
       if (other?.name) setPeerDisplayName(other.name);
-      if (other?.uid) setPeerUserId(other.uid);
       if (other?.avatar) setPeerAvatar(other.avatar);
+      if (other?.uid) {
+        setPeerUserId(other.uid);
+        try {
+          const { status, lastActiveAt } = await cometChatService.getPeerUser(other.uid);
+          setPeerOnline(status === 'online');
+          if (status !== 'online') setPeerLastActive(lastActiveAt);
+        } catch (_) {}
+      }
     }).catch(() => {});
   }, [groupId, isPeerDmChat, user?.id]);
+
+  useEffect(() => {
+    if (!isPeerDmChat || !peerUserId) return;
+    const listenerID = `presence_${groupId}`;
+    cometChatService.addUserPresenceListener(
+      listenerID,
+      (u: any) => {
+        if (u.getUid?.() === peerUserId) {
+          setPeerOnline(true);
+          setPeerLastActive(null);
+        }
+      },
+      (u: any) => {
+        if (u.getUid?.() === peerUserId) {
+          setPeerOnline(false);
+          const lastActive = u.getLastActiveAt?.() ?? null;
+          setPeerLastActive(lastActive);
+        }
+      }
+    );
+    return () => {
+      cometChatService.removeUserPresenceListener(listenerID);
+    };
+  }, [peerUserId, isPeerDmChat, groupId]);
 
   const fetchParticipants = async () => {
     setLoadingParticipants(true);
@@ -226,6 +261,16 @@ export default function ChatScreen({ navigation, route }: Props) {
   const getInitials = (name: string) => {
     if (!name) return '?';
     return name.split(' ').filter(n => n.length > 0).map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  };
+
+  const formatLastSeen = (timestamp: number | null): string => {
+    if (!timestamp) return 'Offline';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - timestamp;
+    if (diff < 60) return 'Last seen just now';
+    if (diff < 3600) return `Last seen ${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `Last seen ${Math.floor(diff / 3600)}h ago`;
+    return `Last seen ${Math.floor(diff / 86400)}d ago`;
   };
 
   const fetchMessages = async () => {
@@ -808,6 +853,20 @@ export default function ChatScreen({ navigation, route }: Props) {
         title={isPeerDmChat && peerDisplayName ? peerDisplayName : groupName}
         onBack={() => navigation.goBack()}
         onTitlePress={isPeerDmChat && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
+        subtitleElement={
+          isPeerDmChat && peerOnline !== null ? (
+            <View style={styles.peerStatusRow} testID="status-peer-online">
+              {peerOnline ? (
+                <>
+                  <View style={styles.peerOnlineDot} />
+                  <Text style={styles.peerOnlineText}>Online</Text>
+                </>
+              ) : (
+                <Text style={styles.peerOfflineText}>{formatLastSeen(peerLastActive)}</Text>
+              )}
+            </View>
+          ) : undefined
+        }
         rightElement={
           isPeerDmChat ? (
             peerUserId ? (
@@ -1578,5 +1637,28 @@ const styles = StyleSheet.create({
   },
   headerAvatarLoadingPlaceholder: {
     backgroundColor: Colors.neutral.cloudGrey,
+  },
+  peerStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  peerOnlineDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#34C759',
+    marginRight: 4,
+  },
+  peerOnlineText: {
+    fontSize: 12,
+    color: '#34C759',
+    fontWeight: '500',
+  },
+  peerOfflineText: {
+    fontSize: 12,
+    color: Colors.text.secondary ?? Colors.neutral.coolMist,
+    opacity: 0.8,
   },
 });
