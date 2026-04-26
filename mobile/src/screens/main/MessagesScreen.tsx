@@ -65,12 +65,15 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [deletedContactBubbleIds, setDeletedContactBubbleIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [onlinePeerUids, setOnlinePeerUids] = useState<Set<string>>(new Set());
+  const peerUidByGuid = React.useRef<Record<string, string>>({});
   const hasAutoNavigated = React.useRef(false);
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
     const imageMap: Record<string, string | null> = {};
     const dmData: Record<string, { memberPhoto: string | null; bubbleCover: string | null }> = {};
     const deletedBubbles = new Set<string>();
+    const initialOnlineUids: string[] = [];
     const fetchPromises = convs.map(async (conv) => {
       const guid = conv.conversationWith.guid;
       if (conv.conversationWith.icon) {
@@ -83,6 +86,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
         const peerMatch = guid.match(/^peer_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
         if (peerMatch) {
           const otherUserId = peerMatch[1] === String(user?.id) ? peerMatch[2] : peerMatch[1];
+          peerUidByGuid.current[guid] = otherUserId;
           let memberPhoto: string | null = null;
           try {
             const profile = await apiService.getUserPublicProfile(otherUserId) as any;
@@ -90,6 +94,12 @@ export default function MessagesScreen({ navigation, route }: Props) {
           } catch {}
           dmData[guid] = { memberPhoto, bubbleCover: null };
           imageMap[guid] = memberPhoto;
+          try {
+            const { status } = await cometChatService.getPeerUser(otherUserId);
+            if (status === 'online') {
+              initialOnlineUids.push(otherUserId);
+            }
+          } catch {}
         } else {
           imageMap[guid] = null;
         }
@@ -178,6 +188,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
     await Promise.all(fetchPromises);
     setBubbleImages(prev => ({ ...prev, ...imageMap }));
     setDmAvatarData(prev => ({ ...prev, ...dmData }));
+    if (initialOnlineUids.length > 0) {
+      setOnlinePeerUids(prev => new Set([...prev, ...initialOnlineUids]));
+    }
     if (deletedBubbles.size > 0) {
       setDeletedContactBubbleIds(prev => new Set([...prev, ...deletedBubbles]));
     }
@@ -245,8 +258,27 @@ export default function MessagesScreen({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => {
       hasAutoNavigated.current = false;
+      setOnlinePeerUids(new Set());
+      peerUidByGuid.current = {};
       fetchConversations();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
+
+      const presenceListenerID = 'messages-list-presence';
+      cometChatService.addUserPresenceListener(
+        presenceListenerID,
+        (u: any) => {
+          const uid: string = u.getUid?.() ?? '';
+          if (uid) setOnlinePeerUids(prev => new Set([...prev, uid]));
+        },
+        (u: any) => {
+          const uid: string = u.getUid?.() ?? '';
+          if (uid) setOnlinePeerUids(prev => { const next = new Set(prev); next.delete(uid); return next; });
+        }
+      );
+
+      return () => {
+        cometChatService.removeUserPresenceListener(presenceListenerID);
+      };
     }, [])
   );
 
@@ -289,6 +321,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
     if (isPeerDm) {
       const memberPhoto = dmData?.memberPhoto || imageUrl;
+      const peerUid = peerUidByGuid.current[guid];
+      const isOnline = !!peerUid && onlinePeerUids.has(peerUid);
       return (
         <View style={styles.dmAvatarContainer}>
           {memberPhoto ? (
@@ -299,6 +333,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
                 {conversation.conversationWith.name.charAt(0).toUpperCase() || '?'}
               </Text>
             </View>
+          )}
+          {isOnline && (
+            <View style={styles.onlineStatusDot} testID={`status-online-${guid}`} />
           )}
         </View>
       );
@@ -739,6 +776,17 @@ const styles = StyleSheet.create({
     color: Colors.brand.skyWhite,
     fontSize: 10,
     fontWeight: '700',
+  },
+  onlineStatusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#34C759',
+    borderWidth: 2,
+    borderColor: Colors.background.secondary,
+    position: 'absolute' as const,
+    bottom: 1,
+    right: 1,
   },
   avatarText: {
     color: Colors.brand.skyWhite,
