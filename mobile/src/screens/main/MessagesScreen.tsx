@@ -131,6 +131,13 @@ export default function MessagesScreen({ navigation, route }: Props) {
           } catch {}
           dmData[guid] = { memberPhoto, bubbleCover };
           imageMap[guid] = memberPhoto;
+          peerUidByGuid.current[guid] = memberId;
+          try {
+            const { status } = await cometChatService.getPeerUser(memberId);
+            if (status === 'online') {
+              initialOnlineUids.push(memberId);
+            }
+          } catch {}
         } else {
           imageMap[guid] = null;
         }
@@ -166,6 +173,13 @@ export default function MessagesScreen({ navigation, route }: Props) {
           }
           dmData[guid] = { memberPhoto, bubbleCover };
           imageMap[guid] = memberPhoto;
+          peerUidByGuid.current[guid] = userId;
+          try {
+            const { status } = await cometChatService.getPeerUser(userId);
+            if (status === 'online') {
+              initialOnlineUids.push(userId);
+            }
+          } catch {}
         } else {
           imageMap[guid] = null;
         }
@@ -344,6 +358,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
     if (isAdminDm || isContactGroup) {
       const memberPhoto = dmData?.memberPhoto || imageUrl;
       const bubbleCover = dmData?.bubbleCover;
+      const peerUid = peerUidByGuid.current[guid];
+      const isOnline = !!peerUid && onlinePeerUids.has(peerUid);
       return (
         <View style={styles.dmAvatarContainer}>
           {memberPhoto ? (
@@ -355,7 +371,9 @@ export default function MessagesScreen({ navigation, route }: Props) {
               </Text>
             </View>
           )}
-          {bubbleCover ? (
+          {isOnline ? (
+            <View style={styles.onlineStatusDot} testID={`status-online-${guid}`} />
+          ) : bubbleCover ? (
             <Image source={{ uri: bubbleCover }} style={styles.dmBubbleBadge} />
           ) : (
             <View style={[styles.dmBubbleBadge, styles.dmBubbleBadgePlaceholder]}>
