@@ -2271,8 +2271,13 @@ export async function registerRoutes(
       }
       
       const creator = await storage.getUser(event.creatorId);
-      const localEvent = convertEventToLocal(event);
-      res.json({ ...localEvent, creatorName: creator?.name || 'Event Creator', creatorProfilePhoto: creator?.profilePhoto || null });
+      const baseUrl = getBaseUrl(req);
+      const localEvent = absoluteMediaUrls(convertEventToLocal(event), baseUrl);
+      res.json({
+        ...localEvent,
+        creatorName: creator?.name || 'Event Creator',
+        creatorProfilePhoto: absoluteMediaUrl(creator?.profilePhoto, baseUrl),
+      });
     } catch (error: any) {
       serverError(res, error);
     }
