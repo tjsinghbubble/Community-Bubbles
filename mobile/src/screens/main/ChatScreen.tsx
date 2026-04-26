@@ -103,6 +103,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   const [expandedEmojiMessageId, setExpandedEmojiMessageId] = useState<string | null>(null);
   const [peerDisplayName, setPeerDisplayName] = useState<string | null>(null);
   const [peerUserId, setPeerUserId] = useState<string | null>(null);
+  const [peerAvatar, setPeerAvatar] = useState<string | null>(null);
   const flatListRef = useRef<FlatList<Message>>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -124,11 +125,13 @@ export default function ChatScreen({ navigation, route }: Props) {
   useEffect(() => {
     setPeerDisplayName(null);
     setPeerUserId(null);
+    setPeerAvatar(null);
     if (!isPeerDmChat || !user) return;
     cometChatService.getGroupMembers(groupId).then((members) => {
       const other = members.find((m: any) => m.uid !== user.id);
       if (other?.name) setPeerDisplayName(other.name);
       if (other?.uid) setPeerUserId(other.uid);
+      if (other?.avatar) setPeerAvatar(other.avatar);
     }).catch(() => {});
   }, [groupId, isPeerDmChat, user?.id]);
 
@@ -806,7 +809,33 @@ export default function ChatScreen({ navigation, route }: Props) {
         onBack={() => navigation.goBack()}
         onTitlePress={isPeerDmChat && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
         rightElement={
-          isPeerDmChat ? null : (
+          isPeerDmChat ? (
+            peerUserId ? (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MemberProfile', { userId: peerUserId! })}
+                testID="button-peer-avatar"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${peerDisplayName ?? 'peer'}'s profile`}
+              >
+                <View style={styles.headerAvatarRing}>
+                  {peerAvatar ? (
+                    <Image source={{ uri: peerAvatar }} style={styles.headerAvatar} />
+                  ) : (
+                    <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
+                      <Text style={styles.headerAvatarInitials}>
+                        {peerDisplayName ? peerDisplayName.charAt(0).toUpperCase() : '?'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.headerAvatarRing, styles.headerAvatarRingLoading]}>
+                <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder, styles.headerAvatarLoadingPlaceholder]} />
+              </View>
+            )
+          ) : (
             <TouchableOpacity onPress={handleShowParticipants} testID="button-participants">
               <PeopleIcon size={22} color={Colors.brand.bubbleBlue} />
             </TouchableOpacity>
@@ -1518,5 +1547,36 @@ const styles = StyleSheet.create({
   },
   expandedEmojiText: {
     fontSize: 30,
+  },
+  headerAvatarRing: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: Colors.brand.bubbleBlue,
+    overflow: 'hidden',
+    padding: 1,
+  },
+  headerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  headerAvatarPlaceholder: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarInitials: {
+    color: Colors.brand.skyWhite,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  headerAvatarRingLoading: {
+    borderColor: Colors.neutral.coolMist,
+    opacity: 0.4,
+  },
+  headerAvatarLoadingPlaceholder: {
+    backgroundColor: Colors.neutral.cloudGrey,
   },
 });
