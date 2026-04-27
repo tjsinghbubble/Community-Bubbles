@@ -108,6 +108,8 @@ export function logAppEvent(
     data: attributes,
     level: 'info',
   });
+  const context = attributes ? JSON.stringify(attributes) : undefined;
+  sendToServer(buildReport(new Error(message), context, false));
 }
 
 export function logAppWarn(
