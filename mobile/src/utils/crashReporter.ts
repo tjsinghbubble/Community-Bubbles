@@ -122,6 +122,9 @@ export function logAppWarn(
     scope.setTag('alert_type', 'app_warning');
     Sentry.captureMessage(`[AppWarn] ${message}`, 'warning');
   });
+  const context = attributes ? JSON.stringify(attributes) : undefined;
+  const report = buildReport(new Error(message), context, false);
+  sendToServer(report);
 }
 
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
