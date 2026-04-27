@@ -28,6 +28,8 @@ import {
   buildReport,
   reportError,
   reportFatalError,
+  logAppEvent,
+  logAppWarn,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -355,5 +357,100 @@ describe('reportFatalError', () => {
     reportFatalError(new Error('no context fingerprint'));
 
     expect(mockScope.setFingerprint).not.toHaveBeenCalled();
+  });
+});
+
+describe('logAppEvent', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    jest.clearAllMocks();
+  });
+
+  it('calls Sentry.addBreadcrumb with level "info"', () => {
+    logAppEvent('user_signed_in');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+    const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
+    expect(call.level).toBe('info');
+  });
+
+  it('calls Sentry.addBreadcrumb with category "app.event"', () => {
+    logAppEvent('page_viewed');
+
+    const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
+    expect(call.category).toBe('app.event');
+  });
+
+  it('calls Sentry.addBreadcrumb with the provided message', () => {
+    logAppEvent('button_tapped');
+
+    const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
+    expect(call.message).toBe('button_tapped');
+  });
+
+  it('forwards optional attributes as breadcrumb data', () => {
+    const attributes = { screen: 'HomeScreen', count: 3, visible: true };
+
+    logAppEvent('item_loaded', attributes);
+
+    const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
+    expect(call.data).toEqual(attributes);
+  });
+
+  it('sets breadcrumb data to undefined when no attributes are provided', () => {
+    logAppEvent('app_opened');
+
+    const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
+    expect(call.data).toBeUndefined();
+  });
+});
+
+describe('logAppWarn', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    jest.clearAllMocks();
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('calls Sentry.captureMessage with level "warning"', () => {
+    logAppWarn('low disk space');
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+    const [, level] = (Sentry.captureMessage as jest.Mock).mock.calls[0] as [string, string];
+    expect(level).toBe('warning');
+  });
+
+  it('includes the message text in the captureMessage call', () => {
+    logAppWarn('slow network detected');
+
+    const [msg] = (Sentry.captureMessage as jest.Mock).mock.calls[0] as [string];
+    expect(msg).toContain('slow network detected');
+  });
+
+  it('forwards optional attributes as scope extras', () => {
+    const attributes = { latency: 500, retries: 2, cached: false };
+
+    logAppWarn('request degraded', attributes);
+
+    expect(mockScope.setExtra).toHaveBeenCalledWith('latency', 500);
+    expect(mockScope.setExtra).toHaveBeenCalledWith('retries', 2);
+    expect(mockScope.setExtra).toHaveBeenCalledWith('cached', false);
+  });
+
+  it('does not call setExtra when no attributes are provided', () => {
+    logAppWarn('generic warning');
+
+    expect(mockScope.setExtra).not.toHaveBeenCalled();
+  });
+
+  it('sets the alert_type tag to "app_warning"', () => {
+    logAppWarn('config missing');
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('alert_type', 'app_warning');
   });
 });
