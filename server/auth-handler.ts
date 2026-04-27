@@ -1,11 +1,20 @@
 import { z } from "zod";
-import type { Express, RequestHandler } from "express";
+import type { Express, RequestHandler, ErrorRequestHandler } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { insertUserSchema } from "@shared/schema";
 
 export const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
+
+export const AUTH_PAYLOAD_LIMIT_BYTES = 10 * 1024;
+
+export const authEntityTooLargeHandler: ErrorRequestHandler = (err, _req, res, next) => {
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request payload too large" });
+  }
+  next(err);
+};
 
 export interface AuthStorage {
   getUserByEmail(email: string): Promise<any>;
@@ -96,8 +105,8 @@ export function registerAuthRoutes(
     : [];
 
   const loginSchema = z.object({
-    email: z.string({ required_error: "Email is required", invalid_type_error: "Email must be a string" }),
-    password: z.string({ required_error: "Password is required", invalid_type_error: "Password must be a string" }),
+    email: z.string({ required_error: "Email is required", invalid_type_error: "Email must be a string" }).max(254, "Email must be 254 characters or fewer"),
+    password: z.string({ required_error: "Password is required", invalid_type_error: "Password must be a string" }).max(1000, "Password must be 1000 characters or fewer"),
   });
 
   app.post("/api/auth/login", ...loginMiddleware, async (req: any, res: any) => {

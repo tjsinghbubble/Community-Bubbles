@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerHealthRoutes } from "./health";
+import { AUTH_PAYLOAD_LIMIT_BYTES, authEntityTooLargeHandler } from "./auth-handler";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { startEventReminderScheduler } from "./notifications";
@@ -32,6 +33,12 @@ app.use(cors({
   ],
   credentials: true
 }));
+
+app.use(
+  '/api/auth',
+  express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+  authEntityTooLargeHandler,
+);
 
 app.use(
   express.json({

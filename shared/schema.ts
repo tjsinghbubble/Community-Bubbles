@@ -116,6 +116,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedBy: true,
 }).extend({
   name: z.string().min(1).max(100),
+  email: z.string().email().max(254, "Email must be 254 characters or fewer"),
+  password: z.string().min(1).max(1000, "Password must be 1000 characters or fewer"),
   aboutMe: z.string().max(500).optional().nullable(),
   interests: z.array(z.string().max(50)).max(20).default([]),
 });

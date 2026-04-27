@@ -6,6 +6,8 @@ import {
   registerAuthRoutes,
   resetAllLoginFailures,
   LOGIN_MAX_ATTEMPTS,
+  AUTH_PAYLOAD_LIMIT_BYTES,
+  authEntityTooLargeHandler,
   type AuthStorage,
 } from "../auth-handler";
 
@@ -13,6 +15,11 @@ const JWT_SECRET = "test-jwt-secret";
 
 function buildApp(storage: AuthStorage) {
   const app = express();
+  app.use(
+    "/api/auth",
+    express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+    authEntityTooLargeHandler,
+  );
   app.use(express.json());
   registerAuthRoutes(app, storage, JWT_SECRET);
   return app;
@@ -193,6 +200,43 @@ describe("POST /api/auth/login", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when email exceeds 254 characters", async () => {
+    const longEmail = "a".repeat(246) + "@test.com";
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: longEmail, password: "some-password" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+    expect(res.body.error).toMatch(/254/);
+  });
+
+  it("returns 400 when password exceeds 1000 characters", async () => {
+    const longPassword = "x".repeat(1001);
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alice@example.com", password: longPassword });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+    expect(res.body.error).toMatch(/1000/);
+  });
+
+  it("returns 413 when request payload exceeds 10kb", async () => {
+    const oversizedBody = {
+      email: "alice@example.com",
+      password: "some-password",
+      extra: "x".repeat(11 * 1024),
+    };
+
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send(oversizedBody);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toHaveProperty("error", "Request payload too large");
   });
 
   it("does not lock out a different email that hasn't failed", async () => {
@@ -378,5 +422,52 @@ describe("POST /api/auth/signup", () => {
     expect(createUserCall.password).not.toBe("plaintext-secret");
     const isHashed = await bcrypt.compare("plaintext-secret", createUserCall.password);
     expect(isHashed).toBe(true);
+  });
+
+  it("returns 400 when email exceeds 254 characters", async () => {
+    const longEmail = "a".repeat(246) + "@test.com";
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Frank",
+        email: longEmail,
+        password: "securepass123",
+        interests: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when password exceeds 1000 characters", async () => {
+    const longPassword = "x".repeat(1001);
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Grace",
+        email: "grace@example.com",
+        password: longPassword,
+        interests: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 413 when request payload exceeds 10kb", async () => {
+    const oversizedBody = {
+      name: "Huge",
+      email: "huge@example.com",
+      password: "securepass123",
+      interests: [],
+      extra: "x".repeat(11 * 1024),
+    };
+
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send(oversizedBody);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toHaveProperty("error", "Request payload too large");
   });
 });
