@@ -30,6 +30,8 @@ import {
   reportFatalError,
   logAppEvent,
   logAppWarn,
+  setSentryUser,
+  clearSentryUser,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -452,5 +454,103 @@ describe('logAppWarn', () => {
     logAppWarn('config missing');
 
     expect(mockScope.setTag).toHaveBeenCalledWith('alert_type', 'app_warning');
+  });
+});
+
+describe('setSentryUser / clearSentryUser — role propagation', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    jest.clearAllMocks();
+    clearSentryUser();
+    (Sentry.configureScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('sets isSuperAdmin tag to "false" for a regular user', () => {
+    setSentryUser('u1', 'alice', false);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
+  it('sets isSuperAdmin tag to "true" when user is promoted to super-admin', () => {
+    setSentryUser('u1', 'alice', true);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'true');
+  });
+
+  it('reflects a mid-session role promotion: tag changes from "false" to "true"', () => {
+    setSentryUser('u1', 'alice', false);
+    jest.clearAllMocks();
+    mockScope = makeMockScope();
+    (Sentry.configureScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+
+    setSentryUser('u1', 'alice', true);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'true');
+    expect(mockScope.setTag).not.toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
+  it('calls Sentry.setUser with id and username', () => {
+    setSentryUser('u42', 'bob', false);
+
+    expect(Sentry.setUser).toHaveBeenCalledWith({ id: 'u42', username: 'bob' });
+  });
+
+  it('clearSentryUser resets isSuperAdmin tag to "false"', () => {
+    setSentryUser('u1', 'alice', true);
+    jest.clearAllMocks();
+    mockScope = makeMockScope();
+    (Sentry.configureScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+
+    clearSentryUser();
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
+  it('clearSentryUser calls Sentry.setUser(null)', () => {
+    clearSentryUser();
+
+    expect(Sentry.setUser).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('buildReport — user identity', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (Sentry.configureScope as jest.Mock).mockImplementation(() => {});
+    clearSentryUser();
+  });
+
+  it('includes userId and username in the report after setSentryUser', () => {
+    setSentryUser('u99', 'carol', false);
+
+    const report = buildReport(new Error('oops'));
+
+    expect(report.userId).toBe('u99');
+    expect(report.username).toBe('carol');
+  });
+
+  it('omits userId and username when no user is set', () => {
+    const report = buildReport(new Error('oops'));
+
+    expect(report.userId).toBeUndefined();
+    expect(report.username).toBeUndefined();
+  });
+
+  it('clears userId and username after clearSentryUser', () => {
+    setSentryUser('u99', 'carol', false);
+    clearSentryUser();
+
+    const report = buildReport(new Error('oops'));
+
+    expect(report.userId).toBeUndefined();
+    expect(report.username).toBeUndefined();
   });
 });
