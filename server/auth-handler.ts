@@ -1,4 +1,5 @@
 import { z } from "zod";
+import express from "express";
 import type { Express, RequestHandler, ErrorRequestHandler } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -31,19 +32,34 @@ export interface RegisterVerifyCodeRouteOptions {
   rateLimiter?: RequestHandler;
 }
 
+const verifyCodeSchema = z.object({
+  email: z
+    .string({ required_error: "Email and code are required", invalid_type_error: "Email must be a string" })
+    .min(1, "Email and code are required")
+    .max(254, "Email must be 254 characters or fewer"),
+  code: z
+    .string({ required_error: "Email and code are required", invalid_type_error: "Code must be a string" })
+    .min(1, "Email and code are required")
+    .max(10, "Code must be 10 characters or fewer"),
+});
+
 export function registerVerifyCodeRoute(
   app: Express,
   storage: VerifyCodeStorage,
   options: RegisterVerifyCodeRouteOptions = {},
 ) {
-  const middleware: RequestHandler[] = options.rateLimiter ? [options.rateLimiter] : [];
+  app.use("/api/auth/verify-code", express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }), authEntityTooLargeHandler);
 
-  app.post("/api/auth/verify-code", ...middleware, async (req: any, res: any) => {
+  const routeMiddleware: RequestHandler[] = options.rateLimiter ? [options.rateLimiter] : [];
+
+  app.post("/api/auth/verify-code", ...routeMiddleware, async (req: any, res: any) => {
     try {
-      const { email, code } = req.body;
-      if (!email || !code) {
-        return res.status(400).json({ error: "Email and code are required" });
+      const parseResult = verifyCodeSchema.safeParse(req.body ?? {});
+      if (!parseResult.success) {
+        const message = parseResult.error.errors[0]?.message ?? "Email and code are required";
+        return res.status(400).json({ error: message });
       }
+      const { email, code } = parseResult.data;
 
       const verificationCode = await storage.getValidVerificationCode(email, code);
       if (!verificationCode) {

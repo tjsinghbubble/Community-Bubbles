@@ -3,11 +3,18 @@ import express, { type RequestHandler } from "express";
 import request from "supertest";
 import {
   registerVerifyCodeRoute,
+  AUTH_PAYLOAD_LIMIT_BYTES,
+  authEntityTooLargeHandler,
   type VerifyCodeStorage,
 } from "../auth-handler";
 
 function buildApp(storage: VerifyCodeStorage, rateLimiter?: RequestHandler) {
   const app = express();
+  app.use(
+    "/api/auth",
+    express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+    authEntityTooLargeHandler,
+  );
   app.use(express.json());
   registerVerifyCodeRoute(app, storage, rateLimiter ? { rateLimiter } : {});
   return app;
@@ -177,5 +184,39 @@ describe("POST /api/auth/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Database connection failed");
+  });
+
+  it("returns 400 when email exceeds 254 characters", async () => {
+    const app = buildApp(mockStorage);
+    const longEmail = "a".repeat(246) + "@test.com";
+    const res = await request(app)
+      .post("/api/auth/verify-code")
+      .send({ email: longEmail, code: "123456" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "Email must be 254 characters or fewer");
+    expect(mockStorage.getValidVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when code exceeds 10 characters", async () => {
+    const app = buildApp(mockStorage);
+    const res = await request(app)
+      .post("/api/auth/verify-code")
+      .send({ email: "alice@example.com", code: "12345678901" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "Code must be 10 characters or fewer");
+    expect(mockStorage.getValidVerificationCode).not.toHaveBeenCalled();
+  });
+
+  it("returns 413 when the request payload exceeds the 10kb limit", async () => {
+    const app = buildApp(mockStorage);
+    const oversizedPayload = { email: "alice@example.com", code: "a".repeat(AUTH_PAYLOAD_LIMIT_BYTES + 1) };
+    const res = await request(app)
+      .post("/api/auth/verify-code")
+      .send(oversizedPayload);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toHaveProperty("error", "Request payload too large");
   });
 });
