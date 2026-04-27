@@ -876,7 +876,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       <FlowHeader
         title={isDmChat && peerDisplayName ? peerDisplayName : groupName}
         onBack={() => navigation.goBack()}
-        onTitlePress={(isPeerDmChat || isAdminDmChat) && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
+        onTitlePress={(isPeerDmChat || isAdminDmChat || isContactDmChat) && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
         subtitleElement={
           isDmChat && peerOnline !== null ? (
             <View style={styles.peerStatusRow} testID="status-peer-online">
