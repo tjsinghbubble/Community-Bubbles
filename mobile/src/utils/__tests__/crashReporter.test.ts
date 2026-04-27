@@ -23,6 +23,7 @@ jest.mock('expo-constants', () => ({
 jest.mock('../../package.json', () => ({ version: '1.0.0' }), { virtual: true });
 
 import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 
 import {
   buildReport,
@@ -33,6 +34,7 @@ import {
   setSentryUser,
   clearSentryUser,
   installGlobalHandlers,
+  initSentry,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -406,6 +408,40 @@ describe('logAppEvent', () => {
     const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
     expect(call.data).toBeUndefined();
   });
+
+  it('posts to the server via fetch', () => {
+    logAppEvent('checkout_completed');
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/crash-report');
+  });
+
+  it('posts the event message as the report message', () => {
+    logAppEvent('profile_updated');
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { message: string };
+    expect(body.message).toBe('profile_updated');
+  });
+
+  it('serialises attributes into the report context when provided', () => {
+    const attributes = { tab: 'home', itemId: 7 };
+
+    logAppEvent('tab_switched', attributes);
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { context: string };
+    expect(body.context).toBe(JSON.stringify(attributes));
+  });
+
+  it('omits context from the report when no attributes are given', () => {
+    logAppEvent('session_started');
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { context?: string };
+    expect(body.context).toBeUndefined();
+  });
 });
 
 describe('logAppWarn', () => {
@@ -455,6 +491,40 @@ describe('logAppWarn', () => {
     logAppWarn('config missing');
 
     expect(mockScope.setTag).toHaveBeenCalledWith('alert_type', 'app_warning');
+  });
+
+  it('posts to the server via fetch', () => {
+    logAppWarn('memory pressure');
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/api/crash-report');
+  });
+
+  it('posts the warning message as the report message', () => {
+    logAppWarn('token expired');
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { message: string };
+    expect(body.message).toBe('token expired');
+  });
+
+  it('serialises attributes into the report context when provided', () => {
+    const attributes = { code: 401, retry: true };
+
+    logAppWarn('auth failed', attributes);
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { context: string };
+    expect(body.context).toBe(JSON.stringify(attributes));
+  });
+
+  it('omits context from the report when no attributes are given', () => {
+    logAppWarn('fallback used');
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { context?: string };
+    expect(body.context).toBeUndefined();
   });
 });
 
@@ -627,6 +697,58 @@ describe('clearSentryUser', () => {
     clearSentryUser();
 
     expect(Sentry.configureScope).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('initSentry', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('does not call Sentry.init when DSN is absent', () => {
+    (Constants as { expoConfig: { extra: Record<string, unknown> } }).expoConfig.extra = {};
+
+    initSentry();
+
+    expect(Sentry.init).not.toHaveBeenCalled();
+  });
+
+  it('calls Sentry.init with the configured DSN when present', () => {
+    const testDsn = 'https://abc123@sentry.example.io/42';
+    (Constants as { expoConfig: { extra: Record<string, unknown> } }).expoConfig.extra = {
+      sentryDsn: testDsn,
+    };
+
+    initSentry();
+
+    expect(Sentry.init).toHaveBeenCalledTimes(1);
+    const initArg = (Sentry.init as jest.Mock).mock.calls[0][0] as { dsn: string };
+    expect(initArg.dsn).toBe(testDsn);
+  });
+
+  it('adds an initialization breadcrumb after successful init', () => {
+    const testDsn = 'https://abc123@sentry.example.io/42';
+    (Constants as { expoConfig: { extra: Record<string, unknown> } }).expoConfig.extra = {
+      sentryDsn: testDsn,
+    };
+
+    initSentry();
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Sentry initialized' }),
+    );
+  });
+
+  it('does not add a breadcrumb when DSN is absent', () => {
+    (Constants as { expoConfig: { extra: Record<string, unknown> } }).expoConfig.extra = {};
+
+    initSentry();
+
+    expect(Sentry.addBreadcrumb).not.toHaveBeenCalled();
+  });
+
+  afterEach(() => {
+    (Constants as { expoConfig: { extra: Record<string, unknown> } }).expoConfig.extra = {};
   });
 });
 
