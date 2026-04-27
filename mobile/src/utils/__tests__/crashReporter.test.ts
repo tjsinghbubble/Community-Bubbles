@@ -21,8 +21,12 @@ jest.mock('expo-constants', () => ({
 
 jest.mock('../../package.json', () => ({ version: '1.0.0' }), { virtual: true });
 
+import * as Sentry from '@sentry/react-native';
+
 import {
   buildReport,
+  reportError,
+  reportFatalError,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -190,5 +194,165 @@ describe('buildReport — message truncation', () => {
     const report = buildReport(new Error(msg));
 
     expect(report.message).toBe(expectedPrefix + TRUNCATION_SUFFIX);
+  });
+});
+
+type MockScope = {
+  setTag: jest.Mock;
+  setLevel: jest.Mock;
+  setExtra: jest.Mock;
+  setFingerprint: jest.Mock;
+};
+
+function makeMockScope(): MockScope {
+  return {
+    setTag: jest.fn(),
+    setLevel: jest.fn(),
+    setExtra: jest.fn(),
+    setFingerprint: jest.fn(),
+  };
+}
+
+describe('reportError', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    jest.clearAllMocks();
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('calls Sentry.captureException with the provided error', () => {
+    const error = new Error('something went wrong');
+
+    reportError(error);
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+  });
+
+  it('sets Sentry level to "error"', () => {
+    reportError(new Error('non-fatal'));
+
+    expect(mockScope.setLevel).toHaveBeenCalledWith('error');
+  });
+
+  it('does not set Sentry level to "fatal"', () => {
+    reportError(new Error('non-fatal'));
+
+    expect(mockScope.setLevel).not.toHaveBeenCalledWith('fatal');
+  });
+
+  it('sends a report with isFatal set to false', () => {
+    reportError(new Error('check isFatal'));
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { isFatal: boolean };
+    expect(body.isFatal).toBe(false);
+  });
+
+  it('tags the scope with the provided context as screen', () => {
+    reportError(new Error('ctx error'), 'HomeScreen');
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'HomeScreen');
+  });
+
+  it('does not set the screen tag when no context is given', () => {
+    reportError(new Error('no ctx'));
+
+    const screenCall = (mockScope.setTag as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === 'screen',
+    );
+    expect(screenCall).toBeUndefined();
+  });
+});
+
+describe('reportFatalError', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    jest.clearAllMocks();
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('calls Sentry.captureException with the provided error', () => {
+    const error = new Error('fatal boom');
+
+    reportFatalError(error);
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+  });
+
+  it('sets Sentry level to "fatal"', () => {
+    reportFatalError(new Error('critical'));
+
+    expect(mockScope.setLevel).toHaveBeenCalledWith('fatal');
+  });
+
+  it('does not set Sentry level to "error"', () => {
+    reportFatalError(new Error('critical'));
+
+    expect(mockScope.setLevel).not.toHaveBeenCalledWith('error');
+  });
+
+  it('sends a report with isFatal set to true', () => {
+    reportFatalError(new Error('check isFatal'));
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { isFatal: boolean };
+    expect(body.isFatal).toBe(true);
+  });
+
+  it('tags the scope with the provided context as screen', () => {
+    reportFatalError(new Error('fatal ctx'), 'CrashScreen');
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'CrashScreen');
+  });
+
+  it('does not set the screen tag when no context is given', () => {
+    reportFatalError(new Error('no ctx'));
+
+    const screenCall = (mockScope.setTag as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === 'screen',
+    );
+    expect(screenCall).toBeUndefined();
+  });
+
+  it('attaches componentStack as an extra when provided', () => {
+    reportFatalError(new Error('with stack'), 'SomeScreen', 'at Component\n  at App');
+
+    expect(mockScope.setExtra).toHaveBeenCalledWith(
+      'componentStack',
+      'at Component\n  at App',
+    );
+  });
+
+  it('does not call setExtra when componentStack is omitted', () => {
+    reportFatalError(new Error('no component stack'));
+
+    expect(mockScope.setExtra).not.toHaveBeenCalled();
+  });
+
+  it('sets a custom fingerprint when context is provided', () => {
+    reportFatalError(new Error('fingerprint test'), 'PaymentScreen');
+
+    expect(mockScope.setFingerprint).toHaveBeenCalledWith([
+      '{{ default }}',
+      'PaymentScreen',
+    ]);
+  });
+
+  it('does not set a fingerprint when no context is given', () => {
+    reportFatalError(new Error('no context fingerprint'));
+
+    expect(mockScope.setFingerprint).not.toHaveBeenCalled();
   });
 });
