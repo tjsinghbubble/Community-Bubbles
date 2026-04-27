@@ -894,33 +894,14 @@ export default function ChatScreen({ navigation, route }: Props) {
         rightElement={
           isDmChat ? (
             peerUserId ? (
-              (isPeerDmChat || isAdminDmChat) ? (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('MemberProfile', { userId: peerUserId! })}
-                  testID="button-peer-avatar"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View ${peerDisplayName ?? 'peer'}'s profile`}
-                >
-                  <View style={styles.headerAvatarContainer}>
-                    <View style={styles.headerAvatarRing}>
-                      {peerAvatar ? (
-                        <Image source={{ uri: peerAvatar }} style={styles.headerAvatar} />
-                      ) : (
-                        <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder]}>
-                          <Text style={styles.headerAvatarInitials}>
-                            {peerDisplayName ? peerDisplayName.charAt(0).toUpperCase() : '?'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                    {peerOnline === true && (
-                      <View style={styles.headerAvatarOnlineDot} testID="status-header-avatar-online" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.headerAvatarContainer} testID="avatar-peer-header">
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MemberProfile', { userId: peerUserId! })}
+                testID="button-peer-avatar"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${peerDisplayName ?? 'peer'}'s profile`}
+              >
+                <View style={styles.headerAvatarContainer}>
                   <View style={styles.headerAvatarRing}>
                     {peerAvatar ? (
                       <Image source={{ uri: peerAvatar }} style={styles.headerAvatar} />
@@ -936,7 +917,7 @@ export default function ChatScreen({ navigation, route }: Props) {
                     <View style={styles.headerAvatarOnlineDot} testID="status-header-avatar-online" />
                   )}
                 </View>
-              )
+              </TouchableOpacity>
             ) : (
               <View style={[styles.headerAvatarRing, styles.headerAvatarRingLoading]}>
                 <View style={[styles.headerAvatar, styles.headerAvatarPlaceholder, styles.headerAvatarLoadingPlaceholder]} />
