@@ -43,16 +43,22 @@ export function initSentry(): void {
 
 const TRUNCATION_SUFFIX = '…[truncated]';
 const MAX_STACK_CHARS = 4096;
+const MAX_CONTEXT_CHARS = 2048;
 
 function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
   let stack = error.stack;
   if (stack && stack.length > MAX_STACK_CHARS) {
     stack = stack.slice(0, MAX_STACK_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
   }
+  let truncatedContext = context;
+  if (truncatedContext && truncatedContext.length > MAX_CONTEXT_CHARS) {
+    truncatedContext =
+      truncatedContext.slice(0, MAX_CONTEXT_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
+  }
   return {
     message: error.message,
     stack,
-    context,
+    context: truncatedContext,
     platform: Platform.OS,
     timestamp: new Date().toISOString(),
     isFatal,
@@ -131,11 +137,7 @@ export function logAppWarn(
     scope.setTag('alert_type', 'app_warning');
     Sentry.captureMessage(`[AppWarn] ${message}`, 'warning');
   });
-  const MAX_CONTEXT_CHARS = 2048;
-  let context = attributes ? JSON.stringify(attributes) : undefined;
-  if (context && context.length > MAX_CONTEXT_CHARS) {
-    context = context.slice(0, MAX_CONTEXT_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
-  }
+  const context = attributes ? JSON.stringify(attributes) : undefined;
   const report = buildReport(new Error(message), context, false);
   sendToServer(report);
 }
