@@ -124,7 +124,12 @@ export function logAppWarn(
     scope.setTag('alert_type', 'app_warning');
     Sentry.captureMessage(`[AppWarn] ${message}`, 'warning');
   });
-  const context = attributes ? JSON.stringify(attributes) : undefined;
+  const TRUNCATION_SUFFIX = '…[truncated]';
+  const MAX_CONTEXT_CHARS = 2048;
+  let context = attributes ? JSON.stringify(attributes) : undefined;
+  if (context && context.length > MAX_CONTEXT_CHARS) {
+    context = context.slice(0, MAX_CONTEXT_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
+  }
   const report = buildReport(new Error(message), context, false);
   sendToServer(report);
 }
