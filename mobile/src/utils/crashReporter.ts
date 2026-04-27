@@ -42,10 +42,15 @@ export function initSentry(): void {
 }
 
 const TRUNCATION_SUFFIX = '…[truncated]';
+const MAX_MESSAGE_CHARS = 1024;
 const MAX_STACK_CHARS = 4096;
 const MAX_CONTEXT_CHARS = 2048;
 
 function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
+  let message = error.message;
+  if (message && message.length > MAX_MESSAGE_CHARS) {
+    message = message.slice(0, MAX_MESSAGE_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
+  }
   let stack = error.stack;
   if (stack && stack.length > MAX_STACK_CHARS) {
     stack = stack.slice(0, MAX_STACK_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
@@ -56,7 +61,7 @@ function buildReport(error: Error, context?: string, isFatal = false): CrashRepo
       truncatedContext.slice(0, MAX_CONTEXT_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
   }
   return {
-    message: error.message,
+    message,
     stack,
     context: truncatedContext,
     platform: Platform.OS,
