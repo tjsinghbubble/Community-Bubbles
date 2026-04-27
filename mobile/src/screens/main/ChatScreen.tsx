@@ -874,7 +874,7 @@ export default function ChatScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <FlowHeader
-        title={isPeerDmChat && peerDisplayName ? peerDisplayName : groupName}
+        title={isDmChat && peerDisplayName ? peerDisplayName : groupName}
         onBack={() => navigation.goBack()}
         onTitlePress={(isPeerDmChat || isAdminDmChat) && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
         subtitleElement={
