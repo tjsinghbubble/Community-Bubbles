@@ -321,12 +321,36 @@ export async function registerRoutes(
     legacyHeaders: false,
   });
 
+  const CRASH_REPORT_MAX_MESSAGE_CHARS = 1024;
+  const CRASH_REPORT_MAX_STACK_CHARS = 4096;
+  const CRASH_REPORT_MAX_CONTEXT_CHARS = 2048;
+
+  const crashReportSchema = z.object({
+    message: z.string().min(1, "message is required").max(
+      CRASH_REPORT_MAX_MESSAGE_CHARS,
+      `message must not exceed ${CRASH_REPORT_MAX_MESSAGE_CHARS} characters`,
+    ),
+    stack: z.string().max(
+      CRASH_REPORT_MAX_STACK_CHARS,
+      `stack must not exceed ${CRASH_REPORT_MAX_STACK_CHARS} characters`,
+    ).optional(),
+    context: z.string().max(
+      CRASH_REPORT_MAX_CONTEXT_CHARS,
+      `context must not exceed ${CRASH_REPORT_MAX_CONTEXT_CHARS} characters`,
+    ).optional(),
+    platform: z.string().optional(),
+    timestamp: z.string().optional(),
+    isFatal: z.boolean().optional(),
+    appVersion: z.string().optional(),
+  });
+
   app.post("/api/crash-report", crashReportLimiter, async (req, res) => {
     try {
-      const { message, stack, context, platform, timestamp, isFatal, appVersion } = req.body ?? {};
-      if (!message) {
-        return res.status(400).json({ error: "message is required" });
+      const parsed = crashReportSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid crash report" });
       }
+      const { message, stack, context, platform, timestamp, isFatal, appVersion } = parsed.data;
       const level = isFatal ? "FATAL" : "ERROR";
       console.error(
         `[CrashReport] ${level} | platform=${platform ?? "unknown"} | context=${context ?? "unknown"} | version=${appVersion ?? "unknown"} | ts=${timestamp ?? new Date().toISOString()}\n` +
