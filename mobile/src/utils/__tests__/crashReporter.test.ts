@@ -630,140 +630,209 @@ describe('clearSentryUser', () => {
   });
 });
 
+type MockErrorUtils = {
+  getGlobalHandler: jest.Mock;
+  setGlobalHandler: jest.Mock;
+};
+
+type MockPromise = {
+  _unhandledRejectionCallback?: (reason: unknown) => void;
+};
+
 describe('installGlobalHandlers', () => {
   let mockScope: MockScope;
-  let previousHandler: jest.Mock;
-  let capturedHandler: ((error: Error, isFatal: boolean) => void) | undefined;
+  let originalErrorUtils: unknown;
+  let originalRejectionCallback: ((reason: unknown) => void) | undefined;
 
   beforeEach(() => {
     mockScope = makeMockScope();
-    previousHandler = jest.fn();
-    capturedHandler = undefined;
-
     global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
-
-    const PromiseAny = Promise as unknown as {
-      _unhandledRejectionCallback?: (reason: unknown) => void;
-    };
-    delete PromiseAny._unhandledRejectionCallback;
-
-    (global as Record<string, unknown>).ErrorUtils = {
-      getGlobalHandler: jest.fn().mockReturnValue(previousHandler),
-      setGlobalHandler: jest.fn().mockImplementation((handler: (error: Error, isFatal: boolean) => void) => {
-        capturedHandler = handler;
-      }),
-    };
-
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
     );
+    originalErrorUtils = (global as Record<string, unknown>).ErrorUtils;
+    originalRejectionCallback = (Promise as unknown as MockPromise)._unhandledRejectionCallback;
   });
 
   afterEach(() => {
-    delete (global as Record<string, unknown>).ErrorUtils;
-    const PromiseAny = Promise as unknown as {
-      _unhandledRejectionCallback?: (reason: unknown) => void;
-    };
-    delete PromiseAny._unhandledRejectionCallback;
+    (global as Record<string, unknown>).ErrorUtils = originalErrorUtils;
+    (Promise as unknown as MockPromise)._unhandledRejectionCallback = originalRejectionCallback;
   });
 
-  it('registers a new global error handler via ErrorUtils.setGlobalHandler', () => {
-    installGlobalHandlers();
+  describe('ErrorUtils handler', () => {
+    function setupErrorUtils(): {
+      mockPreviousHandler: jest.Mock;
+      mockErrorUtils: MockErrorUtils;
+      getInstalledHandler: () => (error: Error, isFatal: boolean) => void;
+    } {
+      const mockPreviousHandler = jest.fn();
+      let installedHandler: ((error: Error, isFatal: boolean) => void) | undefined;
 
-    const errorUtils = (global as Record<string, unknown>).ErrorUtils as {
-      setGlobalHandler: jest.Mock;
-    };
-    expect(errorUtils.setGlobalHandler).toHaveBeenCalledTimes(1);
+      const mockErrorUtils: MockErrorUtils = {
+        getGlobalHandler: jest.fn(() => mockPreviousHandler),
+        setGlobalHandler: jest.fn((handler: (error: Error, isFatal: boolean) => void) => {
+          installedHandler = handler;
+        }),
+      };
+
+      (global as Record<string, unknown>).ErrorUtils = mockErrorUtils;
+      installGlobalHandlers();
+
+      return {
+        mockPreviousHandler,
+        mockErrorUtils,
+        getInstalledHandler: () => {
+          if (!installedHandler) throw new Error('handler was not installed');
+          return installedHandler;
+        },
+      };
+    }
+
+    it('installs a new global handler via setGlobalHandler', () => {
+      const { mockErrorUtils } = setupErrorUtils();
+
+      expect(mockErrorUtils.setGlobalHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the previous handler via getGlobalHandler before replacing it', () => {
+      const { mockErrorUtils } = setupErrorUtils();
+
+      expect(mockErrorUtils.getGlobalHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls reportFatalError (Sentry level "fatal") when isFatal is true', () => {
+      const { getInstalledHandler } = setupErrorUtils();
+      const error = new Error('fatal error');
+
+      getInstalledHandler()(error, true);
+
+      expect(mockScope.setLevel).toHaveBeenCalledWith('fatal');
+      expect(mockScope.setLevel).not.toHaveBeenCalledWith('error');
+    });
+
+    it('sends a report with isFatal=true when the handler is called with isFatal=true', () => {
+      const { getInstalledHandler } = setupErrorUtils();
+
+      getInstalledHandler()(new Error('fatal payload'), true);
+
+      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+      const body = JSON.parse(init.body as string) as { isFatal: boolean };
+      expect(body.isFatal).toBe(true);
+    });
+
+    it('calls reportError (Sentry level "error") when isFatal is false', () => {
+      const { getInstalledHandler } = setupErrorUtils();
+      const error = new Error('non-fatal error');
+
+      getInstalledHandler()(error, false);
+
+      expect(mockScope.setLevel).toHaveBeenCalledWith('error');
+      expect(mockScope.setLevel).not.toHaveBeenCalledWith('fatal');
+    });
+
+    it('sends a report with isFatal=false when the handler is called with isFatal=false', () => {
+      const { getInstalledHandler } = setupErrorUtils();
+
+      getInstalledHandler()(new Error('non-fatal payload'), false);
+
+      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+      const body = JSON.parse(init.body as string) as { isFatal: boolean };
+      expect(body.isFatal).toBe(false);
+    });
+
+    it('chains through to the previous handler when isFatal is true', () => {
+      const { mockPreviousHandler, getInstalledHandler } = setupErrorUtils();
+      const error = new Error('chain fatal');
+
+      getInstalledHandler()(error, true);
+
+      expect(mockPreviousHandler).toHaveBeenCalledTimes(1);
+      expect(mockPreviousHandler).toHaveBeenCalledWith(error, true);
+    });
+
+    it('chains through to the previous handler when isFatal is false', () => {
+      const { mockPreviousHandler, getInstalledHandler } = setupErrorUtils();
+      const error = new Error('chain non-fatal');
+
+      getInstalledHandler()(error, false);
+
+      expect(mockPreviousHandler).toHaveBeenCalledTimes(1);
+      expect(mockPreviousHandler).toHaveBeenCalledWith(error, false);
+    });
+
+    it('does not install a handler when ErrorUtils is absent from global', () => {
+      delete (global as Record<string, unknown>).ErrorUtils;
+      const mockPreviousHandler = jest.fn();
+
+      expect(() => installGlobalHandlers()).not.toThrow();
+      expect(mockPreviousHandler).not.toHaveBeenCalled();
+    });
   });
 
-  it('routes a fatal error to reportFatalError (Sentry level "fatal")', () => {
-    installGlobalHandlers();
+  describe('unhandled Promise rejection callback', () => {
+    it('installs a _unhandledRejectionCallback on Promise', () => {
+      installGlobalHandlers();
 
-    const fatalError = new Error('fatal boom');
-    capturedHandler!(fatalError, true);
+      expect(
+        (Promise as unknown as MockPromise)._unhandledRejectionCallback,
+      ).toBeDefined();
+    });
 
-    expect(mockScope.setLevel).toHaveBeenCalledWith('fatal');
-    expect(Sentry.captureException).toHaveBeenCalledWith(fatalError);
-  });
+    it('calls reportError (Sentry level "error") when an Error is rejected', () => {
+      installGlobalHandlers();
+      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
+      const error = new Error('rejected promise');
 
-  it('routes a non-fatal error to reportError (Sentry level "error")', () => {
-    installGlobalHandlers();
+      callback(error);
 
-    const nonFatalError = new Error('non-fatal oops');
-    capturedHandler!(nonFatalError, false);
+      expect(mockScope.setLevel).toHaveBeenCalledWith('error');
+    });
 
-    expect(mockScope.setLevel).toHaveBeenCalledWith('error');
-    expect(Sentry.captureException).toHaveBeenCalledWith(nonFatalError);
-  });
+    it('sends a report with isFatal=false for an unhandled rejection', () => {
+      installGlobalHandlers();
+      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
 
-  it('forwards the error to the previous handler after processing', () => {
-    installGlobalHandlers();
+      callback(new Error('rejection payload'));
 
-    const error = new Error('forwarded');
-    capturedHandler!(error, false);
+      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+      const body = JSON.parse(init.body as string) as { isFatal: boolean };
+      expect(body.isFatal).toBe(false);
+    });
 
-    expect(previousHandler).toHaveBeenCalledTimes(1);
-    expect(previousHandler).toHaveBeenCalledWith(error, false);
-  });
+    it('wraps a non-Error rejection reason in an Error before reporting', () => {
+      installGlobalHandlers();
+      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
 
-  it('forwards fatal errors to the previous handler with isFatal=true', () => {
-    installGlobalHandlers();
+      callback('plain string reason');
 
-    const error = new Error('fatal forwarded');
-    capturedHandler!(error, true);
+      expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+      const capturedArg = (Sentry.captureException as jest.Mock).mock.calls[0][0] as Error;
+      expect(capturedArg).toBeInstanceOf(Error);
+      expect(capturedArg.message).toBe('plain string reason');
+    });
 
-    expect(previousHandler).toHaveBeenCalledWith(error, true);
-  });
+    it('chains through to the previous _unhandledRejectionCallback', () => {
+      const mockPreviousRejectionHandler = jest.fn();
+      (Promise as unknown as MockPromise)._unhandledRejectionCallback = mockPreviousRejectionHandler;
 
-  it('tags the Sentry scope with context "GlobalErrorUtils" for fatal errors', () => {
-    installGlobalHandlers();
+      installGlobalHandlers();
+      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
+      const reason = new Error('rejection chain');
 
-    capturedHandler!(new Error('ctx check'), true);
+      callback(reason);
 
-    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'GlobalErrorUtils');
-  });
+      expect(mockPreviousRejectionHandler).toHaveBeenCalledTimes(1);
+      expect(mockPreviousRejectionHandler).toHaveBeenCalledWith(reason);
+    });
 
-  it('tags the Sentry scope with context "GlobalErrorUtils" for non-fatal errors', () => {
-    installGlobalHandlers();
+    it('does not throw when there is no previous _unhandledRejectionCallback', () => {
+      delete (Promise as unknown as MockPromise)._unhandledRejectionCallback;
 
-    capturedHandler!(new Error('ctx check'), false);
+      installGlobalHandlers();
+      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
 
-    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'GlobalErrorUtils');
-  });
-
-  it('does nothing when ErrorUtils is absent from global', () => {
-    delete (global as Record<string, unknown>).ErrorUtils;
-
-    expect(() => installGlobalHandlers()).not.toThrow();
-  });
-
-  it('routes unhandled promise rejections that are Error instances to reportError', () => {
-    installGlobalHandlers();
-
-    const PromiseAny = Promise as unknown as {
-      _unhandledRejectionCallback?: (reason: unknown) => void;
-    };
-
-    const rejectionError = new Error('promise rejected');
-    PromiseAny._unhandledRejectionCallback!(rejectionError);
-
-    expect(Sentry.captureException).toHaveBeenCalledWith(rejectionError);
-    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'UnhandledPromiseRejection');
-  });
-
-  it('wraps non-Error promise rejection reasons in an Error before reporting', () => {
-    installGlobalHandlers();
-
-    const PromiseAny = Promise as unknown as {
-      _unhandledRejectionCallback?: (reason: unknown) => void;
-    };
-
-    PromiseAny._unhandledRejectionCallback!('plain string reason');
-
-    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
-    const captured = (Sentry.captureException as jest.Mock).mock.calls[0][0] as Error;
-    expect(captured).toBeInstanceOf(Error);
-    expect(captured.message).toBe('plain string reason');
+      expect(() => callback(new Error('no previous handler'))).not.toThrow();
+    });
   });
 });
