@@ -63,6 +63,10 @@ args = "Start application"
 task = "workflow.run"
 args = "Expo Mobile"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "mobile-crash-reporter-tests"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -82,6 +86,17 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd mobile && pkill -f 'expo start' 2>/dev/null; pkill -f metro 2>/dev/null; sleep 2; REACT_NATIVE_PACKAGER_HOSTNAME=163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev npx expo start --port 8080 --clear"
+
+[[workflows.workflow]]
+name = "mobile-crash-reporter-tests"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd mobile && node ../node_modules/.bin/jest --config jest.config.js --no-coverage"
+
+[workflows.workflow.metadata]
+isValidation = true
 
 [agent]
 stack = "MOCKUP_JS"

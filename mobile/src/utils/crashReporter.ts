@@ -41,12 +41,12 @@ export function initSentry(): void {
   console.log('[CrashReporter] Sentry initialized successfully');
 }
 
-const TRUNCATION_SUFFIX = '…[truncated]';
-const MAX_MESSAGE_CHARS = 1024;
-const MAX_STACK_CHARS = 4096;
-const MAX_CONTEXT_CHARS = 2048;
+export const TRUNCATION_SUFFIX = '…[truncated]';
+export const MAX_MESSAGE_CHARS = 1024;
+export const MAX_STACK_CHARS = 4096;
+export const MAX_CONTEXT_CHARS = 2048;
 
-function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
+export function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
   let message = error.message;
   if (message && message.length > MAX_MESSAGE_CHARS) {
     message = message.slice(0, MAX_MESSAGE_CHARS - TRUNCATION_SUFFIX.length) + TRUNCATION_SUFFIX;
