@@ -13,6 +13,42 @@ export interface AuthStorage {
   getUser(id: string): Promise<any>;
 }
 
+export interface VerifyCodeStorage {
+  getValidVerificationCode(email: string, code: string): Promise<{ id: string } | undefined>;
+  markCodeAsUsed(id: string): Promise<void>;
+}
+
+export interface RegisterVerifyCodeRouteOptions {
+  rateLimiter?: RequestHandler;
+}
+
+export function registerVerifyCodeRoute(
+  app: Express,
+  storage: VerifyCodeStorage,
+  options: RegisterVerifyCodeRouteOptions = {},
+) {
+  const middleware: RequestHandler[] = options.rateLimiter ? [options.rateLimiter] : [];
+
+  app.post("/api/auth/verify-code", ...middleware, async (req: any, res: any) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: "Email and code are required" });
+      }
+
+      const verificationCode = await storage.getValidVerificationCode(email, code);
+      if (!verificationCode) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+
+      await storage.markCodeAsUsed(verificationCode.id);
+      res.json({ success: true, verified: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+}
+
 const loginFailures = new Map<string, { attempts: number; lockedUntil: number | null }>();
 
 export function checkLoginLockout(email: string): { locked: boolean; retryAfterMs?: number } {

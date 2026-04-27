@@ -6,7 +6,7 @@ import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
-import { registerAuthRoutes, clearLoginFailures } from "./auth-handler";
+import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute } from "./auth-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -336,28 +336,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/verify-code", authLimiter, async (req, res) => {
-    try {
-      const { email, code } = req.body;
-      if (!email || !code) {
-        return res.status(400).json({ error: "Email and code are required" });
-      }
-
-      const verificationCode = await storage.getValidVerificationCode(
-        email,
-        code,
-      );
-      if (!verificationCode) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-
-      await storage.markCodeAsUsed(verificationCode.id);
-
-      res.json({ success: true, verified: true });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  registerVerifyCodeRoute(app, storage, { rateLimiter: authLimiter });
 
   app.delete("/api/auth/delete-account", authMiddleware, async (req, res) => {
     try {
