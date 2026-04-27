@@ -155,6 +155,13 @@ export default function ChatScreen({ navigation, route }: Props) {
     resolvePeerUid().then(async (uid) => {
       if (!uid) return;
       setPeerUserId(uid);
+      if (isAdminDmChat || isContactDmChat) {
+        try {
+          const profile = await apiService.getUserPublicProfile(uid);
+          if (profile?.profilePhoto) setPeerAvatar(profile.profilePhoto);
+          if (profile?.name) setPeerDisplayName(profile.name);
+        } catch (_) {}
+      }
       try {
         const { status, lastActiveAt } = await cometChatService.getPeerUser(uid);
         setPeerOnline(status === 'online');
@@ -869,7 +876,7 @@ export default function ChatScreen({ navigation, route }: Props) {
       <FlowHeader
         title={isPeerDmChat && peerDisplayName ? peerDisplayName : groupName}
         onBack={() => navigation.goBack()}
-        onTitlePress={isPeerDmChat && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
+        onTitlePress={(isPeerDmChat || isAdminDmChat) && peerUserId ? () => navigation.navigate('MemberProfile', { userId: peerUserId! }) : undefined}
         subtitleElement={
           isDmChat && peerOnline !== null ? (
             <View style={styles.peerStatusRow} testID="status-peer-online">
@@ -887,7 +894,7 @@ export default function ChatScreen({ navigation, route }: Props) {
         rightElement={
           isDmChat ? (
             peerUserId ? (
-              isPeerDmChat ? (
+              (isPeerDmChat || isAdminDmChat) ? (
                 <TouchableOpacity
                   onPress={() => navigation.navigate('MemberProfile', { userId: peerUserId! })}
                   testID="button-peer-avatar"
