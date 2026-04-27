@@ -18,7 +18,14 @@ export interface CrashReport {
   timestamp: string;
   isFatal: boolean;
   appVersion: string;
+  userId?: string;
+  username?: string;
 }
+
+export const navigationIntegration = Sentry.reactNavigationIntegration();
+
+let _currentUserId: string | undefined;
+let _currentUsername: string | undefined;
 
 export function initSentry(): void {
   const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
@@ -31,6 +38,8 @@ export function initSentry(): void {
     environment: __DEV__ ? 'development' : 'production',
     debug: __DEV__,
     enableNativeNagger: false,
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    integrations: [navigationIntegration],
   });
   Sentry.addBreadcrumb({
     category: 'app.lifecycle',
@@ -68,6 +77,8 @@ export function buildReport(error: Error, context?: string, isFatal = false): Cr
     timestamp: new Date().toISOString(),
     isFatal,
     appVersion: version ?? 'unknown',
+    userId: _currentUserId,
+    username: _currentUsername,
   };
 }
 
@@ -148,6 +159,8 @@ export function logAppWarn(
 }
 
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
+  _currentUserId = id;
+  _currentUsername = username;
   Sentry.setUser({ id, username });
   Sentry.configureScope((scope) => {
     scope.setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
@@ -155,6 +168,8 @@ export function setSentryUser(id: string, username: string, isSuperAdmin?: boole
 }
 
 export function clearSentryUser(): void {
+  _currentUserId = undefined;
+  _currentUsername = undefined;
   Sentry.setUser(null);
   Sentry.configureScope((scope) => {
     scope.setTag('isSuperAdmin', 'false');

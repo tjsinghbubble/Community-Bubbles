@@ -342,6 +342,8 @@ export async function registerRoutes(
     timestamp: z.string().optional(),
     isFatal: z.boolean().optional(),
     appVersion: z.string().optional(),
+    userId: z.string().max(128).optional(),
+    username: z.string().max(128).optional(),
   });
 
   app.post("/api/crash-report", crashReportLimiter, async (req, res) => {
@@ -350,10 +352,11 @@ export async function registerRoutes(
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid crash report" });
       }
-      const { message, stack, context, platform, timestamp, isFatal, appVersion } = parsed.data;
+      const { message, stack, context, platform, timestamp, isFatal, appVersion, userId, username } = parsed.data;
       const level = isFatal ? "FATAL" : "ERROR";
+      const userTag = userId ? ` | user=${username ?? userId}` : '';
       console.error(
-        `[CrashReport] ${level} | platform=${platform ?? "unknown"} | context=${context ?? "unknown"} | version=${appVersion ?? "unknown"} | ts=${timestamp ?? new Date().toISOString()}\n` +
+        `[CrashReport] ${level} | platform=${platform ?? "unknown"} | context=${context ?? "unknown"} | version=${appVersion ?? "unknown"}${userTag} | ts=${timestamp ?? new Date().toISOString()}\n` +
         `  message: ${message}\n` +
         (stack ? `  stack: ${stack}` : "  stack: (none)"),
       );

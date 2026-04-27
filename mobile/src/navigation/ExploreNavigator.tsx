@@ -105,16 +105,48 @@ function BulletinBoardScreenWithBoundary(props: React.ComponentProps<typeof Bull
   );
 }
 
+function EventDetailsScreenWithBoundary(props: React.ComponentProps<typeof EventDetailsScreen>) {
+  return (
+    <ScreenErrorBoundary context="EventDetailsScreen" message="Couldn't load this event — tap to retry">
+      <EventDetailsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function BubbleMembersScreenWithBoundary(props: React.ComponentProps<typeof BubbleMembersScreen>) {
+  return (
+    <ScreenErrorBoundary context="BubbleMembersScreen" message="Couldn't load members — tap to retry">
+      <BubbleMembersScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function PostDetailScreenWithBoundary(props: React.ComponentProps<typeof PostDetailScreen>) {
+  return (
+    <ScreenErrorBoundary context="PostDetailScreen" message="Couldn't load this post — tap to retry">
+      <PostDetailScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function CreatePostScreenWithBoundary(props: React.ComponentProps<typeof CreatePostScreen>) {
+  return (
+    <ScreenErrorBoundary context="CreatePostScreen" message="Something went wrong creating your post — tap to retry">
+      <CreatePostScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ExploreNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="ExploreList" component={ExploreScreen} />
       <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} options={{ gestureEnabled: false }} />
-      <Stack.Screen name="BubbleMembers" component={BubbleMembersScreen} />
+      <Stack.Screen name="BubbleMembers" component={BubbleMembersScreenWithBoundary} />
       <Stack.Screen name="BubbleEvents" component={BubbleEventsScreen} />
       <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ gestureEnabled: false }} />
-      <Stack.Screen name="EventDetails" component={EventDetailsScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="EventDetails" component={EventDetailsScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CampusJoin" component={CampusJoinScreen} />
       <Stack.Screen name="CampusVerify" component={CampusVerifyScreen} />
       <Stack.Screen name="EditBubble" component={EditBubbleScreen} options={{ gestureEnabled: false }} />
@@ -122,8 +154,8 @@ export default function ExploreNavigator() {
       <Stack.Screen name="EventParticipants" component={EventParticipantsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="BulletinBoard" component={BulletinBoardScreenWithBoundary} />
-      <Stack.Screen name="PostDetail" component={PostDetailScreen} />
-      <Stack.Screen name="CreatePost" component={CreatePostScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="PostDetail" component={PostDetailScreenWithBoundary} />
+      <Stack.Screen name="CreatePost" component={CreatePostScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="JoinBubble" component={JoinBubbleScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="BubbleWaitlist" component={BubbleWaitlistScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />

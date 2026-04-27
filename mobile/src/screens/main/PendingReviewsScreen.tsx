@@ -278,6 +278,7 @@ export default function PendingReviewsScreen() {
     try {
       await apiService.updateReportStatus(reportId, 'resolved');
       setReports(prev => prev.filter(r => r.id !== reportId));
+      logAppEvent('PendingReviews:resolveReport:confirmed', { reportId });
       Alert.alert('Resolved', 'Report has been marked as resolved');
     } catch (error) {
       Alert.alert('Error', 'Failed to resolve report');
@@ -300,6 +301,7 @@ export default function PendingReviewsScreen() {
             try {
               await apiService.updateReportStatus(reportId, 'dismissed');
               setReports(prev => prev.filter(r => r.id !== reportId));
+              logAppEvent('PendingReviews:dismissReport:confirmed', { reportId });
               Alert.alert('Dismissed', 'Report has been dismissed');
             } catch (error) {
               Alert.alert('Error', 'Failed to dismiss report');

@@ -10,6 +10,7 @@ jest.mock('@sentry/react-native', () => ({
   captureMessage: jest.fn(),
   configureScope: jest.fn(),
   setUser: jest.fn(),
+  reactNavigationIntegration: jest.fn().mockReturnValue({ registerNavigationContainer: jest.fn() }),
 }));
 
 jest.mock('expo-constants', () => ({

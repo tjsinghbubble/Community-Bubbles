@@ -7,6 +7,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
+import { navigationIntegration } from '../utils/crashReporter';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -132,7 +133,11 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linkingConfig}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linkingConfig}
+      onReady={() => navigationIntegration.registerNavigationContainer(navigationRef)}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
