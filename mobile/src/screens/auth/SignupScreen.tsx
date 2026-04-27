@@ -86,6 +86,9 @@ export default function SignupScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [tosViewed, setTosViewed] = useState(false);
+  const [privacyViewed, setPrivacyViewed] = useState(false);
+  const canCheckBox = tosViewed && privacyViewed;
 
   const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
@@ -290,26 +293,36 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.termsRow}>
               <TouchableOpacity
-                onPress={() => setTermsAccepted(v => !v)}
-                activeOpacity={0.7}
+                onPress={() => canCheckBox && setTermsAccepted(v => !v)}
+                activeOpacity={canCheckBox ? 0.7 : 1}
+                disabled={!canCheckBox}
                 testID="checkbox-terms"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                <View style={[
+                  styles.checkbox,
+                  !canCheckBox && styles.checkboxDisabled,
+                  termsAccepted && styles.checkboxChecked,
+                ]}>
                   {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                 </View>
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsOfService')}>
+                <Text style={styles.termsLink} onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}>
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                <Text style={styles.termsLink} onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}>
                   Privacy Policy
                 </Text>
               </Text>
             </View>
+            {!canCheckBox && (
+              <Text style={styles.termsHint}>
+                Read both links above to enable the checkbox
+              </Text>
+            )}
 
             <BubbleButton
               title="Agree & Continue"
@@ -480,9 +493,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginRight: Spacing.sm, marginTop: 4,
   },
+  checkboxDisabled: { opacity: 0.4, borderColor: Colors.neutral.coolMist },
   checkboxChecked: { backgroundColor: Colors.brand.bubbleBlue, borderColor: Colors.brand.bubbleBlue },
   termsText: { flex: 1, fontSize: 13, color: Colors.text.secondary, lineHeight: 18 },
   termsLink: { color: Colors.brand.bubbleBlue, textDecorationLine: 'underline' },
+  termsHint: { fontSize: 11, color: Colors.neutral.coolMist, textAlign: 'center', marginTop: -8 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: '#FAFAFA', borderTopLeftRadius: 20, borderTopRightRadius: 20,
