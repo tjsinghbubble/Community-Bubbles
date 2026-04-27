@@ -67,6 +67,10 @@ args = "Expo Mobile"
 task = "workflow.run"
 args = "mobile-crash-reporter-tests"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "test"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -94,6 +98,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd mobile && node ../node_modules/.bin/jest --config jest.config.js --no-coverage"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "test"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx vitest run --config vitest.config.ts"
 
 [workflows.workflow.metadata]
 isValidation = true
