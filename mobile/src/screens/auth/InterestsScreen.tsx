@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -22,22 +22,23 @@ type Props = {
   route: RouteProp<AuthStackParamList, 'Interests'>;
 };
 
-const INTERESTS = [
-  { id: 'running', label: 'Running', image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?w=300&h=300&fit=crop' },
-  { id: 'cooking', label: 'Cooking', image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=300&h=300&fit=crop' },
-  { id: 'coffee', label: 'Coffee Meets', image: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=300&h=300&fit=crop' },
-  { id: 'gardening', label: 'Gardening', image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=300&h=300&fit=crop' },
-  { id: 'yoga', label: 'Yoga', image: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=300&h=300&fit=crop' },
-  { id: 'tennis', label: 'Tennis', image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=300&h=300&fit=crop' },
-  { id: 'biking', label: 'Biking', image: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=300&h=300&fit=crop' },
+const INTERESTS: { id: string; label: string; image: number | string }[] = [
+  { id: 'running', label: 'Running', image: require('../../assets/images/running.jpg') },
+  { id: 'cooking', label: 'Cooking', image: require('../../assets/images/cooking.jpg') },
+  { id: 'coffee', label: 'Coffee Meets', image: require('../../assets/images/coffee-meets.jpg') },
+  { id: 'gardening', label: 'Gardening', image: require('../../assets/images/gardening.jpg') },
+  { id: 'yoga', label: 'Yoga', image: require('../../assets/images/yoga.jpg') },
+  { id: 'tennis', label: 'Tennis', image: require('../../assets/images/tennis.jpg') },
+  { id: 'biking', label: 'Biking', image: require('../../assets/images/biking.jpg') },
+  { id: 'hiking', label: 'Hiking', image: require('../../assets/images/hiking.jpg') },
+  { id: 'wellness', label: 'Wellness', image: require('../../assets/images/wellness.jpg') },
+  { id: 'social', label: 'Social', image: require('../../assets/images/social.jpg') },
+  { id: 'art', label: 'Arts & Crafts', image: require('../../assets/images/arts-crafts.jpg') },
+  { id: 'community', label: 'Community', image: require('../../assets/images/community.jpg') },
   { id: 'pets', label: 'Pets', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&h=300&fit=crop' },
   { id: 'photography', label: 'Photography', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop' },
-  { id: 'hiking', label: 'Hiking', image: 'https://images.unsplash.com/photo-1551632811-561732d1e306?w=300&h=300&fit=crop' },
   { id: 'music', label: 'Music', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop' },
-  { id: 'art', label: 'Art', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=300&h=300&fit=crop' },
   { id: 'gaming', label: 'Gaming', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&h=300&fit=crop' },
-  { id: 'reading', label: 'Reading', image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=300&fit=crop' },
-  { id: 'fitness', label: 'Fitness', image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=300&h=300&fit=crop' },
 ];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -54,19 +55,13 @@ export default function InterestsScreen({ navigation, route }: Props) {
   const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
 
   const toggleInterest = (id: string) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
   const handleContinue = () => {
     if (selected.length >= MIN_SELECTIONS) {
       navigation.navigate('Guidelines', {
-        name,
-        email,
-        password,
-        gender,
-        dateOfBirth,
+        name, email, password, gender, dateOfBirth,
         interests: selected,
         profilePhotoUri,
       });
@@ -85,11 +80,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
         <View style={[styles.progressFill, { width: `${PROGRESS_STEP * 100}%` }]} />
       </View>
 
-      <Text style={styles.title} data-testid="text-title">Tell us your interests</Text>
-
-      <Text style={styles.subtitle} data-testid="text-subtitle">
-        Select at least 3 to continue
-      </Text>
+      <Text style={styles.title}>Tell us your interests</Text>
+      <Text style={styles.subtitle}>Select at least 3 to continue</Text>
 
       <ScrollView
         style={styles.scroll}
@@ -104,13 +96,13 @@ export default function InterestsScreen({ navigation, route }: Props) {
                 style={[styles.card, isSelected && styles.cardSelected]}
                 onPress={() => toggleInterest(interest.id)}
                 activeOpacity={0.8}
-                data-testid={`button-interest-${interest.id}`}
+                testID={`button-interest-${interest.id}`}
               >
                 <View style={styles.cardInner}>
                   <Image
-                    source={{ uri: interest.image }}
+                    source={interest.image}
                     style={styles.cardImage}
-                    resizeMode="cover"
+                    contentFit="cover"
                   />
                   {isSelected && (
                     <View style={styles.selectedOverlay}>
@@ -123,7 +115,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
               </TouchableOpacity>
               <Text
                 style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
-                data-testid={`text-interest-${interest.id}`}
+                testID={`text-interest-${interest.id}`}
               >
                 {interest.label}
               </Text>
@@ -145,126 +137,51 @@ export default function InterestsScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-  },
-  progressContainer: {
-    height: 2,
-    position: 'relative',
-  },
-  progressTrack: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: '#DDDDDD',
-  },
-  progressFill: {
-    position: 'absolute',
-    left: 0,
-    height: 2,
-    backgroundColor: '#35A8F7',
-  },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
+  progressContainer: { height: 2, position: 'relative' },
+  progressTrack: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#DDDDDD' },
+  progressFill: { position: 'absolute', left: 0, height: 2, backgroundColor: '#35A8F7' },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E1F26',
-    textAlign: 'center',
-    marginTop: 16,
+    fontSize: 16, fontWeight: '700', color: '#1E1F26',
+    textAlign: 'center', marginTop: 16,
   },
   subtitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#4D4D4D',
-    textAlign: 'center',
-    marginTop: 34,
-    marginBottom: 8,
+    fontSize: 16, fontWeight: '500', color: '#4D4D4D',
+    textAlign: 'center', marginTop: 34, marginBottom: 8,
   },
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingLeft: GRID_PADDING,
-    paddingRight: GRID_PADDING,
-    paddingTop: 0,
-    paddingBottom: 120,
+    flexDirection: 'row', flexWrap: 'wrap',
+    paddingLeft: GRID_PADDING, paddingRight: GRID_PADDING,
+    paddingTop: 0, paddingBottom: 120,
     gap: CARD_GAP,
   },
-  cardWrapper: {
-    width: CARD_SIZE,
-    marginBottom: 4,
-    alignItems: 'center',
-  },
+  cardWrapper: { width: CARD_SIZE, marginBottom: 4, alignItems: 'center' },
   card: {
-    width: CARD_SIZE,
-    height: CARD_SIZE,
-    borderRadius: 20,
-    borderWidth: 3,
-    borderColor: 'transparent',
+    width: CARD_SIZE, height: CARD_SIZE,
+    borderRadius: 24,
+    borderWidth: 3, borderColor: 'transparent',
   },
-  cardSelected: {
-    borderColor: '#35A8F7',
-  },
+  cardSelected: { borderColor: '#35A8F7' },
   cardInner: {
-    flex: 1,
-    borderRadius: 17,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    flex: 1, borderRadius: 21,
+    overflow: 'hidden', backgroundColor: '#FFFFFF',
   },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
+  cardImage: { width: '100%', height: '100%' },
   selectedOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(53, 168, 247, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
   checkCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 32, height: 32, borderRadius: 16,
     backgroundColor: '#35A8F7',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  cardLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4D4D4D',
-    textAlign: 'center',
-    marginTop: 6,
-  },
-  cardLabelSelected: {
-    color: '#35A8F7',
-  },
+  cardLabel: { fontSize: 14, fontWeight: '600', color: '#4D4D4D', textAlign: 'center', marginTop: 6 },
+  cardLabelSelected: { color: '#35A8F7' },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 40,
-    paddingBottom: 40,
-    paddingTop: 16,
-  },
-  button: {
-    height: 56,
-    borderRadius: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 80,
-  },
-  buttonDisabled: {
-    backgroundColor: '#969696',
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    paddingHorizontal: 40, paddingBottom: 40, paddingTop: 16,
   },
 });

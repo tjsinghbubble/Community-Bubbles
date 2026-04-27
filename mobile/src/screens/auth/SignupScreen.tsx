@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -19,7 +18,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '../../config/api';
-import { Colors, Spacing, Radius, Typography } from '../../styles/theme';
+import { Colors, Spacing, Radius } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
@@ -30,17 +29,50 @@ type Props = {
 };
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
-const PICKER_ITEM_HEIGHT = 36;
-const PICKER_VISIBLE_COUNT = 5;
-const PICKER_HEIGHT = PICKER_ITEM_HEIGHT * PICKER_VISIBLE_COUNT;
-const PICKER_PADDING = PICKER_ITEM_HEIGHT * 2;
-const YEAR_MIN = 1910;
-const YEAR_MAX = new Date().getFullYear() - 18;
+const MAX_DOB_DATE = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 18);
+  return d;
+})();
 
-const DAYS_LIST: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
-const YEARS_LIST: number[] = Array.from({ length: YEAR_MAX - YEAR_MIN + 1 }, (_, i) => YEAR_MIN + i);
+type CalDate = { year: number; month: number; day: number };
+
+function buildCalendarGrid(year: number, month: number): ({ day: number; inMonth: boolean; date: CalDate })[] {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  const cells: { day: number; inMonth: boolean; date: CalDate }[] = [];
+
+  for (let i = firstWeekday - 1; i >= 0; i--) {
+    const d = daysInPrev - i;
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevYear = month === 0 ? year - 1 : year;
+    cells.push({ day: d, inMonth: false, date: { year: prevYear, month: prevMonth, day: d } });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, inMonth: true, date: { year, month, day: d } });
+  }
+  const remainder = 42 - cells.length;
+  for (let d = 1; d <= remainder; d++) {
+    const nextMonth = month === 11 ? 0 : month + 1;
+    const nextYear = month === 11 ? year + 1 : year;
+    cells.push({ day: d, inMonth: false, date: { year: nextYear, month: nextMonth, day: d } });
+  }
+  return cells;
+}
+
+function isAfterMax(date: CalDate): boolean {
+  const d = new Date(date.year, date.month, date.day);
+  return d > MAX_DOB_DATE;
+}
+
+function isBeforeMin(date: CalDate): boolean {
+  return date.year < 1910;
+}
 
 export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
@@ -55,14 +87,9 @@ export default function SignupScreen({ navigation }: Props) {
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const initialYear = YEAR_MAX - 20 > YEAR_MIN ? YEAR_MAX - 20 : YEAR_MIN + 30;
-  const [pickerDay, setPickerDay] = useState(15);
-  const [pickerMonth, setPickerMonth] = useState(5);
-  const [pickerYear, setPickerYear] = useState(initialYear);
-
-  const dayScrollRef = useRef<ScrollView>(null);
-  const monthScrollRef = useRef<ScrollView>(null);
-  const yearScrollRef = useRef<ScrollView>(null);
+  const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
+  const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
+  const [selectedCal, setSelectedCal] = useState<CalDate | null>(null);
 
   const isFormValid = !!(name && email && password && gender && dateOfBirth && termsAccepted);
 
@@ -82,7 +109,6 @@ export default function SignupScreen({ navigation }: Props) {
 
   const handleContinue = useCallback(async () => {
     if (!isFormValid) return;
-
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/send-verification`, {
@@ -90,163 +116,74 @@ export default function SignupScreen({ navigation }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         Alert.alert('Error', data.error || 'Failed to send verification code');
         return;
       }
-
       if (data.emailFailed && data.fallbackCode) {
-        Alert.alert(
-          'Email Delivery Failed',
+        Alert.alert('Email Delivery Failed',
           `We couldn't send the email, but your verification code is:\n\n${data.fallbackCode}\n\nPlease copy it before continuing.`,
-          [{ text: 'OK' }]
-        );
+          [{ text: 'OK' }]);
       } else if (data.devCode) {
-        Alert.alert(
-          'Development Mode',
+        Alert.alert('Development Mode',
           `Your verification code is: ${data.devCode}\n\nCopy this code to verify your email.`,
-          [{ text: 'OK' }]
-        );
+          [{ text: 'OK' }]);
       }
-
       navigation.navigate('EmailVerification', {
-        name,
-        email,
-        password,
-        gender,
-        dateOfBirth,
+        name, email, password, gender, dateOfBirth,
         profilePhotoUri: profilePhotoUri || undefined,
       });
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to send verification code. Please try again.');
     } finally {
       setLoading(false);
     }
   }, [isFormValid, email, name, password, gender, dateOfBirth, profilePhotoUri, navigation]);
 
-  const scrollToValue = useCallback((ref: React.RefObject<ScrollView>, index: number) => {
-    setTimeout(() => {
-      ref.current?.scrollTo({ y: index * PICKER_ITEM_HEIGHT, animated: false });
-    }, 50);
+  const prevMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 0) { setCalYear(y => y - 1); return 11; }
+      return m - 1;
+    });
   }, []);
 
-  useEffect(() => {
-    if (showDatePicker) {
-      scrollToValue(dayScrollRef as React.RefObject<ScrollView>, pickerDay - 1);
-      scrollToValue(monthScrollRef as React.RefObject<ScrollView>, pickerMonth);
-      scrollToValue(yearScrollRef as React.RefObject<ScrollView>, pickerYear - YEAR_MIN);
-    }
-  }, [showDatePicker]);
+  const nextMonth = useCallback(() => {
+    setCalMonth(m => {
+      if (m === 11) { setCalYear(y => y + 1); return 0; }
+      return m + 1;
+    });
+  }, []);
 
-  const handlePickerScroll = useCallback((
-    e: any,
-    setter: (v: number) => void,
-    offset: number,
-  ) => {
-    const y = e.nativeEvent.contentOffset.y;
-    const idx = Math.round(y / PICKER_ITEM_HEIGHT);
-    setter(idx + offset);
+  const handleDayPress = useCallback((date: CalDate) => {
+    if (isAfterMax(date) || isBeforeMin(date)) return;
+    setSelectedCal(date);
   }, []);
 
   const handleConfirmDate = useCallback(() => {
-    const maxDay = new Date(pickerYear, pickerMonth + 1, 0).getDate();
-    const day = Math.min(pickerDay, maxDay);
-    const dob = new Date(pickerYear, pickerMonth, day);
-    const todayDate = new Date();
-
-    if (dob > todayDate) {
-      Alert.alert('Invalid Date', 'Date of birth cannot be in the future.');
-      return;
-    }
-
-    let age = todayDate.getFullYear() - dob.getFullYear();
-    const monthDiff = todayDate.getMonth() - dob.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && todayDate.getDate() < dob.getDate())) {
-      age--;
-    }
-
-    if (age < 18) {
-      Alert.alert('Age Requirement', 'You must be at least 18 years old to sign up.');
-      return;
-    }
-
-    const mm = String(pickerMonth + 1).padStart(2, '0');
-    const dd = String(day).padStart(2, '0');
-    setDateOfBirth(`${mm}/${dd}/${pickerYear}`);
+    if (!selectedCal) return;
+    const mm = String(selectedCal.month + 1).padStart(2, '0');
+    const dd = String(selectedCal.day).padStart(2, '0');
+    setDateOfBirth(`${mm}/${dd}/${selectedCal.year}`);
     setShowDatePicker(false);
-  }, [pickerDay, pickerMonth, pickerYear]);
+  }, [selectedCal]);
 
-  const handleBack = useCallback(() => navigation.goBack(), [navigation]);
-  const togglePassword = useCallback(() => setShowPassword(v => !v), []);
-  const openGenderPicker = useCallback(() => setShowGenderPicker(true), []);
-  const closeGenderPicker = useCallback(() => setShowGenderPicker(false), []);
-  const openDatePicker = useCallback(() => setShowDatePicker(true), []);
-  const closeDatePicker = useCallback(() => setShowDatePicker(false), []);
-  const toggleTerms = useCallback(() => setTermsAccepted(v => !v), []);
-  const goToTerms = useCallback(() => navigation.navigate('TermsOfService'), [navigation]);
-  const goToPrivacy = useCallback(() => navigation.navigate('PrivacyPolicy'), [navigation]);
+  const openDatePicker = useCallback(() => {
+    setSelectedCal(null);
+    setCalYear(MAX_DOB_DATE.getFullYear() - 2);
+    setCalMonth(MAX_DOB_DATE.getMonth());
+    setShowDatePicker(true);
+  }, []);
 
-  const renderWheelColumn = (
-    data: (string | number)[],
-    selectedIndex: number,
-    scrollRef: React.RefObject<ScrollView>,
-    onSelect: (e: any) => void,
-    flex: number,
-    align: 'flex-start' | 'center' | 'flex-end' = 'center',
-  ) => (
-    <View style={[styles.wheelColumn, { flex }]}>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={PICKER_ITEM_HEIGHT}
-        decelerationRate="fast"
-        nestedScrollEnabled
-        onMomentumScrollEnd={onSelect}
-        onScrollEndDrag={onSelect}
-        contentContainerStyle={{ paddingVertical: PICKER_PADDING }}
-        style={{ height: PICKER_HEIGHT }}
-      >
-        {data.map((item, idx) => {
-          const isSelected = idx === selectedIndex;
-          const distance = Math.abs(idx - selectedIndex);
-          const opacity = isSelected ? 1 : distance === 1 ? 0.5 : 0.25;
-          return (
-            <View key={idx} style={[styles.wheelItem, { alignItems: align }]}>
-              <Text style={{
-                fontSize: isSelected ? 16 : 14,
-                fontWeight: isSelected ? '600' : '400',
-                color: Colors.brand.midnight,
-                opacity,
-                fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-              }}>
-                {item}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
+  const canNavPrev = !(calYear <= 1910 && calMonth === 0);
+  const canNavNext = !(calYear > MAX_DOB_DATE.getFullYear() ||
+    (calYear === MAX_DOB_DATE.getFullYear() && calMonth >= MAX_DOB_DATE.getMonth()));
 
-  const dayScrollHandler = useCallback(
-    (e: any) => handlePickerScroll(e, setPickerDay, 1),
-    [handlePickerScroll],
-  );
-  const monthScrollHandler = useCallback(
-    (e: any) => handlePickerScroll(e, setPickerMonth, 0),
-    [handlePickerScroll],
-  );
-  const yearScrollHandler = useCallback(
-    (e: any) => handlePickerScroll(e, (v: number) => setPickerYear(v + YEAR_MIN), 0),
-    [handlePickerScroll],
-  );
+  const calCells = buildCalendarGrid(calYear, calMonth);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Sign up" onBack={handleBack} />
+      <NavHeader title="Sign up" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -288,10 +225,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Gender</Text>
-              <TouchableOpacity
-                style={styles.selectInput}
-                onPress={openGenderPicker}
-              >
+              <TouchableOpacity style={styles.selectInput} onPress={() => setShowGenderPicker(true)}>
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
                 </Text>
@@ -301,10 +235,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity
-                style={styles.selectInput}
-                onPress={openDatePicker}
-              >
+              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker}>
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
@@ -347,7 +278,7 @@ export default function SignupScreen({ navigation }: Props) {
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
-                  onPress={togglePassword}
+                  onPress={() => setShowPassword(v => !v)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   {showPassword
@@ -359,7 +290,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.termsRow}>
               <TouchableOpacity
-                onPress={toggleTerms}
+                onPress={() => setTermsAccepted(v => !v)}
                 activeOpacity={0.7}
                 testID="checkbox-terms"
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -370,11 +301,11 @@ export default function SignupScreen({ navigation }: Props) {
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
-                <Text style={styles.termsLink} onPress={goToTerms}>
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsOfService')}>
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
-                <Text style={styles.termsLink} onPress={goToPrivacy}>
+                <Text style={styles.termsLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
                   Privacy Policy
                 </Text>
               </Text>
@@ -391,21 +322,13 @@ export default function SignupScreen({ navigation }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        visible={showGenderPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={closeGenderPicker}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={closeGenderPicker}
-        >
+      {/* Gender Picker */}
+      <Modal visible={showGenderPicker} transparent animationType="slide" onRequestClose={() => setShowGenderPicker(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowGenderPicker(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
-              <TouchableOpacity onPress={closeGenderPicker}>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
                 <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
@@ -413,74 +336,94 @@ export default function SignupScreen({ navigation }: Props) {
               <TouchableOpacity
                 key={option}
                 style={styles.modalOption}
-                onPress={() => {
-                  setGender(option);
-                  setShowGenderPicker(false);
-                }}
+                onPress={() => { setGender(option); setShowGenderPicker(false); }}
               >
-                <Text style={[
-                  styles.modalOptionText,
-                  gender === option && styles.modalOptionSelected
-                ]}>
+                <Text style={[styles.modalOptionText, gender === option && styles.modalOptionSelected]}>
                   {option}
                 </Text>
-                {gender === option && (
-                  <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />
-                )}
+                {gender === option && <Ionicons name="checkmark" size={20} color={Colors.brand.bubbleBlue} />}
               </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
       </Modal>
 
-      <Modal
-        visible={showDatePicker}
-        transparent
-        animationType="slide"
-        onRequestClose={closeDatePicker}
-      >
-        <View style={styles.wheelOverlay}>
-          <Pressable style={styles.wheelBackdrop} onPress={closeDatePicker} />
-          <View style={styles.wheelModalContent}>
-            <View style={styles.wheelHeader}>
-              <TouchableOpacity onPress={closeDatePicker} style={styles.wheelHeaderButton}>
-                <Text style={styles.wheelCancelText}>Cancel</Text>
+      {/* Calendar Date Picker */}
+      <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+        <View style={styles.calOverlay}>
+          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
+          <View style={styles.calModal}>
+            <View style={styles.calModalHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calBackBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
-              <Text style={styles.wheelTitle}>Date of Birth</Text>
-              <TouchableOpacity onPress={handleConfirmDate} style={styles.wheelHeaderButton}>
-                <Text style={styles.wheelDoneText}>Done</Text>
+              <Text style={styles.calModalTitle}>Date of Birth</Text>
+              <View style={styles.calBackBtn} />
+            </View>
+
+            <View style={styles.calNavRow}>
+              <TouchableOpacity
+                onPress={prevMonth}
+                disabled={!canNavPrev}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={[styles.calNavBtn, !canNavPrev && styles.calNavBtnDisabled]}
+              >
+                <Ionicons name="chevron-back" size={20} color={canNavPrev ? Colors.brand.midnight : Colors.neutral.coolMist} />
+              </TouchableOpacity>
+              <Text style={styles.calMonthYear}>{MONTH_NAMES[calMonth]} {calYear}</Text>
+              <TouchableOpacity
+                onPress={nextMonth}
+                disabled={!canNavNext}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={[styles.calNavBtn, !canNavNext && styles.calNavBtnDisabled]}
+              >
+                <Ionicons name="chevron-forward" size={20} color={canNavNext ? Colors.brand.midnight : Colors.neutral.coolMist} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.wheelContainer}>
-              <View style={[styles.wheelHighlight, { top: PICKER_PADDING + 3 }]} pointerEvents="none" />
+            <View style={styles.calDayHeaders}>
+              {DAY_LABELS.map(d => (
+                <Text key={d} style={styles.calDayHeader}>{d}</Text>
+              ))}
+            </View>
 
-              {renderWheelColumn(
-                DAYS_LIST,
-                pickerDay - 1,
-                dayScrollRef as React.RefObject<ScrollView>,
-                dayScrollHandler,
-                1,
-                'flex-start',
-              )}
+            <View style={styles.calGrid}>
+              {calCells.map((cell, idx) => {
+                const disabled = isAfterMax(cell.date) || isBeforeMin(cell.date);
+                const isSelected = !!(selectedCal &&
+                  selectedCal.year === cell.date.year &&
+                  selectedCal.month === cell.date.month &&
+                  selectedCal.day === cell.date.day &&
+                  cell.inMonth);
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.calCell}
+                    onPress={() => cell.inMonth && !disabled && handleDayPress(cell.date)}
+                    disabled={!cell.inMonth || disabled}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.calDayCircle, isSelected && styles.calDayCircleSelected]}>
+                      <Text style={[
+                        styles.calDayText,
+                        !cell.inMonth && styles.calDayTextOtherMonth,
+                        disabled && styles.calDayTextDisabled,
+                        isSelected && styles.calDayTextSelected,
+                      ]}>
+                        {cell.day}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-              {renderWheelColumn(
-                MONTH_NAMES,
-                pickerMonth,
-                monthScrollRef as React.RefObject<ScrollView>,
-                monthScrollHandler,
-                2,
-                'center',
-              )}
-
-              {renderWheelColumn(
-                YEARS_LIST,
-                pickerYear - YEAR_MIN,
-                yearScrollRef as React.RefObject<ScrollView>,
-                yearScrollHandler,
-                1.2,
-                'flex-end',
-              )}
+            <View style={styles.calFooter}>
+              <BubbleButton
+                title="Confirm"
+                onPress={handleConfirmDate}
+                disabled={!selectedCal}
+              />
             </View>
           </View>
         </View>
@@ -490,257 +433,120 @@ export default function SignupScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background.secondary,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.coolMist,
-  },
-  content: {
-    padding: 24,
-    paddingBottom: 40,
-  },
-  form: {
-    gap: 24,
-  },
-  photoPickerContainer: {
-    alignSelf: 'center',
-    width: 100,
-    height: 100,
-    marginBottom: 8,
-  },
-  profilePhoto: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-  },
+  container: { flex: 1, backgroundColor: Colors.background.secondary },
+  keyboardView: { flex: 1 },
+  content: { padding: 24, paddingBottom: 40 },
+  form: { gap: 24 },
+  photoPickerContainer: { alignSelf: 'center', width: 100, height: 100, marginBottom: 8 },
+  profilePhoto: { width: 100, height: 100, borderRadius: 50 },
   photoPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 100, height: 100, borderRadius: 50,
     backgroundColor: Colors.neutral.cloudGrey,
-    borderWidth: 2,
-    borderColor: Colors.neutral.coolMist,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.neutral.coolMist, borderStyle: 'dashed',
+    alignItems: 'center', justifyContent: 'center',
   },
   cameraBadge: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    position: 'absolute', bottom: 2, right: 2,
+    width: 28, height: 28, borderRadius: 14,
     backgroundColor: Colors.brand.bubbleBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.brand.skyWhite,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.brand.skyWhite,
   },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.neutral.charcoal,
-  },
+  inputGroup: { gap: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: Colors.neutral.charcoal },
   input: {
-    borderWidth: 1,
-    borderColor: '#969696',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    backgroundColor: Colors.brand.skyWhite,
-    color: Colors.neutral.charcoal,
+    borderWidth: 1, borderColor: '#969696', borderRadius: 8,
+    padding: 16, fontSize: 16,
+    backgroundColor: Colors.brand.skyWhite, color: Colors.neutral.charcoal,
   },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 48,
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 16,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
+  passwordContainer: { position: 'relative' },
+  passwordInput: { paddingRight: 48 },
+  eyeIcon: { position: 'absolute', right: 16, top: 0, bottom: 0, justifyContent: 'center' },
   selectInput: {
-    borderWidth: 1,
-    borderColor: '#969696',
-    borderRadius: 8,
-    padding: 16,
+    borderWidth: 1, borderColor: '#969696', borderRadius: 8, padding: 16,
     backgroundColor: Colors.brand.skyWhite,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  selectText: {
-    fontSize: 16,
-    color: Colors.neutral.charcoal,
-  },
-  selectPlaceholder: {
-    fontSize: 16,
-    color: Colors.neutral.coolMist,
-  },
-  helperText: {
-    fontSize: 12,
-    color: Colors.neutral.coolMist,
-    lineHeight: 16,
-  },
+  selectText: { fontSize: 16, color: Colors.neutral.charcoal },
+  selectPlaceholder: { fontSize: 16, color: Colors.neutral.coolMist },
+  helperText: { fontSize: 12, color: Colors.neutral.coolMist, lineHeight: 16 },
   termsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
+    flexDirection: 'row', alignItems: 'flex-start',
+    marginTop: Spacing.md, marginBottom: Spacing.sm,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: Colors.neutral.coolMist,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.sm,
-    marginTop: 4,
+    width: 20, height: 20, borderRadius: 4,
+    borderWidth: 1.5, borderColor: Colors.neutral.coolMist,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: Spacing.sm, marginTop: 4,
   },
-  checkboxChecked: {
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderColor: Colors.brand.bubbleBlue,
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.text.secondary,
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: Colors.brand.bubbleBlue,
-    textDecorationLine: 'underline',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+  checkboxChecked: { backgroundColor: Colors.brand.bubbleBlue, borderColor: Colors.brand.bubbleBlue },
+  termsText: { flex: 1, fontSize: 13, color: Colors.text.secondary, lineHeight: 18 },
+  termsLink: { color: Colors.brand.bubbleBlue, textDecorationLine: 'underline' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
-    backgroundColor: '#FAFAFA',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
+    backgroundColor: '#FAFAFA', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, paddingBottom: 40,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 20,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.brand.midnight,
-  },
+  modalTitle: { fontSize: 18, fontWeight: '600', color: Colors.brand.midnight },
   modalOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#D9D9D9',
   },
-  modalOptionText: {
-    fontSize: 16,
-    color: Colors.neutral.charcoal,
-  },
-  modalOptionSelected: {
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
-  },
-  wheelOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wheelBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  wheelModalContent: {
+  modalOptionText: { fontSize: 16, color: Colors.neutral.charcoal },
+  modalOptionSelected: { color: Colors.brand.bubbleBlue, fontWeight: '600' },
+
+  // Calendar
+  calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  calModal: {
     backgroundColor: '#FAFAFA',
-    borderRadius: 20,
-    marginHorizontal: 24,
-    alignSelf: 'stretch',
-    paddingBottom: 20,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingBottom: 40,
   },
-  wheelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8E8E8',
+  calModalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
   },
-  wheelHeaderButton: {
+  calBackBtn: { width: 36, alignItems: 'flex-start' },
+  calModalTitle: { fontSize: 17, fontWeight: '600', color: Colors.brand.midnight },
+  calNavRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 14,
+  },
+  calNavBtn: { padding: 4 },
+  calNavBtnDisabled: { opacity: 0.3 },
+  calMonthYear: { fontSize: 16, fontWeight: '600', color: Colors.brand.midnight },
+  calDayHeaders: {
+    flexDirection: 'row', paddingHorizontal: 12, marginBottom: 4,
+  },
+  calDayHeader: {
+    flex: 1, textAlign: 'center', fontSize: 12,
+    fontWeight: '600', color: Colors.neutral.coolMist,
     paddingVertical: 4,
-    paddingHorizontal: 4,
   },
-  wheelCancelText: {
-    fontSize: 14,
-    color: Colors.neutral.coolMist,
-    fontWeight: '500',
-  },
-  wheelTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.brand.midnight,
-  },
-  wheelDoneText: {
-    fontSize: 14,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: '600',
-  },
-  wheelContainer: {
-    flexDirection: 'row',
+  calGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
     paddingHorizontal: 12,
-    paddingTop: 8,
   },
-  wheelColumn: {
-    overflow: 'hidden',
-    paddingHorizontal: 2,
+  calCell: {
+    width: `${100 / 7}%` as any,
+    aspectRatio: 1,
+    alignItems: 'center', justifyContent: 'center',
+    padding: 2,
   },
-  wheelItem: {
-    height: 36,
-    justifyContent: 'center',
-    alignContent: 'center',
-    paddingHorizontal: 8,
+  calDayCircle: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
   },
-  wheelHighlight: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    height: 36,
-    backgroundColor: Colors.brand.bubbleBlue + '20',
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
+  calDayCircleSelected: { backgroundColor: Colors.brand.bubbleBlue },
+  calDayText: { fontSize: 14, color: Colors.brand.midnight, fontWeight: '500' },
+  calDayTextOtherMonth: { color: Colors.neutral.coolMist, opacity: 0.4 },
+  calDayTextDisabled: { color: Colors.neutral.coolMist, opacity: 0.35 },
+  calDayTextSelected: { color: '#FFFFFF', fontWeight: '700' },
+  calFooter: { paddingHorizontal: 24, paddingTop: 16 },
 });
