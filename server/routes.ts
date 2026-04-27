@@ -4,9 +4,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
-import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { insertUserSchema, insertBubbleSchema, insertEventSchema, insertCategorySchema, insertReportSchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
+import { registerAuthRoutes, clearLoginFailures } from "./auth-handler";
+import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -48,32 +49,6 @@ function invalidateUserCache(userId: string) {
   userCache.delete(userId);
 }
 
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
-
-const loginFailures = new Map<string, { attempts: number; lockedUntil: number | null }>();
-
-function checkLoginLockout(email: string): { locked: boolean; retryAfterMs?: number } {
-  const record = loginFailures.get(email);
-  if (!record) return { locked: false };
-  if (record.lockedUntil && Date.now() < record.lockedUntil) {
-    return { locked: true, retryAfterMs: record.lockedUntil - Date.now() };
-  }
-  return { locked: false };
-}
-
-function recordLoginFailure(email: string) {
-  const record = loginFailures.get(email) ?? { attempts: 0, lockedUntil: null };
-  record.attempts += 1;
-  if (record.attempts >= LOGIN_MAX_ATTEMPTS) {
-    record.lockedUntil = Date.now() + LOGIN_LOCKOUT_MS;
-  }
-  loginFailures.set(email, record);
-}
-
-function clearLoginFailures(email: string) {
-  loginFailures.delete(email);
-}
 
 // Protects login and verify-code against brute force
 const authLimiter = rateLimit({
@@ -384,40 +359,6 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/signup", sendLimiter, async (req, res) => {
-    try {
-      const data = insertUserSchema.parse(req.body);
-
-      const existing = await storage.getUserByEmail(data.email);
-      if (existing) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-
-      const hashedPassword = await bcrypt.hash(data.password, 10);
-      const user = await storage.createUser({
-        ...data,
-        password: hashedPassword,
-      });
-
-      const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
-        expiresIn: "7d",
-      });
-
-      res.json({
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          interests: user.interests,
-          profilePhoto: user.profilePhoto,
-        },
-        token,
-      });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
   app.delete("/api/auth/delete-account", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);
@@ -562,56 +503,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", authLimiter, async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      const lockout = checkLoginLockout(email);
-      if (lockout.locked) {
-        const retryAfterSec = Math.ceil((lockout.retryAfterMs ?? 0) / 1000);
-        return res.status(429).json({ error: `Account temporarily locked. Try again in ${retryAfterSec} seconds.` });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        recordLoginFailure(email);
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      const valid = await bcrypt.compare(password, user.password);
-      if (!valid) {
-        recordLoginFailure(email);
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      clearLoginFailures(email);
-
-      if (user.isActive === false) {
-        return res.status(403).json({ error: "This account has been deactivated." });
-      }
-
-      const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion }, JWT_SECRET, {
-        expiresIn: "7d",
-      });
-
-      res.json({
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          interests: user.interests,
-          campusId: user.campusId,
-          campusEmail: user.campusEmail,
-          campusVerified: user.campusVerified,
-          dismissedCampusPrompt: user.dismissedCampusPrompt,
-          isSuperAdmin: user.isSuperAdmin,
-          profilePhoto: user.profilePhoto,
-        },
-        token,
-      });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerAuthRoutes(app, storage, JWT_SECRET, {
+    loginRateLimiter: authLimiter,
+    signupRateLimiter: sendLimiter,
   });
 
   // Logout — invalidates all existing tokens for this user
@@ -3272,74 +3166,10 @@ export async function registerRoutes(
     }
   });
 
-  const EVENT_REPORT_VISIBILITY: Record<string, string> = {
-    'Safety issue at this event': 'both',
-    'Event didn\'t match description': 'bubble_admin',
-    'Organizer no-show or unprepared': 'both',
-    'Venue issue (unsafe, inaccessible, closed)': 'both',
-    'Other': 'both',
-  };
-
-  const BUBBLE_REPORT_VISIBILITY: Record<string, string> = {
-    'Safety issue (harassment, threats, unsafe environment)': 'superadmin',
-    'Misleading group description': 'both',
-    'Inactive or abandoned group': 'bubble_admin',
-    'Organizer misconduct': 'superadmin',
-    'Exclusionary behavior (discrimination, cliques)': 'both',
-    'Spam or promotional content': 'both',
-    'Other': 'superadmin',
-  };
-
   // Reports
-  app.post("/api/reports", authMiddleware, async (req, res) => {
-    try {
-      let visibleTo = 'superadmin';
-      if (req.body.reportType === 'bubble') {
-        visibleTo = BUBBLE_REPORT_VISIBILITY[req.body.reason] || 'superadmin';
-      } else if (req.body.reportType === 'event') {
-        visibleTo = EVENT_REPORT_VISIBILITY[req.body.reason] || 'both';
-      } else if (req.body.reportType === 'individual') {
-        if (req.body.reportedUserId) {
-          const reportedRole = await storage.getMemberRole(req.body.reportedUserId, req.body.bubbleId);
-          visibleTo = reportedRole === 'admin' ? 'both' : 'bubble_admin';
-        } else {
-          visibleTo = 'bubble_admin';
-        }
-      } else if (req.body.reportType === 'admin') {
-        visibleTo = 'superadmin';
-      }
-      const parsed = insertReportSchema.parse({
-        ...req.body,
-        reporterUserId: req.userId,
-        visibleTo,
-      });
-      const report = await storage.createReport(parsed);
-
-      const reporter = await storage.getUser(req.userId!);
-      const reportBubble = await storage.getBubble(parsed.bubbleId);
-      if (visibleTo === 'bubble_admin' || visibleTo === 'both') {
-        notifyBubbleAdmins(parsed.bubbleId, req.userId!, "report_submitted",
-          "New Report", `${reporter?.name || 'Someone'} submitted a ${parsed.reportType} concern in ${reportBubble?.title || 'a bubble'}`,
-          { bubbleId: parsed.bubbleId, bubbleName: reportBubble?.title, userId: req.userId!, userName: reporter?.name });
-      }
-      if (visibleTo === 'superadmin' || visibleTo === 'both') {
-        const superAdmins = await storage.getSuperAdmins();
-        const superAdminIds = superAdmins.filter(u => u.id !== req.userId).map(u => u.id);
-        if (superAdminIds.length > 0) {
-          sendNotificationToMany({
-            recipientIds: superAdminIds,
-            type: "report_submitted",
-            title: "New Report",
-            body: `${reporter?.name || 'Someone'} submitted a ${parsed.reportType} concern in ${reportBubble?.title || 'a bubble'}`,
-            metadata: { bubbleId: parsed.bubbleId, bubbleName: reportBubble?.title, userId: req.userId!, userName: reporter?.name },
-          });
-        }
-      }
-
-      res.status(201).json(report);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerReportsRoute(app, storage, JWT_SECRET, {
+    notifyBubbleAdmins,
+    sendNotificationToMany,
   });
 
   app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
