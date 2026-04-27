@@ -32,6 +32,7 @@ import {
   logAppWarn,
   setSentryUser,
   clearSentryUser,
+  installGlobalHandlers,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -501,6 +502,12 @@ describe('setSentryUser / clearSentryUser — role propagation', () => {
     expect(Sentry.setUser).toHaveBeenCalledWith({ id: 'u42', username: 'bob' });
   });
 
+  it('sets the isSuperAdmin tag to "false" when isSuperAdmin is omitted', () => {
+    setSentryUser('user-3', 'unknown');
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
   it('clearSentryUser resets isSuperAdmin tag to "false"', () => {
     setSentryUser('u1', 'alice', true);
     jest.clearAllMocks();
@@ -552,5 +559,211 @@ describe('buildReport — user identity', () => {
 
     expect(report.userId).toBeUndefined();
     expect(report.username).toBeUndefined();
+  });
+});
+
+describe('setSentryUser', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    jest.clearAllMocks();
+    (Sentry.configureScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('calls Sentry.setUser with the provided id and username', () => {
+    setSentryUser('user-42', 'alice');
+
+    expect(Sentry.setUser).toHaveBeenCalledTimes(1);
+    expect(Sentry.setUser).toHaveBeenCalledWith({ id: 'user-42', username: 'alice' });
+  });
+
+  it('sets the isSuperAdmin tag to "true" when isSuperAdmin is true', () => {
+    setSentryUser('user-1', 'admin', true);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'true');
+  });
+
+  it('sets the isSuperAdmin tag to "false" when isSuperAdmin is false', () => {
+    setSentryUser('user-2', 'regular', false);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
+  it('calls configureScope exactly once', () => {
+    setSentryUser('user-4', 'bob', true);
+
+    expect(Sentry.configureScope).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('clearSentryUser', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    jest.clearAllMocks();
+    (Sentry.configureScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  it('calls Sentry.setUser with null', () => {
+    clearSentryUser();
+
+    expect(Sentry.setUser).toHaveBeenCalledTimes(1);
+    expect(Sentry.setUser).toHaveBeenCalledWith(null);
+  });
+
+  it('resets the isSuperAdmin tag to "false"', () => {
+    clearSentryUser();
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('isSuperAdmin', 'false');
+  });
+
+  it('calls configureScope exactly once', () => {
+    clearSentryUser();
+
+    expect(Sentry.configureScope).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('installGlobalHandlers', () => {
+  let mockScope: MockScope;
+  let previousHandler: jest.Mock;
+  let capturedHandler: ((error: Error, isFatal: boolean) => void) | undefined;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    previousHandler = jest.fn();
+    capturedHandler = undefined;
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
+    jest.clearAllMocks();
+
+    const PromiseAny = Promise as unknown as {
+      _unhandledRejectionCallback?: (reason: unknown) => void;
+    };
+    delete PromiseAny._unhandledRejectionCallback;
+
+    (global as Record<string, unknown>).ErrorUtils = {
+      getGlobalHandler: jest.fn().mockReturnValue(previousHandler),
+      setGlobalHandler: jest.fn().mockImplementation((handler: (error: Error, isFatal: boolean) => void) => {
+        capturedHandler = handler;
+      }),
+    };
+
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  afterEach(() => {
+    delete (global as Record<string, unknown>).ErrorUtils;
+    const PromiseAny = Promise as unknown as {
+      _unhandledRejectionCallback?: (reason: unknown) => void;
+    };
+    delete PromiseAny._unhandledRejectionCallback;
+  });
+
+  it('registers a new global error handler via ErrorUtils.setGlobalHandler', () => {
+    installGlobalHandlers();
+
+    const errorUtils = (global as Record<string, unknown>).ErrorUtils as {
+      setGlobalHandler: jest.Mock;
+    };
+    expect(errorUtils.setGlobalHandler).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes a fatal error to reportFatalError (Sentry level "fatal")', () => {
+    installGlobalHandlers();
+
+    const fatalError = new Error('fatal boom');
+    capturedHandler!(fatalError, true);
+
+    expect(mockScope.setLevel).toHaveBeenCalledWith('fatal');
+    expect(Sentry.captureException).toHaveBeenCalledWith(fatalError);
+  });
+
+  it('routes a non-fatal error to reportError (Sentry level "error")', () => {
+    installGlobalHandlers();
+
+    const nonFatalError = new Error('non-fatal oops');
+    capturedHandler!(nonFatalError, false);
+
+    expect(mockScope.setLevel).toHaveBeenCalledWith('error');
+    expect(Sentry.captureException).toHaveBeenCalledWith(nonFatalError);
+  });
+
+  it('forwards the error to the previous handler after processing', () => {
+    installGlobalHandlers();
+
+    const error = new Error('forwarded');
+    capturedHandler!(error, false);
+
+    expect(previousHandler).toHaveBeenCalledTimes(1);
+    expect(previousHandler).toHaveBeenCalledWith(error, false);
+  });
+
+  it('forwards fatal errors to the previous handler with isFatal=true', () => {
+    installGlobalHandlers();
+
+    const error = new Error('fatal forwarded');
+    capturedHandler!(error, true);
+
+    expect(previousHandler).toHaveBeenCalledWith(error, true);
+  });
+
+  it('tags the Sentry scope with context "GlobalErrorUtils" for fatal errors', () => {
+    installGlobalHandlers();
+
+    capturedHandler!(new Error('ctx check'), true);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'GlobalErrorUtils');
+  });
+
+  it('tags the Sentry scope with context "GlobalErrorUtils" for non-fatal errors', () => {
+    installGlobalHandlers();
+
+    capturedHandler!(new Error('ctx check'), false);
+
+    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'GlobalErrorUtils');
+  });
+
+  it('does nothing when ErrorUtils is absent from global', () => {
+    delete (global as Record<string, unknown>).ErrorUtils;
+
+    expect(() => installGlobalHandlers()).not.toThrow();
+  });
+
+  it('routes unhandled promise rejections that are Error instances to reportError', () => {
+    installGlobalHandlers();
+
+    const PromiseAny = Promise as unknown as {
+      _unhandledRejectionCallback?: (reason: unknown) => void;
+    };
+
+    const rejectionError = new Error('promise rejected');
+    PromiseAny._unhandledRejectionCallback!(rejectionError);
+
+    expect(Sentry.captureException).toHaveBeenCalledWith(rejectionError);
+    expect(mockScope.setTag).toHaveBeenCalledWith('screen', 'UnhandledPromiseRejection');
+  });
+
+  it('wraps non-Error promise rejection reasons in an Error before reporting', () => {
+    installGlobalHandlers();
+
+    const PromiseAny = Promise as unknown as {
+      _unhandledRejectionCallback?: (reason: unknown) => void;
+    };
+
+    PromiseAny._unhandledRejectionCallback!('plain string reason');
+
+    expect(Sentry.captureException).toHaveBeenCalledTimes(1);
+    const captured = (Sentry.captureException as jest.Mock).mock.calls[0][0] as Error;
+    expect(captured).toBeInstanceOf(Error);
+    expect(captured.message).toBe('plain string reason');
   });
 });
