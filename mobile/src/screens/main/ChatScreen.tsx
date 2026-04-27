@@ -715,11 +715,14 @@ export default function ChatScreen({ navigation, route }: Props) {
       </View>
     );
 
-    if (tappable) {
+    if (tappable && sender.uid) {
       return (
         <TouchableOpacity
           onPress={() => navigateToMemberProfile(sender.uid)}
           activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${sender.name}'s profile`}
           testID={`button-chat-avatar-${sender.uid}`}
         >
           {inner}
@@ -804,15 +807,19 @@ export default function ChatScreen({ navigation, route }: Props) {
             {!isOwn && renderAvatar(message.sender, true)}
             
             <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
-              {!isOwn && (
+              {!isOwn && message.sender.uid ? (
                 <TouchableOpacity
                   onPress={() => navigateToMemberProfile(message.sender.uid)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${message.sender.name}'s profile`}
                   testID={`button-sender-name-${message.sender.uid}`}
                 >
                   <Text style={styles.senderName}>{message.sender.name}</Text>
                 </TouchableOpacity>
-              )}
+              ) : !isOwn ? (
+                <Text style={styles.senderName}>{message.sender.name}</Text>
+              ) : null}
               
               {message.parentMessage && renderReplyPreview(message.parentMessage)}
               
