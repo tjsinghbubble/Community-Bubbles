@@ -439,6 +439,21 @@ describe("POST /api/auth/signup", () => {
     expect(res.body).toHaveProperty("error");
   });
 
+  it("returns 400 when password is shorter than 8 characters", async () => {
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Hal",
+        email: "hal@example.com",
+        password: "short",
+        interests: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+    expect(res.body.error).toMatch(/8/);
+  });
+
   it("returns 400 when password exceeds 1000 characters", async () => {
     const longPassword = "x".repeat(1001);
     const res = await request(app)
