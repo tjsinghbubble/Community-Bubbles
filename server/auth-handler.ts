@@ -95,9 +95,18 @@ export function registerAuthRoutes(
     ? [options.signupRateLimiter]
     : [];
 
+  const loginSchema = z.object({
+    email: z.string({ required_error: "Email is required", invalid_type_error: "Email must be a string" }),
+    password: z.string({ required_error: "Password is required", invalid_type_error: "Password must be a string" }),
+  });
+
   app.post("/api/auth/login", ...loginMiddleware, async (req: any, res: any) => {
     try {
-      const { email, password } = req.body;
+      const parseResult = loginSchema.safeParse(req.body ?? {});
+      if (!parseResult.success) {
+        return res.status(400).json({ error: parseResult.error.errors[0]?.message ?? "Invalid request" });
+      }
+      const { email, password } = parseResult.data;
 
       const lockout = checkLoginLockout(email);
       if (lockout.locked) {

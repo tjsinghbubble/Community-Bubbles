@@ -131,6 +131,70 @@ describe("POST /api/auth/login", () => {
     expect(res.body.error).toMatch(/Account temporarily locked/);
   });
 
+  it("returns 4xx when request body is malformed JSON", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .set("Content-Type", "application/json")
+      .send("{not: valid json}");
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it("returns 400 when body is completely empty", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when email is missing from body", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ password: "some-password" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when password is missing from body", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alice@example.com" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when email is a number instead of a string", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: 12345, password: "some-password" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when password is a number instead of a string", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "alice@example.com", password: 99999 });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when email is null", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: null, password: "some-password" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
   it("does not lock out a different email that hasn't failed", async () => {
     const fakeUser = {
       id: "user-2",
@@ -244,6 +308,44 @@ describe("POST /api/auth/signup", () => {
       .send({
         name: "",
         email: "test@example.com",
+        password: "securepass123",
+        interests: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 4xx when request body is malformed JSON", async () => {
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .set("Content-Type", "application/json")
+      .send("{not: valid json}");
+
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
+  });
+
+  it("returns 400 when email is not a valid email format", async () => {
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Eve",
+        email: "not-an-email",
+        password: "securepass123",
+        interests: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("returns 400 when email has no domain", async () => {
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({
+        name: "Eve",
+        email: "eve@",
         password: "securepass123",
         interests: [],
       });
