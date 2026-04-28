@@ -28,6 +28,9 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 };
 
+// Must match the min() constraint in shared/schema.ts insertUserSchema
+const PASSWORD_MIN_LENGTH = 8;
+
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -289,6 +292,16 @@ export default function SignupScreen({ navigation }: Props) {
                     : <EyeOffIcon size={22} color="#969696" />}
                 </TouchableOpacity>
               </View>
+              <Text
+                style={[
+                  styles.helperText,
+                  styles.passwordHint,
+                  password.length >= PASSWORD_MIN_LENGTH && styles.passwordHintMet,
+                ]}
+                testID="text-password-hint"
+              >
+                {password.length >= PASSWORD_MIN_LENGTH ? '✓ ' : ''}At least {PASSWORD_MIN_LENGTH} characters
+              </Text>
             </View>
 
             <View style={styles.termsRow}>
@@ -483,6 +496,8 @@ const styles = StyleSheet.create({
   selectText: { fontSize: 16, color: Colors.neutral.charcoal },
   selectPlaceholder: { fontSize: 16, color: Colors.neutral.coolMist },
   helperText: { fontSize: 12, color: Colors.neutral.coolMist, lineHeight: 16 },
+  passwordHint: { marginTop: 6 },
+  passwordHintMet: { color: Colors.status.success },
   termsRow: {
     flexDirection: 'row', alignItems: 'flex-start',
     marginTop: Spacing.md, marginBottom: Spacing.sm,
