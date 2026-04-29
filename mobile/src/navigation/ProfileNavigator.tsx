@@ -20,6 +20,7 @@ import HelpCenterScreen from '../screens/main/HelpCenterScreen';
 import ReportConcernScreen from '../screens/main/ReportConcernScreen';
 import ManageRulesScreen from '../screens/main/ManageRulesScreen';
 import CategoryPlaceholdersScreen from '../screens/main/CategoryPlaceholdersScreen';
+import ErrorLogScreen from '../screens/main/ErrorLogScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
@@ -44,6 +45,7 @@ export type ProfileStackParamList = {
   ReportConcern: undefined;
   ManageRules: undefined;
   CategoryPlaceholders: undefined;
+  ErrorLog: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
@@ -73,6 +75,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="ReportConcern" component={ReportConcernScreen} />
       <Stack.Screen name="ManageRules" component={ManageRulesScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreen} />
+      <Stack.Screen name="ErrorLog" component={ErrorLogScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>

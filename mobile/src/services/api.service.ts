@@ -535,6 +535,16 @@ class ApiService {
     });
   }
 
+  async getErrorLogs() {
+    return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>("/api/admin/error-logs");
+  }
+
+  async clearErrorLogs() {
+    return this.request<{ success: boolean }>("/api/admin/error-logs", {
+      method: "DELETE",
+    });
+  }
+
   async getBubbleReports(bubbleId: string) {
     return this.request<any[]>(`/api/bubbles/${bubbleId}/reports`, {
       method: "GET",

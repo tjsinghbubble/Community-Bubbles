@@ -1,3 +1,4 @@
+import "./errorBuffer";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerHealthRoutes } from "./health";
