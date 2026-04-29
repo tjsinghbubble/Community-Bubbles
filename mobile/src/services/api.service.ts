@@ -210,8 +210,14 @@ class ApiService {
     }>(`/api/users/${userId}/profile`);
   }
 
-  async getBubbles() {
-    return this.request("/api/bubbles", {
+  async getBubbles(): Promise<any[]> {
+    return this.request<any[]>("/api/bubbles", {
+      method: "GET",
+    });
+  }
+
+  async getEvents() {
+    return this.request<any[]>("/api/events", {
       method: "GET",
     });
   }

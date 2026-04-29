@@ -24,7 +24,6 @@ import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
 import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
-import { API_URL } from '../../config/api';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
 import { useAuth } from '../../context/AuthContext';
@@ -85,13 +84,10 @@ export default function ExploreScreen() {
   const fetchData = async (isInitialLoad = false) => {
     try {
       const doFetch = async () => {
-        const [bubblesResponse, eventsResponse] = await Promise.all([
-          fetch(`${API_URL}/api/bubbles`),
-          fetch(`${API_URL}/api/events`),
+        const [bubblesData, eventsData] = await Promise.all([
+          apiService.getBubbles(),
+          apiService.getEvents(),
         ]);
-
-        const bubblesData = await bubblesResponse.json();
-        const eventsData = await eventsResponse.json();
 
         const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
           id: bubble.id,
