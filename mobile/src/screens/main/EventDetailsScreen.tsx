@@ -22,6 +22,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
@@ -463,6 +464,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               longPressTimerRef.current = setTimeout(() => {
                 const pending = pendingDragRef.current;
                 if (!pending || pending.isOptions) return;
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 activeDragRef.current = { id: pending.id, index: pending.index, origY: pending.origY };
                 activeHoverRef.current = pending.index;
                 reorderDragAnim.setValue(pending.origY);
