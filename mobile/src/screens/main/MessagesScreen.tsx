@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,7 @@ import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
+import unreadEvents from '../../utils/unreadEvents';
 
 type Conversation = {
   conversationId: string;
@@ -295,6 +296,13 @@ export default function MessagesScreen({ navigation, route }: Props) {
       };
     }, [])
   );
+
+  useEffect(() => {
+    const unsubscribe = unreadEvents.onRefresh(() => {
+      fetchConversations();
+    });
+    return unsubscribe;
+  }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -590,26 +598,47 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
             <View style={styles.conversationContent}>
               <View style={styles.conversationHeader}>
-                <Text style={styles.groupName} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.groupName,
+                    conversation.unreadMessageCount > 0 && styles.groupNameUnread,
+                  ]}
+                  numberOfLines={1}
+                  testID={`text-conversation-name-${conversation.conversationId}`}
+                >
                   {conversation.conversationWith.name}
                 </Text>
                 {conversation.lastMessage?.sentAt && (
-                  <Text style={styles.time}>
+                  <Text
+                    style={[
+                      styles.time,
+                      conversation.unreadMessageCount > 0 && styles.timeUnread,
+                    ]}
+                  >
                     {formatTime(conversation.lastMessage.sentAt)}
                   </Text>
                 )}
               </View>
 
               <View style={styles.conversationFooter}>
-                <Text style={styles.lastMessage} numberOfLines={1}>
+                <Text
+                  style={[
+                    styles.lastMessage,
+                    conversation.unreadMessageCount > 0 && styles.lastMessageUnread,
+                  ]}
+                  numberOfLines={1}
+                >
                   {conversation.lastMessage?.text
                     ? `${conversation.lastMessage.sender?.name || 'Someone'}: ${conversation.lastMessage.text}`
                     : 'No messages yet'}
                 </Text>
                 {conversation.unreadMessageCount > 0 && (
-                  <View style={styles.unreadBadge}>
+                  <View
+                    style={styles.unreadBadge}
+                    testID={`badge-unread-${conversation.conversationId}`}
+                  >
                     <Text style={styles.unreadText}>
-                      {conversation.unreadMessageCount}
+                      {conversation.unreadMessageCount > 99 ? '99+' : conversation.unreadMessageCount}
                     </Text>
                   </View>
                 )}
@@ -827,9 +856,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: Spacing.sm,
   },
+  groupNameUnread: {
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
   time: {
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
+  },
+  timeUnread: {
+    color: Colors.brand.primary,
+    fontWeight: Typography.weights.semiBold,
   },
   conversationFooter: {
     flexDirection: 'row',
@@ -841,6 +878,10 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
     flex: 1,
     marginRight: Spacing.sm,
+  },
+  lastMessageUnread: {
+    color: Colors.text.primary,
+    fontWeight: Typography.weights.semiBold,
   },
   unreadBadge: {
     backgroundColor: Colors.brand.primary,
