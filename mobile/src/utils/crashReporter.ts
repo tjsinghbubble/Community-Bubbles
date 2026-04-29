@@ -254,6 +254,16 @@ export async function measureScreenLoad<T>(
       // Create a dedicated child span so we never call finish/end on the root
       // navigation transaction managed by reactNavigationIntegration.
       childSpan = Sentry.startInactiveSpan?.({ name: `screen_load.${screenName}`, op: 'ui.load' });
+      // Pre-work guard: detect spans that already timed out between the time
+      // startInactiveSpan returned and when the work callback is about to begin.
+      if (childSpan) {
+        const preSpan = childSpan as { isRecording?: () => boolean };
+        if (preSpan.isRecording?.() === false) {
+          const msg = `[PerfTrace] ${screenName}: child span already ended before work began — span may have timed out`;
+          console.warn(msg);
+          Sentry.addBreadcrumb({ level: 'warning', category: 'performance', message: msg });
+        }
+      }
     }
   } catch {
     // Instrumentation must never crash the app

@@ -1277,10 +1277,11 @@ describe('measureScreenLoad', () => {
 
     await measureScreenLoad('ExpiredScreen', async () => 'ok');
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    const warnArg = warnSpy.mock.calls[0][0] as string;
-    expect(warnArg).toContain('ExpiredScreen');
-    expect(warnArg).toContain('already ended');
+    // Two warnings are expected: one pre-work (span timed out before work) and
+    // one post-work (span already ended before finish).
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+    const warnMessages = warnSpy.mock.calls.map(([msg]: [string]) => msg);
+    expect(warnMessages.some((m) => m.includes('ExpiredScreen') && m.includes('already ended'))).toBe(true);
   });
 
   it('adds a Sentry breadcrumb with level warning when isRecording() returns false', async () => {
@@ -1337,6 +1338,87 @@ describe('measureScreenLoad', () => {
     await measureScreenLoad('OldSdkScreen', async () => 'ok');
 
     expect(childSpan.end).toHaveBeenCalledTimes(1);
+  });
+
+  it('emits console.warn when span is already ended before work begins (pre-work expiry)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('PreWorkExpiredScreen', async () => 'ok');
+
+    const preWorkWarn = warnSpy.mock.calls.find(
+      ([msg]: [string]) => typeof msg === 'string' && msg.includes('before work began'),
+    );
+    expect(preWorkWarn).toBeDefined();
+    expect(preWorkWarn![0]).toContain('PreWorkExpiredScreen');
+  });
+
+  it('adds a Sentry breadcrumb when span is already ended before work begins (pre-work expiry)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('PreWorkExpiredScreen', async () => 'ok');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'warning',
+        category: 'performance',
+        message: expect.stringContaining('before work began'),
+      }),
+    );
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining('PreWorkExpiredScreen'),
+      }),
+    );
+  });
+
+  it('does not emit pre-work warning when span is still recording before work begins', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(true) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ActivePreWorkScreen', async () => 'ok');
+
+    const preWorkWarn = warnSpy.mock.calls.find(
+      ([msg]: [string]) => typeof msg === 'string' && msg.includes('before work began'),
+    );
+    expect(preWorkWarn).toBeUndefined();
+  });
+
+  it('does not emit pre-work warning when isRecording is absent on the span (older SDK)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('OldSdkPreWorkScreen', async () => 'ok');
+
+    const preWorkWarn = warnSpy.mock.calls.find(
+      ([msg]: [string]) => typeof msg === 'string' && msg.includes('before work began'),
+    );
+    expect(preWorkWarn).toBeUndefined();
+  });
+
+  it('still executes work and returns result when span is already ended before work begins', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const result = await measureScreenLoad('PreWorkExpiredScreen', async () => 'still-runs');
+
+    expect(result).toBe('still-runs');
   });
 });
 
