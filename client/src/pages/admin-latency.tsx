@@ -31,6 +31,7 @@ interface EndpointMetric {
   count: number;
   p50Ms: number;
   p95Ms: number;
+  p99Ms: number;
   avgMs: number;
   maxMs: number;
   errorRate: number;
@@ -42,7 +43,7 @@ interface LatencyData {
   generatedAt: string;
 }
 
-type SortKey = "p95Ms" | "p50Ms" | "avgMs" | "count" | "maxMs" | "errorRate";
+type SortKey = "p95Ms" | "p50Ms" | "p99Ms" | "avgMs" | "count" | "maxMs" | "errorRate";
 
 function methodBadge(method: string) {
   const colors: Record<string, string> = {
@@ -336,6 +337,7 @@ export default function AdminLatency() {
                           [
                             { key: "p50Ms", label: "p50" },
                             { key: "p95Ms", label: "p95" },
+                            { key: "p99Ms", label: "p99" },
                             { key: "avgMs", label: "Avg" },
                             { key: "maxMs", label: "Max" },
                             { key: "count", label: "Requests" },
@@ -394,6 +396,12 @@ export default function AdminLatency() {
                             data-testid={`text-p95-${i}`}
                           >
                             {fmt(m.p95Ms)}
+                          </td>
+                          <td
+                            className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p99Ms))}
+                            data-testid={`text-p99-${i}`}
+                          >
+                            {fmt(m.p99Ms)}
                           </td>
                           <td className="px-4 py-3 text-right tabular-nums text-muted-foreground" data-testid={`text-avg-${i}`}>
                             {fmt(m.avgMs)}
