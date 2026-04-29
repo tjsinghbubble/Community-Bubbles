@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "test": "node ../node_modules/.bin/jest --config jest.config.js",
     "version:bump": "node scripts/bump-version.js",
-    "build:production": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for production build' && eas build --profile production"
+    "build:production": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for production build' && eas build --profile production",
+    "eas-build-on-success": "bash scripts/sentry-post-build.sh"
   },
   "dependencies": {
     "@cometchat/chat-sdk-react-native": "^4.0.10",
