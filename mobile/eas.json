@@ -13,7 +13,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && npx sentry-cli releases new \"$APP_VERSION\" && (npx sentry-cli releases set-commits \"$APP_VERSION\" --auto || true)"
+      "prebuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && RELEASE_SLUG=\"${EAS_BUILD_BUILD_NUMBER:+${APP_VERSION}+${EAS_BUILD_BUILD_NUMBER}}\" && RELEASE_SLUG=\"${RELEASE_SLUG:-${APP_VERSION}}\" && npx sentry-cli releases new \"$RELEASE_SLUG\" && (npx sentry-cli releases set-commits \"$RELEASE_SLUG\" --auto || true)"
     }
   },
   "submit": {

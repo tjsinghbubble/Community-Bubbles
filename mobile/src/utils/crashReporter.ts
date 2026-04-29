@@ -33,7 +33,12 @@ export function initSentry(): void {
     console.warn('[CrashReporter] SENTRY_DSN not configured — Sentry disabled');
     return;
   }
-  const release = (Constants.expoConfig?.version ?? version) as string;
+  const appVersion = (Constants.expoConfig?.version ?? version) as string;
+  const buildNumber =
+    Platform.OS === 'ios'
+      ? (Constants.expoConfig?.ios?.buildNumber ?? '')
+      : String(Constants.expoConfig?.android?.versionCode ?? '');
+  const release = buildNumber ? `${appVersion}+${buildNumber}` : appVersion;
   try {
     Sentry.init({
       dsn,
