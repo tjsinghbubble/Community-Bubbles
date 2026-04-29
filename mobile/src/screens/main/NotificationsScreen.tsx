@@ -157,9 +157,16 @@ export default function NotificationsScreen() {
         params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
       });
     } else if (meta.eventId) {
-      const eventParams: Record<string, string> = { eventId: meta.eventId, bubbleId: meta.bubbleId, bubbleTitle: meta.bubbleName };
+      const eventParams: { eventId: string; bubbleId: string; bubbleTitle: string; highlightTaskId?: string; scrollToRsvp?: boolean } = {
+        eventId: meta.eventId,
+        bubbleId: meta.bubbleId,
+        bubbleTitle: meta.bubbleName,
+      };
       if (notif.type === 'event_task_reminder_24h' && meta.taskId) {
         eventParams.highlightTaskId = meta.taskId;
+      }
+      if (notif.type === 'event_reminder_1h') {
+        eventParams.scrollToRsvp = true;
       }
       (navigation as any).navigate('Explore', {
         screen: 'EventDetails',

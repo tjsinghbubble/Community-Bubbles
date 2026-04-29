@@ -100,7 +100,7 @@ type SignupTask = {
 const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId, scrollToRsvp } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -157,6 +157,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const tasksYRef = useRef<number>(0);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const appliedHighlightRef = useRef<string | null>(null);
+
+  const rsvpYRef = useRef<number>(0);
+  const [highlightRsvp, setHighlightRsvp] = useState(false);
+  const appliedRsvpScrollRef = useRef(false);
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -267,6 +271,17 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       setTimeout(() => setHighlightedTaskId(null), 3000);
     }, 300);
   }, [highlightTaskId, signupTasks]);
+
+  useEffect(() => {
+    if (!scrollToRsvp || appliedRsvpScrollRef.current) return;
+    if (!event) return;
+    appliedRsvpScrollRef.current = true;
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: rsvpYRef.current, animated: true });
+      setHighlightRsvp(true);
+      setTimeout(() => setHighlightRsvp(false), 3000);
+    }, 300);
+  }, [scrollToRsvp, event]);
 
   useFocusEffect(
     useCallback(() => {
@@ -860,7 +875,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.infoRows}>
-          <View style={[styles.dateTimeRsvpRow, { zIndex: 100 }]}>
+          <View style={[styles.dateTimeRsvpRow, { zIndex: 100 }]} onLayout={(e) => { rsvpYRef.current = e.nativeEvent.layout.y; }}>
             <View style={styles.dateTimeColumn}>
               <View style={styles.infoRow}>
                 <View style={styles.infoIconContainer}>
@@ -883,6 +898,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
                   rsvpStatus === 'waitlisted' && styles.rsvpDropdownWaitlisted,
                   (!rsvpStatus && !isEventCreator) && styles.rsvpDropdownDefault,
+                  highlightRsvp && styles.rsvpDropdownHighlighted,
                 ]}
                 onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
                 disabled={isRsvping}
@@ -1610,6 +1626,15 @@ const styles = StyleSheet.create({
   },
   rsvpDropdownWaitlisted: {
     backgroundColor: '#FF9500',
+  },
+  rsvpDropdownHighlighted: {
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
   },
   rsvpDropdownButtonText: {
     fontSize: Typography.sizes.base,
