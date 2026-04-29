@@ -98,25 +98,32 @@ jobs:
             const sha        = context.payload.pull_request.head.sha.slice(0, 7);
             const branch     = context.payload.pull_request.head.ref;
 
-            const iosLine = iosSuccess && iosUrl
-              ? `[📲 Install iOS build](${iosUrl})`
-              : '❌ Build failed — check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+            function qrImgTag(url) {
+              const encoded = encodeURIComponent(url);
+              return `<img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encoded}" width="160" height="160" alt="QR code" />`;
+            }
 
-            const aosLine = aosSuccess && aosUrl
-              ? `[📲 Install Android build](${aosUrl})`
-              : '❌ Build failed — check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+            const failLine = '❌ Build failed — check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+
+            const iosCell = iosSuccess && iosUrl
+              ? `[📲 Install iOS build](${iosUrl})<br/>${qrImgTag(iosUrl)}`
+              : failLine;
+
+            const aosCell = aosSuccess && aosUrl
+              ? `[📲 Install Android build](${aosUrl})<br/>${qrImgTag(aosUrl)}`
+              : failLine;
 
             const body = [
               '## 🔍 Preview Builds',
               '',
               `Branch: \`${branch}\` | Commit: \`${sha}\``,
               '',
-              '| Platform | Status |',
-              '|----------|--------|',
-              `| iOS      | ${iosLine} |`,
-              `| Android  | ${aosLine} |`,
+              '| Platform | Install |',
+              '|----------|---------|',
+              `| iOS      | ${iosCell} |`,
+              `| Android  | ${aosCell} |`,
               '',
-              '_Internal distribution builds — **not** submitted to the App Store or Play Store._',
+              '_Scan the QR code on your device or tap the link to install. Internal distribution builds — **not** submitted to the App Store or Play Store._',
             ].join('\n');
 
             const { data: comments } = await github.rest.issues.listComments({
