@@ -119,6 +119,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const isFull = memberLimit != null && memberCount >= memberLimit;
 
   const handleJoin = async () => {
+    if (myMembershipStatus === 'pending') {
+      return;
+    }
     if (isFull) {
       setIsJoining(true);
       try {
@@ -392,7 +395,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       <View style={styles.buttonSection}>
         <BubbleButton
           title={
-            myMembershipStatus === 'waitlisted'
+            myMembershipStatus === 'pending'
+              ? 'Request Pending'
+              : myMembershipStatus === 'waitlisted'
               ? 'On Waitlist'
               : myMembershipStatus === 'on_hold'
               ? 'Waitlist On Hold'
@@ -403,7 +408,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
               : 'Join'
           }
           variant={
-            myMembershipStatus === 'waitlisted' || myMembershipStatus === 'on_hold'
+            myMembershipStatus === 'pending' ||
+            myMembershipStatus === 'waitlisted' ||
+            myMembershipStatus === 'on_hold'
               ? 'outline'
               : 'primary'
           }
@@ -411,11 +418,17 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           loading={isJoining}
           disabled={
             isJoining ||
+            myMembershipStatus === 'pending' ||
             myMembershipStatus === 'waitlisted' ||
             myMembershipStatus === 'on_hold'
           }
           testID="button-join-bubble"
         />
+        {myMembershipStatus === 'pending' && (
+          <Text style={styles.pendingMessage} data-testid="text-pending-message">
+            Your request has been sent to the admins.
+          </Text>
+        )}
         <View style={{ height: Spacing.sm }} />
         <BubbleButton
           title="Contact"
@@ -634,6 +647,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxxxl,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
+  },
+  pendingMessage: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   waitlistOverlay: {
     flex: 1,
