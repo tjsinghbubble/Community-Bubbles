@@ -29,25 +29,30 @@ let _currentUsername: string | undefined;
 
 export function initSentry(): void {
   const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
+  console.log('[CrashReporter] DSN present:', !!dsn);
   if (!dsn) {
     console.warn('[CrashReporter] SENTRY_DSN not configured — Sentry disabled');
     return;
   }
-  Sentry.init({
-    dsn,
-    environment: __DEV__ ? 'development' : 'production',
-    debug: __DEV__,
-    enableNativeNagger: false,
-    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-    integrations: [navigationIntegration],
-  });
-  Sentry.addBreadcrumb({
-    category: 'app.lifecycle',
-    message: 'Sentry initialized',
-    level: 'info',
-    data: { environment: __DEV__ ? 'development' : 'production' },
-  });
-  console.log('[CrashReporter] Sentry initialized successfully');
+  try {
+    Sentry.init({
+      dsn,
+      environment: __DEV__ ? 'development' : 'production',
+      debug: __DEV__,
+      enableNativeNagger: false,
+      tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+      integrations: [navigationIntegration],
+    });
+    Sentry.addBreadcrumb({
+      category: 'app.lifecycle',
+      message: 'Sentry initialized',
+      level: 'info',
+      data: { environment: __DEV__ ? 'development' : 'production' },
+    });
+    console.log('[CrashReporter] Sentry initialized successfully');
+  } catch (e) {
+    console.error('[CrashReporter] Sentry.init() threw — running without Sentry:', e);
+  }
 }
 
 export const TRUNCATION_SUFFIX = '…[truncated]';
