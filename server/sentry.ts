@@ -39,7 +39,7 @@ export function reportSlowResponse(
   path: string,
   durationMs: number,
 ): void {
-  if (durationMs <= SLOW_API_THRESHOLD_MS) return;
+  if (durationMs < SLOW_API_THRESHOLD_MS) return;
   if (!initialised) return;
 
   const normalisedPath = normalisePath(path);
