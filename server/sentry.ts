@@ -35,6 +35,34 @@ function normalisePath(path: string): string {
 
 const slowCounts = new Map<string, number>();
 
+const FATAL_CRASH_SPIKE_FINGERPRINT = "fatal-crash-spike-alert";
+
+export function reportFatalCrashSpike(count: number, windowMinutes: number, threshold: number): void {
+  if (!initialised) {
+    console.warn(
+      `[FatalCrashSpike] Sentry not initialised – spike detected (count=${count}, threshold=${threshold}) but not reported`,
+    );
+    return;
+  }
+
+  console.error(
+    `[FatalCrashSpike] Fatal crash spike detected: ${count} fatal(s) in the last ${windowMinutes} min (threshold=${threshold})`,
+  );
+
+  Sentry.withScope((scope) => {
+    scope.setLevel("fatal");
+    scope.setTag("alert_type", "fatal_crash_spike");
+    scope.setExtra("fatalCount", count);
+    scope.setExtra("windowMinutes", windowMinutes);
+    scope.setExtra("threshold", threshold);
+    scope.setFingerprint([FATAL_CRASH_SPIKE_FINGERPRINT]);
+    Sentry.captureMessage(
+      `[CrashAlert] Fatal crash spike: ${count} fatal crash(es) in ${windowMinutes}-minute window (threshold=${threshold})`,
+      "fatal",
+    );
+  });
+}
+
 export function reportSlowResponse(
   method: string,
   path: string,

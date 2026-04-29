@@ -6,7 +6,7 @@ import { registerHealthRoutes } from "./health";
 import { AUTH_PAYLOAD_LIMIT_BYTES, authEntityTooLargeHandler } from "./auth-handler";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { startEventReminderScheduler, startSlowCallPrunerScheduler } from "./notifications";
+import { startEventReminderScheduler, startSlowCallPrunerScheduler, startFatalCrashSpikeScheduler } from "./notifications";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { db } from "./db";
@@ -163,6 +163,7 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
       startEventReminderScheduler();
       startSlowCallPrunerScheduler();
+      startFatalCrashSpikeScheduler();
     },
   );
 })();

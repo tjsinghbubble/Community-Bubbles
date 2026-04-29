@@ -2,6 +2,21 @@ import { storage } from "./storage";
 import type { InsertNotification, Event } from "@shared/schema";
 import { utcToLocal, formatTime12h } from "./timezone";
 import { SLOW_CALL_RETENTION_DAYS } from "./slow-call-config";
+import { reportFatalCrashSpike } from "./sentry";
+
+function parsePositiveInt(value: string | undefined, defaultValue: number): number {
+  const parsed = parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+}
+
+const FATAL_CRASH_SPIKE_WINDOW_MINUTES = parsePositiveInt(
+  process.env.FATAL_CRASH_SPIKE_WINDOW_MINUTES,
+  5,
+);
+const FATAL_CRASH_SPIKE_THRESHOLD = parsePositiveInt(
+  process.env.FATAL_CRASH_SPIKE_THRESHOLD,
+  5,
+);
 
 export type NotificationType =
   | "bubble_join"
@@ -344,4 +359,25 @@ export function startSlowCallPrunerScheduler(): void {
   console.log(`[SlowCallPruner] Nightly slow-call pruner started (24-hour interval, retention=${SLOW_CALL_RETENTION_DAYS} days)`);
   setInterval(pruneSlowCallMetrics, 24 * 60 * 60 * 1000);
   setTimeout(pruneSlowCallMetrics, 30000);
+}
+
+async function checkFatalCrashSpike(): Promise<void> {
+  try {
+    const from = new Date(Date.now() - FATAL_CRASH_SPIKE_WINDOW_MINUTES * 60 * 1000);
+    const reports = await storage.queryCrashReports({ isFatal: true, from, limit: FATAL_CRASH_SPIKE_THRESHOLD + 1 });
+    const count = reports.length;
+    if (count >= FATAL_CRASH_SPIKE_THRESHOLD) {
+      reportFatalCrashSpike(count, FATAL_CRASH_SPIKE_WINDOW_MINUTES, FATAL_CRASH_SPIKE_THRESHOLD);
+    }
+  } catch (error) {
+    console.error("[FatalCrashSpike] Error checking for fatal crash spike:", error);
+  }
+}
+
+export function startFatalCrashSpikeScheduler(): void {
+  console.log(
+    `[FatalCrashSpike] Fatal crash spike scheduler started (${FATAL_CRASH_SPIKE_WINDOW_MINUTES}-min window, threshold=${FATAL_CRASH_SPIKE_THRESHOLD})`,
+  );
+  setInterval(checkFatalCrashSpike, FATAL_CRASH_SPIKE_WINDOW_MINUTES * 60 * 1000);
+  setTimeout(checkFatalCrashSpike, 15000);
 }
