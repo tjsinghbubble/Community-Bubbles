@@ -625,3 +625,26 @@ export const insertEventSignupTaskSchema = createInsertSchema(eventSignupTasks).
 export type EventSignupTask = typeof eventSignupTasks.$inferSelect;
 export type InsertEventSignupTask = z.infer<typeof insertEventSignupTaskSchema>;
 export type EventTaskSignup = typeof eventTaskSignups.$inferSelect;
+
+// Slow call metrics — persisted for trend analysis
+export const slowCallMetrics = pgTable("slow_call_metrics", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull().default("GET"),
+  durationMs: integer("duration_ms").notNull(),
+  appVersion: text("app_version"),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});
+
+export const insertSlowCallMetricSchema = createInsertSchema(slowCallMetrics).omit({
+  id: true,
+  recordedAt: true,
+}).extend({
+  endpoint: z.string().min(1).max(500),
+  method: z.string().min(1).max(10).default("GET"),
+  durationMs: z.number().int().min(1),
+  appVersion: z.string().max(50).optional().nullable(),
+});
+
+export type SlowCallMetric = typeof slowCallMetrics.$inferSelect;
+export type InsertSlowCallMetric = z.infer<typeof insertSlowCallMetricSchema>;

@@ -133,6 +133,11 @@ class ApiService {
             scope.setExtra('threshold', SLOW_CALL_THRESHOLD_MS);
             Sentry.captureMessage(`[API] Slow response: ${method} ${endpoint}`, 'warning');
           });
+          fetch(`${API_URL}/api/metrics/slow-calls`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint, method, durationMs }),
+          }).catch(() => {});
         } else if (__DEV__) {
           console.log(`[API] ${method} ${endpoint} completed in ${durationMs} ms`);
         }

@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema, insertSlowCallMetricSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
@@ -1198,6 +1198,40 @@ export async function registerRoutes(
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       resetMetrics();
       res.json({ ok: true });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  // Persistent slow-call metrics for trend analysis
+  const slowCallRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many slow-call reports" },
+  });
+
+  // One row per slow-call event; count is derived via aggregation in GET /api/admin/slow-calls.
+  app.post("/api/metrics/slow-calls", slowCallRateLimit, async (req, res) => {
+    const parsed = insertSlowCallMetricSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
+    try {
+      await storage.recordSlowCall(parsed.data);
+      res.status(204).end();
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.get("/api/admin/slow-calls", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const days = Math.min(parseInt(String(req.query.days ?? "30"), 10) || 30, 90);
+      const limit = Math.min(parseInt(String(req.query.limit ?? "200"), 10) || 200, 1000);
+      const trends = await storage.getSlowCallTrends({ days, limit });
+      res.json({ trends, generatedAt: new Date().toISOString() });
     } catch (error: unknown) {
       serverError(res, error);
     }

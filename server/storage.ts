@@ -78,8 +78,11 @@ import {
   eventTaskSignups,
   type EventSignupTask,
   type InsertEventSignupTask,
+  slowCallMetrics,
+  type SlowCallMetric,
+  type InsertSlowCallMetric,
 } from "@shared/schema";
-import { count, avg } from "drizzle-orm";
+import { count, avg, max } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -300,6 +303,17 @@ export interface IStorage {
   reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<void>;
   joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }>;
   leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
+
+  // Slow call metrics
+  recordSlowCall(metric: InsertSlowCallMetric): Promise<void>;
+  getSlowCallTrends(options?: { days?: number; limit?: number }): Promise<{
+    endpoint: string;
+    method: string;
+    count: number;
+    avgMs: number;
+    maxMs: number;
+    date: string;
+  }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2425,6 +2439,51 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(eventTaskSignups)
       .where(and(eq(eventTaskSignups.taskId, taskId), eq(eventTaskSignups.userId, userId)));
+  }
+
+  async recordSlowCall(metric: InsertSlowCallMetric): Promise<void> {
+    await db.insert(slowCallMetrics).values(metric);
+  }
+
+  async getSlowCallTrends(options: { days?: number; limit?: number } = {}): Promise<{
+    endpoint: string;
+    method: string;
+    count: number;
+    avgMs: number;
+    maxMs: number;
+    date: string;
+  }[]> {
+    const days = options.days ?? 30;
+    const limit = options.limit ?? 200;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const rows = await db
+      .select({
+        endpoint: slowCallMetrics.endpoint,
+        method: slowCallMetrics.method,
+        count: count(),
+        avgMs: avg(slowCallMetrics.durationMs),
+        maxMs: max(slowCallMetrics.durationMs),
+        date: sql<string>`to_char(date_trunc('day', ${slowCallMetrics.recordedAt}), 'YYYY-MM-DD')`,
+      })
+      .from(slowCallMetrics)
+      .where(gte(slowCallMetrics.recordedAt, since))
+      .groupBy(
+        slowCallMetrics.endpoint,
+        slowCallMetrics.method,
+        sql`date_trunc('day', ${slowCallMetrics.recordedAt})`,
+      )
+      .orderBy(desc(sql`date_trunc('day', ${slowCallMetrics.recordedAt})`))
+      .limit(limit);
+
+    return rows.map((r) => ({
+      endpoint: r.endpoint,
+      method: r.method,
+      count: Number(r.count),
+      avgMs: Math.round(Number(r.avgMs ?? 0)),
+      maxMs: Math.round(Number(r.maxMs ?? 0)),
+      date: r.date,
+    }));
   }
 }
 
