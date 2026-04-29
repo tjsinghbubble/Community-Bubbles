@@ -28,17 +28,36 @@ export default function ProfileScreen() {
   const navigation = useNavigation<any>();
   const [hasAdminItems, setHasAdminItems] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [errorLogCount, setErrorLogCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [myBubbles, setMyBubbles] = useState<any[]>([]);
   const isSuperAdmin = user?.isSuperAdmin === true;
   const isBubbleAdmin = useRef(false);
+
+  const fetchErrorLogCount = useCallback(async () => {
+    if (!user || !isSuperAdmin) {
+      setErrorLogCount(0);
+      return;
+    }
+    try {
+      const { count } = await apiService.getErrorLogCount();
+      setErrorLogCount(count);
+    } catch {
+      setErrorLogCount(0);
+    }
+  }, [user, isSuperAdmin]);
 
   useFocusEffect(
     useCallback(() => {
       checkAdminItems();
       fetchBubbles();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
-    }, [user])
+      fetchErrorLogCount();
+      const errorLogInterval = setInterval(fetchErrorLogCount, 30000);
+      return () => {
+        clearInterval(errorLogInterval);
+      };
+    }, [user, fetchErrorLogCount])
   );
 
   const fetchBubbles = async () => {
@@ -255,6 +274,11 @@ export default function ProfileScreen() {
                 <View style={styles.menuItemLeft}>
                   <Ionicons name="warning-outline" size={24} color={Colors.text.secondary} />
                   <Text style={styles.menuItemText}>Error Log</Text>
+                  {errorLogCount > 0 && (
+                    <View style={[styles.badge, styles.errorBadge]} testID="badge-error-log-count">
+                      <Text style={styles.badgeText}>{errorLogCount > 99 ? '99+' : errorLogCount}</Text>
+                    </View>
+                  )}
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
               </AnimatedPressable>
@@ -618,6 +642,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.sm,
     marginLeft: Spacing.sm,
+  },
+  errorBadge: {
+    backgroundColor: Colors.status.error,
   },
   badgeText: {
     color: Colors.brand.skyWhite,

@@ -576,6 +576,11 @@ class ApiService {
     return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>("/api/admin/error-logs");
   }
 
+  async getErrorLogCount(): Promise<{ count: number }> {
+    const result = await this.getErrorLogs();
+    return { count: result.errors.length };
+  }
+
   async getSlowCallTrends(days = 30) {
     return this.request<{
       trends: Array<{ endpoint: string; method: string; count: number; avgMs: number; maxMs: number; date: string }>;
