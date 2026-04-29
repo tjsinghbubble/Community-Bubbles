@@ -74,6 +74,9 @@ import {
   type InsertCategoryPlaceholder,
   auditLogs,
   type AuditLog,
+  errorLogs,
+  type ErrorLog,
+  type InsertErrorLog,
   eventSignupTasks,
   eventTaskSignups,
   type EventSignupTask,
@@ -242,6 +245,11 @@ export interface IStorage {
   // Audit Logs
   insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog>;
   getAuditLogs(limit?: number): Promise<AuditLog[]>;
+
+  // Error Logs (persisted)
+  insertErrorLogEntry(entry: InsertErrorLog): Promise<void>;
+  getErrorLogEntries(limit?: number): Promise<ErrorLog[]>;
+  clearErrorLogEntries(): Promise<void>;
 
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
@@ -1878,6 +1886,22 @@ export class DatabaseStorage implements IStorage {
 
   async getAuditLogs(limit = 100): Promise<AuditLog[]> {
     return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  }
+
+  async insertErrorLogEntry(entry: InsertErrorLog): Promise<void> {
+    await db.insert(errorLogs).values(entry);
+    // Keep only the latest 100 entries to bound table growth
+    await db.delete(errorLogs).where(
+      sql`id NOT IN (SELECT id FROM error_logs ORDER BY id DESC LIMIT 100)`
+    );
+  }
+
+  async getErrorLogEntries(limit = 100): Promise<ErrorLog[]> {
+    return db.select().from(errorLogs).orderBy(desc(errorLogs.id)).limit(limit);
+  }
+
+  async clearErrorLogEntries(): Promise<void> {
+    await db.delete(errorLogs);
   }
 
   async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {

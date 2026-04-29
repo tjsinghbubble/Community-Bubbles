@@ -575,6 +575,19 @@ export type CategoryRule = typeof categoryRules.$inferSelect;
 export type BubbleRule = typeof bubbleRules.$inferSelect;
 export type BubbleRuleOverride = typeof bubbleRuleOverrides.$inferSelect;
 
+// Persisted server error log entries
+export const errorLogs = pgTable("error_logs", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  timestamp: text("timestamp").notNull(),
+  platform: text("platform").notNull().default("server"),
+  level: text("level").notNull().default("error"),
+});
+
+export const insertErrorLogSchema = createInsertSchema(errorLogs).omit({ id: true });
+export type InsertErrorLog = z.infer<typeof insertErrorLogSchema>;
+export type ErrorLog = typeof errorLogs.$inferSelect;
+
 // Audit log for super admin actions
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

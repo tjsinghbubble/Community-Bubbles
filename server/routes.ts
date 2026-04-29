@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { getBufferedErrors, clearBufferedErrors } from "./errorBuffer";
+import { clearBufferedErrors } from "./errorBuffer";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -1132,7 +1132,7 @@ export async function registerRoutes(
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const errors = getBufferedErrors();
+      const errors = await storage.getErrorLogEntries(100);
       res.json({ errors });
     } catch (error: unknown) {
       serverError(res, error);
@@ -1144,6 +1144,7 @@ export async function registerRoutes(
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       clearBufferedErrors();
+      await storage.clearErrorLogEntries();
       res.json({ success: true });
     } catch (error: unknown) {
       serverError(res, error);

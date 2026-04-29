@@ -22,6 +22,20 @@
       "when": 1777438227324,
       "tag": "0002_add_reminder_sent_1h_to_event_task_signups",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1746000000000,
+      "tag": "0003_add_slow_call_metrics",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1746000100000,
+      "tag": "0004_add_error_logs",
+      "breakpoints": true
     }
   ]
 }

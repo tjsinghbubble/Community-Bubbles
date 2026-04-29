@@ -1,3 +1,5 @@
+import type { IStorage } from "./storage";
+
 export interface BufferedError {
   message: string;
   timestamp: string;
@@ -7,6 +9,12 @@ export interface BufferedError {
 
 const MAX_ENTRIES = 100;
 const _buffer: BufferedError[] = [];
+
+let _storage: IStorage | null = null;
+
+export function initErrorBuffer(storageInstance: IStorage): void {
+  _storage = storageInstance;
+}
 
 const _originalConsoleError = console.error.bind(console);
 
@@ -33,6 +41,12 @@ console.error = (...args: unknown[]) => {
     _buffer.push(entry);
     if (_buffer.length > MAX_ENTRIES) {
       _buffer.shift();
+    }
+
+    if (_storage) {
+      _storage.insertErrorLogEntry(entry).catch(() => {
+        // Never throw from inside console.error patch
+      });
     }
   } catch {
     // Never throw from inside console.error patch

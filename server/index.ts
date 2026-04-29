@@ -1,4 +1,4 @@
-import "./errorBuffer";
+import { initErrorBuffer } from "./errorBuffer";
 import express, { type Request, Response, NextFunction } from "express";
 import { initialiseSentry, reportSlowResponse } from "./sentry";
 import { registerRoutes } from "./routes";
@@ -94,6 +94,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  initErrorBuffer(storage);
   registerHealthRoutes(app);
   await registerRoutes(httpServer, app);
 
