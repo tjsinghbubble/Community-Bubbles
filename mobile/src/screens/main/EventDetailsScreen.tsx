@@ -328,14 +328,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const handleTaskSubmit = async () => {
     if (!taskTitle.trim()) return;
     setTaskSubmitting(true);
-    const spotsNum = taskSpotsNeeded.trim() ? parseInt(taskSpotsNeeded, 10) : null;
+    const parsed = parseInt(taskSpotsNeeded, 10);
+    const spotsNum = taskSpotsNeeded.trim() && !isNaN(parsed) ? parsed : null;
     try {
       if (taskModalMode === 'create') {
         const created = await apiService.createEventSignupTask(eventId, {
           title: taskTitle.trim(),
           description: taskDescription.trim() || undefined,
           icon: taskIcon,
-          spotsNeeded: isNaN(spotsNum as any) ? null : spotsNum,
+          spotsNeeded: spotsNum,
         });
         setSignupTasks(prev => [...prev, { ...created }]);
       } else if (editingTask) {
@@ -343,7 +344,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           title: taskTitle.trim(),
           description: taskDescription.trim() || undefined,
           icon: taskIcon,
-          spotsNeeded: isNaN(spotsNum as any) ? null : spotsNum,
+          spotsNeeded: spotsNum,
         });
         await fetchSignupTasks();
       }
@@ -353,6 +354,14 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     } finally {
       setTaskSubmitting(false);
     }
+  };
+
+  const showTaskOptions = (task: SignupTask) => {
+    Alert.alert(task.title, undefined, [
+      { text: 'Edit', onPress: () => openEditTask(task) },
+      { text: 'Delete', style: 'destructive', onPress: () => handleDeleteTask(task) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const handleDeleteTask = (task: SignupTask) => {
@@ -877,14 +886,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                       </View>
                     </View>
                     {canManage && (
-                      <View style={styles.taskActions}>
-                        <TouchableOpacity onPress={() => openEditTask(task)} style={styles.taskActionBtn}>
-                          <Text style={styles.taskActionIcon}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteTask(task)} style={styles.taskActionBtn}>
-                          <Text style={styles.taskActionIcon}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <TouchableOpacity onPress={() => showTaskOptions(task)} style={styles.taskActionBtn}>
+                        <Ionicons name="ellipsis-horizontal" size={18} color={Colors.text.tertiary} />
+                      </TouchableOpacity>
                     )}
                   </View>
                   {user && (
@@ -1603,17 +1607,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.text.tertiary,
   },
-  taskActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: Spacing.sm,
-    gap: 4,
-  },
   taskActionBtn: {
-    padding: 4,
-  },
-  taskActionIcon: {
-    fontSize: 14,
+    padding: 6,
+    marginLeft: Spacing.xs,
   },
   taskSignupBtn: {
     borderWidth: 1.5,

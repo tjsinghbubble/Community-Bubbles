@@ -289,10 +289,11 @@ export interface IStorage {
 
   // Event Sign-Up Sheet
   getEventSignupTasks(eventId: string, currentUserId?: string): Promise<(EventSignupTask & { signupCount: number; hasSignedUp: boolean; signers: { id: string; name: string; profilePhoto: string | null }[] })[]>;
+  getEventSignupTask(taskId: number): Promise<EventSignupTask | undefined>;
   createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask>;
   updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined>;
   deleteEventSignupTask(taskId: number): Promise<void>;
-  joinEventSignupTask(taskId: number, userId: string): Promise<void>;
+  joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }>;
   leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
 }
 
@@ -2298,11 +2299,41 @@ export class DatabaseStorage implements IStorage {
     await db.delete(eventSignupTasks).where(eq(eventSignupTasks.id, taskId));
   }
 
-  async joinEventSignupTask(taskId: number, userId: string): Promise<void> {
-    await db
-      .insert(eventTaskSignups)
-      .values({ taskId, userId })
-      .onConflictDoNothing();
+  async getEventSignupTask(taskId: number): Promise<EventSignupTask | undefined> {
+    const [task] = await db
+      .select()
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.id, taskId))
+      .limit(1);
+    return task;
+  }
+
+  async joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }> {
+    return db.transaction(async (tx) => {
+      const [task] = await tx
+        .select()
+        .from(eventSignupTasks)
+        .where(eq(eventSignupTasks.id, taskId))
+        .limit(1);
+      if (!task) return { success: false, error: 'Task not found' };
+
+      if (task.spotsNeeded !== null) {
+        const [{ total }] = await tx
+          .select({ total: count() })
+          .from(eventTaskSignups)
+          .where(eq(eventTaskSignups.taskId, taskId));
+        if (total >= task.spotsNeeded) {
+          return { success: false, error: 'This task is full' };
+        }
+      }
+
+      await tx
+        .insert(eventTaskSignups)
+        .values({ taskId, userId })
+        .onConflictDoNothing();
+
+      return { success: true };
+    });
   }
 
   async leaveEventSignupTask(taskId: number, userId: string): Promise<void> {

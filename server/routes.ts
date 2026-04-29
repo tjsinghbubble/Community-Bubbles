@@ -2675,6 +2675,8 @@ export async function registerRoutes(
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can edit sign-up tasks" });
       const taskId = parseInt(req.params.taskId, 10);
       if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
       const allowed = insertEventSignupTaskSchema.partial();
       const parsed = allowed.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
@@ -2701,6 +2703,8 @@ export async function registerRoutes(
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can delete sign-up tasks" });
       const taskId = parseInt(req.params.taskId, 10);
       if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
       await storage.deleteEventSignupTask(taskId);
       res.json({ success: true });
     } catch (error: any) {
@@ -2713,7 +2717,14 @@ export async function registerRoutes(
     try {
       const taskId = parseInt(req.params.taskId, 10);
       if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
-      await storage.joinEventSignupTask(taskId, req.userId!);
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to sign up for tasks" });
+      const result = await storage.joinEventSignupTask(taskId, req.userId!);
+      if (!result.success) return res.status(409).json({ error: result.error ?? "Could not sign up" });
       res.json({ success: true });
     } catch (error: any) {
       serverError(res, error);
@@ -2725,6 +2736,12 @@ export async function registerRoutes(
     try {
       const taskId = parseInt(req.params.taskId, 10);
       if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to manage your sign-ups" });
       await storage.leaveEventSignupTask(taskId, req.userId!);
       res.json({ success: true });
     } catch (error: any) {
