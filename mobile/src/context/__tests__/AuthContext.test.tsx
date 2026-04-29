@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { act, create } from 'react-test-renderer';
 import { AuthProvider, useAuth } from '../AuthContext';
-import { setSentryUser } from '../../utils/crashReporter';
+import { setSentryUser, clearSentryUser } from '../../utils/crashReporter';
 import { apiService } from '../../services/api.service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -24,6 +24,7 @@ jest.mock('../../services/api.service', () => ({
     getProfile: jest.fn(),
     startSession: jest.fn().mockResolvedValue({ id: 'session-1' }),
     endSession: jest.fn().mockResolvedValue(undefined),
+    serverLogout: jest.fn().mockResolvedValue(undefined),
   },
   default: {
     setToken: jest.fn(),
@@ -31,6 +32,7 @@ jest.mock('../../services/api.service', () => ({
     getProfile: jest.fn(),
     startSession: jest.fn().mockResolvedValue({ id: 'session-1' }),
     endSession: jest.fn().mockResolvedValue(undefined),
+    serverLogout: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -61,6 +63,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 const mockAsyncStorage = jest.requireMock('@react-native-async-storage/async-storage').default;
 const mockGetProfile = (apiService.getProfile as jest.Mock);
 const mockSetSentryUser = (setSentryUser as jest.Mock);
+const mockClearSentryUser = (clearSentryUser as jest.Mock);
 
 const STORED_USER_REGULAR = {
   id: 'user-1',
@@ -76,8 +79,13 @@ const STORED_USER_PROMOTED = {
 };
 
 type RefreshFn = () => Promise<void>;
+type LogoutFn = () => Promise<void>;
 
 function makeRefreshRef(): React.MutableRefObject<RefreshFn> {
+  return { current: async () => {} };
+}
+
+function makeLogoutRef(): React.MutableRefObject<LogoutFn> {
   return { current: async () => {} };
 }
 
@@ -85,6 +93,14 @@ function TestConsumer({ refreshRef }: { refreshRef: React.MutableRefObject<Refre
   const { refreshUser } = useAuth();
   useEffect(() => {
     refreshRef.current = refreshUser;
+  });
+  return null;
+}
+
+function TestLogoutConsumer({ logoutRef }: { logoutRef: React.MutableRefObject<LogoutFn> }) {
+  const { logout } = useAuth();
+  useEffect(() => {
+    logoutRef.current = logout;
   });
   return null;
 }
@@ -174,5 +190,58 @@ describe('refreshUser — Sentry role propagation', () => {
     });
 
     expect(mockSetSentryUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('logout — Sentry user cleanup', () => {
+  async function renderWithStoredUserForLogout(
+    storedUser: typeof STORED_USER_REGULAR,
+  ): Promise<React.MutableRefObject<LogoutFn>> {
+    mockAsyncStorage.getItem.mockImplementation((key: string) => {
+      if (key === 'authToken') return Promise.resolve('test-token');
+      if (key === 'user') return Promise.resolve(JSON.stringify(storedUser));
+      return Promise.resolve(null);
+    });
+    mockAsyncStorage.removeItem.mockResolvedValue(undefined);
+
+    const logoutRef = makeLogoutRef();
+
+    await act(async () => {
+      create(
+        <AuthProvider>
+          <TestLogoutConsumer logoutRef={logoutRef} />
+        </AuthProvider>,
+      );
+    });
+
+    return logoutRef;
+  }
+
+  it('calls clearSentryUser exactly once when the user logs out', async () => {
+    const logoutRef = await renderWithStoredUserForLogout(STORED_USER_REGULAR);
+
+    mockClearSentryUser.mockClear();
+
+    await act(async () => {
+      await logoutRef.current();
+    });
+
+    expect(mockClearSentryUser).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call setSentryUser after clearSentryUser during logout', async () => {
+    const logoutRef = await renderWithStoredUserForLogout(STORED_USER_REGULAR);
+
+    mockSetSentryUser.mockClear();
+    mockClearSentryUser.mockClear();
+
+    await act(async () => {
+      await logoutRef.current();
+    });
+
+    expect(mockClearSentryUser).toHaveBeenCalledTimes(1);
+    const clearOrder = mockClearSentryUser.mock.invocationCallOrder[0] ?? Infinity;
+    const lastSetOrder = mockSetSentryUser.mock.invocationCallOrder.at(-1) ?? 0;
+    expect(lastSetOrder).toBeLessThan(clearOrder);
   });
 });
