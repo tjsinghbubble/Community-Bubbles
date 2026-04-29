@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ScreenErrorBoundary } from '../components/ErrorBoundary';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import ViewProfileScreen from '../screens/main/ViewProfileScreen';
 import EditProfileScreen from '../screens/main/EditProfileScreen';
@@ -54,18 +55,58 @@ export type ProfileStackParamList = {
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
+function ProfileScreenWithBoundary(props: React.ComponentProps<typeof ProfileScreen>) {
+  return (
+    <ScreenErrorBoundary context="ProfileScreen" message="Couldn't load your profile — tap to retry">
+      <ProfileScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ViewProfileScreenWithBoundary(props: React.ComponentProps<typeof ViewProfileScreen>) {
+  return (
+    <ScreenErrorBoundary context="ViewProfileScreen" message="Couldn't load your profile — tap to retry">
+      <ViewProfileScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function EditProfileScreenWithBoundary(props: React.ComponentProps<typeof EditProfileScreen>) {
+  return (
+    <ScreenErrorBoundary context="EditProfileScreen" message="Couldn't load edit profile — tap to retry">
+      <EditProfileScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function AccountSettingsScreenWithBoundary(props: React.ComponentProps<typeof AccountSettingsScreen>) {
+  return (
+    <ScreenErrorBoundary context="AccountSettingsScreen" message="Couldn't load account settings — tap to retry">
+      <AccountSettingsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function LoginSecurityScreenWithBoundary(props: React.ComponentProps<typeof LoginSecurityScreen>) {
+  return (
+    <ScreenErrorBoundary context="LoginSecurityScreen" message="Couldn't load login & security — tap to retry">
+      <LoginSecurityScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ProfileNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-      <Stack.Screen name="ViewProfile" component={ViewProfileScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="ProfileMain" component={ProfileScreenWithBoundary} />
+      <Stack.Screen name="ViewProfile" component={ViewProfileScreenWithBoundary} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreenWithBoundary} />
       <Stack.Screen name="MyBubblesFromProfile" component={MyBubblesFromProfileScreen} />
       <Stack.Screen name="PendingReviews" component={PendingReviewsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} />
+      <Stack.Screen name="AccountSettings" component={AccountSettingsScreenWithBoundary} />
       <Stack.Screen name="PersonalInformation" component={PersonalInformationScreen} />
-      <Stack.Screen name="LoginSecurity" component={LoginSecurityScreen} />
+      <Stack.Screen name="LoginSecurity" component={LoginSecurityScreenWithBoundary} />
       <Stack.Screen name="DeactivateReason" component={DeactivateReasonScreen} />
       <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreen} />
       <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
