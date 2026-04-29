@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect, NavigationProp } from '@react-navigation/native';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
@@ -85,6 +86,10 @@ export default function ProfileScreen() {
       if (!isSuperAdmin) {
         const bubbles: any[] = await apiService.getMyBubbles() as any[];
         isBubbleAdmin.current = bubbles.some((b: any) => b.role === 'admin');
+      } else {
+        AsyncStorage.getItem('errorLogLastSeenAt').then(since => {
+          return apiService.getErrorLogCount(since ?? undefined);
+        }).then(r => setErrorLogCount(r?.count ?? 0)).catch(() => {});
       }
       setHasAdminItems(count > 0 || isSuperAdmin || isBubbleAdmin.current);
     } catch (error) {
@@ -268,7 +273,10 @@ export default function ProfileScreen() {
               <AnimatedPressable
                 style={styles.menuItem}
                 scaleValue={0.97}
-                onPress={() => navigation.navigate('ErrorLog')}
+                onPress={() => {
+                  setErrorLogCount(0);
+                  navigation.navigate('ErrorLog');
+                }}
                 testID="link-error-log"
               >
                 <View style={styles.menuItemLeft}>

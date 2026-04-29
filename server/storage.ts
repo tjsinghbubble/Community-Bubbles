@@ -256,6 +256,7 @@ export interface IStorage {
   // Error Logs (persisted)
   insertErrorLogEntry(entry: InsertErrorLog): Promise<void>;
   getErrorLogEntries(limit?: number, since?: Date, before?: Date): Promise<ErrorLog[]>;
+  countErrorLogEntries(since?: string): Promise<number>;
   clearErrorLogEntries(): Promise<void>;
 
   // Bulletin Boards
@@ -1956,6 +1957,14 @@ export class DatabaseStorage implements IStorage {
       return query.where(and(...conditions)).orderBy(desc(errorLogs.timestamp)).limit(limit);
     }
     return query.orderBy(desc(errorLogs.timestamp)).limit(limit);
+  }
+
+  async countErrorLogEntries(since?: string): Promise<number> {
+    const query = since
+      ? db.select({ value: count() }).from(errorLogs).where(sql`${errorLogs.timestamp} > ${since}`)
+      : db.select({ value: count() }).from(errorLogs);
+    const [row] = await query;
+    return row?.value ?? 0;
   }
 
   async clearErrorLogEntries(): Promise<void> {

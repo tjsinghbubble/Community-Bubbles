@@ -1129,6 +1129,22 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/error-logs/count", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      let since: string | undefined;
+      if (typeof req.query.since === "string") {
+        const parsed = new Date(req.query.since);
+        since = isNaN(parsed.getTime()) ? undefined : req.query.since;
+      }
+      const count = await storage.countErrorLogEntries(since);
+      res.json({ count });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.get("/api/admin/error-logs", authMiddleware, async (req, res) => {
     try {
       const me = await storage.getUser(req.userId!);

@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -66,6 +67,7 @@ export default function ErrorLogScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
+      AsyncStorage.setItem('errorLogLastSeenAt', new Date().toISOString()).catch(() => {});
       fetchErrors();
     }, [fetchErrors]),
   );

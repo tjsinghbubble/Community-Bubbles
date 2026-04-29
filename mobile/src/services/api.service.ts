@@ -572,6 +572,11 @@ class ApiService {
     });
   }
 
+  async getErrorLogCount(since?: string) {
+    const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+    return this.request<{ count: number }>(`/api/admin/error-logs/count${qs}`);
+  }
+
   async getErrorLogs() {
     return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>("/api/admin/error-logs");
   }
