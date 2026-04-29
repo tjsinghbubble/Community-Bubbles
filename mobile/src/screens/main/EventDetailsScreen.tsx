@@ -101,7 +101,7 @@ type SignupTask = {
 const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId, scrollToRsvp } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -368,12 +368,14 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const fetchSignupTasks = async () => {
+  const fetchSignupTasks = async (): Promise<SignupTask[] | null> => {
     try {
       const tasks = await apiService.getEventSignupTasks(eventId) as SignupTask[];
       setSignupTasks(tasks);
+      return tasks;
     } catch (error) {
       console.error('Failed to fetch signup tasks:', error);
+      return null;
     }
   };
 
@@ -602,7 +604,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       } else {
         await apiService.joinEventSignupTask(task.id);
       }
-      await fetchSignupTasks();
+      const updatedTasks = await fetchSignupTasks();
+      if (onTasksChanged && updatedTasks !== null) {
+        const openCount = updatedTasks.filter(
+          (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+        ).length;
+        onTasksChanged(eventId, openCount);
+      }
     } catch {
       setSignupTasks(signupTasks);
       Alert.alert('Error', 'Failed to update sign-up. Please try again.');

@@ -257,7 +257,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const handleEventPress = (event: Event) => {
-    navigation.navigate('EventDetails' as any, { eventId: event.id, event, bubbleTitle: bubble.title });
+    navigation.navigate('EventDetails' as any, {
+      eventId: event.id,
+      event,
+      bubbleTitle: bubble.title,
+      onTasksChanged: (changedEventId: string, openCount: number) => {
+        setSignupTaskCounts(prev => {
+          const updated = { ...prev };
+          if (openCount > 0) {
+            updated[changedEventId] = openCount;
+          } else {
+            delete updated[changedEventId];
+          }
+          return updated;
+        });
+      },
+    });
   };
 
   const formatEventDate = (date: string) => {
