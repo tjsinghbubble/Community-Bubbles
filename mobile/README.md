@@ -81,6 +81,53 @@ No extra build step is needed — source maps are uploaded automatically on ever
 the Sentry dashboard — the stack trace should show original TypeScript file
 paths and line numbers.
 
+## CI/CD — Automated Production Builds (GitHub Actions)
+
+The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.yml`) that automatically triggers EAS production builds and store submissions on every push to `main` or any release tag (e.g. `v1.2.3`).
+
+### What the workflow does
+
+1. Installs Node.js 20 and `npm ci` in the `mobile/` directory.
+2. Installs the EAS CLI via the official `expo/expo-github-action` action.
+3. Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
+   - `--wait` blocks the GitHub Actions runner until the EAS cloud build finishes, so the job does not exit prematurely.
+   - `--auto-submit` tells EAS to automatically submit the completed build to the App Store (iOS) or Play Store (Android) immediately after the build succeeds — no separate submit step required.
+4. Sentry source maps are uploaded during the EAS build step (handled by the `@sentry/react-native/expo` plugin — no extra step required).
+
+### Required GitHub repository secrets
+
+Go to **GitHub → Repository → Settings → Secrets and variables → Actions** and add the following:
+
+| Secret | Description |
+|---|---|
+| `EXPO_TOKEN` | Personal access token from [expo.dev](https://expo.dev/accounts/[account]/settings/access-tokens) — used to authenticate EAS CLI |
+| `SENTRY_AUTH_TOKEN` | Sentry auth token with `project:releases` and `org:read` scopes |
+| `SENTRY_ORG` | Your Sentry organisation slug |
+| `SENTRY_PROJECT` | Your Sentry project slug |
+| `SENTRY_DSN` | Sentry DSN baked into the release bundle |
+
+### Required EAS secrets (store credentials)
+
+EAS also needs credentials to submit to the App Store and Play Store. Set these once via the EAS dashboard (*eas.expo.dev → Project → Credentials*) or CLI:
+
+- **iOS**: App Store Connect API key (issuer ID, key ID, and `.p8` file). EAS will prompt you the first time you run `eas submit` interactively.
+- **Android**: Google Play service account JSON. Upload it in the EAS credentials UI or via `eas credentials`.
+
+Once stored in EAS, these credentials are reused automatically on every CI run — no further manual steps are needed.
+
+### Triggering a release manually
+
+If you need to kick off a build outside the normal push flow:
+
+```bash
+cd mobile
+eas build --platform all --profile production --wait --auto-submit
+```
+
+### Concurrency
+
+The workflow uses a `concurrency` group (`eas-production-<ref>`) so that a second push to `main` while a build is in progress will queue rather than cancel the running build — this prevents accidentally losing a partially completed submission.
+
 #### Sentry Alert Rules
 
 Configure the following alert rules in **Sentry → Alerts → Create Alert** so the team is notified automatically when crashes spike:
