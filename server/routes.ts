@@ -1855,7 +1855,7 @@ export async function registerRoutes(
         recipientId: userId,
         type: "bubble_request_approved",
         title: "Request Approved!",
-        body: `You've been accepted into ${approvalBubble?.title || 'the bubble'}!`,
+        body: `Your request to join ${approvalBubble?.title || 'the bubble'} was approved!`,
         metadata: { bubbleId, bubbleName: approvalBubble?.title },
       });
       
@@ -1880,8 +1880,8 @@ export async function registerRoutes(
       sendNotification({
         recipientId: userId,
         type: "bubble_request_rejected",
-        title: "Request Declined",
-        body: `Your request to join ${rejBubble?.title || 'the bubble'} was declined.`,
+        title: "Request Not Approved",
+        body: `Your request to join ${rejBubble?.title || 'the bubble'} was not approved.`,
         metadata: { bubbleId, bubbleName: rejBubble?.title },
       });
 

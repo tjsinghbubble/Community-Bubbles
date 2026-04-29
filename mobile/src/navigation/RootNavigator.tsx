@@ -25,6 +25,11 @@ const TASK_REMINDER_TYPES = new Set([
   'event_task_reminder_1h',
 ]);
 
+const BUBBLE_REQUEST_TYPES = new Set([
+  'bubble_request_approved',
+  'bubble_request_rejected',
+]);
+
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const raw = notification.request.content.data;
@@ -137,6 +142,26 @@ export default function RootNavigator() {
         const raw = response.notification.request.content.data;
         const data: Record<string, unknown> = raw != null && typeof raw === 'object' ? raw as Record<string, unknown> : {};
         const type = typeof data.notificationType === 'string' ? data.notificationType : undefined;
+
+        if (type && BUBBLE_REQUEST_TYPES.has(type)) {
+          const bubbleId = typeof data.bubbleId === 'string' ? data.bubbleId : undefined;
+          const bubbleName = typeof data.bubbleName === 'string' ? data.bubbleName : '';
+          if (!bubbleId) return;
+          const nav = navigationRef.current;
+          if (!nav) return;
+          const screen = type === 'bubble_request_approved' ? 'BubbleDetails' : 'JoinBubble';
+          setTimeout(() => {
+            (nav as any).navigate('Main', {
+              screen: 'Explore',
+              params: {
+                screen,
+                params: { bubble: { id: bubbleId, title: bubbleName, category: '' } },
+              },
+            });
+          }, 300);
+          return;
+        }
+
         if (!type || !TASK_REMINDER_TYPES.has(type)) return;
 
         const eventParams = buildEventParamsFromData(data);

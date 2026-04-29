@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
@@ -62,9 +63,11 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [effectiveRules, setEffectiveRules] = useState<{ name: string; description: string }[]>([]);
   const [signupTaskCounts, setSignupTaskCounts] = useState<SignupTaskCounts>({});
 
-  useEffect(() => {
-    fetchData();
-  }, [bubble.id]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [bubble.id])
+  );
 
   const fetchData = async () => {
     setSignupTaskCounts({});

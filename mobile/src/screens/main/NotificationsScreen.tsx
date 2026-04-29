@@ -152,10 +152,17 @@ export default function NotificationsScreen() {
     let meta: any = {};
     try { meta = notif.metadata ? JSON.parse(notif.metadata) : {}; } catch { meta = {}; }
     if (meta.bubbleId && !meta.eventId) {
-      (navigation as any).navigate('Explore', {
-        screen: 'BubbleDetails',
-        params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
-      });
+      if (notif.type === 'bubble_request_rejected') {
+        (navigation as any).navigate('Explore', {
+          screen: 'JoinBubble',
+          params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
+        });
+      } else {
+        (navigation as any).navigate('Explore', {
+          screen: 'BubbleDetails',
+          params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
+        });
+      }
     } else if (meta.eventId) {
       const eventParams: { eventId: string; bubbleId: string; bubbleTitle: string; highlightTaskId?: string; scrollToRsvp?: boolean } = {
         eventId: meta.eventId,
