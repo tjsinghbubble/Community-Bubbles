@@ -1,5 +1,7 @@
 const baseConfig = require('./app.json');
 
+const appVersion = baseConfig.expo.version;
+
 module.exports = {
   ...baseConfig.expo,
   plugins: [
@@ -10,6 +12,8 @@ module.exports = {
         organization: process.env.SENTRY_ORG ?? '',
         project: process.env.SENTRY_PROJECT ?? '',
         url: 'https://sentry.io/',
+        authToken: process.env.SENTRY_AUTH_TOKEN ?? '',
+        release: appVersion,
       },
     ],
   ],

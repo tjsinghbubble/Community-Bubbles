@@ -33,9 +33,11 @@ export function initSentry(): void {
     console.warn('[CrashReporter] SENTRY_DSN not configured — Sentry disabled');
     return;
   }
+  const release = (Constants.expoConfig?.version ?? version) as string;
   try {
     Sentry.init({
       dsn,
+      release,
       environment: __DEV__ ? 'development' : 'production',
       debug: __DEV__,
       enableNativeNagger: false,

@@ -12,7 +12,8 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "prebuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && npx sentry-cli releases new \"$APP_VERSION\" && (npx sentry-cli releases set-commits \"$APP_VERSION\" --auto || true)"
     }
   },
   "submit": {
