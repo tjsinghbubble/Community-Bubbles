@@ -50,76 +50,92 @@ class ApiService {
     const method = options?.method || 'GET';
     console.log(`[API] Request: ${method} ${url}`);
 
-    const startTime = Date.now();
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options?.headers,
+    const span = Sentry.startInactiveSpan({
+      op: 'http.client',
+      name: `${method} ${endpoint}`,
+      attributes: {
+        'http.request.method': method,
+        'url.full': url,
       },
     });
 
-    // Get raw text first for debugging
-    const rawText = await response.text();
-    const durationMs = Date.now() - startTime;
-    console.log(
-      `[API] Response ${endpoint} (status ${response.status}):`,
-      rawText.substring(0, 500),
-    );
-
-    if (endpoint !== "/api/telemetry/latency") {
-      fetch(`${API_URL}/api/telemetry/latency`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint, method, durationMs, statusCode: response.status }),
-      }).catch(() => {});
-    }
-
-    if (!response.ok) {
-      let error;
-      try {
-        error = JSON.parse(rawText);
-      } catch {
-        error = { error: response.statusText };
-      }
-      if (response.status === 401 && error.error === 'Token revoked') {
-        this.onTokenRevokedCallback?.();
-      }
-      const statusCode = response.status;
-      if (statusCode >= 500) {
-        console.error(`[API] Server error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
-        reportError(new Error(`Server error ${statusCode}: ${method} ${endpoint}`), 'API');
-      } else if (statusCode === 401) {
-        console.warn(`[API] Unauthorized: ${method} ${endpoint} in ${durationMs} ms`);
-      } else if (statusCode >= 400) {
-        console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
-      }
-      const apiError = new Error(error.error || response.statusText) as Error & { status: number };
-      apiError.status = response.status;
-      throw apiError;
-    }
-
+    const startTime = Date.now();
+    let rawText = '';
     try {
-      const result = JSON.parse(rawText);
-      if (durationMs > SLOW_CALL_THRESHOLD_MS) {
-        console.warn(`[API] Slow response: ${method} ${endpoint} completed in ${durationMs} ms`);
-        Sentry.withScope((scope) => {
-          scope.setLevel('warning');
-          scope.setTag('alert_type', 'slow_api_response');
-          scope.setTag('endpoint', endpoint);
-          scope.setTag('method', method);
-          scope.setExtra('durationMs', durationMs);
-          scope.setExtra('threshold', SLOW_CALL_THRESHOLD_MS);
-          Sentry.captureMessage(`[API] Slow response: ${method} ${endpoint}`, 'warning');
-        });
-      } else if (__DEV__) {
-        console.log(`[API] ${method} ${endpoint} completed in ${durationMs} ms`);
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options?.headers,
+        },
+      });
+
+      rawText = await response.text();
+      const durationMs = Date.now() - startTime;
+      console.log(
+        `[API] Response ${endpoint} (status ${response.status}):`,
+        rawText.substring(0, 500),
+      );
+
+      span.setAttribute('http.response.status_code', response.status);
+      span.setAttribute('duration_ms', durationMs);
+
+      if (endpoint !== "/api/telemetry/latency") {
+        fetch(`${API_URL}/api/telemetry/latency`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint, method, durationMs, statusCode: response.status }),
+        }).catch(() => {});
       }
-      return result;
-    } catch (parseError) {
-      console.error(`[API] JSON parse error for ${endpoint}:`, parseError);
-      console.error(`[API] Raw response was:`, rawText.substring(0, 1000));
-      throw parseError;
+
+      if (!response.ok) {
+        let error;
+        try {
+          error = JSON.parse(rawText);
+        } catch {
+          error = { error: response.statusText };
+        }
+        if (response.status === 401 && error.error === 'Token revoked') {
+          this.onTokenRevokedCallback?.();
+        }
+        const statusCode = response.status;
+        if (statusCode >= 500) {
+          console.error(`[API] Server error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
+          reportError(new Error(`Server error ${statusCode}: ${method} ${endpoint}`), 'API');
+        } else if (statusCode === 401) {
+          console.warn(`[API] Unauthorized: ${method} ${endpoint} in ${durationMs} ms`);
+        } else if (statusCode >= 400) {
+          console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
+        }
+        const apiError = new Error(error.error || response.statusText) as Error & { status: number };
+        apiError.status = response.status;
+        throw apiError;
+      }
+
+      try {
+        const result = JSON.parse(rawText);
+        if (durationMs > SLOW_CALL_THRESHOLD_MS) {
+          console.warn(`[API] Slow response: ${method} ${endpoint} completed in ${durationMs} ms`);
+          Sentry.withScope((scope) => {
+            scope.setLevel('warning');
+            scope.setTag('alert_type', 'slow_api_response');
+            scope.setTag('endpoint', endpoint);
+            scope.setTag('method', method);
+            scope.setExtra('durationMs', durationMs);
+            scope.setExtra('threshold', SLOW_CALL_THRESHOLD_MS);
+            Sentry.captureMessage(`[API] Slow response: ${method} ${endpoint}`, 'warning');
+          });
+        } else if (__DEV__) {
+          console.log(`[API] ${method} ${endpoint} completed in ${durationMs} ms`);
+        }
+        return result;
+      } catch (parseError) {
+        console.error(`[API] JSON parse error for ${endpoint}:`, parseError);
+        console.error(`[API] Raw response was:`, rawText.substring(0, 1000));
+        throw parseError;
+      }
+    } finally {
+      span.end();
     }
   }
 

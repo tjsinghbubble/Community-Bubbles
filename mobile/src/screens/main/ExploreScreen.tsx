@@ -29,7 +29,7 @@ import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
-import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
+import { logAppEvent, logAppWarn, measureScreenLoad } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
 import { PeopleIcon, ClockIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -73,6 +73,7 @@ export default function ExploreScreen() {
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const isMountedRef = useRef(true);
+  const isFirstFocusRef = useRef(true);
 
   useEffect(() => {
     return () => { isMountedRef.current = false; };
@@ -81,47 +82,55 @@ export default function ExploreScreen() {
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
 
-  const fetchData = async () => {
+  const fetchData = async (isInitialLoad = false) => {
     try {
-      const [bubblesResponse, eventsResponse] = await Promise.all([
-        fetch(`${API_URL}/api/bubbles`),
-        fetch(`${API_URL}/api/events`),
-      ]);
-      
-      const bubblesData = await bubblesResponse.json();
-      const eventsData = await eventsResponse.json();
-      
-      const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
-        id: bubble.id,
-        title: bubble.title,
-        tagline: bubble.tagline,
-        category: bubble.category,
-        description: bubble.description,
-        members: bubble.members || 0,
-        image: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
-        distance: '~',
-        campusId: bubble.campusId || null,
-      }));
-      
-      if (isMountedRef.current) {
-        setBubbles(transformedBubbles);
-        setEvents(eventsData || []);
-        logAppEvent('[Screen] ExploreScreen data loaded', {
-          bubbleCount: transformedBubbles.length,
-          eventCount: (eventsData || []).length,
-        });
-      }
+      const doFetch = async () => {
+        const [bubblesResponse, eventsResponse] = await Promise.all([
+          fetch(`${API_URL}/api/bubbles`),
+          fetch(`${API_URL}/api/events`),
+        ]);
 
-      if (isCampusVerified && token) {
-        apiService.setToken(token);
-        try {
-          const myCampus = await apiService.getMyCampus();
-          if (isMountedRef.current && myCampus.campus) {
-            setCampusInfo({ name: myCampus.campus.name });
-          }
-        } catch (error) {
-          console.error('Failed to fetch campus data:', error);
+        const bubblesData = await bubblesResponse.json();
+        const eventsData = await eventsResponse.json();
+
+        const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
+          id: bubble.id,
+          title: bubble.title,
+          tagline: bubble.tagline,
+          category: bubble.category,
+          description: bubble.description,
+          members: bubble.members || 0,
+          image: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
+          distance: '~',
+          campusId: bubble.campusId || null,
+        }));
+
+        if (isMountedRef.current) {
+          setBubbles(transformedBubbles);
+          setEvents(eventsData || []);
+          logAppEvent('[Screen] ExploreScreen data loaded', {
+            bubbleCount: transformedBubbles.length,
+            eventCount: (eventsData || []).length,
+          });
         }
+
+        if (isCampusVerified && token) {
+          apiService.setToken(token);
+          try {
+            const myCampus = await apiService.getMyCampus();
+            if (isMountedRef.current && myCampus.campus) {
+              setCampusInfo({ name: myCampus.campus.name });
+            }
+          } catch (error) {
+            console.error('Failed to fetch campus data:', error);
+          }
+        }
+      };
+
+      if (isInitialLoad) {
+        await measureScreenLoad('ExploreScreen', doFetch);
+      } else {
+        await doFetch();
       }
     } catch (error) {
       logAppWarn('[Screen] ExploreScreen data fetch failed', { error: String(error) });
@@ -136,7 +145,9 @@ export default function ExploreScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
+      const isInitial = isFirstFocusRef.current;
+      isFirstFocusRef.current = false;
+      fetchData(isInitial);
       if (refreshUser) refreshUser();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
     }, [isCampusVerified])

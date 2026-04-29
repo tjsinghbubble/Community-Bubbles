@@ -167,6 +167,39 @@ export function clearSentryUser(): void {
   });
 }
 
+/**
+ * Measures how long a screen takes to load its initial data and records the
+ * result as a custom measurement on the active Sentry transaction.  If no
+ * transaction is active (e.g. Sentry disabled / no DSN) the function still
+ * runs `work` normally and only skips the instrumentation.
+ *
+ * Usage:
+ *   const data = await measureScreenLoad('Login', () => fetchLoginData());
+ */
+export async function measureScreenLoad<T>(
+  screenName: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const startMs = Date.now();
+  try {
+    return await work();
+  } finally {
+    const durationMs = Date.now() - startMs;
+    try {
+      const activeSpan = Sentry.getActiveSpan?.();
+      if (activeSpan) {
+        Sentry.setMeasurement('screen_load_ms', durationMs, 'millisecond');
+        Sentry.getCurrentScope?.().setTag('screen', screenName);
+      }
+      if (__DEV__) {
+        console.log(`[PerfTrace] ${screenName} loaded in ${durationMs} ms`);
+      }
+    } catch {
+      // Never let instrumentation crash the app
+    }
+  }
+}
+
 export function installGlobalHandlers(): void {
   const globalObj = global as Record<string, unknown>;
 

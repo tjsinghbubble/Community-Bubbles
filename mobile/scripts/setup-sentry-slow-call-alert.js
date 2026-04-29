@@ -1,20 +1,28 @@
 #!/usr/bin/env node
 /**
- * Sets up a Sentry Metric Alert rule that fires when slow API response events
- * exceed 10 occurrences in a 5-minute window, grouped by endpoint.
+ * Sets up Sentry alert rules that notify the team when:
+ *   1. The Login screen p75 transaction duration exceeds 3 s  (Performance alert)
+ *   2. The main feed (ExploreScreen) p75 duration exceeds 3 s  (Performance alert)
+ *   3. Slow-API-response warning events exceed 10 in a 5-minute window  (Metric/error alert)
+ *
+ * Note: API calls are recorded as child spans (op: http.client) on navigation
+ * transactions, not as standalone top-level transactions.  Sentry Performance
+ * alerts require top-level transactions, so a count-based error-event rule is
+ * used for API latency alerting instead of a p95 performance rule.
  *
  * Required environment variables:
  *   SENTRY_AUTH_TOKEN  — Internal integration token with alert:write + project:read scopes
  *   SENTRY_ORG         — Organisation slug (visible in Sentry Settings → General)
  *   SENTRY_PROJECT     — Project slug (visible in Sentry Settings → Projects)
  *
- * Optional:
- *   SENTRY_ALERT_EMAIL — Email address for alert notifications (defaults to team email)
- *   SENTRY_SLACK_WORKSPACE_ID — Slack integration workspace ID
- *   SENTRY_SLACK_CHANNEL_ID   — Slack channel ID
+ * Optional (at least one notification channel is required):
+ *   SENTRY_ALERT_EMAIL          — Email address for alert notifications
+ *   SENTRY_SLACK_WORKSPACE_ID   — Slack integration workspace ID
+ *   SENTRY_SLACK_CHANNEL_ID     — Slack channel ID
  *
  * Usage:
  *   SENTRY_AUTH_TOKEN=sntrys_... SENTRY_ORG=my-org SENTRY_PROJECT=my-project \
+ *   SENTRY_ALERT_EMAIL=team@example.com \
  *     node mobile/scripts/setup-sentry-slow-call-alert.js
  */
 
@@ -65,7 +73,7 @@ async function getProjectId() {
   return project.id;
 }
 
-function buildAlertRule() {
+function buildActions() {
   const actions = [];
 
   if (process.env.SENTRY_ALERT_EMAIL) {
@@ -98,66 +106,150 @@ function buildAlertRule() {
     process.exit(1);
   }
 
-  return {
-    name: 'API Slow Response Threshold',
-    dataset: 'events',
-    query: 'alert_type:slow_api_response level:warning',
-    aggregate: 'count()',
-    timeWindow: 5,
-    thresholdType: 0,
-    resolveThreshold: 5,
-    groupBy: ['endpoint'],
-    triggers: [
-      {
-        label: 'critical',
-        alertThreshold: 10,
-        actions,
-      },
-    ],
-    projects: [PROJECT],
-    environment: 'production',
-    // Note: Sentry's /api/0/organizations/{org}/alert-rules/ endpoint accepts
-    // project slugs in the `projects` array. If your Sentry version requires
-    // numeric IDs instead, replace PROJECT with the projectId returned by getProjectId().
-    owner: null,
-    comparisonDelta: null,
-  };
+  return actions;
 }
 
-async function checkExistingRule() {
+function buildRuleDefinitions(actions) {
+  return [
+    // ── Performance: Login screen p75 ──────────────────────────────────────
+    // The reactNavigationIntegration creates a top-level navigation transaction
+    // named "Login" each time the Login screen is entered, so p75 of
+    // transaction.duration captures the full screen render time.
+    {
+      name: 'Login Screen P75 > 3s',
+      dataset: 'transactions',
+      aggregate: 'p75(transaction.duration)',
+      query: 'transaction:Login transaction.op:navigation',
+      timeWindow: 10,
+      thresholdType: 0,
+      resolveThreshold: 2000,
+      triggers: [
+        {
+          label: 'critical',
+          alertThreshold: 3000,
+          actions,
+        },
+        {
+          label: 'warning',
+          alertThreshold: 2000,
+          actions: [],
+        },
+      ],
+      projects: [PROJECT],
+      environment: 'production',
+      owner: null,
+      comparisonDelta: null,
+    },
+
+    // ── Performance: Main feed (ExploreScreen) p75 ─────────────────────────
+    // ExploreScreen wraps its initial data fetch in measureScreenLoad(), which
+    // records screen_load_ms on the "ExploreList" navigation transaction.
+    // The p75 on the transaction itself covers end-to-end render + fetch time.
+    {
+      name: 'Main Feed (ExploreScreen) P75 > 3s',
+      dataset: 'transactions',
+      aggregate: 'p75(transaction.duration)',
+      query: 'transaction:ExploreList transaction.op:navigation',
+      timeWindow: 10,
+      thresholdType: 0,
+      resolveThreshold: 2000,
+      triggers: [
+        {
+          label: 'critical',
+          alertThreshold: 3000,
+          actions,
+        },
+        {
+          label: 'warning',
+          alertThreshold: 2000,
+          actions: [],
+        },
+      ],
+      projects: [PROJECT],
+      environment: 'production',
+      owner: null,
+      comparisonDelta: null,
+    },
+
+    // ── Metric (error events): slow API response count ─────────────────────
+    // API calls are instrumented as child spans on navigation transactions
+    // (op: 'http.client'), not as standalone top-level transactions.
+    // Sentry's transaction-level performance alerts therefore cannot directly
+    // aggregate p95 per API endpoint.  Instead, every call that exceeds
+    // SLOW_CALL_THRESHOLD_MS (2000 ms) emits a warning-level Sentry event
+    // tagged alert_type:slow_api_response + endpoint.  This count-based rule
+    // fires when a given endpoint produces 10+ slow events in any 5-minute
+    // window — equivalent to "consistently slow" API behaviour.
+    {
+      name: 'API Slow Response Threshold',
+      dataset: 'events',
+      query: 'alert_type:slow_api_response level:warning',
+      aggregate: 'count()',
+      timeWindow: 5,
+      thresholdType: 0,
+      resolveThreshold: 5,
+      groupBy: ['endpoint'],
+      triggers: [
+        {
+          label: 'critical',
+          alertThreshold: 10,
+          actions,
+        },
+      ],
+      projects: [PROJECT],
+      environment: 'production',
+      owner: null,
+      comparisonDelta: null,
+    },
+  ];
+}
+
+async function getExistingRules() {
   const rules = await sentryRequest('GET', `/organizations/${ORG}/alert-rules/?project=${PROJECT}`);
-  return rules.find((r) => r.name === 'API Slow Response Threshold');
+  return rules;
 }
 
-async function main() {
-  console.log(`Configuring Sentry Metric Alert for org="${ORG}" project="${PROJECT}"...\n`);
-
-  const projectId = await getProjectId();
-  console.log(`Validated project "${PROJECT}" (id=${projectId}) in org "${ORG}".`);
-
-  const existing = await checkExistingRule();
-  const rule = buildAlertRule();
+async function upsertRule(rule, existing) {
   if (existing) {
-    console.log(`Alert rule already exists (id=${existing.id}). Updating...`);
+    console.log(`  Updating existing rule "${rule.name}" (id=${existing.id})...`);
     const updated = await sentryRequest(
       'PUT',
       `/organizations/${ORG}/alert-rules/${existing.id}/`,
       rule
     );
-    console.log(`\nUpdated alert rule: ${updated.name} (id=${updated.id})`);
+    console.log(`  ✓ Updated: ${updated.name} (id=${updated.id})`);
   } else {
+    console.log(`  Creating rule "${rule.name}"...`);
     const created = await sentryRequest(
       'POST',
       `/organizations/${ORG}/alert-rules/`,
       rule
     );
-    console.log(`\nCreated alert rule: ${created.name} (id=${created.id})`);
+    console.log(`  ✓ Created: ${created.name} (id=${created.id})`);
+  }
+}
+
+async function main() {
+  console.log(`Configuring Sentry Performance + Metric Alerts for org="${ORG}" project="${PROJECT}"...\n`);
+
+  const projectId = await getProjectId();
+  console.log(`Validated project "${PROJECT}" (id=${projectId}) in org "${ORG}".\n`);
+
+  const actions = buildActions();
+  const rules = buildRuleDefinitions(actions);
+  const existingRules = await getExistingRules();
+
+  for (const rule of rules) {
+    const existing = existingRules.find((r) => r.name === rule.name);
+    await upsertRule(rule, existing);
   }
 
-  console.log('\nDone. The alert will fire when:');
-  console.log('  - More than 10 slow API response events occur within 5 minutes');
-  console.log('  - Query filter: alert_type:slow_api_response level:warning');
-  console.log('  - Environment: production');
+  console.log('\nDone. Active alert rules:');
+  console.log('  • Login Screen P75 > 3s           — fires when login navigation is consistently slow');
+  console.log('  • Main Feed (ExploreScreen) P75 > 3s — fires when the feed loads consistently slowly');
+  console.log('  • API Slow Response Threshold       — fires when an endpoint produces 10+ slow calls in 5 min');
+  console.log('\nNote: API calls are tracked as child spans on navigation transactions.');
+  console.log('      The count-based alert covers "consistently slow" API behaviour.');
   console.log('\nView alerts at: https://sentry.io/organizations/' + ORG + '/alerts/');
 }
 
