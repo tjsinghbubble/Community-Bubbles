@@ -46,6 +46,41 @@ To enable crash reporting:
 
 For production builds (EAS Build / standalone), add `SENTRY_DSN` to your EAS secret environment variables so it is baked into the release bundle.
 
+#### Source-map uploads (readable stack traces in production)
+
+Production JS bundles are minified. Without source maps, stack traces in the
+Sentry dashboard show obfuscated identifiers (e.g. `t.apply(n,r)`) instead of
+the original TypeScript file names and line numbers.
+
+`app.config.js` registers the `@sentry/react-native/expo` Expo config plugin.
+This plugin ships inside the `@sentry/react-native` SDK that is already listed
+in `package.json` — no extra dependency (e.g. `sentry-expo`, which is
+deprecated) is required. During an EAS build the plugin automatically generates
+source maps and uploads them to Sentry so every production stack trace links
+back to the original source.
+
+**Required EAS secrets** — set once via the CLI or the EAS dashboard
+(*eas.expo.dev → Project → Secrets*):
+
+```bash
+eas secret:create --scope project --name SENTRY_AUTH_TOKEN --value <token>
+eas secret:create --scope project --name SENTRY_ORG      --value <org-slug>
+eas secret:create --scope project --name SENTRY_PROJECT  --value <project-slug>
+```
+
+| Secret              | Where to find it |
+|---------------------|-----------------|
+| `SENTRY_AUTH_TOKEN` | Sentry → Settings → Auth Tokens → Create new token (scopes: `project:releases`, `org:read`) |
+| `SENTRY_ORG`        | Slug in your Sentry org URL: `https://sentry.io/organizations/<slug>/` |
+| `SENTRY_PROJECT`    | Slug shown in Sentry → Projects → *your project* |
+
+No extra build step is needed — source maps are uploaded automatically on every
+`eas build --profile production` (and `preview`) run once the secrets are set.
+
+**Verifying the upload:** after a production build, trigger a crash and check
+the Sentry dashboard — the stack trace should show original TypeScript file
+paths and line numbers.
+
 #### Sentry Alert Rules
 
 Configure the following alert rules in **Sentry → Alerts → Create Alert** so the team is notified automatically when crashes spike:

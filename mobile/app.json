@@ -39,8 +39,7 @@
     },
     "plugins": [
       "expo-image-picker",
-      "@react-native-community/datetimepicker",
-      "@sentry/react-native"
+      "@react-native-community/datetimepicker"
     ]
   }
 }
