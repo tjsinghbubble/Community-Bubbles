@@ -8,6 +8,13 @@
       "when": 1775084156565,
       "tag": "0000_add_users_is_active",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777436168558,
+      "tag": "0001_add_reminder_sent_to_event_task_signups",
+      "breakpoints": true
     }
   ]
 }

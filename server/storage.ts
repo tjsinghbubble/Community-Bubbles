@@ -152,6 +152,8 @@ export interface IStorage {
   getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]>;
   markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void>;
   getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
+  getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
+  markTaskSignupReminderSent(signupId: number): Promise<void>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -1081,6 +1083,40 @@ export class DatabaseStorage implements IStorage {
       .from(eventAttendees)
       .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'going')));
     return attendees.map(a => a.userId);
+  }
+
+  async getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        signupId: eventTaskSignups.id,
+        userId: eventTaskSignups.userId,
+        taskTitle: eventSignupTasks.title,
+        eventId: events.id,
+        eventTitle: events.title,
+        eventDate: events.date,
+        eventStartTime: events.startTime,
+        eventTimezone: events.timezone,
+        bubbleId: events.bubbleId,
+      })
+      .from(eventTaskSignups)
+      .innerJoin(eventSignupTasks, eq(eventSignupTasks.id, eventTaskSignups.taskId))
+      .innerJoin(events, eq(events.id, eventSignupTasks.eventId))
+      .where(
+        and(
+          eq(eventTaskSignups.reminderSent, false),
+          eq(events.status, 'approved'),
+        ),
+      );
+    return rows.filter(r => {
+      const eventDateTime = new Date(`${r.eventDate}T${r.eventStartTime}:00`);
+      return eventDateTime > now && eventDateTime <= windowEnd;
+    });
+  }
+
+  async markTaskSignupReminderSent(signupId: number): Promise<void> {
+    await db.update(eventTaskSignups).set({ reminderSent: true }).where(eq(eventTaskSignups.id, signupId));
   }
 
   // Campus methods

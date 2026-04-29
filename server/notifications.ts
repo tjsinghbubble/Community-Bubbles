@@ -21,6 +21,7 @@ export type NotificationType =
   | "event_full"
   | "event_reminder_24h"
   | "event_reminder_1h"
+  | "event_task_reminder_24h"
   | "waitlist_promoted"
   | "waitlist_request"
   | "waitlist_approved"
@@ -253,6 +254,27 @@ async function processEventReminders(): Promise<void> {
 
     if (sent24h > 0 || sent1h > 0) {
       console.log(`[Reminders] Sent ${sent24h} 24h and ${sent1h} 1h reminders`);
+    }
+
+    const taskSignups = await storage.getTaskSignupsNeedingReminder();
+    let sentTaskReminders = 0;
+    for (const signup of taskSignups) {
+      const localTime = signup.eventTimezone && signup.eventTimezone !== 'UTC'
+        ? utcToLocal(signup.eventDate, signup.eventStartTime, signup.eventTimezone).time
+        : signup.eventStartTime;
+      const displayTime = formatTime12h(localTime);
+      await sendNotification({
+        recipientId: signup.userId,
+        type: "event_task_reminder_24h",
+        title: "Task Reminder",
+        body: `You signed up for "${signup.taskTitle}" at "${signup.eventTitle}" tomorrow at ${displayTime}`,
+        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId },
+      });
+      await storage.markTaskSignupReminderSent(signup.signupId);
+      sentTaskReminders++;
+    }
+    if (sentTaskReminders > 0) {
+      console.log(`[Reminders] Sent ${sentTaskReminders} task signup reminders`);
     }
   } catch (error) {
     console.error("[Reminders] Error processing event reminders:", error);

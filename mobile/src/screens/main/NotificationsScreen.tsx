@@ -61,6 +61,7 @@ const ICON_MAP: Record<string, { name: keyof typeof Ionicons.glyphMap; color: st
   event_full: { name: 'people-circle', color: Colors.status.warning, bg: Colors.background.warningTint },
   event_reminder_24h: { name: 'alarm-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   event_reminder_1h: { name: 'alarm', color: Colors.status.warning, bg: Colors.background.warningTint },
+  event_task_reminder_24h: { name: 'clipboard-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   waitlist_request: { name: 'time-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   waitlist_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: Colors.background.successTint },
   waitlist_on_hold: { name: 'pause-circle-outline', color: Colors.status.warning, bg: Colors.background.warningTint },
