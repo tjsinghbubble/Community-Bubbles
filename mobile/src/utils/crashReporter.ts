@@ -76,6 +76,60 @@ export const MAX_CONTEXT_CHARS = 2048;
 
 export const DEDUP_WINDOW_MS = 500;
 
+// ---------------------------------------------------------------------------
+// Span-expiry ring buffer
+// ---------------------------------------------------------------------------
+
+/** The lifecycle phase at which a child span was found to have already ended. */
+export type SpanExpiryPhase = 'pre-work' | 'post-work';
+
+/** A single span-expiry event recorded by measureScreenLoad. */
+export interface SpanExpiryEvent {
+  screenName: string;
+  phase: SpanExpiryPhase;
+  timestamp: string;
+}
+
+const SPAN_EXPIRY_BUFFER_SIZE = 50;
+const _spanExpiryBuffer: SpanExpiryEvent[] = [];
+
+/**
+ * Push a new span-expiry event into the ring buffer.
+ * When the buffer is full the oldest entry is discarded.
+ * Safe to call from instrumentation — never throws.
+ */
+export function recordSpanExpiry(screenName: string, phase: SpanExpiryPhase): void {
+  try {
+    const event: SpanExpiryEvent = {
+      screenName,
+      phase,
+      timestamp: new Date().toISOString(),
+    };
+    _spanExpiryBuffer.push(event);
+    if (_spanExpiryBuffer.length > SPAN_EXPIRY_BUFFER_SIZE) {
+      _spanExpiryBuffer.shift();
+    }
+  } catch {
+    // Instrumentation must never crash the app
+  }
+}
+
+/**
+ * Return a snapshot of all buffered span-expiry events, newest-first.
+ * The returned array is a copy — callers may mutate it freely.
+ */
+export function getSpanExpiryEvents(): SpanExpiryEvent[] {
+  return [..._spanExpiryBuffer].reverse();
+}
+
+/**
+ * Clear all buffered span-expiry events.
+ * Exported so tests and the debug screen can reset state.
+ */
+export function clearSpanExpiryEvents(): void {
+  _spanExpiryBuffer.length = 0;
+}
+
 const _recentMessages = new Map<string, number>();
 
 export function isDuplicate(key: string): boolean {
@@ -262,6 +316,7 @@ export async function measureScreenLoad<T>(
           const msg = `[PerfTrace] ${screenName}: child span already ended before work began — span may have timed out`;
           console.warn(msg);
           Sentry.addBreadcrumb({ level: 'warning', category: 'performance', message: msg });
+          recordSpanExpiry(screenName, 'pre-work');
         }
       }
     }
@@ -294,6 +349,7 @@ export async function measureScreenLoad<T>(
           const msg = `[PerfTrace] ${screenName}: child span already ended before finish — screen_load_ms measurement may be lost`;
           console.warn(msg);
           Sentry.addBreadcrumb({ level: 'warning', category: 'performance', message: msg });
+          recordSpanExpiry(screenName, 'post-work');
         } else {
           // recording === true OR isRecording is absent (older SDK) — proceed normally.
           (span.end ?? span.finish)?.();

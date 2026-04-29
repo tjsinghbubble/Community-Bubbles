@@ -23,6 +23,7 @@ import ManageRulesScreen from '../screens/main/ManageRulesScreen';
 import CategoryPlaceholdersScreen from '../screens/main/CategoryPlaceholdersScreen';
 import ErrorLogScreen from '../screens/main/ErrorLogScreen';
 import SlowCallTrendsScreen from '../screens/main/SlowCallTrendsScreen';
+import SpanHealthScreen from '../screens/main/SpanHealthScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 
@@ -49,6 +50,7 @@ export type ProfileStackParamList = {
   CategoryPlaceholders: undefined;
   ErrorLog: undefined;
   SlowCallTrends: undefined;
+  SpanHealth: undefined;
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
 };
@@ -231,6 +233,14 @@ function SlowCallTrendsScreenWithBoundary(props: React.ComponentProps<typeof Slo
   );
 }
 
+function SpanHealthScreenWithBoundary(props: React.ComponentProps<typeof SpanHealthScreen>) {
+  return (
+    <ScreenErrorBoundary context="SpanHealthScreen" message="Couldn't load span health — tap to retry">
+      <SpanHealthScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function TermsOfServiceScreenWithBoundary(props: React.ComponentProps<typeof TermsOfServiceScreen>) {
   return (
     <ScreenErrorBoundary context="TermsOfServiceScreen" message="Couldn't load Terms of Service — tap to retry">
@@ -272,6 +282,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreenWithBoundary} />
       <Stack.Screen name="ErrorLog" component={ErrorLogScreenWithBoundary} />
       <Stack.Screen name="SlowCallTrends" component={SlowCallTrendsScreenWithBoundary} />
+      <Stack.Screen name="SpanHealth" component={SpanHealthScreenWithBoundary} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreenWithBoundary} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreenWithBoundary} />
     </Stack.Navigator>

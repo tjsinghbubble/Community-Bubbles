@@ -305,6 +305,20 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
               </AnimatedPressable>
             )}
+            {isSuperAdmin && (
+              <AnimatedPressable
+                style={styles.menuItem}
+                scaleValue={0.97}
+                onPress={() => navigation.navigate('SpanHealth')}
+                testID="link-span-health"
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons name="pulse-outline" size={24} color={Colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Span Health</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </AnimatedPressable>
+            )}
           </View>
         )}
 
