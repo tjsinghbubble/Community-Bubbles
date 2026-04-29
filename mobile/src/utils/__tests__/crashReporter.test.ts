@@ -11,6 +11,9 @@ jest.mock('@sentry/react-native', () => ({
   configureScope: jest.fn(),
   setUser: jest.fn(),
   reactNavigationIntegration: jest.fn().mockReturnValue({ registerNavigationContainer: jest.fn() }),
+  getActiveSpan: jest.fn(),
+  setMeasurement: jest.fn(),
+  getCurrentScope: jest.fn(),
 }));
 
 jest.mock('expo-constants', () => ({
@@ -35,6 +38,7 @@ import {
   clearSentryUser,
   installGlobalHandlers,
   initSentry,
+  measureScreenLoad,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -999,5 +1003,71 @@ describe('logAppEvent — deduplication guard', () => {
 
     expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
     expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('measureScreenLoad', () => {
+  type MockCurrentScope = { setTag: jest.Mock };
+
+  let mockCurrentScope: MockCurrentScope;
+
+  beforeEach(() => {
+    mockCurrentScope = { setTag: jest.fn() };
+    jest.clearAllMocks();
+    (Sentry.getCurrentScope as jest.Mock).mockReturnValue(mockCurrentScope);
+  });
+
+  it('resolves with the value returned by work', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(null);
+
+    const result = await measureScreenLoad('HomeScreen', async () => 42);
+
+    expect(result).toBe(42);
+  });
+
+  it('calls setMeasurement, setTag, and span.finish when an active span exists', async () => {
+    const fakeSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+
+    await measureScreenLoad('LoginScreen', async () => 'data');
+
+    expect(Sentry.setMeasurement).toHaveBeenCalledTimes(1);
+    expect(Sentry.setMeasurement).toHaveBeenCalledWith(
+      'screen_load_ms',
+      expect.any(Number),
+      'millisecond',
+    );
+    expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
+    expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'LoginScreen');
+    expect(fakeSpan.finish).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips instrumentation silently when no active span exists', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(null);
+
+    await measureScreenLoad('ProfileScreen', async () => 'ok');
+
+    expect(Sentry.setMeasurement).not.toHaveBeenCalled();
+    expect(mockCurrentScope.setTag).not.toHaveBeenCalled();
+  });
+
+  it('propagates exceptions from work and still finishes span when a span is active', async () => {
+    const fakeSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+    const boom = new Error('load failed');
+
+    await expect(
+      measureScreenLoad('ErrorScreen', async () => { throw boom; }),
+    ).rejects.toThrow(boom);
+
+    expect(Sentry.setMeasurement).toHaveBeenCalledTimes(1);
+    expect(Sentry.setMeasurement).toHaveBeenCalledWith(
+      'screen_load_ms',
+      expect.any(Number),
+      'millisecond',
+    );
+    expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
+    expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'ErrorScreen');
+    expect(fakeSpan.finish).toHaveBeenCalledTimes(1);
   });
 });

@@ -228,6 +228,7 @@ export async function measureScreenLoad<T>(
       if (activeSpan) {
         Sentry.setMeasurement('screen_load_ms', durationMs, 'millisecond');
         Sentry.getCurrentScope?.().setTag('screen', screenName);
+        (activeSpan as { finish?: () => void }).finish?.();
       }
       if (__DEV__) {
         console.log(`[PerfTrace] ${screenName} loaded in ${durationMs} ms`);
