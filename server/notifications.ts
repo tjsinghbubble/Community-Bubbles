@@ -22,6 +22,7 @@ export type NotificationType =
   | "event_reminder_24h"
   | "event_reminder_1h"
   | "event_task_reminder_24h"
+  | "event_task_reminder_1h"
   | "waitlist_promoted"
   | "waitlist_request"
   | "waitlist_approved"
@@ -274,7 +275,28 @@ async function processEventReminders(): Promise<void> {
       sentTaskReminders++;
     }
     if (sentTaskReminders > 0) {
-      console.log(`[Reminders] Sent ${sentTaskReminders} task signup reminders`);
+      console.log(`[Reminders] Sent ${sentTaskReminders} task signup 24h reminders`);
+    }
+
+    const taskSignups1h = await storage.getTaskSignupsNeedingReminder1h();
+    let sentTaskReminders1h = 0;
+    for (const signup of taskSignups1h) {
+      const localTime = signup.eventTimezone && signup.eventTimezone !== 'UTC'
+        ? utcToLocal(signup.eventDate, signup.eventStartTime, signup.eventTimezone).time
+        : signup.eventStartTime;
+      const displayTime = formatTime12h(localTime);
+      await sendNotification({
+        recipientId: signup.userId,
+        type: "event_task_reminder_1h",
+        title: "Task Starting Soon",
+        body: `"${signup.taskTitle}" at "${signup.eventTitle}" starts in about 1 hour (${displayTime})`,
+        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId },
+      });
+      await storage.markTaskSignupReminder1hSent(signup.signupId);
+      sentTaskReminders1h++;
+    }
+    if (sentTaskReminders1h > 0) {
+      console.log(`[Reminders] Sent ${sentTaskReminders1h} task signup 1h reminders`);
     }
   } catch (error) {
     console.error("[Reminders] Error processing event reminders:", error);

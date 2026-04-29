@@ -606,6 +606,7 @@ export const eventTaskSignups = pgTable("event_task_signups", {
   taskId: integer("task_id").notNull().references(() => eventSignupTasks.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id),
   reminderSent: boolean("reminder_sent").notNull().default(false),
+  reminderSent1h: boolean("reminder_sent_1h").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
   unique("event_task_signups_task_user_unique").on(table.taskId, table.userId),

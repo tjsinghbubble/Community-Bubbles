@@ -1,0 +1,1 @@
+ALTER TABLE "event_task_signups" ADD COLUMN "reminder_sent_1h" boolean DEFAULT false NOT NULL;
