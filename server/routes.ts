@@ -3582,7 +3582,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/config/share-base-url", (_req, res) => {
-    const baseUrl = process.env.SHARE_BASE_URL || "https://mybubble.trybubble.io";
+    const baseUrl = process.env.SHARE_BASE_URL || "https://trybubble.io";
     res.json({ baseUrl });
   });
 
