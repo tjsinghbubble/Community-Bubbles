@@ -166,6 +166,7 @@ export interface IStorage {
   markTaskSignupReminder1hSent(signupId: number): Promise<void>;
   resetTaskSignupReminder1hFlags(eventId: string): Promise<void>;
   resetTaskSignupReminderFlags(eventId: string): Promise<void>;
+  resetEventReminderFlags(eventId: string): Promise<void>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -1209,6 +1210,15 @@ export class DatabaseStorage implements IStorage {
       .update(eventTaskSignups)
       .set({ reminderSent: false })
       .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
+  }
+
+  // Reset the event-level attendee reminder flags so attendees receive fresh
+  // 24h and 1h push notifications after the event is rescheduled.
+  async resetEventReminderFlags(eventId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({ reminder24hSent: false, reminder1hSent: false })
+      .where(eq(events.id, eventId));
   }
 
   // Campus methods

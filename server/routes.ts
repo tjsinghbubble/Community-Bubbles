@@ -2326,10 +2326,13 @@ export async function registerRoutes(
       const newDate = updateBody.date ?? originalDate;
       const newStartTime = updateBody.startTime ?? originalStartTime;
       if (newDate !== originalDate || newStartTime !== originalStartTime) {
-        // Reset both the 1h and 24h reminder flags so volunteers get fresh
-        // notifications at the new event time rather than being silently skipped.
+        // Reset both the 1h and 24h task-signup reminder flags so volunteers
+        // get fresh notifications at the new event time.
         await storage.resetTaskSignupReminder1hFlags(req.params.id);
         await storage.resetTaskSignupReminderFlags(req.params.id);
+        // Reset the event-level attendee reminder flags so all attendees
+        // receive fresh 24h and 1h push notifications for the new time.
+        await storage.resetEventReminderFlags(req.params.id);
       }
 
       const attendees = await storage.getEventAttendees(req.params.id);
