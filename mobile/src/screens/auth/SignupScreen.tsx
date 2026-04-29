@@ -92,6 +92,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [tosViewed, setTosViewed] = useState(false);
   const [privacyViewed, setPrivacyViewed] = useState(false);
   const canCheckBox = tosViewed && privacyViewed;
+  const [passwordBlurred, setPasswordBlurred] = useState(false);
+  const passwordError = passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
 
   const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
@@ -274,11 +276,12 @@ export default function SignupScreen({ navigation }: Props) {
               <Text style={styles.label}>Password</Text>
               <View style={styles.passwordContainer}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, passwordError && styles.passwordInputError]}
                   placeholder="Create a password"
                   placeholderTextColor={Colors.neutral.coolMist}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => { setPassword(text); setPasswordBlurred(false); }}
+                  onBlur={() => setPasswordBlurred(true)}
                   secureTextEntry={!showPassword}
                   textContentType="newPassword"
                 />
@@ -296,6 +299,7 @@ export default function SignupScreen({ navigation }: Props) {
                 style={[
                   styles.helperText,
                   styles.passwordHint,
+                  passwordError && styles.passwordHintError,
                   password.length >= PASSWORD_MIN_LENGTH && styles.passwordHintMet,
                 ]}
                 testID="text-password-hint"
@@ -497,7 +501,9 @@ const styles = StyleSheet.create({
   selectPlaceholder: { fontSize: 16, color: Colors.neutral.coolMist },
   helperText: { fontSize: 12, color: Colors.neutral.coolMist, lineHeight: 16 },
   passwordHint: { marginTop: 6 },
+  passwordHintError: { color: Colors.status.error },
   passwordHintMet: { color: Colors.status.success },
+  passwordInputError: { borderColor: Colors.status.error },
   termsRow: {
     flexDirection: 'row', alignItems: 'flex-start',
     marginTop: Spacing.md, marginBottom: Spacing.sm,
