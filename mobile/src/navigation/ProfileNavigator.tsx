@@ -95,6 +95,86 @@ function LoginSecurityScreenWithBoundary(props: React.ComponentProps<typeof Logi
   );
 }
 
+function DeactivateReasonScreenWithBoundary(props: React.ComponentProps<typeof DeactivateReasonScreen>) {
+  return (
+    <ScreenErrorBoundary context="DeactivateReasonScreen" message="Couldn't load deactivation options — tap to retry">
+      <DeactivateReasonScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function DeactivateConfirmScreenWithBoundary(props: React.ComponentProps<typeof DeactivateConfirmScreen>) {
+  return (
+    <ScreenErrorBoundary context="DeactivateConfirmScreen" message="Couldn't load deactivation confirmation — tap to retry">
+      <DeactivateConfirmScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function PrivacyScreenWithBoundary(props: React.ComponentProps<typeof PrivacyScreen>) {
+  return (
+    <ScreenErrorBoundary context="PrivacySettingsScreen" message="Couldn't load privacy settings — tap to retry">
+      <PrivacyScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function DataRequestReasonScreenWithBoundary(props: React.ComponentProps<typeof DataRequestReasonScreen>) {
+  return (
+    <ScreenErrorBoundary context="DataRequestReasonScreen" message="Couldn't load data request options — tap to retry">
+      <DataRequestReasonScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function DataConfirmAccountScreenWithBoundary(props: React.ComponentProps<typeof DataConfirmAccountScreen>) {
+  return (
+    <ScreenErrorBoundary context="DataConfirmAccountScreen" message="Couldn't load account confirmation — tap to retry">
+      <DataConfirmAccountScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function GetHelpScreenWithBoundary(props: React.ComponentProps<typeof GetHelpScreen>) {
+  return (
+    <ScreenErrorBoundary context="GetHelpScreen" message="Couldn't load help options — tap to retry">
+      <GetHelpScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function GiveFeedbackScreenWithBoundary(props: React.ComponentProps<typeof GiveFeedbackScreen>) {
+  return (
+    <ScreenErrorBoundary context="GiveFeedbackScreen" message="Couldn't load feedback form — tap to retry">
+      <GiveFeedbackScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function HelpCenterScreenWithBoundary(props: React.ComponentProps<typeof HelpCenterScreen>) {
+  return (
+    <ScreenErrorBoundary context="HelpCenterScreen" message="Couldn't load the help center — tap to retry">
+      <HelpCenterScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ReportConcernScreenWithBoundary(props: React.ComponentProps<typeof ReportConcernScreen>) {
+  return (
+    <ScreenErrorBoundary context="ReportConcernScreen" message="Couldn't load report concern — tap to retry">
+      <ReportConcernScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ManageRulesScreenWithBoundary(props: React.ComponentProps<typeof ManageRulesScreen>) {
+  return (
+    <ScreenErrorBoundary context="ManageRulesScreen" message="Couldn't load rules — tap to retry">
+      <ManageRulesScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ProfileNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
@@ -107,16 +187,16 @@ export default function ProfileNavigator() {
       <Stack.Screen name="AccountSettings" component={AccountSettingsScreenWithBoundary} />
       <Stack.Screen name="PersonalInformation" component={PersonalInformationScreen} />
       <Stack.Screen name="LoginSecurity" component={LoginSecurityScreenWithBoundary} />
-      <Stack.Screen name="DeactivateReason" component={DeactivateReasonScreen} />
-      <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreen} />
-      <Stack.Screen name="PrivacySettings" component={PrivacyScreen} />
-      <Stack.Screen name="DataRequestReason" component={DataRequestReasonScreen} />
-      <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreen} options={{ presentation: 'transparentModal', animation: 'fade' }} />
-      <Stack.Screen name="GetHelp" component={GetHelpScreen} />
-      <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreen} />
-      <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
-      <Stack.Screen name="ReportConcern" component={ReportConcernScreen} />
-      <Stack.Screen name="ManageRules" component={ManageRulesScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="DeactivateReason" component={DeactivateReasonScreenWithBoundary} />
+      <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreenWithBoundary} />
+      <Stack.Screen name="PrivacySettings" component={PrivacyScreenWithBoundary} />
+      <Stack.Screen name="DataRequestReason" component={DataRequestReasonScreenWithBoundary} />
+      <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreenWithBoundary} options={{ presentation: 'transparentModal', animation: 'fade' }} />
+      <Stack.Screen name="GetHelp" component={GetHelpScreenWithBoundary} />
+      <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreenWithBoundary} />
+      <Stack.Screen name="HelpCenter" component={HelpCenterScreenWithBoundary} />
+      <Stack.Screen name="ReportConcern" component={ReportConcernScreenWithBoundary} />
+      <Stack.Screen name="ManageRules" component={ManageRulesScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreen} />
       <Stack.Screen name="ErrorLog" component={ErrorLogScreen} />
       <Stack.Screen name="SlowCallTrends" component={SlowCallTrendsScreen} />
