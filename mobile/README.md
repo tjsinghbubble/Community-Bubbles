@@ -32,6 +32,37 @@ SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project>
 
 **Important**: Replace `YOUR_COMPUTER_IP` with your actual local IP address (not localhost) so the mobile app can connect to the backend server.
 
+#### Sentry Dashboard
+
+The team's stability dashboard lives at:
+
+> **[https://sentry.io/organizations/YOUR-ORG/dashboards/1/](https://sentry.io/organizations/YOUR-ORG/dashboards/1/)**
+>
+> *(Replace `YOUR-ORG` and the dashboard ID with the values printed after running `setup-sentry-dashboard.js` — see below.)*
+
+The dashboard contains three widgets that give an at-a-glance view of app health before each release:
+
+| Widget | What it shows |
+|---|---|
+| **Crash-Free Sessions %** | Daily line chart of `crash_free_rate(session)` — the % of sessions that did not end in a crash |
+| **Error Volume by Screen** | Top-N bar chart of error counts grouped by the `screen` tag so the noisiest screens are immediately visible |
+| **Top Errors by User Count** | Table of issues sorted by the number of distinct affected users |
+
+**Creating the dashboard** (one-time setup, run by a team member with Sentry org-admin access):
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_...   \
+SENTRY_ORG=your-org-slug       \
+SENTRY_PROJECT=your-project-slug \
+node mobile/scripts/setup-sentry-dashboard.js
+```
+
+Generate an auth token at **Sentry → Settings → Account → API Auth Tokens** with the `org:read` and `dashboards:write` scopes. The script is idempotent and prints the final dashboard URL — paste it above to replace the placeholder.
+
+See `mobile/SENTRY_DASHBOARD_SETUP.md` for full configuration details and a manual-setup guide.
+
+---
+
 #### Crash Reporting (Sentry)
 
 The app uses Sentry to capture and report screen-level crashes to the team. `ScreenErrorBoundary` automatically sends every caught error to Sentry, tagged with the screen context so issues appear grouped in the Sentry dashboard.

@@ -42,6 +42,7 @@ export function initSentry(): void {
       debug: __DEV__,
       enableNativeNagger: false,
       tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+      autoSessionTracking: true,
       integrations: _navigationIntegration ? [_navigationIntegration] : [],
     });
     Sentry.addBreadcrumb({
