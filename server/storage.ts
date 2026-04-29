@@ -86,6 +86,8 @@ import {
   crashReports,
   type CrashReport,
   type InsertCrashReport,
+  apiLatencySamples,
+  type ApiLatencySample,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -327,6 +329,12 @@ export interface IStorage {
   insertCrashReport(data: InsertCrashReport): Promise<CrashReport>;
   queryCrashReports(opts?: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number }): Promise<CrashReport[]>;
   purgeCrashReports(olderThanDays?: number): Promise<number>;
+
+  // API Latency Samples (persisted aggregates)
+  insertLatencySamples(rows: Omit<ApiLatencySample, 'id' | 'recordedAt'>[]): Promise<void>;
+  getLatestLatencySamples(): Promise<ApiLatencySample[]>;
+  purgeOldLatencySamples(olderThanDays?: number): Promise<void>;
+  deleteAllLatencySamples(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2560,6 +2568,58 @@ export class DatabaseStorage implements IStorage {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
     const result = await db.delete(crashReports).where(lt(crashReports.createdAt, cutoff));
     return (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  }
+
+  async insertLatencySamples(rows: Omit<ApiLatencySample, 'id' | 'recordedAt'>[]): Promise<void> {
+    if (rows.length === 0) return;
+    await db.insert(apiLatencySamples).values(rows);
+  }
+
+  async getLatestLatencySamples(): Promise<ApiLatencySample[]> {
+    // Return the single most-recent snapshot per (method, endpoint) pair
+    const subquery = db
+      .select({
+        method: apiLatencySamples.method,
+        endpoint: apiLatencySamples.endpoint,
+        maxRecordedAt: max(apiLatencySamples.recordedAt).as("max_recorded_at"),
+      })
+      .from(apiLatencySamples)
+      .groupBy(apiLatencySamples.method, apiLatencySamples.endpoint)
+      .as("latest");
+
+    return db
+      .select({
+        id: apiLatencySamples.id,
+        method: apiLatencySamples.method,
+        endpoint: apiLatencySamples.endpoint,
+        count: apiLatencySamples.count,
+        p50Ms: apiLatencySamples.p50Ms,
+        p95Ms: apiLatencySamples.p95Ms,
+        p99Ms: apiLatencySamples.p99Ms,
+        avgMs: apiLatencySamples.avgMs,
+        maxMs: apiLatencySamples.maxMs,
+        errorRate: apiLatencySamples.errorRate,
+        recordedAt: apiLatencySamples.recordedAt,
+      })
+      .from(apiLatencySamples)
+      .innerJoin(
+        subquery,
+        and(
+          eq(apiLatencySamples.method, subquery.method),
+          eq(apiLatencySamples.endpoint, subquery.endpoint),
+          eq(apiLatencySamples.recordedAt, subquery.maxRecordedAt),
+        ),
+      )
+      .orderBy(desc(apiLatencySamples.p95Ms));
+  }
+
+  async purgeOldLatencySamples(olderThanDays = 7): Promise<void> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    await db.delete(apiLatencySamples).where(lt(apiLatencySamples.recordedAt, cutoff));
+  }
+
+  async deleteAllLatencySamples(): Promise<void> {
+    await db.delete(apiLatencySamples);
   }
 }
 

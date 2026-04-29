@@ -679,3 +679,20 @@ export const insertSlowCallSchema = createInsertSchema(slowCalls).omit({
 
 export type SlowCall = typeof slowCalls.$inferSelect;
 export type InsertSlowCall = z.infer<typeof insertSlowCallSchema>;
+
+// Aggregated API latency snapshots — flushed periodically from in-memory store
+export const apiLatencySamples = pgTable("api_latency_samples", {
+  id: serial("id").primaryKey(),
+  method: text("method").notNull(),
+  endpoint: text("endpoint").notNull(),
+  count: integer("count").notNull(),
+  p50Ms: integer("p50_ms").notNull(),
+  p95Ms: integer("p95_ms").notNull(),
+  p99Ms: integer("p99_ms").notNull(),
+  avgMs: integer("avg_ms").notNull(),
+  maxMs: integer("max_ms").notNull(),
+  errorRate: integer("error_rate").notNull(),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});
+
+export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;

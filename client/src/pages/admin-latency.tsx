@@ -230,7 +230,7 @@ export default function AdminLatency() {
               </div>
               <h2 className="text-[17px] font-bold" data-testid="text-confirm-reset-title">Reset all metrics?</h2>
               <p className="mt-2 text-[13px] text-muted-foreground">
-                This will clear all collected request samples from memory. New data will accumulate immediately.
+                This will clear all collected request samples from memory and the database. New data will accumulate immediately.
               </p>
               <div className="mt-5 flex gap-3">
                 <button
@@ -430,7 +430,7 @@ export default function AdminLatency() {
             )}
 
             <p className="text-center text-[10px] text-muted-foreground">
-              Data is held in-memory and resets on server restart. Sorted by{" "}
+              Metrics are persisted to the database every 5 minutes and survive server restarts. Sorted by{" "}
               <strong>{sortKey}</strong> {sortDir === "desc" ? "↓" : "↑"}.
             </p>
           </div>

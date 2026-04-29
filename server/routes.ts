@@ -1201,11 +1201,81 @@ export async function registerRoutes(
   storage.purgeOldSlowCalls(30).catch(() => {});
   setInterval(() => storage.purgeOldSlowCalls(30).catch(() => {}), 24 * 60 * 60 * 1000);
 
+  // Latency retention window (days); tune via env var (must be a positive integer, defaults to 7)
+  const _rawRetentionDays = parseInt(process.env.LATENCY_RETENTION_DAYS ?? "7", 10);
+  const LATENCY_RETENTION_DAYS = Number.isFinite(_rawRetentionDays) && _rawRetentionDays > 0 ? _rawRetentionDays : 7;
+
+  // Flush in-memory metrics to the database periodically
+  const LATENCY_FLUSH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Track the timestamp of the last successful flush so we only persist
+  // metrics for endpoints that have seen new activity since then (avoids
+  // writing duplicate rows when traffic is idle).
+  let lastFlushTs = 0;
+
+  async function flushLatencyMetrics(): Promise<void> {
+    const flushStartTs = Date.now();
+    const metrics = getMetrics();
+    if (metrics.length === 0) return;
+    // Only persist endpoints that received new requests since the last flush
+    const rows = metrics
+      .filter((m) => m.lastSeenTs > lastFlushTs)
+      .map((m) => ({
+        method: m.method,
+        endpoint: m.endpoint,
+        count: m.count,
+        p50Ms: m.p50Ms,
+        p95Ms: m.p95Ms,
+        p99Ms: m.p99Ms,
+        avgMs: m.avgMs,
+        maxMs: m.maxMs,
+        errorRate: m.errorRate,
+      }));
+    if (rows.length === 0) return;
+    await storage.insertLatencySamples(rows);
+    lastFlushTs = flushStartTs;
+  }
+
+  // Flush on startup (capture any metrics already accumulated), then on interval
+  flushLatencyMetrics().catch(() => {});
+  setInterval(() => flushLatencyMetrics().catch(() => {}), LATENCY_FLUSH_INTERVAL_MS);
+
+  // Prune old latency samples on startup and daily
+  storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {});
+  setInterval(() => storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {}), 24 * 60 * 60 * 1000);
+
   app.get("/api/admin/latency", authMiddleware, async (req, res) => {
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const metrics = getMetrics();
+
+      // Merge: in-memory metrics take priority (most recent data since last flush);
+      // DB samples fill in endpoints that dropped out of the in-memory window.
+      const inMemory = getMetrics();
+      const inMemoryKeys = new Set(inMemory.map((m) => `${m.method} ${m.endpoint}`));
+
+      const dbSamples = await storage.getLatestLatencySamples();
+      const dbMetrics = dbSamples
+        .filter((s) => !inMemoryKeys.has(`${s.method} ${s.endpoint}`))
+        .map((s) => ({
+          method: s.method,
+          endpoint: s.endpoint,
+          count: s.count,
+          p50Ms: s.p50Ms,
+          p95Ms: s.p95Ms,
+          p99Ms: s.p99Ms,
+          avgMs: s.avgMs,
+          maxMs: s.maxMs,
+          errorRate: s.errorRate,
+          lastSeenTs: s.recordedAt.getTime(),
+          fromDb: true,
+        }));
+
+      const metrics = [
+        ...inMemory,
+        ...dbMetrics,
+      ].sort((a, b) => b.p95Ms - a.p95Ms);
+
       res.json({ metrics, generatedAt: new Date().toISOString() });
     } catch (error: unknown) {
       serverError(res, error);
@@ -1217,6 +1287,7 @@ export async function registerRoutes(
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       resetMetrics();
+      await storage.deleteAllLatencySamples();
       res.json({ ok: true });
     } catch (error: unknown) {
       serverError(res, error);
