@@ -80,6 +80,11 @@ const _recentMessages = new Map<string, number>();
 
 export function isDuplicate(key: string): boolean {
   const now = Date.now();
+  for (const [k, ts] of _recentMessages) {
+    if (now - ts >= DEDUP_WINDOW_MS) {
+      _recentMessages.delete(k);
+    }
+  }
   const last = _recentMessages.get(key);
   if (last !== undefined && now - last < DEDUP_WINDOW_MS) {
     return true;
@@ -90,6 +95,10 @@ export function isDuplicate(key: string): boolean {
 
 export function resetDedupCache(): void {
   _recentMessages.clear();
+}
+
+export function dedupCacheSize(): number {
+  return _recentMessages.size;
 }
 
 export function buildReport(error: Error, context?: string, isFatal = false): CrashReport {

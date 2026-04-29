@@ -48,6 +48,7 @@ import {
   DEDUP_WINDOW_MS,
   isDuplicate,
   resetDedupCache,
+  dedupCacheSize,
 } from '../crashReporter';
 
 function makeError(message: string, stackLength: number): Error {
@@ -895,6 +896,40 @@ describe('deduplication guard — isDuplicate', () => {
 
   it('exports DEDUP_WINDOW_MS as 500', () => {
     expect(DEDUP_WINDOW_MS).toBe(500);
+  });
+
+  it('evicts expired entries so the cache does not retain stale keys', () => {
+    const staleKeys = ['stale-a', 'stale-b', 'stale-c'];
+    staleKeys.forEach((k) => isDuplicate(k));
+
+    expect(dedupCacheSize()).toBe(3);
+
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS);
+
+    isDuplicate('trigger-sweep');
+
+    expect(dedupCacheSize()).toBe(1);
+
+    staleKeys.forEach((k) => {
+      expect(isDuplicate(k)).toBe(false);
+    });
+  });
+
+  it('keeps memory bounded: expired keys are removed, not just re-evaluated', () => {
+    for (let i = 0; i < 100; i++) {
+      isDuplicate(`unique-key-${i}`);
+    }
+
+    expect(dedupCacheSize()).toBe(100);
+
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS);
+
+    isDuplicate('sweep-trigger');
+
+    expect(dedupCacheSize()).toBe(1);
+
+    expect(isDuplicate('fresh-key')).toBe(false);
+    expect(isDuplicate('fresh-key')).toBe(true);
   });
 });
 
