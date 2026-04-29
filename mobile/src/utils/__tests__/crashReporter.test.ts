@@ -1050,8 +1050,12 @@ describe('measureScreenLoad', () => {
 
   beforeEach(() => {
     mockCurrentScope = { setTag: jest.fn() };
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     (Sentry.getCurrentScope as jest.Mock).mockReturnValue(mockCurrentScope);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('resolves with the value returned by work', async () => {
@@ -1238,6 +1242,101 @@ describe('measureScreenLoad', () => {
     await expect(
       measureScreenLoad('SafeScreen', async () => 'value'),
     ).resolves.toBe('value');
+  });
+
+  it('does not call end() when isRecording() returns false (span expired mid-load)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ExpiredScreen', async () => 'ok');
+
+    expect(childSpan.end).not.toHaveBeenCalled();
+  });
+
+  it('does not call finish() when isRecording() returns false (span expired mid-load)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { finish: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ExpiredScreen', async () => 'ok');
+
+    expect(childSpan.finish).not.toHaveBeenCalled();
+  });
+
+  it('emits console.warn when the child span has already ended (isRecording() === false)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ExpiredScreen', async () => 'ok');
+
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    const warnArg = warnSpy.mock.calls[0][0] as string;
+    expect(warnArg).toContain('ExpiredScreen');
+    expect(warnArg).toContain('already ended');
+  });
+
+  it('adds a Sentry breadcrumb with level warning when isRecording() returns false', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ExpiredScreen', async () => 'ok');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'warning',
+        category: 'performance',
+        message: expect.stringContaining('ExpiredScreen'),
+      }),
+    );
+  });
+
+  it('still records the measurement even when the child span has already ended', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await measureScreenLoad('ExpiredScreen', async () => 'ok');
+
+    expect(Sentry.setMeasurement).toHaveBeenCalledWith(
+      'screen_load_ms',
+      expect.any(Number),
+      'millisecond',
+    );
+  });
+
+  it('calls end() normally when isRecording() returns true', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(true) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('ActiveScreen', async () => 'ok');
+
+    expect(childSpan.end).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls end() normally when isRecording is absent (older SDK, no guard needed)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('OldSdkScreen', async () => 'ok');
+
+    expect(childSpan.end).toHaveBeenCalledTimes(1);
   });
 });
 

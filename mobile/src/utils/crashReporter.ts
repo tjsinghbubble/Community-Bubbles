@@ -273,8 +273,21 @@ export async function measureScreenLoad<T>(
       // End only the dedicated child span — never the root transaction.
       // Sentry v7+ uses end(); finish() is a fallback for older SDK builds.
       if (childSpan) {
-        const span = childSpan as { end?: () => void; finish?: () => void };
-        (span.end ?? span.finish)?.();
+        const span = childSpan as { end?: () => void; finish?: () => void; isRecording?: () => boolean };
+        // isRecording() returns false when the span has already been ended (e.g.
+        // it timed out during a long async load).  Calling end()/finish() on a
+        // finished span may silently discard the measurement, so we skip the
+        // call and emit an observable warning instead so the team can detect
+        // data loss in development and via Sentry breadcrumbs in production.
+        const recording = span.isRecording?.();
+        if (recording === false) {
+          const msg = `[PerfTrace] ${screenName}: child span already ended before finish — screen_load_ms measurement may be lost`;
+          console.warn(msg);
+          Sentry.addBreadcrumb({ level: 'warning', category: 'performance', message: msg });
+        } else {
+          // recording === true OR isRecording is absent (older SDK) — proceed normally.
+          (span.end ?? span.finish)?.();
+        }
       }
       if (__DEV__) {
         console.log(`[PerfTrace] ${screenName} loaded in ${durationMs} ms`);
