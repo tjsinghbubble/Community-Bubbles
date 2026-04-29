@@ -1432,6 +1432,14 @@ export async function registerRoutes(
         "Member Left", `${leaverUser?.name || 'Someone'} left ${leaveBubble?.title || 'the bubble'}`,
         { bubbleId, bubbleName: leaveBubble?.title, userId: req.userId!, userName: leaverUser?.name },
         true);
+
+      sendNotification({
+        recipientId: req.userId!,
+        type: "bubble_member_removed",
+        title: "Left Bubble",
+        body: `You've left ${leaveBubble?.title || 'the bubble'}. Your DM conversations with that bubble have been hidden.`,
+        metadata: { bubbleId, bubbleName: leaveBubble?.title },
+      });
       
       res.json({ success: true });
     } catch (error: any) {
@@ -1702,7 +1710,7 @@ export async function registerRoutes(
         recipientId: userId,
         type: "bubble_member_removed",
         title: "Removed from Bubble",
-        body: `You've been removed from ${kickBubble?.title || 'the bubble'}.`,
+        body: `You've been removed from ${kickBubble?.title || 'the bubble'}. Your DM conversations with that bubble have been hidden.`,
         metadata: { bubbleId, bubbleName: kickBubble?.title },
       });
       

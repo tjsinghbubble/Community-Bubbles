@@ -25,6 +25,7 @@ import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import unreadEvents from '../../utils/unreadEvents';
+import { showToast } from '../../components/Toast';
 
 type Conversation = {
   conversationId: string;
@@ -69,6 +70,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   const [onlinePeerUids, setOnlinePeerUids] = useState<Set<string>>(new Set());
   const peerUidByGuid = React.useRef<Record<string, string>>({});
   const hasAutoNavigated = React.useRef(false);
+  const prevDmGuidsRef = React.useRef<Set<string>>(new Set());
 
   const fetchBubbleImages = async (convs: Conversation[]) => {
     const imageMap: Record<string, string | null> = {};
@@ -208,6 +210,15 @@ export default function MessagesScreen({ navigation, route }: Props) {
     }
     if (deletedBubbles.size > 0) {
       setDeletedContactBubbleIds(prev => new Set([...prev, ...deletedBubbles]));
+      const count = deletedBubbles.size;
+      showToast({
+        message:
+          count === 1
+            ? '1 conversation hidden — that bubble no longer exists'
+            : `${count} conversations hidden — those bubbles no longer exist`,
+        type: 'info',
+        duration: 5000,
+      });
     }
   };
 
@@ -229,6 +240,47 @@ export default function MessagesScreen({ navigation, route }: Props) {
       setApprovedBubbleIds(ids);
 
       const convs = firstPage as unknown as Conversation[];
+
+      // Build the full set of adm_+contact_ GUIDs present in this fetch
+      const currentAllDmGuids = new Set(
+        convs
+          .filter(c => c.conversationWith.guid.startsWith('adm_') || c.conversationWith.guid.startsWith('contact_'))
+          .map(c => c.conversationWith.guid)
+      );
+
+      // Case 1: adm_ threads still in CometChat but filtered out because the user
+      // is no longer an approved member of that bubble.
+      const hiddenByMembership = convs.filter((conv) => {
+        const guid = conv.conversationWith.guid;
+        if (guid.startsWith('adm_')) {
+          const m = guid.match(/^adm_(.+)_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/);
+          if (m && !ids.has(m[1])) return true;
+        }
+        return false;
+      }).length;
+
+      // Case 2: adm_+contact_ threads that were present last time but are now
+      // completely absent from CometChat (already cleaned up server-side).
+      const hiddenByDelta = prevDmGuidsRef.current.size > 0
+        ? [...prevDmGuidsRef.current].filter(guid => !currentAllDmGuids.has(guid)).length
+        : 0;
+
+      // Update the ref for next comparison (full set, including membership-filtered ones,
+      // so we can detect if they later disappear from CometChat too).
+      prevDmGuidsRef.current = currentAllDmGuids;
+
+      const totalHidden = hiddenByMembership + hiddenByDelta;
+      if (totalHidden > 0) {
+        showToast({
+          message:
+            totalHidden === 1
+              ? '1 conversation hidden — you\'re no longer a member of that bubble'
+              : `${totalHidden} conversations hidden — you\'re no longer a member of those bubbles`,
+          type: 'info',
+          duration: 5000,
+        });
+      }
+
       setConversations(convs);
       setHasMore(more);
       fetchBubbleImages(convs);
