@@ -49,6 +49,7 @@ export function initSentry(): void {
     Sentry.init({
       dsn,
       release,
+      dist: buildNumber || undefined,
       environment: __DEV__ ? 'development' : 'production',
       debug: __DEV__,
       enableNativeNagger: false,

@@ -16,6 +16,7 @@ module.exports = {
         url: 'https://sentry.io/',
         authToken: process.env.SENTRY_AUTH_TOKEN ?? '',
         release: releaseSlug,
+        dist: buildNumber,
       },
     ],
   ],
