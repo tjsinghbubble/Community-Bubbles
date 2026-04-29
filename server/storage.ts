@@ -152,7 +152,7 @@ export interface IStorage {
   getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]>;
   markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void>;
   getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
-  getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
+  getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminderSent(signupId: number): Promise<void>;
   getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminder1hSent(signupId: number): Promise<void>;
@@ -1087,13 +1087,14 @@ export class DatabaseStorage implements IStorage {
     return attendees.map(a => a.userId);
   }
 
-  async getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
+  async getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
     const now = new Date();
     const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const rows = await db
       .select({
         signupId: eventTaskSignups.id,
         userId: eventTaskSignups.userId,
+        taskId: eventSignupTasks.id,
         taskTitle: eventSignupTasks.title,
         eventId: events.id,
         eventTitle: events.title,

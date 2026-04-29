@@ -71,7 +71,7 @@ export type ExploreStackParamList = {
   BubbleEvents: { bubbleId: string; bubbleTitle: string };
   CreateBubble: undefined;
   CreateEvent: { bubbleId?: string; bubbleTitle?: string };
-  EventDetails: { eventId: string; event?: EventData; bubbleTitle?: string; source?: string; bubbleId?: string };
+  EventDetails: { eventId: string; event?: EventData; bubbleTitle?: string; source?: string; bubbleId?: string; highlightTaskId?: string };
   CampusJoin: undefined;
   CampusVerify: { email: string; campusName: string };
   EditBubble: { bubble: BubbleData };

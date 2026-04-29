@@ -39,6 +39,7 @@ type NotificationMetadata = {
   bubbleName?: string;
   eventId?: string;
   eventName?: string;
+  taskId?: string;
   userId?: string;
   userName?: string;
   reason?: string;
@@ -269,7 +270,7 @@ async function processEventReminders(): Promise<void> {
         type: "event_task_reminder_24h",
         title: "Task Reminder",
         body: `You signed up for "${signup.taskTitle}" at "${signup.eventTitle}" tomorrow at ${displayTime}`,
-        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId },
+        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId, taskId: String(signup.taskId) },
       });
       await storage.markTaskSignupReminderSent(signup.signupId);
       sentTaskReminders++;

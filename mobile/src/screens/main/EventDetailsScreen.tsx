@@ -100,7 +100,7 @@ type SignupTask = {
 const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -149,6 +149,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const activeHoverRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingDragRef = useRef<{ id: number; index: number; origY: number; pageY: number } | null>(null);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tasksYRef = useRef<number>(0);
+  const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
+  const appliedHighlightRef = useRef<string | null>(null);
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -248,6 +253,17 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   };
 
   const lastFetchRef = useRef(0);
+
+  useEffect(() => {
+    if (!highlightTaskId || signupTasks.length === 0) return;
+    if (appliedHighlightRef.current === highlightTaskId) return;
+    appliedHighlightRef.current = highlightTaskId;
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: tasksYRef.current, animated: true });
+      setHighlightedTaskId(highlightTaskId);
+      setTimeout(() => setHighlightedTaskId(null), 3000);
+    }, 300);
+  }, [highlightTaskId, signupTasks]);
 
   useFocusEffect(
     useCallback(() => {
@@ -785,7 +801,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         />
       )}
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView ref={scrollViewRef} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {hasImages && (
           <View style={styles.coverImageContainer}>
             {eventImages.length === 1 ? (
@@ -966,7 +982,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        <View style={styles.bulletinSection}>
+        <View style={styles.bulletinSection} onLayout={(e) => { tasksYRef.current = e.nativeEvent.layout.y; }}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>
               Sign-Up and Help {creatorName}
@@ -1004,7 +1020,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   key={task.id}
                   activeOpacity={canToggle ? 0.7 : 1}
-                  style={[styles.taskCard, task.hasSignedUp && styles.taskCardSigned]}
+                  style={[styles.taskCard, task.hasSignedUp && styles.taskCardSigned, highlightedTaskId === String(task.id) && styles.taskCardHighlighted]}
                   onPress={() => { if (canToggle) handleToggleSignup(task); }}
                   onLongPress={() => { if (canManage) showTaskOptions(task); }}
                   delayLongPress={400}
@@ -1870,6 +1886,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.brand.primary,
     borderWidth: 1.5,
     backgroundColor: '#F0F8FF',
+  },
+  taskCardHighlighted: {
+    borderColor: Colors.status.warning,
+    borderWidth: 2,
+    backgroundColor: Colors.background.warningTint,
   },
   signedBadge: {
     marginLeft: Spacing.sm,

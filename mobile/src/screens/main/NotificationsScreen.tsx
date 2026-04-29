@@ -157,9 +157,13 @@ export default function NotificationsScreen() {
         params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
       });
     } else if (meta.eventId) {
+      const eventParams: Record<string, string> = { eventId: meta.eventId, bubbleId: meta.bubbleId, bubbleTitle: meta.bubbleName };
+      if (notif.type === 'event_task_reminder_24h' && meta.taskId) {
+        eventParams.highlightTaskId = meta.taskId;
+      }
       (navigation as any).navigate('Explore', {
         screen: 'EventDetails',
-        params: { eventId: meta.eventId, bubbleId: meta.bubbleId, bubbleTitle: meta.bubbleName },
+        params: eventParams,
       });
     }
   };
