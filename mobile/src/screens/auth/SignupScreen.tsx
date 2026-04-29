@@ -94,6 +94,8 @@ export default function SignupScreen({ navigation }: Props) {
   const canCheckBox = tosViewed && privacyViewed;
   const [passwordBlurred, setPasswordBlurred] = useState(false);
   const passwordError = passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
+  const [emailBlurred, setEmailBlurred] = useState(false);
+  const emailError = emailBlurred && email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
@@ -257,18 +259,19 @@ export default function SignupScreen({ navigation }: Props) {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, emailError && styles.emailInputError]}
                 placeholder="john.doe@gmail.com"
                 placeholderTextColor={Colors.neutral.coolMist}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => { setEmail(text); setEmailBlurred(false); }}
+                onBlur={() => setEmailBlurred(true)}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
               />
-              <Text style={styles.helperText}>
-                We'll email you with occasional updates on your communities.
+              <Text style={[styles.helperText, emailError && styles.emailHelperError]}>
+                {emailError ? 'Please enter a valid email address.' : 'We\'ll email you with occasional updates on your communities.'}
               </Text>
             </View>
 
@@ -504,6 +507,8 @@ const styles = StyleSheet.create({
   passwordHintError: { color: Colors.status.error },
   passwordHintMet: { color: Colors.status.success },
   passwordInputError: { borderColor: Colors.status.error },
+  emailInputError: { borderColor: Colors.status.error },
+  emailHelperError: { color: Colors.status.error },
   termsRow: {
     flexDirection: 'row', alignItems: 'flex-start',
     marginTop: Spacing.md, marginBottom: Spacing.sm,
