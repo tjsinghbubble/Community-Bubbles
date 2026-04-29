@@ -67,6 +67,24 @@ export const MAX_MESSAGE_CHARS = 1024;
 export const MAX_STACK_CHARS = 4096;
 export const MAX_CONTEXT_CHARS = 2048;
 
+export const DEDUP_WINDOW_MS = 500;
+
+const _recentMessages = new Map<string, number>();
+
+export function isDuplicate(key: string): boolean {
+  const now = Date.now();
+  const last = _recentMessages.get(key);
+  if (last !== undefined && now - last < DEDUP_WINDOW_MS) {
+    return true;
+  }
+  _recentMessages.set(key, now);
+  return false;
+}
+
+export function resetDedupCache(): void {
+  _recentMessages.clear();
+}
+
 export function buildReport(error: Error, context?: string, isFatal = false): CrashReport {
   let message = error.message;
   if (message && message.length > MAX_MESSAGE_CHARS) {
@@ -126,13 +144,20 @@ export function reportFatalError(
   });
 }
 
+/**
+ * @param options.bypass - When true, skips the dedup guard so the event always
+ *   reaches Sentry regardless of how recently the same message was sent.
+ *   Use for high-priority or one-off events that must never be silently dropped.
+ */
 export function logAppEvent(
   message: string,
   attributes?: Record<string, string | number | boolean>,
+  options?: { bypass?: boolean },
 ): void {
   if (__DEV__) {
     console.log(`[AppEvent] ${message}`, attributes ?? {});
   }
+  if (!options?.bypass && isDuplicate(`event:${message}`)) return;
   Sentry.addBreadcrumb({
     category: 'app.event',
     message,
@@ -141,11 +166,18 @@ export function logAppEvent(
   });
 }
 
+/**
+ * @param options.bypass - When true, skips the dedup guard so the warning always
+ *   reaches Sentry regardless of how recently the same message was sent.
+ *   Use for high-priority or one-off warnings that must never be silently dropped.
+ */
 export function logAppWarn(
   message: string,
   attributes?: Record<string, string | number | boolean>,
+  options?: { bypass?: boolean },
 ): void {
   console.warn(`[AppWarn] ${message}`, attributes ?? {});
+  if (!options?.bypass && isDuplicate(`warn:${message}`)) return;
   Sentry.withScope((scope) => {
     if (attributes) {
       Object.entries(attributes).forEach(([k, v]) => scope.setExtra(k, v));

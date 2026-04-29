@@ -39,6 +39,9 @@ import {
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
   TRUNCATION_SUFFIX,
+  DEDUP_WINDOW_MS,
+  isDuplicate,
+  resetDedupCache,
 } from '../crashReporter';
 
 function makeError(message: string, stackLength: number): Error {
@@ -350,6 +353,7 @@ describe('reportFatalError', () => {
 describe('logAppEvent', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetDedupCache();
   });
 
   it('calls Sentry.addBreadcrumb with level "info"', () => {
@@ -397,6 +401,7 @@ describe('logAppWarn', () => {
   beforeEach(() => {
     mockScope = makeMockScope();
     jest.clearAllMocks();
+    resetDedupCache();
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
     );
@@ -836,5 +841,163 @@ describe('installGlobalHandlers', () => {
 
       expect(() => callback(new Error('no previous handler'))).not.toThrow();
     });
+  });
+});
+
+describe('deduplication guard — isDuplicate', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    resetDedupCache();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('returns false on the first call for a key', () => {
+    expect(isDuplicate('some-key')).toBe(false);
+  });
+
+  it('returns true when the same key is seen again within the dedup window', () => {
+    isDuplicate('repeat-key');
+
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS - 1);
+
+    expect(isDuplicate('repeat-key')).toBe(true);
+  });
+
+  it('returns false when the dedup window has fully elapsed', () => {
+    isDuplicate('expired-key');
+
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS);
+
+    expect(isDuplicate('expired-key')).toBe(false);
+  });
+
+  it('treats different keys as independent entries', () => {
+    isDuplicate('key-a');
+
+    expect(isDuplicate('key-b')).toBe(false);
+  });
+
+  it('resetDedupCache clears all tracked keys so they are no longer duplicates', () => {
+    isDuplicate('cached-key');
+    resetDedupCache();
+
+    expect(isDuplicate('cached-key')).toBe(false);
+  });
+
+  it('exports DEDUP_WINDOW_MS as 500', () => {
+    expect(DEDUP_WINDOW_MS).toBe(500);
+  });
+});
+
+describe('logAppWarn — deduplication guard', () => {
+  let mockScope: MockScope;
+
+  beforeEach(() => {
+    mockScope = makeMockScope();
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    resetDedupCache();
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: MockScope) => void) => { cb(mockScope); },
+    );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('sends only the first of several identical warnings within the dedup window', () => {
+    logAppWarn('network error');
+    logAppWarn('network error');
+    logAppWarn('network error');
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows a second send after the dedup window expires', () => {
+    logAppWarn('cache miss');
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS);
+    jest.clearAllMocks();
+
+    logAppWarn('cache miss');
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not deduplicate distinct warning messages', () => {
+    logAppWarn('warning-alpha');
+    logAppWarn('warning-beta');
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('bypasses dedup and always fires when bypass option is true', () => {
+    logAppWarn('forced warning', undefined, { bypass: true });
+    logAppWarn('forced warning', undefined, { bypass: true });
+    logAppWarn('forced warning', undefined, { bypass: true });
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not apply bypass when the option is false', () => {
+    logAppWarn('guarded warning', undefined, { bypass: false });
+    logAppWarn('guarded warning', undefined, { bypass: false });
+
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('logAppEvent — deduplication guard', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.clearAllMocks();
+    resetDedupCache();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('sends only the first of several identical events within the dedup window', () => {
+    logAppEvent('screen_view');
+    logAppEvent('screen_view');
+    logAppEvent('screen_view');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows a second send after the dedup window expires', () => {
+    logAppEvent('tap');
+    jest.advanceTimersByTime(DEDUP_WINDOW_MS);
+    jest.clearAllMocks();
+
+    logAppEvent('tap');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not deduplicate distinct event messages', () => {
+    logAppEvent('event-one');
+    logAppEvent('event-two');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(2);
+  });
+
+  it('bypasses dedup and always fires when bypass option is true', () => {
+    logAppEvent('forced-event', undefined, { bypass: true });
+    logAppEvent('forced-event', undefined, { bypass: true });
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not deduplicate events separately from warnings with the same text', () => {
+    logAppEvent('shared-key');
+    logAppWarn('shared-key');
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+    expect(Sentry.captureMessage).toHaveBeenCalledTimes(1);
   });
 });
