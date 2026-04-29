@@ -293,6 +293,7 @@ export interface IStorage {
   createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask>;
   updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined>;
   deleteEventSignupTask(taskId: number): Promise<void>;
+  reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<void>;
   joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }>;
   leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
 }
@@ -2297,6 +2298,17 @@ export class DatabaseStorage implements IStorage {
   async deleteEventSignupTask(taskId: number): Promise<void> {
     await db.delete(eventTaskSignups).where(eq(eventTaskSignups.taskId, taskId));
     await db.delete(eventSignupTasks).where(eq(eventSignupTasks.id, taskId));
+  }
+
+  async reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < taskIds.length; i++) {
+        await tx
+          .update(eventSignupTasks)
+          .set({ position: i })
+          .where(and(eq(eventSignupTasks.id, taskIds[i]), eq(eventSignupTasks.eventId, eventId)));
+      }
+    });
   }
 
   async getEventSignupTask(taskId: number): Promise<EventSignupTask | undefined> {

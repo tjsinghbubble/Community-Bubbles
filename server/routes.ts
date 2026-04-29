@@ -2662,6 +2662,40 @@ export async function registerRoutes(
     }
   });
 
+  // PATCH /api/events/:id/signup-tasks/reorder — reorder tasks by position
+  // NOTE: Must be declared BEFORE /:taskId to avoid Express capturing "reorder" as a taskId
+  app.patch("/api/events/:id/signup-tasks/reorder", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can reorder sign-up tasks" });
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds) || taskIds.some((id) => typeof id !== 'number')) {
+        return res.status(400).json({ error: "taskIds must be an array of numbers" });
+      }
+      const existingTasks = await storage.getEventSignupTasks(event.id);
+      const existingIds = new Set(existingTasks.map(t => t.id));
+      if (taskIds.length !== existingIds.size) {
+        return res.status(400).json({ error: "taskIds must contain exactly the event's current tasks" });
+      }
+      const seen = new Set<number>();
+      for (const id of taskIds) {
+        if (seen.has(id)) return res.status(400).json({ error: "taskIds must not contain duplicates" });
+        if (!existingIds.has(id)) return res.status(400).json({ error: `Task ${id} does not belong to this event` });
+        seen.add(id);
+      }
+      await storage.reorderEventSignupTasks(event.id, taskIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
   // PATCH /api/events/:id/signup-tasks/:taskId — edit a task
   app.patch("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
     try {

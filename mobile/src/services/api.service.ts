@@ -792,6 +792,13 @@ class ApiService {
     });
   }
 
+  async reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<any> {
+    return this.request<any>(`/api/events/${eventId}/signup-tasks/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ taskIds }),
+    });
+  }
+
   async joinEventSignupTask(taskId: number): Promise<any> {
     return this.request<any>(`/api/events/signup-tasks/${taskId}/join`, {
       method: 'POST',

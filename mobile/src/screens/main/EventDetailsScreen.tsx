@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,8 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -131,6 +133,22 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [taskIcon, setTaskIcon] = useState('📋');
   const [taskSpotsNeeded, setTaskSpotsNeeded] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
+
+  const [showReorderModal, setShowReorderModal] = useState(false);
+  const [reorderedTasks, setReorderedTasks] = useState<SignupTask[]>([]);
+  const [reorderDraggingId, setReorderDraggingId] = useState<number | null>(null);
+  const [reorderHoverIndex, setReorderHoverIndex] = useState<number | null>(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
+
+  const reorderDragAnim = useRef(new Animated.Value(0)).current;
+  const reorderTasksRef = useRef<SignupTask[]>([]);
+  const reorderItemLayouts = useRef<{ [id: number]: { y: number; height: number } }>({});
+  const reorderContainerRef = useRef<View>(null);
+  const containerPageY = useRef(0);
+  const activeDragRef = useRef<{ id: number; index: number; origY: number } | null>(null);
+  const activeHoverRef = useRef<number | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingDragRef = useRef<{ id: number; index: number; origY: number; pageY: number } | null>(null);
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -378,6 +396,121 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         }
       }
     ]);
+  };
+
+  useEffect(() => {
+    reorderTasksRef.current = reorderedTasks;
+  }, [reorderedTasks]);
+
+  const reorderPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => activeDragRef.current !== null,
+
+      onPanResponderGrant: (evt) => {
+        const touchY = evt.nativeEvent.pageY - containerPageY.current;
+        const tasks = reorderTasksRef.current;
+        for (let i = 0; i < tasks.length; i++) {
+          const layout = reorderItemLayouts.current[tasks[i].id];
+          if (layout && touchY >= layout.y && touchY < layout.y + layout.height) {
+            pendingDragRef.current = {
+              id: tasks[i].id,
+              index: i,
+              origY: layout.y,
+              pageY: evt.nativeEvent.pageY,
+            };
+            longPressTimerRef.current = setTimeout(() => {
+              const pending = pendingDragRef.current;
+              if (!pending) return;
+              activeDragRef.current = { id: pending.id, index: pending.index, origY: pending.origY };
+              activeHoverRef.current = pending.index;
+              reorderDragAnim.setValue(pending.origY);
+              setReorderDraggingId(pending.id);
+              setReorderHoverIndex(pending.index);
+            }, 400);
+            return;
+          }
+        }
+      },
+
+      onPanResponderMove: (_, gestureState) => {
+        if (!activeDragRef.current) return;
+        const newY = activeDragRef.current.origY + gestureState.dy;
+        reorderDragAnim.setValue(newY);
+        const tasks = reorderTasksRef.current;
+        const itemHeight = reorderItemLayouts.current[activeDragRef.current.id]?.height ?? 72;
+        const centerY = newY + itemHeight / 2;
+        // Default to inserting at the end (tasks.length) if dragged past all items
+        let hoverIdx = tasks.length;
+        for (let i = 0; i < tasks.length; i++) {
+          if (tasks[i].id === activeDragRef.current.id) continue;
+          const layout = reorderItemLayouts.current[tasks[i].id];
+          if (layout && centerY < layout.y + layout.height / 2) {
+            hoverIdx = i;
+            break;
+          }
+        }
+        if (hoverIdx !== activeHoverRef.current) {
+          activeHoverRef.current = hoverIdx;
+          setReorderHoverIndex(hoverIdx);
+        }
+      },
+
+      onPanResponderRelease: () => {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        pendingDragRef.current = null;
+        if (!activeDragRef.current) return;
+        const tasks = reorderTasksRef.current;
+        const startIndex = activeDragRef.current.index;
+        const finalHover = activeHoverRef.current ?? startIndex;
+        setReorderDraggingId(null);
+        setReorderHoverIndex(null);
+        activeDragRef.current = null;
+        if (finalHover !== startIndex) {
+          const newTasks = [...tasks];
+          const [item] = newTasks.splice(startIndex, 1);
+          // After removing the item, indices above startIndex shift down by 1,
+          // so adjust the insertion index for downward moves
+          const insertAt = finalHover > startIndex ? finalHover - 1 : finalHover;
+          newTasks.splice(insertAt, 0, item);
+          setReorderedTasks(newTasks);
+        }
+      },
+
+      onPanResponderTerminate: () => {
+        if (longPressTimerRef.current) {
+          clearTimeout(longPressTimerRef.current);
+          longPressTimerRef.current = null;
+        }
+        pendingDragRef.current = null;
+        setReorderDraggingId(null);
+        setReorderHoverIndex(null);
+        activeDragRef.current = null;
+      },
+    })
+  ).current;
+
+  const openReorderModal = () => {
+    reorderItemLayouts.current = {};
+    setReorderedTasks([...signupTasks]);
+    setShowReorderModal(true);
+  };
+
+  const saveReorder = async () => {
+    setReorderSaving(true);
+    try {
+      const taskIds = reorderedTasks.map(t => t.id);
+      await apiService.reorderEventSignupTasks(eventId, taskIds);
+      setSignupTasks(reorderedTasks);
+      setShowReorderModal(false);
+    } catch {
+      Alert.alert('Error', 'Failed to save order. Please try again.');
+    } finally {
+      setReorderSaving(false);
+    }
   };
 
   const handleToggleSignup = async (task: SignupTask) => {
@@ -839,9 +972,17 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Sign-Up and Help {creatorName}
             </Text>
             {canManage && (
-              <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask}>
-                <Text style={styles.addButtonInlineText}>+ Add Task</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {signupTasks.length > 1 && (
+                  <TouchableOpacity style={[styles.addButtonInline, { flexDirection: 'row', alignItems: 'center' }]} onPress={openReorderModal} data-testid="button-reorder-tasks">
+                    <Ionicons name="menu" size={13} color="#fff" />
+                    <Text style={[styles.addButtonInlineText, { marginLeft: 4 }]}>Reorder</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
+                  <Text style={styles.addButtonInlineText}>+ Add Task</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
 
@@ -1150,6 +1291,127 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Reorder Sign-Up Tasks Modal */}
+      <Modal
+        visible={showReorderModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReorderModal(false)}
+      >
+        <View style={styles.reorderOverlay}>
+          <View style={styles.reorderDialog}>
+            <View style={styles.reorderHeader}>
+              <Text style={styles.reorderTitle}>Reorder Tasks</Text>
+              <TouchableOpacity onPress={() => setShowReorderModal(false)} data-testid="button-close-reorder">
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.reorderHint}>Press and hold a task, then drag to reorder.</Text>
+
+            <View
+              ref={reorderContainerRef}
+              style={styles.reorderList}
+              onLayout={() => {
+                reorderContainerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+                  containerPageY.current = py;
+                });
+              }}
+              {...reorderPanResponder.panHandlers}
+            >
+              {reorderedTasks.map((task, index) => {
+                const isDragging = reorderDraggingId === task.id;
+                const isDropTarget = reorderHoverIndex === index && reorderDraggingId !== null && !isDragging;
+                return (
+                  <View
+                    key={task.id}
+                    onLayout={(e) => {
+                      reorderItemLayouts.current[task.id] = {
+                        y: e.nativeEvent.layout.y,
+                        height: e.nativeEvent.layout.height,
+                      };
+                    }}
+                  >
+                    {isDropTarget && index < (reorderTasksRef.current.findIndex(t => t.id === reorderDraggingId)) && (
+                      <View style={styles.reorderDropIndicator} />
+                    )}
+                    <View
+                      style={[
+                        styles.reorderTaskCard,
+                        isDragging && styles.reorderTaskCardDragging,
+                      ]}
+                      data-testid={`card-reorder-task-${task.id}`}
+                    >
+                      <View style={styles.reorderDragHandle}>
+                        <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
+                      </View>
+                      <View style={styles.taskIconWrap}>
+                        <Text style={styles.taskEmoji}>{task.icon}</Text>
+                      </View>
+                      <View style={styles.taskMeta}>
+                        <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
+                        {task.description ? (
+                          <Text style={styles.taskDesc} numberOfLines={1}>{task.description}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                    {isDropTarget && index >= (reorderTasksRef.current.findIndex(t => t.id === reorderDraggingId)) && (
+                      <View style={styles.reorderDropIndicator} />
+                    )}
+                  </View>
+                );
+              })}
+
+              {reorderDraggingId !== null && (() => {
+                const draggingTask = reorderedTasks.find(t => t.id === reorderDraggingId);
+                if (!draggingTask) return null;
+                return (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.reorderTaskCard,
+                      styles.reorderDragClone,
+                      { transform: [{ translateY: reorderDragAnim }] },
+                    ]}
+                  >
+                    <View style={styles.reorderDragHandle}>
+                      <Ionicons name="menu" size={20} color={Colors.brand.primary} />
+                    </View>
+                    <View style={styles.taskIconWrap}>
+                      <Text style={styles.taskEmoji}>{draggingTask.icon}</Text>
+                    </View>
+                    <View style={styles.taskMeta}>
+                      <Text style={styles.taskTitle} numberOfLines={1}>{draggingTask.title}</Text>
+                    </View>
+                  </Animated.View>
+                );
+              })()}
+            </View>
+
+            <View style={styles.reorderFooter}>
+              <TouchableOpacity
+                style={styles.reorderCancelBtn}
+                onPress={() => setShowReorderModal(false)}
+                data-testid="button-cancel-reorder"
+              >
+                <Text style={styles.reorderCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reorderSaveBtn, reorderSaving && { opacity: 0.6 }]}
+                onPress={saveReorder}
+                disabled={reorderSaving}
+                data-testid="button-save-reorder"
+              >
+                {reorderSaving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.reorderSaveText}>Save Order</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1795,5 +2057,112 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  reorderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  reorderDialog: {
+    backgroundColor: Colors.background.primary,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    maxHeight: '80%',
+  },
+  reorderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 6,
+  },
+  reorderTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  reorderHint: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  reorderList: {
+    paddingHorizontal: 16,
+    overflow: 'hidden',
+  },
+  reorderTaskCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  reorderTaskCardDragging: {
+    opacity: 0.35,
+  },
+  reorderDragHandle: {
+    paddingRight: 12,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reorderDragClone: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderColor: Colors.brand.primary,
+    ...CardShadow,
+    shadowOpacity: 0.18,
+    elevation: 8,
+    zIndex: 999,
+  },
+  reorderDropIndicator: {
+    height: 2,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: 2,
+    marginBottom: 4,
+    marginHorizontal: 4,
+  },
+  reorderFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    marginTop: 6,
+  },
+  reorderCancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+  },
+  reorderCancelText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+  },
+  reorderSaveBtn: {
+    flex: 2,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: Colors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reorderSaveText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: '#fff',
   },
 });
