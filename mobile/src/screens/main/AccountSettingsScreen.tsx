@@ -21,8 +21,8 @@ export default function AccountSettingsScreen() {
   const [appVersion, setAppVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    apiService.getAppStatus()
-      .then((status) => setAppVersion(status.version))
+    apiService.getAppVersion()
+      .then((res) => setAppVersion(res.version))
       .catch(() => setAppVersion(null));
   }, []);
 

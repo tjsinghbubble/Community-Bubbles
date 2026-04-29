@@ -71,6 +71,10 @@ export function registerHealthRoutes(app: Express): void {
     res.status(200).type("text/plain").send("pong");
   });
 
+  app.get("/api/v1/version", (_req, res) => {
+    return res.status(200).json({ version: APP_VERSION });
+  });
+
   app.get("/api/v1/status", async (_req, res) => {
     const maintenance = await getMaintenanceMode();
     if (maintenance) {

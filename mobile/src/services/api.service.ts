@@ -879,6 +879,10 @@ class ApiService {
   async getAppStatus(): Promise<{ status: string; version: string; uptime: string; timestamp: string }> {
     return this.request<{ status: string; version: string; uptime: string; timestamp: string }>('/api/v1/status');
   }
+
+  async getAppVersion(): Promise<{ version: string }> {
+    return this.request<{ version: string }>('/api/v1/version');
+  }
 }
 
 export const apiService = new ApiService();
