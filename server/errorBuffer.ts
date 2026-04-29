@@ -44,7 +44,11 @@ console.error = (...args: unknown[]) => {
     }
 
     if (_storage) {
-      _storage.insertErrorLogEntry(entry).catch(() => {
+      _storage.insertErrorLogEntry({
+        message: entry.message,
+        platform: entry.platform,
+        level: entry.level,
+      }).catch(() => {
         // Never throw from inside console.error patch
       });
     }

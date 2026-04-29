@@ -251,7 +251,7 @@ export interface IStorage {
 
   // Error Logs (persisted)
   insertErrorLogEntry(entry: InsertErrorLog): Promise<void>;
-  getErrorLogEntries(limit?: number): Promise<ErrorLog[]>;
+  getErrorLogEntries(limit?: number, since?: Date, before?: Date): Promise<ErrorLog[]>;
   clearErrorLogEntries(): Promise<void>;
 
   // Bulletin Boards
@@ -1914,8 +1914,15 @@ export class DatabaseStorage implements IStorage {
     );
   }
 
-  async getErrorLogEntries(limit = 100): Promise<ErrorLog[]> {
-    return db.select().from(errorLogs).orderBy(desc(errorLogs.id)).limit(limit);
+  async getErrorLogEntries(limit = 100, since?: Date, before?: Date): Promise<ErrorLog[]> {
+    const conditions = [];
+    if (since) conditions.push(gte(errorLogs.timestamp, since));
+    if (before) conditions.push(lt(errorLogs.timestamp, before));
+    const query = db.select().from(errorLogs);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(desc(errorLogs.timestamp)).limit(limit);
+    }
+    return query.orderBy(desc(errorLogs.timestamp)).limit(limit);
   }
 
   async clearErrorLogEntries(): Promise<void> {

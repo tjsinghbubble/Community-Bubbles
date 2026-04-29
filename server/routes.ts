@@ -1132,7 +1132,13 @@ export async function registerRoutes(
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const errors = await storage.getErrorLogEntries(100);
+      const sinceParam = req.query.since as string | undefined;
+      const beforeParam = req.query.before as string | undefined;
+      const since = sinceParam ? new Date(sinceParam) : undefined;
+      const before = beforeParam ? new Date(beforeParam) : undefined;
+      if (since && isNaN(since.getTime())) return res.status(400).json({ error: "Invalid 'since' parameter" });
+      if (before && isNaN(before.getTime())) return res.status(400).json({ error: "Invalid 'before' parameter" });
+      const errors = await storage.getErrorLogEntries(100, since, before);
       res.json({ errors });
     } catch (error: unknown) {
       serverError(res, error);

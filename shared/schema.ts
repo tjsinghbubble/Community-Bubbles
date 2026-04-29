@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -579,12 +579,14 @@ export type BubbleRuleOverride = typeof bubbleRuleOverrides.$inferSelect;
 export const errorLogs = pgTable("error_logs", {
   id: serial("id").primaryKey(),
   message: text("message").notNull(),
-  timestamp: text("timestamp").notNull(),
+  timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
   platform: text("platform").notNull().default("server"),
   level: text("level").notNull().default("error"),
-});
+}, (table) => [
+  index("error_logs_timestamp_idx").on(table.timestamp),
+]);
 
-export const insertErrorLogSchema = createInsertSchema(errorLogs).omit({ id: true });
+export const insertErrorLogSchema = createInsertSchema(errorLogs).omit({ id: true, timestamp: true });
 export type InsertErrorLog = z.infer<typeof insertErrorLogSchema>;
 export type ErrorLog = typeof errorLogs.$inferSelect;
 
