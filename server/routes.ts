@@ -2461,12 +2461,19 @@ export async function registerRoutes(
       const newDate = updateBody.date ?? originalDate;
       const newStartTime = updateBody.startTime ?? originalStartTime;
       if (newDate !== originalDate || newStartTime !== originalStartTime) {
-        // Reset both the 1h and 24h task-signup reminder flags so volunteers
-        // get fresh notifications at the new event time.
+        // Reminder model overview (audited task #291):
+        //   - General attendee reminders are tracked at the EVENT level via
+        //     events.reminder24hSent / reminder1hSent.  A single reset covers
+        //     all "going" attendees — the background scheduler re-sends to
+        //     everyone once the flag is false again.
+        //   - Volunteer (task-signup) reminders are tracked PER-SIGNUP via
+        //     event_task_signups.reminderSent (24h) and reminderSent1h (1h).
+        //   - event_attendees has no reminder flags; nothing extra to reset there.
+        // Reset volunteer reminder flags so they get fresh notifications.
         await storage.resetTaskSignupReminder1hFlags(req.params.id);
         await storage.resetTaskSignupReminderFlags(req.params.id);
-        // Reset the event-level attendee reminder flags so all attendees
-        // receive fresh 24h and 1h push notifications for the new time.
+        // Reset event-level attendee reminder flags so all attendees receive
+        // fresh 24h and 1h push notifications for the new event time.
         await storage.resetEventReminderFlags(req.params.id);
       }
 
