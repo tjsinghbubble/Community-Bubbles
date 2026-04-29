@@ -338,7 +338,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           icon: taskIcon,
           spotsNeeded: spotsNum,
         });
-        setSignupTasks(prev => [...prev, { ...created }]);
+        setSignupTasks(prev => [{ ...created }, ...prev]);
       } else if (editingTask) {
         await apiService.updateEventSignupTask(eventId, editingTask.id, {
           title: taskTitle.trim(),
@@ -858,8 +858,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             signupTasks.map((task) => {
               const spotsLeft = task.spotsNeeded != null ? task.spotsNeeded - task.signupCount : null;
               const isFull = spotsLeft !== null && spotsLeft <= 0;
+              const canToggle = !!user && (!isFull || task.hasSignedUp);
               return (
-                <View key={task.id} style={styles.taskCard}>
+                <TouchableOpacity
+                  key={task.id}
+                  activeOpacity={canToggle ? 0.7 : 1}
+                  style={[styles.taskCard, task.hasSignedUp && styles.taskCardSigned]}
+                  onPress={() => { if (canToggle) handleToggleSignup(task); }}
+                  onLongPress={() => { if (canManage) showTaskOptions(task); }}
+                  delayLongPress={400}
+                >
                   <View style={styles.taskHeader}>
                     <View style={styles.taskIconWrap}>
                       <Text style={styles.taskEmoji}>{task.icon}</Text>
@@ -885,28 +893,17 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                         </Text>
                       </View>
                     </View>
-                    {canManage && (
-                      <TouchableOpacity onPress={() => showTaskOptions(task)} style={styles.taskActionBtn}>
-                        <Ionicons name="ellipsis-horizontal" size={18} color={Colors.text.tertiary} />
-                      </TouchableOpacity>
-                    )}
+                    {task.hasSignedUp ? (
+                      <View style={styles.signedBadge}>
+                        <Ionicons name="checkmark-circle" size={22} color={Colors.brand.primary} />
+                      </View>
+                    ) : isFull ? (
+                      <View style={styles.fullBadge}>
+                        <Text style={styles.fullBadgeText}>Full</Text>
+                      </View>
+                    ) : null}
                   </View>
-                  {user && (
-                    <TouchableOpacity
-                      onPress={() => handleToggleSignup(task)}
-                      disabled={isFull && !task.hasSignedUp}
-                      style={[
-                        styles.taskSignupBtn,
-                        task.hasSignedUp && styles.taskSignupBtnActive,
-                        isFull && !task.hasSignedUp && styles.taskSignupBtnDisabled,
-                      ]}
-                    >
-                      <Text style={[styles.taskSignupBtnText, task.hasSignedUp && styles.taskSignupBtnTextActive]}>
-                        {task.hasSignedUp ? '✓ Signed Up' : isFull ? 'Full' : 'Sign Up'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
@@ -1607,31 +1604,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.text.tertiary,
   },
-  taskActionBtn: {
-    padding: 6,
-    marginLeft: Spacing.xs,
-  },
-  taskSignupBtn: {
-    borderWidth: 1.5,
+  taskCardSigned: {
     borderColor: Colors.brand.primary,
+    borderWidth: 1.5,
+    backgroundColor: '#F0F8FF',
+  },
+  signedBadge: {
+    marginLeft: Spacing.sm,
+    justifyContent: 'center',
+  },
+  fullBadge: {
+    marginLeft: Spacing.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: '#F0F0F0',
     borderRadius: Radius.full,
-    paddingVertical: 7,
-    alignItems: 'center',
-    marginTop: Spacing.xs,
+    justifyContent: 'center',
   },
-  taskSignupBtnActive: {
-    backgroundColor: Colors.brand.primary,
-  },
-  taskSignupBtnDisabled: {
-    borderColor: '#ccc',
-  },
-  taskSignupBtnText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.brand.primary,
-  },
-  taskSignupBtnTextActive: {
-    color: '#fff',
+  fullBadgeText: {
+    fontSize: 12,
+    color: Colors.text.tertiary,
+    fontWeight: Typography.weights.medium,
   },
   taskModalOverlay: {
     flex: 1,

@@ -2677,7 +2677,7 @@ export async function registerRoutes(
       if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
       const existingTask = await storage.getEventSignupTask(taskId);
       if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
-      const allowed = insertEventSignupTaskSchema.partial();
+      const allowed = insertEventSignupTaskSchema.pick({ title: true, description: true, icon: true, spotsNeeded: true }).partial();
       const parsed = allowed.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
       const updated = await storage.updateEventSignupTask(taskId, parsed.data);
