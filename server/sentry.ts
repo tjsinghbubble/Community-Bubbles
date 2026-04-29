@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node";
+import { SLOW_CALL_THRESHOLD_MS } from "./slow-call-config";
 
-const SLOW_API_THRESHOLD_MS = 1000;
+const SLOW_API_THRESHOLD_MS = SLOW_CALL_THRESHOLD_MS;
 const ALERT_FINGERPRINT = "api-slow-response-alert";
 const MAX_SLOW_COUNT_KEYS = 500;
 
@@ -15,7 +16,7 @@ export function initialiseSentry(): void {
   if (initialised) return;
   Sentry.init({ dsn, tracesSampleRate: 0 });
   initialised = true;
-  console.log("[Sentry] Server-side Sentry initialised");
+  console.log(`[Sentry] Server-side Sentry initialised (slow-call threshold=${SLOW_API_THRESHOLD_MS} ms)`);
 }
 
 function normalisePath(path: string): string {

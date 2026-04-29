@@ -2545,7 +2545,7 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(slowCalls).orderBy(orderFn).limit(limit);
   }
 
-  async purgeOldSlowCalls(olderThanDays = 30): Promise<number> {
+  async purgeOldSlowCalls(olderThanDays = 90): Promise<number> {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
     const result = await db.delete(slowCalls).where(lt(slowCalls.createdAt, cutoff));
     return (result as unknown as { rowCount?: number }).rowCount ?? 0;

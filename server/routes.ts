@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { clearBufferedErrors } from "./errorBuffer";
+import { SLOW_CALL_THRESHOLD_MS } from "./slow-call-config";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -1194,8 +1195,6 @@ export async function registerRoutes(
     z.array(telemetrySampleSchema).max(50),
   ]);
 
-  const SLOW_CALL_THRESHOLD_MS = 2000;
-
   app.post("/api/telemetry/latency", telemetryRateLimit, async (req, res) => {
     const parsed = telemetryBodySchema.safeParse(req.body);
     if (parsed.success) {
@@ -1213,10 +1212,6 @@ export async function registerRoutes(
     }
     res.status(204).end();
   });
-
-  // Purge slow calls older than 30 days once on startup, then daily
-  storage.purgeOldSlowCalls(30).catch(() => {});
-  setInterval(() => storage.purgeOldSlowCalls(30).catch(() => {}), 24 * 60 * 60 * 1000);
 
   // Latency retention window (days); tune via env var (must be a positive integer, defaults to 7)
   const _rawRetentionDays = parseInt(process.env.LATENCY_RETENTION_DAYS ?? "7", 10);
@@ -1260,6 +1255,7 @@ export async function registerRoutes(
   // Prune old latency samples on startup and daily
   storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {});
   setInterval(() => storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {}), 24 * 60 * 60 * 1000);
+
 
   app.get("/api/admin/latency", authMiddleware, async (req, res) => {
     try {
