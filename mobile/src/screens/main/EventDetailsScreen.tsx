@@ -361,9 +361,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     try {
+      const configRes = await apiService.getShareBaseUrl();
       const bubbleName = encodeURIComponent(bubble?.title || 'bubble');
       const eventName = encodeURIComponent(event?.title || 'event');
-      const deepLink = `https://community-bubbles.replit.app/${bubbleName}/${eventName}/${eventId}`;
+      const deepLink = `${configRes.baseUrl}/${bubbleName}/${eventName}/${eventId}`;
       await Share.share({
         message: `Check out this event: ${event?.title}\n${deepLink}`,
       });
