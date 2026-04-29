@@ -1,5 +1,6 @@
 import "./errorBuffer";
 import express, { type Request, Response, NextFunction } from "express";
+import { initialiseSentry, reportSlowResponse } from "./sentry";
 import { registerRoutes } from "./routes";
 import { registerHealthRoutes } from "./health";
 import { AUTH_PAYLOAD_LIMIT_BYTES, authEntityTooLargeHandler } from "./auth-handler";
@@ -12,6 +13,8 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { seedStaging } from "./seed-staging";
+
+initialiseSentry();
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,6 +86,7 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+      reportSlowResponse(req.method, path, duration);
     }
   });
 
