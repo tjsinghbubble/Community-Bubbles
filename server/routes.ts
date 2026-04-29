@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { clearBufferedErrors } from "./errorBuffer";
-import { SLOW_CALL_THRESHOLD_MS } from "./slow-call-config";
+import { getSlowCallThresholdMs, getSlowCallRetentionDays, setSlowCallConfig } from "./slow-call-config";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -1201,7 +1201,7 @@ export async function registerRoutes(
       const reports = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
       for (const report of reports) {
         recordRequest(report.method, report.endpoint, report.statusCode, report.durationMs);
-        if (report.durationMs > SLOW_CALL_THRESHOLD_MS) {
+        if (report.durationMs > getSlowCallThresholdMs()) {
           storage.insertSlowCall({
             endpoint: report.endpoint,
             method: report.method,
@@ -1353,7 +1353,7 @@ export async function registerRoutes(
       const sortBy = slowCallsSortBySchema.parse(req.query.sortBy);
       const sortDir = slowCallsSortDirSchema.parse(req.query.sortDir);
       const calls = await storage.getSlowCalls({ sortBy, sortDir, limit: 200 });
-      res.json({ calls, generatedAt: new Date().toISOString(), threshold: SLOW_CALL_THRESHOLD_MS });
+      res.json({ calls, generatedAt: new Date().toISOString(), threshold: getSlowCallThresholdMs() });
     } catch (error: unknown) {
       serverError(res, error);
     }
@@ -1374,7 +1374,29 @@ export async function registerRoutes(
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const { SLOW_CALL_THRESHOLD_MS: thresholdMs, SLOW_CALL_RETENTION_DAYS: retentionDays } = await import("./slow-call-config");
+      res.json({ thresholdMs: getSlowCallThresholdMs(), retentionDays: getSlowCallRetentionDays() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  const patchSlowCallConfigSchema = z.object({
+    thresholdMs: z.number().int().min(100).max(60000),
+    retentionDays: z.number().int().min(1).max(3650),
+  });
+
+  app.patch("/api/admin/slow-call-config", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const parsed = patchSlowCallConfigSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      const { thresholdMs, retentionDays } = parsed.data;
+      await Promise.all([
+        storage.setAppConfigValue("slow_call_threshold_ms", String(thresholdMs)),
+        storage.setAppConfigValue("slow_call_retention_days", String(retentionDays)),
+      ]);
+      setSlowCallConfig(thresholdMs, retentionDays);
       res.json({ thresholdMs, retentionDays });
     } catch (error: unknown) {
       serverError(res, error);

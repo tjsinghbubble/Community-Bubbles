@@ -1,7 +1,7 @@
 import { storage } from "./storage";
 import type { InsertNotification, Event } from "@shared/schema";
 import { utcToLocal, formatTime12h } from "./timezone";
-import { SLOW_CALL_RETENTION_DAYS } from "./slow-call-config";
+import { getSlowCallRetentionDays } from "./slow-call-config";
 import { reportFatalCrashSpike } from "./sentry";
 
 function parsePositiveInt(value: string | undefined, defaultValue: number): number {
@@ -346,9 +346,10 @@ export function startEventReminderScheduler(): void {
 
 async function pruneSlowCallMetrics(): Promise<void> {
   try {
-    const deleted = await storage.purgeOldSlowCalls(SLOW_CALL_RETENTION_DAYS);
+    const retentionDays = getSlowCallRetentionDays();
+    const deleted = await storage.purgeOldSlowCalls(retentionDays);
     if (deleted > 0) {
-      console.log(`[SlowCallPruner] Deleted ${deleted} slow-call record(s) older than ${SLOW_CALL_RETENTION_DAYS} days`);
+      console.log(`[SlowCallPruner] Deleted ${deleted} slow-call record(s) older than ${retentionDays} days`);
     }
   } catch (error) {
     console.error("[SlowCallPruner] Error pruning slow_call_metrics:", error);
@@ -356,7 +357,7 @@ async function pruneSlowCallMetrics(): Promise<void> {
 }
 
 export function startSlowCallPrunerScheduler(): void {
-  console.log(`[SlowCallPruner] Nightly slow-call pruner started (24-hour interval, retention=${SLOW_CALL_RETENTION_DAYS} days)`);
+  console.log(`[SlowCallPruner] Nightly slow-call pruner started (24-hour interval, retention=${getSlowCallRetentionDays()} days)`);
   setInterval(pruneSlowCallMetrics, 24 * 60 * 60 * 1000);
   setTimeout(pruneSlowCallMetrics, 30000);
 }

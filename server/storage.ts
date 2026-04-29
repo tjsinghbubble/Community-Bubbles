@@ -280,6 +280,7 @@ export interface IStorage {
 
   getAppConfigValue(key: string): Promise<string | undefined>;
   getAllAppConfig(): Promise<AppConfig[]>;
+  setAppConfigValue(key: string, value: string): Promise<void>;
 
   createRule(name: string, description: string): Promise<Rule>;
   getRule(id: number): Promise<Rule | undefined>;
@@ -2243,6 +2244,13 @@ export class DatabaseStorage implements IStorage {
 
   async getAllAppConfig(): Promise<AppConfig[]> {
     return db.select().from(appConfig);
+  }
+
+  async setAppConfigValue(key: string, value: string): Promise<void> {
+    await db
+      .insert(appConfig)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value, updatedAt: new Date() } });
   }
 
   async createRule(name: string, description: string): Promise<Rule> {

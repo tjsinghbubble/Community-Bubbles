@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
   AlertTriangle,
   Settings2,
+  Pencil,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -94,6 +95,9 @@ export default function AdminSlowCalls() {
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [showEditConfig, setShowEditConfig] = useState(false);
+  const [editThresholdMs, setEditThresholdMs] = useState("");
+  const [editRetentionDays, setEditRetentionDays] = useState("");
 
   const { data: me, isLoading: meLoading, isError: meError } = useQuery<AuthMe>({
     queryKey: ["/api/auth/me"],
@@ -130,6 +134,16 @@ export default function AdminSlowCalls() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/slow-calls"] });
       setShowConfirmClear(false);
+    },
+  });
+
+  const updateConfigMutation = useMutation({
+    mutationFn: (body: { thresholdMs: number; retentionDays: number }) =>
+      apiRequest("PATCH", "/api/admin/slow-call-config", body).then((r) => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/slow-call-config"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/slow-calls"] });
+      setShowEditConfig(false);
     },
   });
 
@@ -355,9 +369,21 @@ export default function AdminSlowCalls() {
               >
                 <div className="mb-3 flex items-center gap-2">
                   <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <span className="flex-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Active Configuration
                   </span>
+                  <button
+                    onClick={() => {
+                      setEditThresholdMs(String(config.thresholdMs));
+                      setEditRetentionDays(String(config.retentionDays));
+                      setShowEditConfig(true);
+                    }}
+                    className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-[#35A8F7] ring-1 ring-[#35A8F7]/30 transition hover:bg-[#35A8F7]/8"
+                    data-testid="button-edit-config"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <div className="flex flex-col gap-0.5">
@@ -371,7 +397,7 @@ export default function AdminSlowCalls() {
                       {fmt(config.thresholdMs)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      SLOW_CALL_THRESHOLD_MS = {config.thresholdMs}
+                      {config.thresholdMs} ms
                     </span>
                   </div>
                   <div className="w-px self-stretch bg-black/8 hidden sm:block" />
@@ -386,8 +412,92 @@ export default function AdminSlowCalls() {
                       {config.retentionDays} {config.retentionDays === 1 ? "day" : "days"}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      SLOW_CALL_RETENTION_DAYS = {config.retentionDays}
+                      auto-purge after {config.retentionDays}d
                     </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit config dialog */}
+            {showEditConfig && config && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-6"
+                data-testid="dialog-edit-config"
+              >
+                <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+                  <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-[#35A8F7]/10">
+                    <Settings2 className="h-6 w-6 text-[#35A8F7]" />
+                  </div>
+                  <h2 className="text-[17px] font-bold" data-testid="text-edit-config-title">
+                    Update slow-call settings
+                  </h2>
+                  <p className="mt-1 text-[13px] text-muted-foreground">
+                    Changes take effect immediately without a restart.
+                  </p>
+                  <div className="mt-5 space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Threshold (ms)
+                      </label>
+                      <input
+                        type="number"
+                        min={100}
+                        max={60000}
+                        value={editThresholdMs}
+                        onChange={(e) => setEditThresholdMs(e.target.value)}
+                        className="w-full rounded-xl border border-black/12 px-4 py-2.5 text-[14px] font-semibold focus:outline-none focus:ring-2 focus:ring-[#35A8F7]/40"
+                        data-testid="input-threshold-ms"
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Calls slower than this value are recorded (100–60 000 ms)
+                      </p>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Retention (days)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={3650}
+                        value={editRetentionDays}
+                        onChange={(e) => setEditRetentionDays(e.target.value)}
+                        className="w-full rounded-xl border border-black/12 px-4 py-2.5 text-[14px] font-semibold focus:outline-none focus:ring-2 focus:ring-[#35A8F7]/40"
+                        data-testid="input-retention-days"
+                      />
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Records older than this are auto-purged (1–3 650 days)
+                      </p>
+                    </div>
+                    {updateConfigMutation.isError && (
+                      <p className="text-[12px] font-semibold text-red-600" data-testid="text-edit-config-error">
+                        Failed to save. Please check the values and try again.
+                      </p>
+                    )}
+                  </div>
+                  <div className="mt-5 flex gap-3">
+                    <button
+                      onClick={() => setShowEditConfig(false)}
+                      className="flex-1 rounded-xl border border-black/10 px-4 py-2.5 text-[13px] font-semibold transition hover:bg-black/5"
+                      data-testid="button-cancel-edit-config"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        const thresholdMs = parseInt(editThresholdMs, 10);
+                        const retentionDays = parseInt(editRetentionDays, 10);
+                        if (!thresholdMs || !retentionDays) return;
+                        updateConfigMutation.mutate({ thresholdMs, retentionDays });
+                      }}
+                      disabled={updateConfigMutation.isPending}
+                      className="flex-1 rounded-xl px-4 py-2.5 text-[13px] font-bold text-white transition disabled:opacity-60"
+                      style={{ background: "#35A8F7" }}
+                      data-testid="button-save-edit-config"
+                    >
+                      {updateConfigMutation.isPending ? "Saving…" : "Save"}
+                    </button>
                   </div>
                 </div>
               </div>
