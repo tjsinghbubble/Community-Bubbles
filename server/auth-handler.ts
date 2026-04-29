@@ -102,6 +102,77 @@ export function resetAllLoginFailures() {
   loginFailures.clear();
 }
 
+export interface SendVerificationStorage {
+  getUserByEmail(email: string): Promise<any>;
+  createVerificationCode(data: { email: string; code: string; expiresAt: Date }): Promise<void>;
+}
+
+export interface RegisterSendVerificationRouteOptions {
+  rateLimiter?: RequestHandler;
+  generateCode?: () => string;
+  sendEmail?: (email: string, code: string) => Promise<void>;
+}
+
+const sendVerificationSchema = z.object({
+  email: z
+    .string({ required_error: "Email is required", invalid_type_error: "Email must be a string" })
+    .min(1, "Email is required")
+    .max(254, "Email must be 254 characters or fewer"),
+});
+
+export function registerSendVerificationRoute(
+  app: Express,
+  storage: SendVerificationStorage,
+  options: RegisterSendVerificationRouteOptions = {},
+) {
+  const routeMiddleware: RequestHandler[] = options.rateLimiter ? [options.rateLimiter] : [];
+
+  app.post("/api/auth/send-verification", ...routeMiddleware, async (req: any, res: any) => {
+    try {
+      const parseResult = sendVerificationSchema.safeParse(req.body ?? {});
+      if (!parseResult.success) {
+        const message = parseResult.error.errors[0]?.message ?? "Email is required";
+        return res.status(400).json({ error: message });
+      }
+      const { email } = parseResult.data;
+
+      const existing = await storage.getUserByEmail(email);
+      if (existing) {
+        return res.status(400).json({ error: "Email already exists" });
+      }
+
+      const generateCode = options.generateCode ?? (() => Math.floor(100000 + Math.random() * 900000).toString());
+      const code = generateCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await storage.createVerificationCode({ email, code, expiresAt });
+
+      let emailFailed = false;
+      if (options.sendEmail) {
+        try {
+          await options.sendEmail(email, code);
+        } catch (emailError: any) {
+          console.error(`[EMAIL] Delivery failed for ${email}:`, emailError.message);
+          emailFailed = true;
+        }
+      }
+
+      const response: any = { success: true, message: "Verification code sent" };
+      if (emailFailed) {
+        response.emailFailed = true;
+        response.fallbackCode = code;
+      }
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Verification code for ${email}:`, code);
+        response.devCode = code;
+      }
+      res.json(response);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+}
+
 export interface RegisterAuthRoutesOptions {
   loginRateLimiter?: RequestHandler;
   signupRateLimiter?: RequestHandler;

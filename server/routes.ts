@@ -6,7 +6,7 @@ import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
-import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute } from "./auth-handler";
+import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -292,48 +292,10 @@ export async function registerRoutes(
 
   registerCrashReportRoute(app);
 
-  app.post("/api/auth/send-verification", sendLimiter, async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-
-      const existing = await storage.getUserByEmail(email);
-      if (existing) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-      await storage.createVerificationCode({
-        email,
-        code,
-        expiresAt,
-      });
-
-      let emailFailed = false;
-      try {
-        await sendVerificationEmail(email, code);
-      } catch (emailError: any) {
-        console.error(`[EMAIL] Delivery failed for ${email}:`, emailError.message);
-        emailFailed = true;
-      }
-
-      const response: any = { success: true, message: "Verification code sent" };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[DEV] Verification code for ${email}: ${code}`);
-        response.devCode = code;
-      }
-      res.json(response);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerSendVerificationRoute(app, storage, {
+    rateLimiter: sendLimiter,
+    generateCode: generateVerificationCode,
+    sendEmail: sendVerificationEmail,
   });
 
   registerVerifyCodeRoute(app, storage, { rateLimiter: authLimiter });
