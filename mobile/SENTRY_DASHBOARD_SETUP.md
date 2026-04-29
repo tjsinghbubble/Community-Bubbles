@@ -101,6 +101,67 @@ The `screen` tag is set automatically by `ScreenErrorBoundary` and every `report
 
 ---
 
+## Pre-Release Health Check — Crash-Free Rate Gate
+
+Two scripts in `mobile/scripts/` provide an automated stability gate that blocks builds when the crash-free session rate falls below **95 %**.
+
+### `setup-sentry-crash-free-alert.js` — create the Sentry alert rule
+
+Run once (idempotent) to create or update a Sentry metric alert in the `production` environment:
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_...         \
+SENTRY_ORG=your-org-slug             \
+SENTRY_PROJECT=your-project-slug     \
+SENTRY_ALERT_EMAIL=team@example.com  \
+node mobile/scripts/setup-sentry-crash-free-alert.js
+```
+
+This creates a **Crash-Free Session Rate < 95%** alert rule with two triggers:
+
+| Trigger | Threshold | Effect |
+|---|---|---|
+| WARNING | crash-free rate < 97 % | Team receives a notification early so issues can be investigated before the 95 % gate is hit |
+| CRITICAL | crash-free rate < 95 % | Team receives a notification; the CI gate (below) blocks the build |
+
+The rule evaluates `crash_free_rate(session)` over a rolling **1-hour window** in the `production` environment.
+
+Required token scopes: `alert:write`, `project:read`
+
+### `check-sentry-crash-free-rate.js` — CI gate script
+
+Fetches the live crash-free session rate from the Sentry Sessions API and exits non-zero when the rate is below the threshold, blocking the EAS build.
+
+**Integrate into GitHub Actions** (add before the EAS build steps):
+
+```yaml
+- name: Crash-free rate health check
+  run: node mobile/scripts/check-sentry-crash-free-rate.js
+  env:
+    SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+    SENTRY_ORG:        ${{ secrets.SENTRY_ORG }}
+    SENTRY_PROJECT:    ${{ secrets.SENTRY_PROJECT }}
+```
+
+**Run manually** before a local production build:
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_... SENTRY_ORG=my-org SENTRY_PROJECT=my-project \
+  node mobile/scripts/check-sentry-crash-free-rate.js
+```
+
+Optional environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `CRASH_FREE_THRESHOLD` | `95` | Minimum acceptable crash-free rate (%) |
+| `SENTRY_ENVIRONMENT` | `production` | Sentry environment filter |
+| `LOOKBACK_HOURS` | `1` | Hours of session history to evaluate — defaults to 1 h to match the Sentry alert rule's evaluation window |
+
+When the check fails the script prints the session breakdown, the live rate, and a link to open issues in Sentry.  To bypass the gate in an emergency (not recommended), set `CRASH_FREE_THRESHOLD=0`.
+
+---
+
 ## Verifying Session Data
 
 After deploying a build with `autoSessionTracking: true`:

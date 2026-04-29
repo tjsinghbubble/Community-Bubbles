@@ -42,15 +42,18 @@ Currently instrumented screens:
 
 ## Alert Rules
 
-Three alert rules are created by the setup script:
+Four alert rules cover performance and stability:
 
-| Rule name | Dataset | Metric | Threshold | Scope |
-|---|---|---|---|---|
-| **Login Screen P75 > 3s** | Transactions | `p75(transaction.duration)` | > 3000 ms | `transaction:Login op:navigation` |
-| **Main Feed (ExploreScreen) P75 > 3s** | Transactions | `p75(transaction.duration)` | > 3000 ms | `transaction:ExploreList op:navigation` |
-| **API Slow Response Threshold** | Errors | `count()` | > 10 events / 5 min | `alert_type:slow_api_response` |
+| Rule name | Dataset | Metric | Threshold | Scope | Setup script |
+|---|---|---|---|---|---|
+| **Login Screen P75 > 3s** | Transactions | `p75(transaction.duration)` | > 3000 ms | `transaction:Login op:navigation` | `setup-sentry-slow-call-alert.js` |
+| **Main Feed (ExploreScreen) P75 > 3s** | Transactions | `p75(transaction.duration)` | > 3000 ms | `transaction:ExploreList op:navigation` | `setup-sentry-slow-call-alert.js` |
+| **API Slow Response Threshold** | Errors | `count()` | > 10 events / 5 min | `alert_type:slow_api_response` | `setup-sentry-slow-call-alert.js` |
+| **Crash-Free Session Rate < 95%** | Sessions | `crash_free_rate(session)` | CRITICAL < 95 %; WARNING < 97 % | `production` environment | `setup-sentry-crash-free-alert.js` |
 
 All rules fire notifications to the configured email and/or Slack channel.
+
+The **Crash-Free Session Rate < 95%** rule is the primary stability gate for pre-release checks.  It is paired with the `check-sentry-crash-free-rate.js` CI script that reads the live session data and fails an EAS build automatically when the threshold is breached — see `mobile/SENTRY_DASHBOARD_SETUP.md` for integration details.
 
 > **Why no API p95 Performance alert?**  
 > API calls are recorded as **child spans** (op: `http.client`) on the active navigation transaction — not as standalone top-level transactions. Sentry's transaction-level performance alerts aggregate `p75/p95(transaction.duration)` across root transactions only, so filtering by `transaction.op:http.client` would match nothing.  
@@ -58,9 +61,9 @@ All rules fire notifications to the configured email and/or Slack channel.
 
 ---
 
-## Option A — Automated Setup Script (recommended)
+## Option A — Automated Setup Scripts (recommended)
 
-A Node.js script creates or updates all three alert rules via the Sentry REST API.
+Two Node.js scripts create or update the alert rules via the Sentry REST API.
 
 ### Prerequisites
 
@@ -93,6 +96,18 @@ node mobile/scripts/setup-sentry-slow-call-alert.js
 Find the Slack `integration-id` at **Settings → Integrations → Slack → Configure**.
 
 The script is idempotent — running it again updates existing rules rather than creating duplicates.
+
+### Script 2 — Crash-Free Session Rate alert
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_...         \
+SENTRY_ORG=your-org-slug             \
+SENTRY_PROJECT=your-project-slug     \
+SENTRY_ALERT_EMAIL=team@example.com  \
+node mobile/scripts/setup-sentry-crash-free-alert.js
+```
+
+Creates the **Crash-Free Session Rate < 95%** rule (Sessions dataset) with WARNING at 97 % and CRITICAL at 95 %, evaluated over a rolling 1-hour window in `production`.
 
 ---
 
@@ -143,6 +158,24 @@ The script is idempotent — running it again updates existing rules rather than
 | **Resolve threshold** | ≤ 5 |
 
 4. Add your notification target (email / Slack) under **Actions** for each rule.
+
+### Sessions alert — Crash-Free Session Rate < 95%
+
+1. Go to **sentry.io** → your project → **Alerts** → **Create Alert**.
+2. Choose **Crash Rate Alert** (Sessions dataset).
+3. Fill in:
+
+| Field | Value |
+|---|---|
+| **Dataset** | Sessions |
+| **Metric** | `crash_free_rate(session)` |
+| **Environment** | `production` |
+| **Time window** | 1 hour |
+| **WARNING threshold** | < 97 % |
+| **CRITICAL threshold** | < 95 % |
+| **Resolve threshold** | ≥ 97 % |
+
+4. Under **Actions**, add your email / Slack notification target for the CRITICAL trigger.
 
 ---
 

@@ -207,12 +207,54 @@ The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.
 1. **`release-gate` job** — validates that the pushed tag strictly follows `vMAJOR.MINOR.PATCH` semver. If the tag is malformed (e.g. `v1.2`, `release-1.0`, `v1.2.3-beta`), this job fails immediately and the build is aborted.
 2. **`build` job** (runs only if `release-gate` passes):
    - Installs Node.js 20 and `npm ci` in the `mobile/` directory.
-   - **Syncs the semantic version from the git tag into `app.json`** — strips the leading `v` (e.g. `v1.2.3` → `1.2.3`) and writes it to `expo.version` using `jq`. You never need to manually edit `app.json` before a release.
+   - **Syncs the semantic version from the git tag into `app.json`** *(tag-triggered runs only)* — strips the leading `v` from the tag name (e.g. `v1.2.3` → `1.2.3`) and writes it to the `expo.version` field using `jq`. This means you never need to manually edit `app.json` before a release.
    - Installs the EAS CLI via the official `expo/expo-github-action` action.
+   - **Runs the crash-free rate health check** — queries the Sentry Sessions API and fails the build if the production crash-free rate is below 95 % (see [Pre-release health check](#pre-release-health-check--crash-free-rate-gate) below).
    - Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
-     - `--wait` blocks the runner until the EAS cloud build finishes.
-     - `--auto-submit` submits the build to the App Store / Play Store automatically.
-   - Sentry source maps are uploaded during the EAS build (via the `@sentry/react-native/expo` plugin).
+     - `--wait` blocks the GitHub Actions runner until the EAS cloud build finishes, so the job does not exit prematurely.
+     - `--auto-submit` tells EAS to automatically submit the completed build to the App Store (iOS) or Play Store (Android) immediately after the build succeeds — no separate submit step required.
+   - Sentry source maps are uploaded during the EAS build step (handled by the `@sentry/react-native/expo` plugin — no extra step required).
+
+### Pre-release health check — crash-free rate gate
+
+Before the EAS build runs, the workflow executes `mobile/scripts/check-sentry-crash-free-rate.js`.  This script queries the Sentry Sessions API for the last 24 hours of production session data and **fails the build** (exit code 1) if the crash-free rate is below the threshold (default **95 %**).
+
+**Add this step to your GitHub Actions workflow before the EAS build:**
+
+```yaml
+- name: Crash-free rate health check
+  run: node mobile/scripts/check-sentry-crash-free-rate.js
+  env:
+    SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+    SENTRY_ORG:        ${{ secrets.SENTRY_ORG }}
+    SENTRY_PROJECT:    ${{ secrets.SENTRY_PROJECT }}
+    # Optional overrides:
+    # CRASH_FREE_THRESHOLD: "95"   # minimum acceptable crash-free % (default 95)
+    # LOOKBACK_HOURS: "1"          # hours of history to evaluate (default 1, matches alert window)
+```
+
+**Run the check locally** (from the repo root) before a manual production build:
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_... SENTRY_ORG=my-org SENTRY_PROJECT=my-project \
+  node mobile/scripts/check-sentry-crash-free-rate.js
+```
+
+> **Path note:** The GitHub Actions step above uses `node scripts/check-sentry-crash-free-rate.js` (without the `mobile/` prefix) because the job sets `working-directory: mobile`. When running locally from the repository root, use the `mobile/` prefix as shown above.
+
+When the check fails it prints the full session breakdown and a direct link to open Sentry issues so the team can investigate before retrying the build.
+
+**First-time setup** — create the companion Sentry alert rule that also notifies the team via Slack / email when the rate drops:
+
+```bash
+SENTRY_AUTH_TOKEN=sntrys_...         \
+SENTRY_ORG=your-org-slug             \
+SENTRY_PROJECT=your-project-slug     \
+SENTRY_ALERT_EMAIL=team@example.com  \
+node mobile/scripts/setup-sentry-crash-free-alert.js
+```
+
+See `mobile/SENTRY_DASHBOARD_SETUP.md` for full details on both scripts and the alert rule configuration.
 
 ### Releasing a new version
 

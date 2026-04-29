@@ -67,6 +67,13 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Crash-free rate health check
+        run: node scripts/check-sentry-crash-free-rate.js
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
       - name: Build iOS (production) and submit to App Store
         run: eas build --platform ios --profile production --non-interactive --wait --auto-submit
         env:
