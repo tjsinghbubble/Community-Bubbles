@@ -909,6 +909,33 @@ export default function AdminMonitor() {
               </div>
             </div>
 
+            {/* ── Performance Alerts ── */}
+            <div>
+              <SectionLabel>Performance Alerts</SectionLabel>
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8 divide-y divide-black/5">
+                <button
+                  onClick={() => navigate("/admin/slow-calls")}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-black/5"
+                  data-testid="nav-slow-calls"
+                >
+                  <Zap className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span className="flex-1 text-[13px] font-semibold">Slow API Calls</span>
+                  <span className="text-[11px] text-muted-foreground">persisted alerts &gt;2s</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => navigate("/admin/latency")}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-black/5"
+                  data-testid="nav-latency-dashboard"
+                >
+                  <Activity className="h-4 w-4 shrink-0 text-[#35A8F7]" />
+                  <span className="flex-1 text-[13px] font-semibold">Latency Dashboard</span>
+                  <span className="text-[11px] text-muted-foreground">live in-memory metrics</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
             {/* ── Analytics ── */}
             {a && (
               <div>

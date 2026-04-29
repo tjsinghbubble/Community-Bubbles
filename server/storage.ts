@@ -81,9 +81,8 @@ import {
   eventTaskSignups,
   type EventSignupTask,
   type InsertEventSignupTask,
-  slowCallMetrics,
-  type SlowCallMetric,
-  type InsertSlowCallMetric,
+  slowCalls,
+  type SlowCall,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -312,17 +311,11 @@ export interface IStorage {
   joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }>;
   leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
 
-  // Slow call metrics
-  recordSlowCall(metric: InsertSlowCallMetric): Promise<void>;
-  getSlowCallTrends(options?: { days?: number; limit?: number }): Promise<{
-    endpoint: string;
-    method: string;
-    count: number;
-    avgMs: number;
-    maxMs: number;
-    date: string;
-  }[]>;
-  pruneSlowCallMetrics(olderThanDays?: number): Promise<number>;
+  // Slow API Call Alerts
+  insertSlowCall(data: { endpoint: string; method: string; durationMs: number }): Promise<void>;
+  getSlowCalls(opts?: { limit?: number; sortBy?: 'durationMs' | 'endpoint' | 'createdAt'; sortDir?: 'asc' | 'desc' }): Promise<SlowCall[]>;
+  purgeOldSlowCalls(olderThanDays?: number): Promise<number>;
+  deleteAllSlowCalls(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2466,58 +2459,27 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(eventTaskSignups.taskId, taskId), eq(eventTaskSignups.userId, userId)));
   }
 
-  async recordSlowCall(metric: InsertSlowCallMetric): Promise<void> {
-    await db.insert(slowCallMetrics).values(metric);
+  async insertSlowCall(data: { endpoint: string; method: string; durationMs: number }): Promise<void> {
+    await db.insert(slowCalls).values(data);
   }
 
-  async getSlowCallTrends(options: { days?: number; limit?: number } = {}): Promise<{
-    endpoint: string;
-    method: string;
-    count: number;
-    avgMs: number;
-    maxMs: number;
-    date: string;
-  }[]> {
-    const days = options.days ?? 30;
-    const limit = options.limit ?? 200;
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-    const rows = await db
-      .select({
-        endpoint: slowCallMetrics.endpoint,
-        method: slowCallMetrics.method,
-        count: count(),
-        avgMs: avg(slowCallMetrics.durationMs),
-        maxMs: max(slowCallMetrics.durationMs),
-        date: sql<string>`to_char(date_trunc('day', ${slowCallMetrics.recordedAt}), 'YYYY-MM-DD')`,
-      })
-      .from(slowCallMetrics)
-      .where(gte(slowCallMetrics.recordedAt, since))
-      .groupBy(
-        slowCallMetrics.endpoint,
-        slowCallMetrics.method,
-        sql`date_trunc('day', ${slowCallMetrics.recordedAt})`,
-      )
-      .orderBy(desc(sql`date_trunc('day', ${slowCallMetrics.recordedAt})`))
-      .limit(limit);
-
-    return rows.map((r) => ({
-      endpoint: r.endpoint,
-      method: r.method,
-      count: Number(r.count),
-      avgMs: Math.round(Number(r.avgMs ?? 0)),
-      maxMs: Math.round(Number(r.maxMs ?? 0)),
-      date: r.date,
-    }));
+  async getSlowCalls(opts?: { limit?: number; sortBy?: 'durationMs' | 'endpoint' | 'createdAt'; sortDir?: 'asc' | 'desc' }): Promise<SlowCall[]> {
+    const { limit = 200, sortBy = 'createdAt', sortDir = 'desc' } = opts ?? {};
+    const col = sortBy === 'durationMs' ? slowCalls.durationMs
+      : sortBy === 'endpoint' ? slowCalls.endpoint
+      : slowCalls.createdAt;
+    const orderFn = sortDir === 'asc' ? col : desc(col);
+    return db.select().from(slowCalls).orderBy(orderFn).limit(limit);
   }
 
-  async pruneSlowCallMetrics(olderThanDays = 90): Promise<number> {
+  async purgeOldSlowCalls(olderThanDays = 30): Promise<number> {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
-    const deleted = await db
-      .delete(slowCallMetrics)
-      .where(lt(slowCallMetrics.recordedAt, cutoff))
-      .returning({ id: slowCallMetrics.id });
-    return deleted.length;
+    const result = await db.delete(slowCalls).where(lt(slowCalls.createdAt, cutoff));
+    return (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  }
+
+  async deleteAllSlowCalls(): Promise<void> {
+    await db.delete(slowCalls);
   }
 }
 

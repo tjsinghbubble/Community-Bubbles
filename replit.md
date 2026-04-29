@@ -62,6 +62,8 @@ The project is a monorepo containing distinct frontend and backend components.
 
 **Hierarchical Rules System**: Manages app-level, category-level, and bubble-level rules, with support for overrides and an effective rules API endpoint.
 
+**Slow API Call Alerts**: Any API call exceeding 2s is persisted to the `slow_calls` database table (endpoint, method, durationMs, createdAt). A new admin screen at `/admin/slow-calls` displays the log, sortable by duration, endpoint, or timestamp, with a 30-day auto-purge. The "Performance Alerts" section in the Admin Monitor links to both this page and the in-memory Latency Dashboard.
+
 **Multi-Image Upload**: Supports uploading up to 5 images for bubbles and events via presigned URLs to Google Cloud Storage.
 
 **Timezone Handling**: Events are stored in UTC with IANA timezone information, with server-side conversion for display and reminders.

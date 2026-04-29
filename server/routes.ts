@@ -6,7 +6,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema, insertSlowCallMetricSchema } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
@@ -1171,16 +1171,29 @@ export async function registerRoutes(
     z.array(telemetrySampleSchema).max(50),
   ]);
 
-  app.post("/api/telemetry/latency", telemetryRateLimit, (req, res) => {
+  const SLOW_CALL_THRESHOLD_MS = 2000;
+
+  app.post("/api/telemetry/latency", telemetryRateLimit, async (req, res) => {
     const parsed = telemetryBodySchema.safeParse(req.body);
     if (parsed.success) {
       const reports = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
       for (const report of reports) {
         recordRequest(report.method, report.endpoint, report.statusCode, report.durationMs);
+        if (report.durationMs > SLOW_CALL_THRESHOLD_MS) {
+          storage.insertSlowCall({
+            endpoint: report.endpoint,
+            method: report.method,
+            durationMs: report.durationMs,
+          }).catch(() => {});
+        }
       }
     }
     res.status(204).end();
   });
+
+  // Purge slow calls older than 30 days once on startup, then daily
+  storage.purgeOldSlowCalls(30).catch(() => {});
+  setInterval(() => storage.purgeOldSlowCalls(30).catch(() => {}), 24 * 60 * 60 * 1000);
 
   app.get("/api/admin/latency", authMiddleware, async (req, res) => {
     try {
@@ -1204,35 +1217,28 @@ export async function registerRoutes(
     }
   });
 
-  // Persistent slow-call metrics for trend analysis
-  const slowCallRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "Too many slow-call reports" },
-  });
-
-  // One row per slow-call event; count is derived via aggregation in GET /api/admin/slow-calls.
-  app.post("/api/metrics/slow-calls", slowCallRateLimit, async (req, res) => {
-    const parsed = insertSlowCallMetricSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid payload" });
-    try {
-      await storage.recordSlowCall(parsed.data);
-      res.status(204).end();
-    } catch (error: unknown) {
-      serverError(res, error);
-    }
-  });
+  const slowCallsSortBySchema = z.enum(["durationMs", "endpoint", "createdAt"]).optional().default("createdAt");
+  const slowCallsSortDirSchema = z.enum(["asc", "desc"]).optional().default("desc");
 
   app.get("/api/admin/slow-calls", authMiddleware, async (req, res) => {
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const days = Math.min(parseInt(String(req.query.days ?? "30"), 10) || 30, 90);
-      const limit = Math.min(parseInt(String(req.query.limit ?? "200"), 10) || 200, 1000);
-      const trends = await storage.getSlowCallTrends({ days, limit });
-      res.json({ trends, generatedAt: new Date().toISOString() });
+      const sortBy = slowCallsSortBySchema.parse(req.query.sortBy);
+      const sortDir = slowCallsSortDirSchema.parse(req.query.sortDir);
+      const calls = await storage.getSlowCalls({ sortBy, sortDir, limit: 200 });
+      res.json({ calls, generatedAt: new Date().toISOString(), threshold: SLOW_CALL_THRESHOLD_MS });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.delete("/api/admin/slow-calls", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      await storage.deleteAllSlowCalls();
+      res.json({ ok: true });
     } catch (error: unknown) {
       serverError(res, error);
     }
