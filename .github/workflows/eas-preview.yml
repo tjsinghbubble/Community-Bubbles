@@ -1,0 +1,146 @@
+name: EAS Preview Build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: eas-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: EAS Build (Preview)
+    runs-on: ubuntu-latest
+    # Forked PRs do not have access to repository secrets, so the EAS build
+    # cannot authenticate. Skip the job silently for fork-originated PRs.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    defaults:
+      run:
+        working-directory: mobile
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS (preview)
+        id: build_ios
+        continue-on-error: true
+        run: |
+          eas build \
+            --platform ios \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json \
+            > /tmp/eas_ios.json
+          BUILD_URL=$(jq -r '.[0].buildDetailsPageUrl // .[0].artifacts.buildUrl // ""' /tmp/eas_ios.json)
+          echo "build_url=${BUILD_URL}" >> "$GITHUB_OUTPUT"
+          echo "success=true" >> "$GITHUB_OUTPUT"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Build Android (preview)
+        id: build_android
+        continue-on-error: true
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json \
+            > /tmp/eas_android.json
+          BUILD_URL=$(jq -r '.[0].buildDetailsPageUrl // .[0].artifacts.buildUrl // ""' /tmp/eas_android.json)
+          echo "build_url=${BUILD_URL}" >> "$GITHUB_OUTPUT"
+          echo "success=true" >> "$GITHUB_OUTPUT"
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Post preview links as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const iosUrl     = '${{ steps.build_ios.outputs.build_url }}';
+            const aosUrl     = '${{ steps.build_android.outputs.build_url }}';
+            const iosSuccess = '${{ steps.build_ios.outcome }}' === 'success';
+            const aosSuccess = '${{ steps.build_android.outcome }}' === 'success';
+            const sha        = context.payload.pull_request.head.sha.slice(0, 7);
+            const branch     = context.payload.pull_request.head.ref;
+
+            const iosLine = iosSuccess && iosUrl
+              ? `[📲 Install iOS build](${iosUrl})`
+              : '❌ Build failed — check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+
+            const aosLine = aosSuccess && aosUrl
+              ? `[📲 Install Android build](${aosUrl})`
+              : '❌ Build failed — check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})';
+
+            const body = [
+              '## 🔍 Preview Builds',
+              '',
+              `Branch: \`${branch}\` | Commit: \`${sha}\``,
+              '',
+              '| Platform | Status |',
+              '|----------|--------|',
+              `| iOS      | ${iosLine} |`,
+              `| Android  | ${aosLine} |`,
+              '',
+              '_Internal distribution builds — **not** submitted to the App Store or Play Store._',
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('## 🔍 Preview Builds')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner:      context.repo.owner,
+                repo:       context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body,
+              });
+            }
