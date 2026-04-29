@@ -309,3 +309,20 @@ export function startEventReminderScheduler(): void {
   setInterval(processEventReminders, 15 * 60 * 1000);
   setTimeout(processEventReminders, 10000);
 }
+
+async function pruneSlowCallMetrics(): Promise<void> {
+  try {
+    const deleted = await storage.pruneSlowCallMetrics(90);
+    if (deleted > 0) {
+      console.log(`[SlowCallPruner] Deleted ${deleted} slow-call record(s) older than 90 days`);
+    }
+  } catch (error) {
+    console.error("[SlowCallPruner] Error pruning slow_call_metrics:", error);
+  }
+}
+
+export function startSlowCallPrunerScheduler(): void {
+  console.log("[SlowCallPruner] Nightly slow-call pruner started (24-hour interval)");
+  setInterval(pruneSlowCallMetrics, 24 * 60 * 60 * 1000);
+  setTimeout(pruneSlowCallMetrics, 30000);
+}

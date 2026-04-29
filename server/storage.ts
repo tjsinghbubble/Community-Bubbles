@@ -322,6 +322,7 @@ export interface IStorage {
     maxMs: number;
     date: string;
   }[]>;
+  pruneSlowCallMetrics(olderThanDays?: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2508,6 +2509,15 @@ export class DatabaseStorage implements IStorage {
       maxMs: Math.round(Number(r.maxMs ?? 0)),
       date: r.date,
     }));
+  }
+
+  async pruneSlowCallMetrics(olderThanDays = 90): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const deleted = await db
+      .delete(slowCallMetrics)
+      .where(lt(slowCallMetrics.recordedAt, cutoff))
+      .returning({ id: slowCallMetrics.id });
+    return deleted.length;
   }
 }
 
