@@ -74,6 +74,7 @@ export async function sendNotification(params: {
           params.title,
           params.body,
           params.metadata,
+          params.type,
         );
       }
     }
@@ -109,13 +110,14 @@ async function sendPushNotifications(
   title: string,
   body: string,
   data?: NotificationMetadata,
+  type?: NotificationType,
 ): Promise<void> {
   const messages = tokens.map((token) => ({
     to: token,
     sound: "default" as const,
     title,
     body,
-    data: data || {},
+    data: { ...(data || {}), ...(type ? { notificationType: type } : {}) },
   }));
 
   try {
@@ -291,7 +293,7 @@ async function processEventReminders(): Promise<void> {
         type: "event_task_reminder_1h",
         title: "Task Starting Soon",
         body: `"${signup.taskTitle}" at "${signup.eventTitle}" starts in about 1 hour (${displayTime})`,
-        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId },
+        metadata: { eventId: signup.eventId, eventName: signup.eventTitle, bubbleId: signup.bubbleId, taskId: String(signup.taskId) },
       });
       await storage.markTaskSignupReminder1hSent(signup.signupId);
       sentTaskReminders1h++;

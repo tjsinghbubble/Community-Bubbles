@@ -159,7 +159,7 @@ export interface IStorage {
   getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
   getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminderSent(signupId: number): Promise<void>;
-  getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
+  getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminder1hSent(signupId: number): Promise<void>;
   resetTaskSignupReminder1hFlags(eventId: string): Promise<void>;
 
@@ -1139,13 +1139,14 @@ export class DatabaseStorage implements IStorage {
     await db.update(eventTaskSignups).set({ reminderSent: true }).where(eq(eventTaskSignups.id, signupId));
   }
 
-  async getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
+  async getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
     const now = new Date();
     const windowEnd = new Date(now.getTime() + 60 * 60 * 1000);
     const rows = await db
       .select({
         signupId: eventTaskSignups.id,
         userId: eventTaskSignups.userId,
+        taskId: eventTaskSignups.taskId,
         taskTitle: eventSignupTasks.title,
         eventId: events.id,
         eventTitle: events.title,

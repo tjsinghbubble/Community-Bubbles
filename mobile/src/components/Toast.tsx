@@ -18,6 +18,7 @@ type ToastConfig = {
   type?: ToastType;
   duration?: number;
   onDismiss?: () => void;
+  onPress?: () => void;
 };
 
 type ToastState = ToastConfig & { id: number };
@@ -146,7 +147,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           onPress={() => {
             if (timerRef.current) clearTimeout(timerRef.current);
             dismiss();
-            toast.onDismiss?.();
+            if (toast.onPress) {
+              toast.onPress();
+            } else {
+              toast.onDismiss?.();
+            }
           }}
           style={[styles.toast, { backgroundColor: BG_COLORS[type] }]}
         >
