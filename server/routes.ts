@@ -1370,6 +1370,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/slow-call-config", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const { SLOW_CALL_THRESHOLD_MS: thresholdMs, SLOW_CALL_RETENTION_DAYS: retentionDays } = await import("./slow-call-config");
+      res.json({ thresholdMs, retentionDays });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   // Purge crash reports older than the retention window on startup, then daily
   const CRASH_REPORT_RETENTION_DAYS = parseInt(process.env.CRASH_REPORT_RETENTION_DAYS ?? "90", 10);
   storage.purgeCrashReports(CRASH_REPORT_RETENTION_DAYS).catch(() => {});

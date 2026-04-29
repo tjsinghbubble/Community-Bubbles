@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronsUpDown,
   AlertTriangle,
+  Settings2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -38,6 +39,11 @@ interface SlowCallsData {
   calls: SlowCall[];
   generatedAt: string;
   threshold: number;
+}
+
+interface SlowCallConfig {
+  thresholdMs: number;
+  retentionDays: number;
 }
 
 type SortKey = "durationMs" | "endpoint" | "createdAt";
@@ -112,6 +118,13 @@ export default function AdminSlowCalls() {
     refetchInterval: 30_000,
   });
 
+  const { data: config } = useQuery<SlowCallConfig>({
+    queryKey: ["/api/admin/slow-call-config"],
+    queryFn: () => apiRequest("GET", "/api/admin/slow-call-config").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const clearMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", "/api/admin/slow-calls").then((r) => r.json()),
     onSuccess: () => {
@@ -182,7 +195,7 @@ export default function AdminSlowCalls() {
           <div className="flex-1">
             <h1 className="font-display text-[22px] font-bold tracking-tight">Slow API Calls</h1>
             <p className="text-[12px] text-muted-foreground">
-              Calls exceeding {fmt(threshold)} threshold — last {calls.length} records (30-day window)
+              Calls exceeding {fmt(threshold)} threshold — last {calls.length} records ({config ? `${config.retentionDays}-day` : "90-day"} window)
             </p>
           </div>
           <button
@@ -334,6 +347,52 @@ export default function AdminSlowCalls() {
               </div>
             </div>
 
+            {/* Active configuration */}
+            {config && (
+              <div
+                className="rounded-2xl bg-white/70 ring-1 ring-black/8 px-5 py-4"
+                data-testid="slow-call-config-panel"
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Active Configuration
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Slow-call threshold
+                    </span>
+                    <span
+                      className="text-[15px] font-bold text-foreground"
+                      data-testid="config-value-threshold"
+                    >
+                      {fmt(config.thresholdMs)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      SLOW_CALL_THRESHOLD_MS = {config.thresholdMs}
+                    </span>
+                  </div>
+                  <div className="w-px self-stretch bg-black/8 hidden sm:block" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Retention window
+                    </span>
+                    <span
+                      className="text-[15px] font-bold text-foreground"
+                      data-testid="config-value-retention"
+                    >
+                      {config.retentionDays} {config.retentionDays === 1 ? "day" : "days"}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      SLOW_CALL_RETENTION_DAYS = {config.retentionDays}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Table or empty state */}
             {calls.length === 0 ? (
               <div
@@ -452,7 +511,7 @@ export default function AdminSlowCalls() {
             )}
 
             <p className="text-center text-[10px] text-muted-foreground">
-              Showing up to 200 most recent entries. Records auto-purge after 30 days.
+              Showing up to 200 most recent entries. Records auto-purge after {config ? config.retentionDays : 90} days.
             </p>
           </div>
         )}
