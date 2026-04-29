@@ -7,7 +7,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
-import { navigationIntegration } from '../utils/crashReporter';
+import { navigationIntegration, reportError, withBackgroundTask } from '../utils/crashReporter';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -82,34 +82,41 @@ export default function RootNavigator() {
       if (error?.status === 404) {
         Alert.alert('Bubble Not Found', 'This bubble no longer exists or may have been removed.');
       } else {
-        console.error('Deep link error:', error);
+        const err = error instanceof Error ? error : new Error(String(error));
+        reportError(err, 'background.DeepLink.navigateToBubble');
         Alert.alert('Error', 'Unable to open this bubble link. Please try again.');
       }
     }
   };
 
   useEffect(() => {
-    const handleDeepLink = async (url: string) => {
-      const shortIdMatch = url.match(/\/b\/([a-zA-Z0-9]+)/);
-      if (!shortIdMatch) return;
+    const handleDeepLink = (url: string) =>
+      withBackgroundTask('DeepLink.handleUrl', async () => {
+        const shortIdMatch = url.match(/\/b\/([a-zA-Z0-9]+)/);
+        if (!shortIdMatch) return;
 
-      const shortId = shortIdMatch[1];
+        const shortId = shortIdMatch[1];
 
-      if (!isAuthenticated) {
-        pendingShortIdRef.current = shortId;
-        return;
-      }
+        if (!isAuthenticated) {
+          pendingShortIdRef.current = shortId;
+          return;
+        }
 
-      await navigateToBubble(shortId);
-    };
+        await navigateToBubble(shortId);
+      });
 
     const subscription = Linking.addEventListener('url', (event) => {
       handleDeepLink(event.url);
     });
 
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink(url);
-    });
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleDeepLink(url);
+      })
+      .catch((err: unknown) => {
+        const error = err instanceof Error ? err : new Error(String(err));
+        reportError(error, 'background.DeepLink.getInitialURL');
+      });
 
     return () => subscription.remove();
   }, [isAuthenticated]);

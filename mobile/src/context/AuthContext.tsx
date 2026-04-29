@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState, AppStateStatus } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
-import { setSentryUser, clearSentryUser, logAppEvent } from '../utils/crashReporter';
+import { setSentryUser, clearSentryUser, logAppEvent, reportError, withBackgroundTask } from '../utils/crashReporter';
 
 type User = {
   id: string;
@@ -53,17 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, [token]);
 
-  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-      // App came to foreground - start session
-      if (token) {
-        await startSession();
+  const handleAppStateChange = (nextAppState: AppStateStatus) => {
+    withBackgroundTask('AppState.handleChange', async () => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        if (token) {
+          await startSession();
+        }
+      } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        await endSession();
       }
-    } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
-      // App going to background - end session
-      await endSession();
-    }
-    appState.current = nextAppState;
+      appState.current = nextAppState;
+    });
   };
 
   const startSession = async () => {
@@ -72,7 +72,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionIdRef.current = response.id;
       logAppEvent('[Session] App session started', { sessionId: response.id });
     } catch (e) {
-      console.log('Failed to start session:', e);
+      const err = e instanceof Error ? e : new Error(String(e));
+      console.warn('[Session] Failed to start session:', err.message);
+      reportError(err, 'background.AppState.startSession');
     }
   };
 
@@ -83,7 +85,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await apiService.endSession(sessionIdRef.current);
         sessionIdRef.current = null;
       } catch (e) {
-        console.log('Failed to end session:', e);
+        const err = e instanceof Error ? e : new Error(String(e));
+        console.warn('[Session] Failed to end session:', err.message);
+        reportError(err, 'background.AppState.endSession');
       }
     }
   };
@@ -105,7 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logAppEvent('[Auth] Session restored from storage', { userId: parsedUser.id, name: parsedUser.name });
       }
     } catch (error) {
-      console.error('Failed to load auth:', error);
+      const err = error instanceof Error ? error : new Error(String(error));
+      console.error('[Auth] Failed to load stored auth:', err.message);
+      reportError(err, 'background.loadStoredAuth');
     } finally {
       setIsLoading(false);
     }

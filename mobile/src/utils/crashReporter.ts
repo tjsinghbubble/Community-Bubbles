@@ -239,6 +239,38 @@ export async function measureScreenLoad<T>(
   }
 }
 
+/**
+ * Wraps an async background task so that any unhandled error is captured by
+ * Sentry instead of being silently swallowed.  The wrapper tags the event with
+ * `background_task: taskName` so it is easy to filter in the Sentry dashboard.
+ *
+ * Returns `undefined` when the task throws (the error is still reported).
+ *
+ * Usage:
+ *   AppState.addEventListener('change', () =>
+ *     withBackgroundTask('AppState.handleChange', () => myAsyncHandler())
+ *   );
+ */
+export async function withBackgroundTask<T>(
+  taskName: string,
+  fn: () => Promise<T>,
+): Promise<T | undefined> {
+  try {
+    return await fn();
+  } catch (err: unknown) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error(`[BackgroundTask] "${taskName}" threw:`, error.message);
+    Sentry.withScope((scope) => {
+      scope.setTag('background_task', taskName);
+      scope.setTag('screen', `background.${taskName}`);
+      scope.setTag('platform', Platform.OS);
+      scope.setLevel('error');
+      Sentry.captureException(error);
+    });
+    return undefined;
+  }
+}
+
 export function installGlobalHandlers(): void {
   const globalObj = global as Record<string, unknown>;
 

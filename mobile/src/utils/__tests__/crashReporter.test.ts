@@ -39,6 +39,7 @@ import {
   installGlobalHandlers,
   initSentry,
   measureScreenLoad,
+  withBackgroundTask,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -1069,5 +1070,91 @@ describe('measureScreenLoad', () => {
     expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
     expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'ErrorScreen');
     expect(fakeSpan.finish).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('withBackgroundTask', () => {
+  const mockWithScope = Sentry.withScope as jest.Mock;
+  const mockCaptureException = Sentry.captureException as jest.Mock;
+
+  function makeFakeScope() {
+    return { setTag: jest.fn(), setLevel: jest.fn() };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockWithScope.mockImplementation((cb: (s: ReturnType<typeof makeFakeScope>) => void) => {
+      cb(makeFakeScope());
+    });
+  });
+
+  it('returns the resolved value when the task succeeds', async () => {
+    const result = await withBackgroundTask('test.success', async () => 42);
+    expect(result).toBe(42);
+  });
+
+  it('returns undefined when the task throws', async () => {
+    const result = await withBackgroundTask('test.fail', async () => {
+      throw new Error('boom');
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('calls captureException with the thrown Error inside withScope', async () => {
+    const boom = new Error('background boom');
+    let captureCalledInsideScope = false;
+
+    mockWithScope.mockImplementationOnce((cb: (s: ReturnType<typeof makeFakeScope>) => void) => {
+      const scope = makeFakeScope();
+      cb(scope);
+      captureCalledInsideScope = mockCaptureException.mock.calls.length > 0;
+    });
+
+    await withBackgroundTask('test.capture', async () => {
+      throw boom;
+    });
+
+    expect(captureCalledInsideScope).toBe(true);
+    expect(mockCaptureException).toHaveBeenCalledWith(boom);
+  });
+
+  it('normalizes a non-Error throw to an Error before reporting', async () => {
+    await withBackgroundTask('test.string-throw', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal
+      throw 'plain string error';
+    });
+    expect(mockCaptureException).toHaveBeenCalledTimes(1);
+    const capturedArg = mockCaptureException.mock.calls[0][0] as Error;
+    expect(capturedArg).toBeInstanceOf(Error);
+    expect(capturedArg.message).toBe('plain string error');
+  });
+
+  it('sets background_task tag and captures exception in the same withScope call', async () => {
+    const taskName = 'AppState.handleChange';
+    let scopeAtCapture: ReturnType<typeof makeFakeScope> | null = null;
+    let capturedError: Error | null = null;
+
+    mockWithScope.mockImplementationOnce((cb: (s: ReturnType<typeof makeFakeScope>) => void) => {
+      const scope = makeFakeScope();
+      mockCaptureException.mockImplementationOnce((e: Error) => {
+        capturedError = e;
+        scopeAtCapture = scope;
+      });
+      cb(scope);
+    });
+
+    const thrown = new Error('tagged error');
+    await withBackgroundTask(taskName, async () => {
+      throw thrown;
+    });
+
+    expect(scopeAtCapture).not.toBeNull();
+    expect((scopeAtCapture!.setTag as jest.Mock)).toHaveBeenCalledWith('background_task', taskName);
+    expect(capturedError).toBe(thrown);
+  });
+
+  it('does not swallow a task that resolves with undefined', async () => {
+    const result = await withBackgroundTask('test.void', async () => undefined);
+    expect(result).toBeUndefined();
   });
 });
