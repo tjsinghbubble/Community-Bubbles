@@ -1207,8 +1207,8 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
   }
 
-  // Reset reminderSent (24h) for all task signups tied to this event so the
-  // poller can fire a fresh day-before reminder after the event is rescheduled.
+  // Reset both reminderSent (24h) and reminderSent1h for all task signups tied
+  // to this event so the poller can fire fresh reminders after the event is rescheduled.
   async resetTaskSignupReminderFlags(eventId: string): Promise<void> {
     const taskIds = await db
       .select({ id: eventSignupTasks.id })
@@ -1217,7 +1217,7 @@ export class DatabaseStorage implements IStorage {
     if (taskIds.length === 0) return;
     await db
       .update(eventTaskSignups)
-      .set({ reminderSent: false })
+      .set({ reminderSent: false, reminderSent1h: false })
       .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
   }
 
