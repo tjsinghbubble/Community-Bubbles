@@ -161,6 +161,7 @@ export interface IStorage {
   markTaskSignupReminderSent(signupId: number): Promise<void>;
   getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminder1hSent(signupId: number): Promise<void>;
+  resetTaskSignupReminder1hFlags(eventId: string): Promise<void>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -1170,6 +1171,20 @@ export class DatabaseStorage implements IStorage {
 
   async markTaskSignupReminder1hSent(signupId: number): Promise<void> {
     await db.update(eventTaskSignups).set({ reminderSent1h: true }).where(eq(eventTaskSignups.id, signupId));
+  }
+
+  // Reset reminderSent1h for all task signups tied to this event so the
+  // poller can fire a fresh 1h reminder after the event is rescheduled.
+  async resetTaskSignupReminder1hFlags(eventId: string): Promise<void> {
+    const taskIds = await db
+      .select({ id: eventSignupTasks.id })
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.eventId, eventId));
+    if (taskIds.length === 0) return;
+    await db
+      .update(eventTaskSignups)
+      .set({ reminderSent1h: false })
+      .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
   }
 
   // Campus methods

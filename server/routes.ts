@@ -2272,7 +2272,18 @@ export async function registerRoutes(
         updateBody.timezone = tz;
       }
 
+      const originalDate = event.date;
+      const originalStartTime = event.startTime;
+
       const updated = await storage.updateEvent(req.params.id, updateBody);
+
+      const newDate = updateBody.date ?? originalDate;
+      const newStartTime = updateBody.startTime ?? originalStartTime;
+      if (newDate !== originalDate || newStartTime !== originalStartTime) {
+        // Strategy: reset reminderSent1h so volunteers get a fresh 1h
+        // notification at the new event time rather than being silently skipped.
+        await storage.resetTaskSignupReminder1hFlags(req.params.id);
+      }
 
       const attendees = await storage.getEventAttendees(req.params.id);
       const attendeeIds = attendees
