@@ -28,6 +28,7 @@ const TASK_REMINDER_TYPES = new Set([
 const BUBBLE_REQUEST_TYPES = new Set([
   'bubble_request_approved',
   'bubble_request_rejected',
+  'waitlist_rejected',
 ]);
 
 Notifications.setNotificationHandler({

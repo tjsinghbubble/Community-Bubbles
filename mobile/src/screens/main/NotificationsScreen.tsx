@@ -152,7 +152,7 @@ export default function NotificationsScreen() {
     let meta: any = {};
     try { meta = notif.metadata ? JSON.parse(notif.metadata) : {}; } catch { meta = {}; }
     if (meta.bubbleId && !meta.eventId) {
-      if (notif.type === 'bubble_request_rejected') {
+      if (notif.type === 'bubble_request_rejected' || notif.type === 'waitlist_rejected') {
         (navigation as any).navigate('Explore', {
           screen: 'JoinBubble',
           params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
