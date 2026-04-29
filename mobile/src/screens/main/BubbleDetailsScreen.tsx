@@ -172,15 +172,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const fetchEvents = async () => {
-    setSignupTaskCounts({});
     try {
       const data = await apiService.getBubbleEvents(bubble.id) as Event[];
       setEvents(data);
+      const counts: Record<string, number> = {};
       if (data.length > 0) {
         const taskResults = await Promise.all(
           data.map((ev) => apiService.getEventSignupTasks(ev.id).catch(() => []))
         );
-        const counts: Record<string, number> = {};
         data.forEach((ev, idx) => {
           const tasks: any[] = taskResults[idx] || [];
           const openCount = tasks.filter(
@@ -188,8 +187,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           ).length;
           if (openCount > 0) counts[ev.id] = openCount;
         });
-        setSignupTaskCounts(counts);
       }
+      setSignupTaskCounts(counts);
     } catch (error) {
       console.error('Failed to fetch events:', error);
     } finally {
