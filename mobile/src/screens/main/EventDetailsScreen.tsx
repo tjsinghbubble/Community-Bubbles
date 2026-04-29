@@ -717,7 +717,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.bulletinSection}>
-          <Text style={styles.sectionTitle}>Bulletin Board</Text>
+          <Text style={styles.sectionTitle}>Sign-Up and Help {creatorName}</Text>
 
           {MOCK_BULLETIN.map((item) => (
             <View key={item.id} style={styles.bulletinCard}>
@@ -732,7 +732,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('BulletinBoard', {
+              bubbleId: event.bubbleId,
+              bubbleTitle: bubble?.title || routeBubbleTitle || '',
+            })}
+          >
             <Text style={styles.addButtonText}>+ Add</Text>
           </TouchableOpacity>
         </View>
