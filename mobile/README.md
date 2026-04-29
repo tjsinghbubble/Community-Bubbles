@@ -156,32 +156,73 @@ If your CI pipeline calls `eas build` directly (e.g. GitHub Actions), add a pre-
 
 ---
 
+## Release Flow (Required Reading)
+
+All production releases must go through the following sequence. Direct pushes to `main` do **not** trigger a production build — only a properly formatted semver tag does.
+
+```
+feature branch → Pull Request → merge to main → tag → EAS build
+```
+
+### Step-by-step
+
+1. **Develop on a feature branch** — never commit directly to `main`.
+2. **Open a Pull Request** from your branch into `main`. Get it reviewed and approved.
+3. **Merge the PR** into `main` via GitHub (squash or merge commit — no force-push).
+4. **Tag the commit** on `main` that you want to release, using strict `vMAJOR.MINOR.PATCH` format:
+   ```bash
+   git checkout main && git pull
+   git tag v1.2.3
+   git push origin v1.2.3
+   ```
+5. **GitHub Actions takes over** — the `release-gate` job validates the tag format, then the `build` job syncs the version into `app.json` and runs EAS Build + store submission automatically.
+
+> Pushing to `main` without a tag does **not** trigger a production build. The EAS workflow is tag-only.
+
+---
+
+## Branch Protection Setup (One-Time Admin Step)
+
+To enforce the release flow above, configure branch protection for `main` in GitHub:
+
+1. Go to **GitHub → Repository → Settings → Branches**.
+2. Click **Add branch protection rule** and set **Branch name pattern** to `main`.
+3. Enable the following options:
+   - **Require a pull request before merging** — prevents direct pushes.
+     - Enable *Require approvals* (at least 1 reviewer).
+   - **Require status checks to pass before merging** — once you have CI checks, list them here.
+   - **Do not allow bypassing the above settings** — applies the rule to admins too.
+4. Click **Save changes**.
+
+With this in place, the only way to get code into `main` is through a reviewed PR, and the only way to trigger a production EAS build is by pushing a `v*` tag.
+
+---
+
 ## CI/CD — Automated Production Builds (GitHub Actions)
 
-The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.yml`) that automatically triggers EAS production builds and store submissions on every push to `main` or any release tag (e.g. `v1.2.3`).
+The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.yml`) that automatically triggers EAS production builds and store submissions when a release tag (e.g. `v1.2.3`) is pushed.
 
 ### What the workflow does
 
-1. Installs Node.js 20 and `npm ci` in the `mobile/` directory.
-2. **Syncs the semantic version from the git tag into `app.json`** *(tag-triggered runs only)* — strips the leading `v` from the tag name (e.g. `v1.2.3` → `1.2.3`) and writes it to the `expo.version` field using `jq`. This means you never need to manually edit `app.json` before a release.
-3. Installs the EAS CLI via the official `expo/expo-github-action` action.
-4. Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
-   - `--wait` blocks the GitHub Actions runner until the EAS cloud build finishes, so the job does not exit prematurely.
-   - `--auto-submit` tells EAS to automatically submit the completed build to the App Store (iOS) or Play Store (Android) immediately after the build succeeds — no separate submit step required.
-5. Sentry source maps are uploaded during the EAS build step (handled by the `@sentry/react-native/expo` plugin — no extra step required).
+1. **`release-gate` job** — validates that the pushed tag strictly follows `vMAJOR.MINOR.PATCH` semver. If the tag is malformed (e.g. `v1.2`, `release-1.0`, `v1.2.3-beta`), this job fails immediately and the build is aborted.
+2. **`build` job** (runs only if `release-gate` passes):
+   - Installs Node.js 20 and `npm ci` in the `mobile/` directory.
+   - **Syncs the semantic version from the git tag into `app.json`** — strips the leading `v` (e.g. `v1.2.3` → `1.2.3`) and writes it to `expo.version` using `jq`. You never need to manually edit `app.json` before a release.
+   - Installs the EAS CLI via the official `expo/expo-github-action` action.
+   - Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
+     - `--wait` blocks the runner until the EAS cloud build finishes.
+     - `--auto-submit` submits the build to the App Store / Play Store automatically.
+   - Sentry source maps are uploaded during the EAS build (via the `@sentry/react-native/expo` plugin).
 
 ### Releasing a new version
 
-To ship a new release, push a semver tag — that is all. The workflow will pick up the tag, update the version in `app.json` automatically, and kick off the EAS build and store submission:
-
 ```bash
+git checkout main && git pull
 git tag v1.2.3
 git push origin v1.2.3
 ```
 
-The `expo.buildNumber` (iOS) and `expo.versionCode` (Android) continue to be managed by EAS via `autoIncrement: true` in `eas.json`, so only the human-readable semantic version (`1.2.3`) is derived from the tag.
-
-> **Note:** Pushes to `main` also trigger the workflow but skip the version-sync step — the version already in `app.json` is used as-is. Tagging is the recommended path for all production releases.
+The `expo.buildNumber` (iOS) and `expo.versionCode` (Android) are managed by EAS via `autoIncrement: true` in `eas.json` — only the human-readable semantic version is derived from the tag.
 
 ### Required GitHub repository secrets
 
@@ -223,7 +264,7 @@ eas build --platform all --profile production --wait --auto-submit
 
 ### Concurrency
 
-The workflow uses a `concurrency` group (`eas-production-<ref>`) so that a second push to `main` while a build is in progress will queue rather than cancel the running build — this prevents accidentally losing a partially completed submission.
+The workflow uses a `concurrency` group (`eas-production-<ref>`) so that if two tags are pushed in quick succession, the second build queues rather than cancelling the running one — this prevents accidentally losing a partially completed submission.
 
 #### Sentry Alert Rules
 
