@@ -9,21 +9,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
 
 const APP_STAGE = 'alpha';
+const LOCAL_VERSION = Constants.expoConfig?.version ?? null;
 
 export default function AccountSettingsScreen() {
   const navigation = useNavigation<any>();
-  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string | null>(LOCAL_VERSION);
 
   useEffect(() => {
     apiService.getAppVersion()
       .then((res) => setAppVersion(res.version))
-      .catch(() => setAppVersion(null));
+      .catch(() => {
+        // Server unreachable — keep the locally bundled version already in state
+      });
   }, []);
 
   return (
