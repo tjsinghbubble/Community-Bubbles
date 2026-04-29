@@ -79,10 +79,42 @@ function EditProfileScreenWithBoundary(props: React.ComponentProps<typeof EditPr
   );
 }
 
+function MyBubblesFromProfileScreenWithBoundary(props: React.ComponentProps<typeof MyBubblesFromProfileScreen>) {
+  return (
+    <ScreenErrorBoundary context="MyBubblesFromProfileScreen" message="Couldn't load your bubbles — tap to retry">
+      <MyBubblesFromProfileScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function PendingReviewsScreenWithBoundary(props: React.ComponentProps<typeof PendingReviewsScreen>) {
+  return (
+    <ScreenErrorBoundary context="PendingReviewsScreen" message="Couldn't load pending reviews — tap to retry">
+      <PendingReviewsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function NotificationsScreenWithBoundary(props: React.ComponentProps<typeof NotificationsScreen>) {
+  return (
+    <ScreenErrorBoundary context="NotificationsScreen" message="Couldn't load notifications — tap to retry">
+      <NotificationsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function AccountSettingsScreenWithBoundary(props: React.ComponentProps<typeof AccountSettingsScreen>) {
   return (
     <ScreenErrorBoundary context="AccountSettingsScreen" message="Couldn't load account settings — tap to retry">
       <AccountSettingsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function PersonalInformationScreenWithBoundary(props: React.ComponentProps<typeof PersonalInformationScreen>) {
+  return (
+    <ScreenErrorBoundary context="PersonalInformationScreen" message="Couldn't load personal information — tap to retry">
+      <PersonalInformationScreen {...props} />
     </ScreenErrorBoundary>
   );
 }
@@ -175,17 +207,57 @@ function ManageRulesScreenWithBoundary(props: React.ComponentProps<typeof Manage
   );
 }
 
+function CategoryPlaceholdersScreenWithBoundary(props: React.ComponentProps<typeof CategoryPlaceholdersScreen>) {
+  return (
+    <ScreenErrorBoundary context="CategoryPlaceholdersScreen" message="Couldn't load category placeholders — tap to retry">
+      <CategoryPlaceholdersScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ErrorLogScreenWithBoundary(props: React.ComponentProps<typeof ErrorLogScreen>) {
+  return (
+    <ScreenErrorBoundary context="ErrorLogScreen" message="Couldn't load the error log — tap to retry">
+      <ErrorLogScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function SlowCallTrendsScreenWithBoundary(props: React.ComponentProps<typeof SlowCallTrendsScreen>) {
+  return (
+    <ScreenErrorBoundary context="SlowCallTrendsScreen" message="Couldn't load slow call trends — tap to retry">
+      <SlowCallTrendsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function TermsOfServiceScreenWithBoundary(props: React.ComponentProps<typeof TermsOfServiceScreen>) {
+  return (
+    <ScreenErrorBoundary context="TermsOfServiceScreen" message="Couldn't load Terms of Service — tap to retry">
+      <TermsOfServiceScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function PrivacyPolicyScreenWithBoundary(props: React.ComponentProps<typeof PrivacyPolicyScreen>) {
+  return (
+    <ScreenErrorBoundary context="PrivacyPolicyScreen" message="Couldn't load Privacy Policy — tap to retry">
+      <PrivacyPolicyScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ProfileNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreenWithBoundary} />
       <Stack.Screen name="ViewProfile" component={ViewProfileScreenWithBoundary} />
       <Stack.Screen name="EditProfile" component={EditProfileScreenWithBoundary} />
-      <Stack.Screen name="MyBubblesFromProfile" component={MyBubblesFromProfileScreen} />
-      <Stack.Screen name="PendingReviews" component={PendingReviewsScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="MyBubblesFromProfile" component={MyBubblesFromProfileScreenWithBoundary} />
+      <Stack.Screen name="PendingReviews" component={PendingReviewsScreenWithBoundary} />
+      <Stack.Screen name="Notifications" component={NotificationsScreenWithBoundary} />
       <Stack.Screen name="AccountSettings" component={AccountSettingsScreenWithBoundary} />
-      <Stack.Screen name="PersonalInformation" component={PersonalInformationScreen} />
+      <Stack.Screen name="PersonalInformation" component={PersonalInformationScreenWithBoundary} />
       <Stack.Screen name="LoginSecurity" component={LoginSecurityScreenWithBoundary} />
       <Stack.Screen name="DeactivateReason" component={DeactivateReasonScreenWithBoundary} />
       <Stack.Screen name="DeactivateConfirm" component={DeactivateConfirmScreenWithBoundary} />
@@ -197,11 +269,11 @@ export default function ProfileNavigator() {
       <Stack.Screen name="HelpCenter" component={HelpCenterScreenWithBoundary} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreenWithBoundary} />
       <Stack.Screen name="ManageRules" component={ManageRulesScreenWithBoundary} options={{ gestureEnabled: false }} />
-      <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreen} />
-      <Stack.Screen name="ErrorLog" component={ErrorLogScreen} />
-      <Stack.Screen name="SlowCallTrends" component={SlowCallTrendsScreen} />
-      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreenWithBoundary} />
+      <Stack.Screen name="ErrorLog" component={ErrorLogScreenWithBoundary} />
+      <Stack.Screen name="SlowCallTrends" component={SlowCallTrendsScreenWithBoundary} />
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreenWithBoundary} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreenWithBoundary} />
     </Stack.Navigator>
   );
 }

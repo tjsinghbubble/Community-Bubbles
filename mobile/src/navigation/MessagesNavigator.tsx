@@ -16,6 +16,14 @@ export type MessagesStackParamList = {
 
 const Stack = createNativeStackNavigator<MessagesStackParamList>();
 
+function MessagesScreenWithBoundary(props: React.ComponentProps<typeof MessagesScreen>) {
+  return (
+    <ScreenErrorBoundary context="MessagesScreen" message="Couldn't load your messages — tap to retry">
+      <MessagesScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function ChatScreenWithBoundary(props: React.ComponentProps<typeof ChatScreen>) {
   return (
     <ScreenErrorBoundary context="ChatScreen" message="Couldn't load this chat — tap to retry">
@@ -24,13 +32,29 @@ function ChatScreenWithBoundary(props: React.ComponentProps<typeof ChatScreen>) 
   );
 }
 
+function MemberProfileScreenWithBoundary(props: React.ComponentProps<typeof MemberProfileScreen>) {
+  return (
+    <ScreenErrorBoundary context="MemberProfileScreen" message="Couldn't load this member's profile — tap to retry">
+      <MemberProfileScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function BubbleDetailsScreenWithBoundary(props: React.ComponentProps<typeof BubbleDetailsScreen>) {
+  return (
+    <ScreenErrorBoundary context="BubbleDetailsScreen" message="Couldn't load this bubble — tap to retry">
+      <BubbleDetailsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function MessagesNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
-      <Stack.Screen name="MessagesList" component={MessagesScreen} />
+      <Stack.Screen name="MessagesList" component={MessagesScreenWithBoundary} />
       <Stack.Screen name="Chat" component={ChatScreenWithBoundary} />
-      <Stack.Screen name="MemberProfile" component={MemberProfileScreen} />
-      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="MemberProfile" component={MemberProfileScreenWithBoundary} />
+      <Stack.Screen name="BubbleDetails" component={BubbleDetailsScreenWithBoundary} options={{ gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }
