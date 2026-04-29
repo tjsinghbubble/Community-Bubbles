@@ -226,7 +226,6 @@ describe('reportError', () => {
 
   beforeEach(() => {
     mockScope = makeMockScope();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
@@ -254,14 +253,6 @@ describe('reportError', () => {
     expect(mockScope.setLevel).not.toHaveBeenCalledWith('fatal');
   });
 
-  it('sends a report with isFatal set to false', () => {
-    reportError(new Error('check isFatal'));
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { isFatal: boolean };
-    expect(body.isFatal).toBe(false);
-  });
-
   it('tags the scope with the provided context as screen', () => {
     reportError(new Error('ctx error'), 'HomeScreen');
 
@@ -283,7 +274,6 @@ describe('reportFatalError', () => {
 
   beforeEach(() => {
     mockScope = makeMockScope();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
@@ -309,14 +299,6 @@ describe('reportFatalError', () => {
     reportFatalError(new Error('critical'));
 
     expect(mockScope.setLevel).not.toHaveBeenCalledWith('error');
-  });
-
-  it('sends a report with isFatal set to true', () => {
-    reportFatalError(new Error('check isFatal'));
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { isFatal: boolean };
-    expect(body.isFatal).toBe(true);
   });
 
   it('tags the scope with the provided context as screen', () => {
@@ -367,7 +349,6 @@ describe('reportFatalError', () => {
 
 describe('logAppEvent', () => {
   beforeEach(() => {
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
   });
 
@@ -408,40 +389,6 @@ describe('logAppEvent', () => {
     const call = (Sentry.addBreadcrumb as jest.Mock).mock.calls[0][0];
     expect(call.data).toBeUndefined();
   });
-
-  it('posts to the server via fetch', () => {
-    logAppEvent('checkout_completed');
-
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/api/crash-report');
-  });
-
-  it('posts the event message as the report message', () => {
-    logAppEvent('profile_updated');
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { message: string };
-    expect(body.message).toBe('profile_updated');
-  });
-
-  it('serialises attributes into the report context when provided', () => {
-    const attributes = { tab: 'home', itemId: 7 };
-
-    logAppEvent('tab_switched', attributes);
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { context: string };
-    expect(body.context).toBe(JSON.stringify(attributes));
-  });
-
-  it('omits context from the report when no attributes are given', () => {
-    logAppEvent('session_started');
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { context?: string };
-    expect(body.context).toBeUndefined();
-  });
 });
 
 describe('logAppWarn', () => {
@@ -449,7 +396,6 @@ describe('logAppWarn', () => {
 
   beforeEach(() => {
     mockScope = makeMockScope();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
@@ -491,40 +437,6 @@ describe('logAppWarn', () => {
     logAppWarn('config missing');
 
     expect(mockScope.setTag).toHaveBeenCalledWith('alert_type', 'app_warning');
-  });
-
-  it('posts to the server via fetch', () => {
-    logAppWarn('memory pressure');
-
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [url] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/api/crash-report');
-  });
-
-  it('posts the warning message as the report message', () => {
-    logAppWarn('token expired');
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { message: string };
-    expect(body.message).toBe('token expired');
-  });
-
-  it('serialises attributes into the report context when provided', () => {
-    const attributes = { code: 401, retry: true };
-
-    logAppWarn('auth failed', attributes);
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { context: string };
-    expect(body.context).toBe(JSON.stringify(attributes));
-  });
-
-  it('omits context from the report when no attributes are given', () => {
-    logAppWarn('fallback used');
-
-    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-    const body = JSON.parse(init.body as string) as { context?: string };
-    expect(body.context).toBeUndefined();
   });
 });
 
@@ -768,7 +680,6 @@ describe('installGlobalHandlers', () => {
 
   beforeEach(() => {
     mockScope = makeMockScope();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true } as Response);
     jest.clearAllMocks();
     (Sentry.withScope as jest.Mock).mockImplementation(
       (cb: (scope: MockScope) => void) => { cb(mockScope); },
@@ -833,16 +744,6 @@ describe('installGlobalHandlers', () => {
       expect(mockScope.setLevel).not.toHaveBeenCalledWith('error');
     });
 
-    it('sends a report with isFatal=true when the handler is called with isFatal=true', () => {
-      const { getInstalledHandler } = setupErrorUtils();
-
-      getInstalledHandler()(new Error('fatal payload'), true);
-
-      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(init.body as string) as { isFatal: boolean };
-      expect(body.isFatal).toBe(true);
-    });
-
     it('calls reportError (Sentry level "error") when isFatal is false', () => {
       const { getInstalledHandler } = setupErrorUtils();
       const error = new Error('non-fatal error');
@@ -851,16 +752,6 @@ describe('installGlobalHandlers', () => {
 
       expect(mockScope.setLevel).toHaveBeenCalledWith('error');
       expect(mockScope.setLevel).not.toHaveBeenCalledWith('fatal');
-    });
-
-    it('sends a report with isFatal=false when the handler is called with isFatal=false', () => {
-      const { getInstalledHandler } = setupErrorUtils();
-
-      getInstalledHandler()(new Error('non-fatal payload'), false);
-
-      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(init.body as string) as { isFatal: boolean };
-      expect(body.isFatal).toBe(false);
     });
 
     it('chains through to the previous handler when isFatal is true', () => {
@@ -909,17 +800,6 @@ describe('installGlobalHandlers', () => {
       callback(error);
 
       expect(mockScope.setLevel).toHaveBeenCalledWith('error');
-    });
-
-    it('sends a report with isFatal=false for an unhandled rejection', () => {
-      installGlobalHandlers();
-      const callback = (Promise as unknown as MockPromise)._unhandledRejectionCallback!;
-
-      callback(new Error('rejection payload'));
-
-      const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(init.body as string) as { isFatal: boolean };
-      expect(body.isFatal).toBe(false);
     });
 
     it('wraps a non-Error rejection reason in an Error before reporting', () => {

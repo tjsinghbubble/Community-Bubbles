@@ -3,13 +3,6 @@ import Constants from 'expo-constants';
 import { version } from '../../package.json';
 import * as Sentry from '@sentry/react-native';
 
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  'https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev' ||
-  'http://localhost:3000';
-
-const CRASH_REPORT_URL = `${API_URL}/api/crash-report`;
-
 export interface CrashReport {
   message: string;
   stack?: string;
@@ -93,14 +86,6 @@ export function buildReport(error: Error, context?: string, isFatal = false): Cr
   };
 }
 
-function sendToServer(report: CrashReport): void {
-  fetch(CRASH_REPORT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(report),
-  }).catch(() => {});
-}
-
 export function reportError(error: Error, context?: string): void {
   const report = buildReport(error, context, false);
   console.error(`[CrashReporter] ERROR${context ? ` in ${context}` : ''}: ${report.message}`);
@@ -111,7 +96,6 @@ export function reportError(error: Error, context?: string): void {
     scope.setLevel('error');
     Sentry.captureException(error);
   });
-  sendToServer(report);
 }
 
 export function reportFatalError(
@@ -132,7 +116,6 @@ export function reportFatalError(
     }
     Sentry.captureException(error);
   });
-  sendToServer(report);
 }
 
 export function logAppEvent(
@@ -148,8 +131,6 @@ export function logAppEvent(
     data: attributes,
     level: 'info',
   });
-  const context = attributes ? JSON.stringify(attributes) : undefined;
-  sendToServer(buildReport(new Error(message), context, false));
 }
 
 export function logAppWarn(
@@ -164,9 +145,6 @@ export function logAppWarn(
     scope.setTag('alert_type', 'app_warning');
     Sentry.captureMessage(`[AppWarn] ${message}`, 'warning');
   });
-  const context = attributes ? JSON.stringify(attributes) : undefined;
-  const report = buildReport(new Error(message), context, false);
-  sendToServer(report);
 }
 
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {

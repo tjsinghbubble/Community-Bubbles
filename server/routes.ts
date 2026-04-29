@@ -26,7 +26,6 @@ import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { registerCrashReportRoute } from "./crash-report-handler";
 
 const AUTH_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_AUTH_MAX ?? "10", 10);
 const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MIN ?? "15", 10) * 60 * 1000;
@@ -289,8 +288,6 @@ export async function registerRoutes(
     if (host && (origin === `https://${host}` || origin === `http://${host}`)) return next();
     return res.status(403).json({ error: "Forbidden: cross-origin request blocked" });
   });
-
-  registerCrashReportRoute(app);
 
   registerSendVerificationRoute(app, storage, {
     rateLimiter: sendLimiter,
