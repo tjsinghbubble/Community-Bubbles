@@ -587,3 +587,39 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// Event Sign-Up Sheet tables
+export const eventSignupTasks = pgTable("event_signup_tasks", {
+  id: serial("id").primaryKey(),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  icon: text("icon").notNull().default('📋'),
+  spotsNeeded: integer("spots_needed"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  position: integer("position").notNull().default(0),
+});
+
+export const eventTaskSignups = pgTable("event_task_signups", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => eventSignupTasks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("event_task_signups_task_user_unique").on(table.taskId, table.userId),
+]);
+
+export const insertEventSignupTaskSchema = createInsertSchema(eventSignupTasks).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  title: z.string().min(1).max(150),
+  description: z.string().max(500).optional().nullable(),
+  icon: z.string().default('📋'),
+  spotsNeeded: z.number().int().min(1).max(999).optional().nullable(),
+});
+
+export type EventSignupTask = typeof eventSignupTasks.$inferSelect;
+export type InsertEventSignupTask = z.infer<typeof insertEventSignupTaskSchema>;
+export type EventTaskSignup = typeof eventTaskSignups.$inferSelect;

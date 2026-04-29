@@ -5,7 +5,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
@@ -2622,6 +2622,111 @@ export async function registerRoutes(
           profilePhoto: a.user.profilePhoto,
         }
       })));
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // ============ EVENT SIGN-UP SHEET ROUTES ============
+
+  // GET /api/events/:id/signup-tasks — list tasks with signup counts (auth optional)
+  app.get("/api/events/:id/signup-tasks", optionalAuthMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const tasks = await storage.getEventSignupTasks(req.params.id, req.userId);
+      res.json(tasks);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/:id/signup-tasks — create a task (event creator or bubble admin only)
+  app.post("/api/events/:id/signup-tasks", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can add sign-up tasks" });
+      const parsed = insertEventSignupTaskSchema.safeParse({ ...req.body, eventId: event.id, createdBy: req.userId });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const nextPos = (await storage.getEventSignupTasks(event.id)).length;
+      const task = await storage.createEventSignupTask({ ...parsed.data, position: nextPos });
+      res.status(201).json({ ...task, signupCount: 0, hasSignedUp: false, signers: [] });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // PATCH /api/events/:id/signup-tasks/:taskId — edit a task
+  app.patch("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can edit sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const allowed = insertEventSignupTaskSchema.partial();
+      const parsed = allowed.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const updated = await storage.updateEventSignupTask(taskId, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Task not found" });
+      const allTasks = await storage.getEventSignupTasks(event.id, req.userId);
+      const enriched = allTasks.find(t => t.id === taskId);
+      res.json(enriched ?? updated);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/:id/signup-tasks/:taskId — delete a task
+  app.delete("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can delete sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      await storage.deleteEventSignupTask(taskId);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/signup-tasks/:taskId/join — sign up for a task
+  app.post("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      await storage.joinEventSignupTask(taskId, req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/signup-tasks/:taskId/join — cancel sign-up
+  app.delete("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      await storage.leaveEventSignupTask(taskId, req.userId!);
+      res.json({ success: true });
     } catch (error: any) {
       serverError(res, error);
     }

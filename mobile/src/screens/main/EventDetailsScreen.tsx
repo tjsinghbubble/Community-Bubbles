@@ -82,22 +82,20 @@ type Bubble = {
   privacy?: string;
 };
 
-const MOCK_BULLETIN = [
-  {
-    id: '1',
-    title: 'Volunteers Needed ASAP',
-    body: "We're looking for 2 people to help with setup a few hours before we start the event! Please DM us if you're down!",
-    time: '4 hrs ago',
-    icon: '⚡',
-  },
-  {
-    id: '2',
-    title: 'Does anyone have equipment?',
-    body: "Hey guys! We might need some stuff for tomorrow's event! Balls, paddles, and court tape. If anyone has any extra it would be a huge help 🙏",
-    time: '1 day ago',
-    icon: '💬',
-  },
-];
+type SignupTask = {
+  id: number;
+  eventId: string;
+  title: string;
+  description: string | null;
+  icon: string;
+  spotsNeeded: number | null;
+  createdBy: string;
+  signupCount: number;
+  hasSignedUp: boolean;
+  signers: { id: string; name: string; profilePhoto: string | null }[];
+};
+
+const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle } = route.params;
@@ -124,6 +122,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [reportEventSubmitting, setReportEventSubmitting] = useState(false);
   const [myBubbleRole, setMyBubbleRole] = useState<string | null>(null);
   const [showKebabMenu, setShowKebabMenu] = useState(false);
+  const [signupTasks, setSignupTasks] = useState<SignupTask[]>([]);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskModalMode, setTaskModalMode] = useState<'create' | 'edit'>('create');
+  const [editingTask, setEditingTask] = useState<SignupTask | null>(null);
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskIcon, setTaskIcon] = useState('📋');
+  const [taskSpotsNeeded, setTaskSpotsNeeded] = useState('');
+  const [taskSubmitting, setTaskSubmitting] = useState(false);
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -229,6 +236,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       if (Date.now() - lastFetchRef.current > 30_000) {
         fetchEvent();
         fetchAttendees();
+        fetchSignupTasks();
         lastFetchRef.current = Date.now();
       }
     }, [eventId])
@@ -285,6 +293,106 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     } catch (error) {
       logAppWarn('eventDetails.attendees_load_failed', { eventId, error: String(error) });
       console.error('Failed to fetch attendees:', error);
+    }
+  };
+
+  const fetchSignupTasks = async () => {
+    try {
+      const tasks = await apiService.getEventSignupTasks(eventId) as SignupTask[];
+      setSignupTasks(tasks);
+    } catch (error) {
+      console.error('Failed to fetch signup tasks:', error);
+    }
+  };
+
+  const openCreateTask = () => {
+    setTaskModalMode('create');
+    setEditingTask(null);
+    setTaskTitle('');
+    setTaskDescription('');
+    setTaskIcon('📋');
+    setTaskSpotsNeeded('');
+    setShowTaskModal(true);
+  };
+
+  const openEditTask = (task: SignupTask) => {
+    setTaskModalMode('edit');
+    setEditingTask(task);
+    setTaskTitle(task.title);
+    setTaskDescription(task.description ?? '');
+    setTaskIcon(task.icon);
+    setTaskSpotsNeeded(task.spotsNeeded != null ? String(task.spotsNeeded) : '');
+    setShowTaskModal(true);
+  };
+
+  const handleTaskSubmit = async () => {
+    if (!taskTitle.trim()) return;
+    setTaskSubmitting(true);
+    const spotsNum = taskSpotsNeeded.trim() ? parseInt(taskSpotsNeeded, 10) : null;
+    try {
+      if (taskModalMode === 'create') {
+        const created = await apiService.createEventSignupTask(eventId, {
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || undefined,
+          icon: taskIcon,
+          spotsNeeded: isNaN(spotsNum as any) ? null : spotsNum,
+        });
+        setSignupTasks(prev => [...prev, { ...created }]);
+      } else if (editingTask) {
+        await apiService.updateEventSignupTask(eventId, editingTask.id, {
+          title: taskTitle.trim(),
+          description: taskDescription.trim() || undefined,
+          icon: taskIcon,
+          spotsNeeded: isNaN(spotsNum as any) ? null : spotsNum,
+        });
+        await fetchSignupTasks();
+      }
+      setShowTaskModal(false);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save task. Please try again.');
+    } finally {
+      setTaskSubmitting(false);
+    }
+  };
+
+  const handleDeleteTask = (task: SignupTask) => {
+    Alert.alert('Delete Task', `Remove "${task.title}" from the sign-up sheet?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await apiService.deleteEventSignupTask(eventId, task.id);
+            setSignupTasks(prev => prev.filter(t => t.id !== task.id));
+          } catch {
+            Alert.alert('Error', 'Failed to delete task.');
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleToggleSignup = async (task: SignupTask) => {
+    if (!user) return;
+    const optimistic = signupTasks.map(t => {
+      if (t.id !== task.id) return t;
+      if (t.hasSignedUp) {
+        return { ...t, hasSignedUp: false, signupCount: t.signupCount - 1, signers: t.signers.filter(s => s.id !== user.id) };
+      } else {
+        const newSigner = { id: user.id, name: user.name ?? '', profilePhoto: user.profilePhoto ?? null };
+        return { ...t, hasSignedUp: true, signupCount: t.signupCount + 1, signers: [...t.signers.slice(0, 2), newSigner] };
+      }
+    });
+    setSignupTasks(optimistic);
+    try {
+      if (task.hasSignedUp) {
+        await apiService.leaveEventSignupTask(task.id);
+      } else {
+        await apiService.joinEventSignupTask(task.id);
+      }
+      await fetchSignupTasks();
+    } catch {
+      setSignupTasks(signupTasks);
+      Alert.alert('Error', 'Failed to update sign-up. Please try again.');
     }
   };
 
@@ -717,30 +825,87 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.bulletinSection}>
-          <Text style={styles.sectionTitle}>Sign-Up and Help {creatorName}</Text>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>
+              Sign-Up and Help {creatorName}
+            </Text>
+            {canManage && (
+              <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask}>
+                <Text style={styles.addButtonInlineText}>+ Add Task</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-          {MOCK_BULLETIN.map((item) => (
-            <View key={item.id} style={styles.bulletinCard}>
-              <View style={styles.bulletinIconRow}>
-                <Text style={styles.bulletinEmoji}>{item.icon}</Text>
-              </View>
-              <View style={styles.bulletinContent}>
-                <Text style={styles.bulletinTitle}>{item.title}</Text>
-                <Text style={styles.bulletinBody}>{item.body}</Text>
-              </View>
-              <Text style={styles.bulletinTime}>{item.time}</Text>
+          {signupTasks.length === 0 ? (
+            <View style={styles.emptyTasksBox}>
+              <Text style={styles.emptyTasksEmoji}>🙌</Text>
+              <Text style={styles.emptyTasksText}>
+                {canManage
+                  ? 'Add tasks for members to volunteer for!'
+                  : 'No sign-up tasks yet.'}
+              </Text>
             </View>
-          ))}
-
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('BulletinBoard', {
-              bubbleId: event.bubbleId,
-              bubbleTitle: bubble?.title || routeBubbleTitle || '',
-            })}
-          >
-            <Text style={styles.addButtonText}>+ Add</Text>
-          </TouchableOpacity>
+          ) : (
+            signupTasks.map((task) => {
+              const spotsLeft = task.spotsNeeded != null ? task.spotsNeeded - task.signupCount : null;
+              const isFull = spotsLeft !== null && spotsLeft <= 0;
+              return (
+                <View key={task.id} style={styles.taskCard}>
+                  <View style={styles.taskHeader}>
+                    <View style={styles.taskIconWrap}>
+                      <Text style={styles.taskEmoji}>{task.icon}</Text>
+                    </View>
+                    <View style={styles.taskMeta}>
+                      <Text style={styles.taskTitle}>{task.title}</Text>
+                      {task.description ? (
+                        <Text style={styles.taskDesc}>{task.description}</Text>
+                      ) : null}
+                      <View style={styles.taskSignerRow}>
+                        {task.signers.map((s) => (
+                          <View key={s.id} style={styles.signerAvatar}>
+                            {s.profilePhoto ? (
+                              <Image source={{ uri: s.profilePhoto }} style={styles.signerImg} />
+                            ) : (
+                              <Text style={styles.signerInitial}>{s.name?.[0] ?? '?'}</Text>
+                            )}
+                          </View>
+                        ))}
+                        <Text style={styles.signerCount}>
+                          {task.signupCount} signed up
+                          {task.spotsNeeded != null ? ` · ${Math.max(0, spotsLeft!)} spot${spotsLeft === 1 ? '' : 's'} left` : ''}
+                        </Text>
+                      </View>
+                    </View>
+                    {canManage && (
+                      <View style={styles.taskActions}>
+                        <TouchableOpacity onPress={() => openEditTask(task)} style={styles.taskActionBtn}>
+                          <Text style={styles.taskActionIcon}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDeleteTask(task)} style={styles.taskActionBtn}>
+                          <Text style={styles.taskActionIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
+                  {user && (
+                    <TouchableOpacity
+                      onPress={() => handleToggleSignup(task)}
+                      disabled={isFull && !task.hasSignedUp}
+                      style={[
+                        styles.taskSignupBtn,
+                        task.hasSignedUp && styles.taskSignupBtnActive,
+                        isFull && !task.hasSignedUp && styles.taskSignupBtnDisabled,
+                      ]}
+                    >
+                      <Text style={[styles.taskSignupBtnText, task.hasSignedUp && styles.taskSignupBtnTextActive]}>
+                        {task.hasSignedUp ? '✓ Signed Up' : isFull ? 'Full' : 'Sign Up'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              );
+            })
+          )}
         </View>
 
       </ScrollView>
@@ -901,6 +1066,86 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               ) : (
                 <Text style={styles.eventReportSubmitText}>Submit Report</Text>
               )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Create / Edit Sign-Up Task Modal */}
+      <Modal
+        visible={showTaskModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTaskModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.taskModalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.taskModalSheet}>
+            <View style={styles.taskModalHeader}>
+              <Text style={styles.taskModalTitle}>
+                {taskModalMode === 'create' ? 'New Sign-Up Task' : 'Edit Task'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowTaskModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.taskModalLabel}>Icon</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPicker}>
+              {SIGNUP_EMOJIS.map(e => (
+                <TouchableOpacity
+                  key={e}
+                  style={[styles.emojiOption, taskIcon === e && styles.emojiOptionSelected]}
+                  onPress={() => setTaskIcon(e)}
+                >
+                  <Text style={styles.emojiOptionText}>{e}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.taskModalLabel}>Task Title *</Text>
+            <TextInput
+              style={styles.taskInput}
+              value={taskTitle}
+              onChangeText={setTaskTitle}
+              placeholder="e.g. Bring drinks, Set up chairs…"
+              placeholderTextColor={Colors.text.tertiary}
+              maxLength={80}
+            />
+
+            <Text style={styles.taskModalLabel}>Description (optional)</Text>
+            <TextInput
+              style={[styles.taskInput, styles.taskInputMulti]}
+              value={taskDescription}
+              onChangeText={setTaskDescription}
+              placeholder="Any extra details…"
+              placeholderTextColor={Colors.text.tertiary}
+              multiline
+              numberOfLines={3}
+              maxLength={300}
+            />
+
+            <Text style={styles.taskModalLabel}>Spots Needed (optional)</Text>
+            <TextInput
+              style={styles.taskInput}
+              value={taskSpotsNeeded}
+              onChangeText={setTaskSpotsNeeded}
+              placeholder="Leave blank for unlimited"
+              placeholderTextColor={Colors.text.tertiary}
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+
+            <TouchableOpacity
+              style={[styles.taskModalSave, (!taskTitle.trim() || taskSubmitting) && styles.taskModalSaveDisabled]}
+              onPress={handleTaskSubmit}
+              disabled={!taskTitle.trim() || taskSubmitting}
+            >
+              <Text style={styles.taskModalSaveText}>
+                {taskSubmitting ? 'Saving…' : taskModalMode === 'create' ? 'Add Task' : 'Save Changes'}
+              </Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -1253,63 +1498,227 @@ const styles = StyleSheet.create({
   rsvpButtonLegacy: {
     display: 'none',
   },
-  bulletinCard: {
+  sectionHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+  },
+  addButtonInline: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+  },
+  addButtonInlineText: {
+    fontSize: 13,
+    fontWeight: Typography.weights.semibold,
+    color: '#fff',
+  },
+  emptyTasksBox: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
     backgroundColor: Colors.background.primary,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: '#E8E8E8',
-    borderRadius: Radius.md,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    position: 'relative',
   },
-  bulletinIconRow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  emptyTasksEmoji: {
+    fontSize: 30,
+    marginBottom: Spacing.sm,
+  },
+  emptyTasksText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    textAlign: 'center',
+  },
+  taskCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  taskHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  taskIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#EAF4FE',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.md,
+    flexShrink: 0,
   },
-  bulletinEmoji: {
-    fontSize: 16,
+  taskEmoji: {
+    fontSize: 18,
   },
-  bulletinContent: {
+  taskMeta: {
     flex: 1,
-    paddingRight: 50,
   },
-  bulletinTitle: {
+  taskTitle: {
     fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.bold,
+    fontWeight: Typography.weights.semibold,
     color: Colors.text.primary,
-    marginBottom: Spacing.xs,
+    marginBottom: 2,
   },
-  bulletinBody: {
+  taskDesc: {
     fontSize: Typography.sizes.sm,
     color: Colors.text.tertiary,
+    marginBottom: Spacing.xs,
     lineHeight: Typography.lineHeight.sm,
   },
-  bulletinTime: {
-    fontSize: 11,
-    color: Colors.text.tertiary,
-    position: 'absolute',
-    top: Spacing.lg,
-    right: Spacing.lg,
-  },
-  addButton: {
-    borderWidth: 1,
-    borderColor: Colors.brand.primary,
-    borderStyle: 'dashed',
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.md,
+  taskSignerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.sm,
+    marginTop: 2,
+    flexWrap: 'wrap',
+    gap: 4,
   },
-  addButtonText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.medium,
+  signerAvatar: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#D0E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2,
+  },
+  signerImg: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  signerInitial: {
+    fontSize: 10,
     color: Colors.brand.primary,
+    fontWeight: Typography.weights.bold,
+  },
+  signerCount: {
+    fontSize: 12,
+    color: Colors.text.tertiary,
+  },
+  taskActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+    gap: 4,
+  },
+  taskActionBtn: {
+    padding: 4,
+  },
+  taskActionIcon: {
+    fontSize: 14,
+  },
+  taskSignupBtn: {
+    borderWidth: 1.5,
+    borderColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 7,
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+  },
+  taskSignupBtnActive: {
+    backgroundColor: Colors.brand.primary,
+  },
+  taskSignupBtnDisabled: {
+    borderColor: '#ccc',
+  },
+  taskSignupBtnText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.brand.primary,
+  },
+  taskSignupBtnTextActive: {
+    color: '#fff',
+  },
+  taskModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  taskModalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: '90%',
+  },
+  taskModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.lg,
+  },
+  taskModalTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.bold,
+    color: Colors.text.primary,
+  },
+  taskModalLabel: {
+    fontSize: 13,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.text.secondary,
+    marginBottom: 6,
+    marginTop: Spacing.md,
+  },
+  emojiPicker: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  emojiOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    backgroundColor: '#F0F0F0',
+  },
+  emojiOptionSelected: {
+    backgroundColor: '#D0E8FF',
+    borderWidth: 2,
+    borderColor: Colors.brand.primary,
+  },
+  emojiOptionText: {
+    fontSize: 20,
+  },
+  taskInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.secondary,
+    marginBottom: 4,
+  },
+  taskInputMulti: {
+    height: 80,
+    textAlignVertical: 'top',
+    paddingTop: 10,
+  },
+  taskModalSave: {
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.full,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  taskModalSaveDisabled: {
+    opacity: 0.5,
+  },
+  taskModalSaveText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
+    color: '#fff',
   },
   eventReportOverlay: {
     flex: 1,

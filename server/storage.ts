@@ -74,6 +74,10 @@ import {
   type InsertCategoryPlaceholder,
   auditLogs,
   type AuditLog,
+  eventSignupTasks,
+  eventTaskSignups,
+  type EventSignupTask,
+  type InsertEventSignupTask,
 } from "@shared/schema";
 import { count, avg } from "drizzle-orm";
 
@@ -282,6 +286,14 @@ export interface IStorage {
   isCategoryRuleLinked(categoryId: number, ruleId: number): Promise<boolean>;
   isAppRuleLinked(ruleId: number): Promise<boolean>;
   isRuleReferenced(ruleId: number): Promise<boolean>;
+
+  // Event Sign-Up Sheet
+  getEventSignupTasks(eventId: string, currentUserId?: string): Promise<(EventSignupTask & { signupCount: number; hasSignedUp: boolean; signers: { id: string; name: string; profilePhoto: string | null }[] })[]>;
+  createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask>;
+  updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined>;
+  deleteEventSignupTask(taskId: number): Promise<void>;
+  joinEventSignupTask(taskId: number, userId: string): Promise<void>;
+  leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2225,6 +2237,78 @@ export class DatabaseStorage implements IStorage {
     const [bubRef] = await db.select().from(bubbleRules).where(eq(bubbleRules.ruleId, ruleId)).limit(1);
     if (bubRef) return true;
     return false;
+  }
+
+  async getEventSignupTasks(eventId: string, currentUserId?: string): Promise<(EventSignupTask & { signupCount: number; hasSignedUp: boolean; signers: { id: string; name: string; profilePhoto: string | null }[] })[]> {
+    const tasks = await db
+      .select()
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.eventId, eventId))
+      .orderBy(eventSignupTasks.position, eventSignupTasks.createdAt);
+
+    if (tasks.length === 0) return [];
+
+    const taskIds = tasks.map(t => t.id);
+
+    const signupRows = await db
+      .select({
+        taskId: eventTaskSignups.taskId,
+        userId: eventTaskSignups.userId,
+        name: users.name,
+        profilePhoto: users.profilePhoto,
+      })
+      .from(eventTaskSignups)
+      .leftJoin(users, eq(users.id, eventTaskSignups.userId))
+      .where(inArray(eventTaskSignups.taskId, taskIds))
+      .orderBy(eventTaskSignups.createdAt);
+
+    const signupsByTask: Record<number, { id: string; name: string; profilePhoto: string | null }[]> = {};
+    for (const row of signupRows) {
+      if (!signupsByTask[row.taskId]) signupsByTask[row.taskId] = [];
+      signupsByTask[row.taskId].push({ id: row.userId, name: row.name ?? '', profilePhoto: row.profilePhoto ?? null });
+    }
+
+    return tasks.map(task => {
+      const signers = signupsByTask[task.id] ?? [];
+      return {
+        ...task,
+        signupCount: signers.length,
+        hasSignedUp: currentUserId ? signers.some(s => s.id === currentUserId) : false,
+        signers: signers.slice(0, 3),
+      };
+    });
+  }
+
+  async createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask> {
+    const [task] = await db.insert(eventSignupTasks).values(data).returning();
+    return task;
+  }
+
+  async updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined> {
+    const [task] = await db
+      .update(eventSignupTasks)
+      .set(data)
+      .where(eq(eventSignupTasks.id, taskId))
+      .returning();
+    return task;
+  }
+
+  async deleteEventSignupTask(taskId: number): Promise<void> {
+    await db.delete(eventTaskSignups).where(eq(eventTaskSignups.taskId, taskId));
+    await db.delete(eventSignupTasks).where(eq(eventSignupTasks.id, taskId));
+  }
+
+  async joinEventSignupTask(taskId: number, userId: string): Promise<void> {
+    await db
+      .insert(eventTaskSignups)
+      .values({ taskId, userId })
+      .onConflictDoNothing();
+  }
+
+  async leaveEventSignupTask(taskId: number, userId: string): Promise<void> {
+    await db
+      .delete(eventTaskSignups)
+      .where(and(eq(eventTaskSignups.taskId, taskId), eq(eventTaskSignups.userId, userId)));
   }
 }
 

@@ -767,6 +767,42 @@ class ApiService {
   async getCategoriesFlat(): Promise<any[]> {
     return this.request<any[]>('/api/categories/flat');
   }
+
+  async getEventSignupTasks(eventId: string): Promise<any[]> {
+    return this.request<any[]>(`/api/events/${eventId}/signup-tasks`);
+  }
+
+  async createEventSignupTask(eventId: string, data: { title: string; description?: string; icon: string; spotsNeeded?: number | null }): Promise<any> {
+    return this.request<any>(`/api/events/${eventId}/signup-tasks`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateEventSignupTask(eventId: string, taskId: number, data: { title?: string; description?: string; icon?: string; spotsNeeded?: number | null }): Promise<any> {
+    return this.request<any>(`/api/events/${eventId}/signup-tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteEventSignupTask(eventId: string, taskId: number): Promise<any> {
+    return this.request<any>(`/api/events/${eventId}/signup-tasks/${taskId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async joinEventSignupTask(taskId: number): Promise<any> {
+    return this.request<any>(`/api/events/signup-tasks/${taskId}/join`, {
+      method: 'POST',
+    });
+  }
+
+  async leaveEventSignupTask(taskId: number): Promise<any> {
+    return this.request<any>(`/api/events/signup-tasks/${taskId}/join`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const apiService = new ApiService();
