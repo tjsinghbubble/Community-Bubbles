@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Express } from "express";
 import rateLimit from "express-rate-limit";
+import { storage } from "./storage";
 
 export const CRASH_REPORT_MAX_MESSAGE_CHARS = 1024;
 export const CRASH_REPORT_MAX_STACK_CHARS = 4096;
@@ -57,6 +58,22 @@ export function registerCrashReportRoute(app: Express) {
         `  message: ${message}\n` +
         (stack ? `  stack: ${stack}` : "  stack: (none)"),
       );
+
+      try {
+        await storage.insertCrashReport({
+          message,
+          stack: stack ?? null,
+          context: context ?? null,
+          platform: platform ?? null,
+          appVersion: appVersion ?? null,
+          isFatal: isFatal ?? false,
+          userId: userId ?? null,
+          username: username ?? null,
+        });
+      } catch (dbErr: unknown) {
+        console.error("[CrashReport] Failed to persist crash report to database:", dbErr);
+      }
+
       return res.status(200).json({ received: true });
     } catch (e) {
       console.error("[CrashReport] Failed to log crash report:", e);

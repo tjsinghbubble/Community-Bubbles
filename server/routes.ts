@@ -1244,6 +1244,38 @@ export async function registerRoutes(
     }
   });
 
+  // Purge crash reports older than the retention window on startup, then daily
+  const CRASH_REPORT_RETENTION_DAYS = parseInt(process.env.CRASH_REPORT_RETENTION_DAYS ?? "90", 10);
+  storage.purgeCrashReports(CRASH_REPORT_RETENTION_DAYS).catch(() => {});
+  setInterval(() => storage.purgeCrashReports(CRASH_REPORT_RETENTION_DAYS).catch(() => {}), 24 * 60 * 60 * 1000);
+
+  const crashReportsQuerySchema = z.object({
+    userId: z.string().min(1).max(128).optional(),
+    isFatal: z.enum(["true", "false"]).transform(v => v === "true").optional(),
+    from: z.string().datetime({ offset: true }).transform(v => new Date(v)).optional(),
+    to: z.string().datetime({ offset: true }).transform(v => new Date(v)).optional(),
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    offset: z.coerce.number().int().min(0).default(0),
+  });
+
+  app.get("/api/crash-reports", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+
+      const parsed = crashReportsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid query parameters" });
+      }
+      const { userId, isFatal, from, to, limit, offset } = parsed.data;
+
+      const reports = await storage.queryCrashReports({ userId, isFatal, from, to, limit, offset });
+      res.json({ reports, generatedAt: new Date().toISOString() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.post("/api/bubbles/:id/join", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.id;

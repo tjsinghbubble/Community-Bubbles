@@ -639,6 +639,28 @@ export type EventSignupTask = typeof eventSignupTasks.$inferSelect;
 export type InsertEventSignupTask = z.infer<typeof insertEventSignupTaskSchema>;
 export type EventTaskSignup = typeof eventTaskSignups.$inferSelect;
 
+// Crash reports submitted by mobile clients
+export const crashReports = pgTable("crash_reports", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  context: text("context"),
+  platform: text("platform"),
+  appVersion: text("app_version"),
+  isFatal: boolean("is_fatal").notNull().default(false),
+  userId: text("user_id"),
+  username: text("username"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCrashReportSchema = createInsertSchema(crashReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type CrashReport = typeof crashReports.$inferSelect;
+export type InsertCrashReport = z.infer<typeof insertCrashReportSchema>;
+
 // Slow API call alerts — persisted records for admin visibility
 export const slowCalls = pgTable("slow_calls", {
   id: serial("id").primaryKey(),

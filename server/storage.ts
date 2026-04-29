@@ -83,6 +83,9 @@ import {
   type InsertEventSignupTask,
   slowCalls,
   type SlowCall,
+  crashReports,
+  type CrashReport,
+  type InsertCrashReport,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -317,6 +320,11 @@ export interface IStorage {
   getSlowCalls(opts?: { limit?: number; sortBy?: 'durationMs' | 'endpoint' | 'createdAt'; sortDir?: 'asc' | 'desc' }): Promise<SlowCall[]>;
   purgeOldSlowCalls(olderThanDays?: number): Promise<number>;
   deleteAllSlowCalls(): Promise<void>;
+
+  // Crash Reports
+  insertCrashReport(data: InsertCrashReport): Promise<CrashReport>;
+  queryCrashReports(opts?: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number }): Promise<CrashReport[]>;
+  purgeCrashReports(olderThanDays?: number): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2496,6 +2504,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAllSlowCalls(): Promise<void> {
     await db.delete(slowCalls);
+  }
+
+  async insertCrashReport(data: InsertCrashReport): Promise<CrashReport> {
+    const [row] = await db.insert(crashReports).values(data).returning();
+    return row;
+  }
+
+  async queryCrashReports(opts: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number } = {}): Promise<CrashReport[]> {
+    const { userId, isFatal, from, to, limit = 100, offset = 0 } = opts;
+    const conditions = [];
+    if (userId !== undefined) conditions.push(eq(crashReports.userId, userId));
+    if (isFatal !== undefined) conditions.push(eq(crashReports.isFatal, isFatal));
+    if (from !== undefined) conditions.push(gte(crashReports.createdAt, from));
+    if (to !== undefined) conditions.push(lt(crashReports.createdAt, to));
+
+    const query = db.select().from(crashReports);
+    if (conditions.length > 0) query.where(and(...conditions));
+    return query.orderBy(desc(crashReports.createdAt)).limit(limit).offset(offset);
+  }
+
+  async purgeCrashReports(olderThanDays = 90): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const result = await db.delete(crashReports).where(lt(crashReports.createdAt, cutoff));
+    return (result as unknown as { rowCount?: number }).rowCount ?? 0;
   }
 }
 

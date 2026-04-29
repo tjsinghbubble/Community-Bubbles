@@ -36,6 +36,13 @@
       "when": 1746000100000,
       "tag": "0004_add_error_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1746046800000,
+      "tag": "0005_add_crash_reports",
+      "breakpoints": true
     }
   ]
 }

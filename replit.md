@@ -64,6 +64,8 @@ The project is a monorepo containing distinct frontend and backend components.
 
 **Slow API Call Alerts**: Any API call exceeding 2s is persisted to the `slow_calls` database table (endpoint, method, durationMs, createdAt). A new admin screen at `/admin/slow-calls` displays the log, sortable by duration, endpoint, or timestamp, with a 30-day auto-purge. The "Performance Alerts" section in the Admin Monitor links to both this page and the in-memory Latency Dashboard.
 
+**Crash Report Persistence**: Mobile crash reports submitted to `POST /api/crash-report` are now persisted to the `crash_reports` database table (message, stack, context, platform, appVersion, isFatal, userId, username, createdAt). An admin-only `GET /api/crash-reports` endpoint allows filtering by userId, isFatal, and date range (from/to), with pagination (limit/offset, max 500). Records are automatically pruned after a configurable retention window (default 90 days, overridable via `CRASH_REPORT_RETENTION_DAYS` env var). Indices exist on userId, createdAt, and isFatal for efficient lookups.
+
 **Multi-Image Upload**: Supports uploading up to 5 images for bubbles and events via presigned URLs to Google Cloud Storage.
 
 **Timezone Handling**: Events are stored in UTC with IANA timezone information, with server-side conversion for display and reminders.
