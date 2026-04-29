@@ -119,11 +119,25 @@ The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.
 ### What the workflow does
 
 1. Installs Node.js 20 and `npm ci` in the `mobile/` directory.
-2. Installs the EAS CLI via the official `expo/expo-github-action` action.
-3. Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
+2. **Syncs the semantic version from the git tag into `app.json`** *(tag-triggered runs only)* — strips the leading `v` from the tag name (e.g. `v1.2.3` → `1.2.3`) and writes it to the `expo.version` field using `jq`. This means you never need to manually edit `app.json` before a release.
+3. Installs the EAS CLI via the official `expo/expo-github-action` action.
+4. Runs `eas build --profile production --wait --auto-submit` for **iOS**, then **Android**.
    - `--wait` blocks the GitHub Actions runner until the EAS cloud build finishes, so the job does not exit prematurely.
    - `--auto-submit` tells EAS to automatically submit the completed build to the App Store (iOS) or Play Store (Android) immediately after the build succeeds — no separate submit step required.
-4. Sentry source maps are uploaded during the EAS build step (handled by the `@sentry/react-native/expo` plugin — no extra step required).
+5. Sentry source maps are uploaded during the EAS build step (handled by the `@sentry/react-native/expo` plugin — no extra step required).
+
+### Releasing a new version
+
+To ship a new release, push a semver tag — that is all. The workflow will pick up the tag, update the version in `app.json` automatically, and kick off the EAS build and store submission:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+The `expo.buildNumber` (iOS) and `expo.versionCode` (Android) continue to be managed by EAS via `autoIncrement: true` in `eas.json`, so only the human-readable semantic version (`1.2.3`) is derived from the tag.
+
+> **Note:** Pushes to `main` also trigger the workflow but skip the version-sync step — the version already in `app.json` is used as-is. Tagging is the recommended path for all production releases.
 
 ### Required GitHub repository secrets
 

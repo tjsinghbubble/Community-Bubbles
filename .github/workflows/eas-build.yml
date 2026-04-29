@@ -32,6 +32,25 @@ jobs:
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
+      - name: Sync version from git tag into app.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # Verify jq is available (pre-installed on ubuntu-latest, but fail fast if not)
+          jq --version
+
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          # Validate strict semver (MAJOR.MINOR.PATCH) before touching any files
+          if ! echo "$TAG_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: Tag '$GITHUB_REF_NAME' does not follow vMAJOR.MINOR.PATCH format. Aborting."
+            exit 1
+          fi
+
+          echo "Syncing version $TAG_VERSION from tag $GITHUB_REF_NAME into app.json"
+          jq --arg v "$TAG_VERSION" '.expo.version = $v' app.json > app.json.tmp
+          mv app.json.tmp app.json
+          echo "app.json version is now: $(jq -r '.expo.version' app.json)"
+
       - name: Install dependencies
         run: npm ci
 
