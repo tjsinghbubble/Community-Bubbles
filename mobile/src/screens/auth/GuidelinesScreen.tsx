@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -120,6 +121,7 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
       }
     } catch (error: any) {
       setIsLoading(false);
+      Sentry.captureException(error, { tags: { flow: 'signup', step: 'guidelines_agree' } });
       Alert.alert('Signup Failed', error.message || 'Something went wrong');
     }
   };
