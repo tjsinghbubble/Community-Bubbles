@@ -22,7 +22,8 @@ import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembers
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { pingUrl, setMaintenanceModeCache, getMaintenanceMode } from "./health";
-import { getMetrics, resetMetrics, recordRequest } from "./metrics";
+import { getMetrics, resetMetrics, recordRequest, getStoreSnapshot, TimeRange } from "./metrics";
+import { flushBucketsForKey, getTimeSeriesFromDB, pruneOldLatencyBuckets, ensureLatencyBucketsTable } from "./metrics-persistence";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
@@ -1293,6 +1294,42 @@ export async function registerRoutes(
       serverError(res, error);
     }
   });
+
+  app.get("/api/admin/latency/trends", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const range = (["1h", "6h", "24h"].includes(req.query.range as string)
+        ? req.query.range
+        : "1h") as TimeRange;
+      const [dbTrends] = await Promise.all([getTimeSeriesFromDB(range)]);
+      res.json({ trends: dbTrends, range, generatedAt: new Date().toISOString() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  async function flushMetricsToDB(): Promise<void> {
+    const snapshot = getStoreSnapshot();
+    const since = Date.now() - 30 * 60 * 1000;
+    await Promise.all(
+      snapshot.map((entry) =>
+        flushBucketsForKey(entry.method, entry.endpoint, entry.samples, since).catch((err) => {
+          console.error("[LatencyFlush] Failed to flush bucket for", entry.method, entry.endpoint, err);
+        }),
+      ),
+    );
+  }
+
+  ensureLatencyBucketsTable()
+    .then(() => {
+      flushMetricsToDB().catch((err) => console.error("[LatencyFlush] Initial flush failed:", err));
+      const FLUSH_INTERVAL_MS = 5 * 60 * 1000;
+      setInterval(() => flushMetricsToDB().catch((err) => console.error("[LatencyFlush] Scheduled flush failed:", err)), FLUSH_INTERVAL_MS);
+      pruneOldLatencyBuckets(7).catch((err) => console.error("[LatencyFlush] Initial prune failed:", err));
+      setInterval(() => pruneOldLatencyBuckets(7).catch((err) => console.error("[LatencyFlush] Scheduled prune failed:", err)), 24 * 60 * 60 * 1000);
+    })
+    .catch((err) => console.error("[LatencyFlush] Failed to ensure latency_buckets table:", err));
 
   const slowCallsSortBySchema = z.enum(["durationMs", "endpoint", "createdAt"]).optional().default("createdAt");
   const slowCallsSortDirSchema = z.enum(["asc", "desc"]).optional().default("desc");

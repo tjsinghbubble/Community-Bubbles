@@ -124,3 +124,24 @@ export function resetMetrics(): void {
   store.clear();
   lastSeenMap.clear();
 }
+
+export type TimeRange = "1h" | "6h" | "24h";
+
+export interface StoreEntry {
+  method: string;
+  endpoint: string;
+  samples: { durationMs: number; statusCode: number; ts: number }[];
+}
+
+export function getStoreSnapshot(): StoreEntry[] {
+  const result: StoreEntry[] = [];
+  for (const [key, samples] of store.entries()) {
+    const spaceIdx = key.indexOf(" ");
+    result.push({
+      method: key.slice(0, spaceIdx),
+      endpoint: key.slice(spaceIdx + 1),
+      samples: [...samples],
+    });
+  }
+  return result;
+}

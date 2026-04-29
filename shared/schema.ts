@@ -663,6 +663,29 @@ export const insertCrashReportSchema = createInsertSchema(crashReports).omit({
 export type CrashReport = typeof crashReports.$inferSelect;
 export type InsertCrashReport = z.infer<typeof insertCrashReportSchema>;
 
+// Latency trend buckets — 5-minute aggregated snapshots per endpoint
+export const latencyBuckets = pgTable(
+  "latency_buckets",
+  {
+    id: serial("id").primaryKey(),
+    method: text("method").notNull(),
+    endpoint: text("endpoint").notNull(),
+    bucketTs: timestamp("bucket_ts").notNull(),
+    p50Ms: integer("p50_ms").notNull(),
+    p95Ms: integer("p95_ms").notNull(),
+    p99Ms: integer("p99_ms").notNull(),
+    avgMs: integer("avg_ms").notNull(),
+    maxMs: integer("max_ms").notNull(),
+    count: integer("count").notNull(),
+    errorCount: integer("error_count").notNull().default(0),
+  },
+  (table) => [
+    unique("latency_buckets_endpoint_method_ts_unique").on(table.method, table.endpoint, table.bucketTs),
+  ],
+);
+
+export type LatencyBucket = typeof latencyBuckets.$inferSelect;
+
 // Slow API call alerts — persisted records for admin visibility
 export const slowCalls = pgTable("slow_calls", {
   id: serial("id").primaryKey(),
