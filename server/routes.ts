@@ -1928,6 +1928,8 @@ export async function registerRoutes(
   app.post("/api/bubbles/:bubbleId/join-requests/:userId/reject", authMiddleware, async (req, res) => {
     try {
       const { bubbleId, userId } = req.params;
+      const rawReason = (req.body as { reason?: string })?.reason;
+      const reason = rawReason ? rawReason.trim().slice(0, 500) || undefined : undefined;
       const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
       const user = await storage.getUser(req.userId!);
       if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
@@ -1937,11 +1939,13 @@ export async function registerRoutes(
       await storage.rejectMembership(userId, bubbleId);
 
       const rejBubble = await storage.getBubble(bubbleId);
+      const baseBody = `Your request to join ${rejBubble?.title || 'the bubble'} was not approved.`;
+      const notificationBody = reason ? `${baseBody} Reason: ${reason}` : baseBody;
       sendNotification({
         recipientId: userId,
         type: "bubble_request_rejected",
         title: "Request Not Approved",
-        body: `Your request to join ${rejBubble?.title || 'the bubble'} was not approved.`,
+        body: notificationBody,
         metadata: { bubbleId, bubbleName: rejBubble?.title },
       });
 

@@ -346,9 +346,10 @@ class ApiService {
     });
   }
 
-  async rejectJoinRequest(bubbleId: string, userId: string) {
+  async rejectJoinRequest(bubbleId: string, userId: string, reason?: string) {
     return this.request(`/api/bubbles/${bubbleId}/join-requests/${userId}/reject`, {
       method: "POST",
+      body: reason ? JSON.stringify({ reason }) : undefined,
     });
   }
 
