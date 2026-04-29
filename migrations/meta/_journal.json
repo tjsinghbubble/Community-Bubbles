@@ -43,6 +43,13 @@
       "when": 1746046800000,
       "tag": "0005_add_crash_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1746133200000,
+      "tag": "0006_add_per_attendee_reminder_flags",
+      "breakpoints": true
     }
   ]
 }

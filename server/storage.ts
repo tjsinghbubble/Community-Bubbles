@@ -162,6 +162,8 @@ export interface IStorage {
   getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]>;
   markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void>;
   getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
+  getAttendeesNeedingReminder(type: '24h' | '1h'): Promise<{ userId: string; eventId: string; event: Event }[]>;
+  markAttendeeReminderSent(userId: string, eventId: string, type: '24h' | '1h'): Promise<void>;
   getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
   markTaskSignupReminderSent(signupId: number): Promise<void>;
   getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
@@ -1123,6 +1125,38 @@ export class DatabaseStorage implements IStorage {
     return attendees.map(a => a.userId);
   }
 
+  async getAttendeesNeedingReminder(type: '24h' | '1h'): Promise<{ userId: string; eventId: string; event: Event }[]> {
+    const now = new Date();
+    const hoursAhead = type === '24h' ? 24 : 1;
+    const windowEnd = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
+    const attendeeCol = type === '24h' ? eventAttendees.reminder24hSent : eventAttendees.reminder1hSent;
+    const rows = await db
+      .select({ userId: eventAttendees.userId, event: events })
+      .from(eventAttendees)
+      .innerJoin(events, eq(events.id, eventAttendees.eventId))
+      .where(
+        and(
+          eq(eventAttendees.status, 'going'),
+          eq(attendeeCol, false),
+          eq(events.status, 'approved'),
+        )
+      );
+    return rows
+      .filter(r => {
+        const eventDateTime = new Date(`${r.event.date}T${r.event.startTime}:00`);
+        return eventDateTime > now && eventDateTime <= windowEnd;
+      })
+      .map(r => ({ userId: r.userId, eventId: r.event.id, event: r.event }));
+  }
+
+  async markAttendeeReminderSent(userId: string, eventId: string, type: '24h' | '1h'): Promise<void> {
+    const col = type === '24h' ? { reminder24hSent: true } : { reminder1hSent: true };
+    await db
+      .update(eventAttendees)
+      .set(col)
+      .where(and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId)));
+  }
+
   async getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
     const now = new Date();
     const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
@@ -1228,6 +1262,12 @@ export class DatabaseStorage implements IStorage {
       .update(events)
       .set({ reminder24hSent: false, reminder1hSent: false })
       .where(eq(events.id, eventId));
+    // Also reset per-attendee flags so all attendees (including late RSVPs)
+    // receive fresh reminders for the new event time.
+    await db
+      .update(eventAttendees)
+      .set({ reminder24hSent: false, reminder1hSent: false })
+      .where(eq(eventAttendees.eventId, eventId));
   }
 
   // Campus methods

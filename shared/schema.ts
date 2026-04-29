@@ -203,6 +203,8 @@ export const eventAttendees = pgTable("event_attendees", {
   userId: varchar("user_id").notNull().references(() => users.id),
   status: text("status").notNull().default('going'), // going, interested, requested, waitlisted
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
+  reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -220,6 +222,8 @@ export const insertEventSchema = createInsertSchema(events).omit({
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
   id: true,
   joinedAt: true,
+  reminder24hSent: true,
+  reminder1hSent: true,
 });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;

@@ -213,52 +213,68 @@ export async function notifyBubbleMembers(
 
 async function processEventReminders(): Promise<void> {
   try {
-    const events24h = await storage.getEventsNeedingReminder('24h');
+    // Per-attendee 24h reminders: each attendee has their own flag so late
+    // RSVPs receive reminders even after the event-wide batch was already sent.
+    const attendees24h = await storage.getAttendeesNeedingReminder('24h');
     let sent24h = 0;
-    for (const event of events24h) {
-      const attendeeIds = await storage.getEventGoingAttendeeIds(event.id);
-      if (attendeeIds.length > 0) {
-        const bubble = await storage.getBubble(event.bubbleId);
-        const localTime = event.timezone && event.timezone !== 'UTC'
-          ? utcToLocal(event.date, event.startTime, event.timezone).time
-          : event.startTime;
-        const displayTime = formatTime12h(localTime);
-        await sendNotificationToMany({
-          recipientIds: attendeeIds,
-          type: "event_reminder_24h",
-          title: "Event Tomorrow",
-          body: `"${event.title}" starts tomorrow at ${displayTime}`,
-          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
-        });
-        sent24h++;
+    // Group by eventId to send batch notifications per event
+    const byEvent24h = new Map<string, { userIds: string[]; event: Event }>();
+    for (const row of attendees24h) {
+      if (!byEvent24h.has(row.eventId)) {
+        byEvent24h.set(row.eventId, { userIds: [], event: row.event });
       }
-      await storage.markReminderSent(event.id, '24h');
+      byEvent24h.get(row.eventId)!.userIds.push(row.userId);
+    }
+    for (const [, { userIds, event }] of byEvent24h) {
+      const bubble = await storage.getBubble(event.bubbleId);
+      const localTime = event.timezone && event.timezone !== 'UTC'
+        ? utcToLocal(event.date, event.startTime, event.timezone).time
+        : event.startTime;
+      const displayTime = formatTime12h(localTime);
+      await sendNotificationToMany({
+        recipientIds: userIds,
+        type: "event_reminder_24h",
+        title: "Event Tomorrow",
+        body: `"${event.title}" starts tomorrow at ${displayTime}`,
+        metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+      });
+      for (const userId of userIds) {
+        await storage.markAttendeeReminderSent(userId, event.id, '24h');
+      }
+      sent24h++;
     }
 
-    const events1h = await storage.getEventsNeedingReminder('1h');
+    // Per-attendee 1h reminders
+    const attendees1h = await storage.getAttendeesNeedingReminder('1h');
     let sent1h = 0;
-    for (const event of events1h) {
-      const attendeeIds = await storage.getEventGoingAttendeeIds(event.id);
-      if (attendeeIds.length > 0) {
-        const bubble = await storage.getBubble(event.bubbleId);
-        const localTime1h = event.timezone && event.timezone !== 'UTC'
-          ? utcToLocal(event.date, event.startTime, event.timezone).time
-          : event.startTime;
-        const displayTime1h = formatTime12h(localTime1h);
-        await sendNotificationToMany({
-          recipientIds: attendeeIds,
-          type: "event_reminder_1h",
-          title: "Starting Soon",
-          body: `"${event.title}" starts in about 1 hour (${displayTime1h})`,
-          metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
-        });
-        sent1h++;
+    const byEvent1h = new Map<string, { userIds: string[]; event: Event }>();
+    for (const row of attendees1h) {
+      if (!byEvent1h.has(row.eventId)) {
+        byEvent1h.set(row.eventId, { userIds: [], event: row.event });
       }
-      await storage.markReminderSent(event.id, '1h');
+      byEvent1h.get(row.eventId)!.userIds.push(row.userId);
+    }
+    for (const [, { userIds, event }] of byEvent1h) {
+      const bubble = await storage.getBubble(event.bubbleId);
+      const localTime1h = event.timezone && event.timezone !== 'UTC'
+        ? utcToLocal(event.date, event.startTime, event.timezone).time
+        : event.startTime;
+      const displayTime1h = formatTime12h(localTime1h);
+      await sendNotificationToMany({
+        recipientIds: userIds,
+        type: "event_reminder_1h",
+        title: "Starting Soon",
+        body: `"${event.title}" starts in about 1 hour (${displayTime1h})`,
+        metadata: { eventId: event.id, eventName: event.title, bubbleId: event.bubbleId, bubbleName: bubble?.title },
+      });
+      for (const userId of userIds) {
+        await storage.markAttendeeReminderSent(userId, event.id, '1h');
+      }
+      sent1h++;
     }
 
     if (sent24h > 0 || sent1h > 0) {
-      console.log(`[Reminders] Sent ${sent24h} 24h and ${sent1h} 1h reminders`);
+      console.log(`[Reminders] Sent ${sent24h} 24h and ${sent1h} 1h event reminders`);
     }
 
     const taskSignups = await storage.getTaskSignupsNeedingReminder();
