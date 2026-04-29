@@ -30,6 +30,7 @@ type Props = {
 
 // Must match the min() constraint in shared/schema.ts insertUserSchema
 const PASSWORD_MIN_LENGTH = 8;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
 const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -95,7 +96,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [passwordBlurred, setPasswordBlurred] = useState(false);
   const passwordError = passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
   const [emailBlurred, setEmailBlurred] = useState(false);
-  const emailError = emailBlurred && email.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailError = emailBlurred && (email.length === 0 || !EMAIL_REGEX.test(email));
 
   const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
@@ -119,6 +120,10 @@ export default function SignupScreen({ navigation }: Props) {
 
   const handleContinue = useCallback(async () => {
     if (!isFormValid) return;
+    if (!EMAIL_REGEX.test(email)) {
+      setEmailBlurred(true);
+      return;
+    }
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/auth/send-verification`, {
