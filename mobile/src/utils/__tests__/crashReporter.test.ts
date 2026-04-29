@@ -12,6 +12,7 @@ jest.mock('@sentry/react-native', () => ({
   setUser: jest.fn(),
   reactNavigationIntegration: jest.fn().mockReturnValue({ registerNavigationContainer: jest.fn() }),
   getActiveSpan: jest.fn(),
+  startInactiveSpan: jest.fn(),
   setMeasurement: jest.fn(),
   getCurrentScope: jest.fn(),
 }));
@@ -1026,9 +1027,38 @@ describe('measureScreenLoad', () => {
     expect(result).toBe(42);
   });
 
-  it('calls setMeasurement, setTag, and span.finish when an active span exists', async () => {
-    const fakeSpan = { finish: jest.fn() };
-    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+  it('does not call finish() on the root navigation span returned by getActiveSpan', async () => {
+    const rootSpan = { finish: jest.fn(), end: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('LoginScreen', async () => 'data');
+
+    expect(rootSpan.finish).not.toHaveBeenCalled();
+    expect(rootSpan.end).not.toHaveBeenCalled();
+  });
+
+  it('creates a child span via startInactiveSpan with correct name and op', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('LoginScreen', async () => 'data');
+
+    expect(Sentry.startInactiveSpan).toHaveBeenCalledTimes(1);
+    expect(Sentry.startInactiveSpan).toHaveBeenCalledWith({
+      name: 'screen_load.LoginScreen',
+      op: 'ui.load',
+    });
+  });
+
+  it('calls setMeasurement and setTag on the child span, then ends it', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
 
     await measureScreenLoad('LoginScreen', async () => 'data');
 
@@ -1040,7 +1070,18 @@ describe('measureScreenLoad', () => {
     );
     expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
     expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'LoginScreen');
-    expect(fakeSpan.finish).toHaveBeenCalledTimes(1);
+    expect(childSpan.end).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses finish() as a fallback when end() is absent on the child span', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { finish: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('FallbackScreen', async () => 'ok');
+
+    expect(childSpan.finish).toHaveBeenCalledTimes(1);
   });
 
   it('skips instrumentation silently when no active span exists', async () => {
@@ -1048,19 +1089,58 @@ describe('measureScreenLoad', () => {
 
     await measureScreenLoad('ProfileScreen', async () => 'ok');
 
+    expect(Sentry.startInactiveSpan).not.toHaveBeenCalled();
     expect(Sentry.setMeasurement).not.toHaveBeenCalled();
     expect(mockCurrentScope.setTag).not.toHaveBeenCalled();
   });
 
-  it('propagates exceptions from work and still finishes span when a span is active', async () => {
-    const fakeSpan = { finish: jest.fn() };
-    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+  it('skips instrumentation when active span appears mid-work but was absent at start', async () => {
+    // getActiveSpan returns null at function entry (snapshot taken before work);
+    // even if a span becomes active during work, the start-time snapshot is
+    // false so measurements are not recorded.  This documents the intentional
+    // timing assumption: the navigation transaction must already be active when
+    // measureScreenLoad is called, not created asynchronously during work.
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValueOnce(null);
+    const lateSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(lateSpan);
+
+    await measureScreenLoad('LateSpanScreen', async () => {
+      (Sentry.getActiveSpan as jest.Mock).mockReturnValue(lateSpan);
+      return 'ok';
+    });
+
+    expect(Sentry.startInactiveSpan).not.toHaveBeenCalled();
+    expect(Sentry.setMeasurement).not.toHaveBeenCalled();
+    expect(mockCurrentScope.setTag).not.toHaveBeenCalled();
+    expect(lateSpan.end).not.toHaveBeenCalled();
+  });
+
+  it('still records measurement and tag when startInactiveSpan returns falsy (older SDK fallback)', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(undefined);
+
+    await measureScreenLoad('FallbackScreen', async () => 'ok');
+
+    expect(Sentry.setMeasurement).toHaveBeenCalledTimes(1);
+    expect(Sentry.setMeasurement).toHaveBeenCalledWith('screen_load_ms', expect.any(Number), 'millisecond');
+    expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
+    expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'FallbackScreen');
+    expect(rootSpan.finish).not.toHaveBeenCalled();
+  });
+
+  it('propagates exceptions from work and still ends the child span', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn() };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
     const boom = new Error('load failed');
 
     await expect(
       measureScreenLoad('ErrorScreen', async () => { throw boom; }),
     ).rejects.toThrow(boom);
 
+    expect(rootSpan.finish).not.toHaveBeenCalled();
     expect(Sentry.setMeasurement).toHaveBeenCalledTimes(1);
     expect(Sentry.setMeasurement).toHaveBeenCalledWith(
       'screen_load_ms',
@@ -1069,7 +1149,7 @@ describe('measureScreenLoad', () => {
     );
     expect(mockCurrentScope.setTag).toHaveBeenCalledTimes(1);
     expect(mockCurrentScope.setTag).toHaveBeenCalledWith('screen', 'ErrorScreen');
-    expect(fakeSpan.finish).toHaveBeenCalledTimes(1);
+    expect(childSpan.end).toHaveBeenCalledTimes(1);
   });
 
   it('always calls the work callback regardless of span state', async () => {

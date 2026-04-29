@@ -218,6 +218,12 @@ export function clearSentryUser(): void {
  * transaction is active (e.g. Sentry disabled / no DSN) the function still
  * runs `work` normally and only skips the instrumentation.
  *
+ * A dedicated child span is created via startInactiveSpan so that we never
+ * call finish() on the span returned by getActiveSpan(), which may be the root
+ * navigation transaction managed by reactNavigationIntegration.  Finishing
+ * that span prematurely would close the transaction while the SDK is still
+ * using it, causing lost or incomplete trace data.
+ *
  * Usage:
  *   const data = await measureScreenLoad('Login', () => fetchLoginData());
  */
@@ -226,16 +232,40 @@ export async function measureScreenLoad<T>(
   work: () => Promise<T>,
 ): Promise<T> {
   const startMs = Date.now();
+
+  // Capture whether a navigation transaction is active before work begins.
+  // This flag is used in the finally block to decide whether to record
+  // measurements — decoupled from child span creation so metrics are never
+  // silently dropped even if startInactiveSpan is unavailable on older builds.
+  let hasActiveSpan = false;
+  let childSpan: ReturnType<typeof Sentry.startInactiveSpan> | undefined;
+  try {
+    hasActiveSpan = !!Sentry.getActiveSpan?.();
+    if (hasActiveSpan) {
+      // Create a dedicated child span so we never call finish/end on the root
+      // navigation transaction managed by reactNavigationIntegration.
+      childSpan = Sentry.startInactiveSpan?.({ name: `screen_load.${screenName}`, op: 'ui.load' });
+    }
+  } catch {
+    // Instrumentation must never crash the app
+  }
+
   try {
     return await work();
   } finally {
     const durationMs = Date.now() - startMs;
     try {
-      const activeSpan = Sentry.getActiveSpan?.();
-      if (activeSpan) {
+      // Record measurement whenever a navigation transaction was active at the
+      // start of the load, even if startInactiveSpan was unavailable (older SDK).
+      if (hasActiveSpan) {
         Sentry.setMeasurement('screen_load_ms', durationMs, 'millisecond');
         Sentry.getCurrentScope?.().setTag('screen', screenName);
-        (activeSpan as { finish?: () => void }).finish?.();
+      }
+      // End only the dedicated child span — never the root transaction.
+      // Sentry v7+ uses end(); finish() is a fallback for older SDK builds.
+      if (childSpan) {
+        const span = childSpan as { end?: () => void; finish?: () => void };
+        (span.end ?? span.finish)?.();
       }
       if (__DEV__) {
         console.log(`[PerfTrace] ${screenName} loaded in ${durationMs} ms`);
