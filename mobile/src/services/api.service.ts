@@ -50,17 +50,22 @@ class ApiService {
     const method = options?.method || 'GET';
     console.log(`[API] Request: ${method} ${url}`);
 
+    // Create a Sentry span so this call appears in the Performance tab.
+    // startInactiveSpan attaches as a child of the current screen's active span
+    // (from React Navigation) when one exists, giving useful nesting in Sentry.
     const span = Sentry.startInactiveSpan({
       op: 'http.client',
       name: `${method} ${endpoint}`,
       attributes: {
         'http.request.method': method,
         'url.full': url,
+        'http.endpoint': endpoint,
       },
     });
 
     const startTime = Date.now();
     let rawText = '';
+
     try {
       const response = await fetch(url, {
         ...options,
@@ -102,10 +107,13 @@ class ApiService {
         if (statusCode >= 500) {
           console.error(`[API] Server error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
           reportError(new Error(`Server error ${statusCode}: ${method} ${endpoint}`), 'API');
+          span.setStatus({ code: 2, message: 'internal_error' });
         } else if (statusCode === 401) {
           console.warn(`[API] Unauthorized: ${method} ${endpoint} in ${durationMs} ms`);
+          span.setStatus({ code: 2, message: 'unauthenticated' });
         } else if (statusCode >= 400) {
           console.warn(`[API] Client error: ${method} ${endpoint} (${statusCode}) in ${durationMs} ms`);
+          span.setStatus({ code: 2, message: 'invalid_argument' });
         }
         const apiError = new Error(error.error || response.statusText) as Error & { status: number };
         apiError.status = response.status;
@@ -128,10 +136,12 @@ class ApiService {
         } else if (__DEV__) {
           console.log(`[API] ${method} ${endpoint} completed in ${durationMs} ms`);
         }
+        span.setStatus({ code: 1, message: 'ok' });
         return result;
       } catch (parseError) {
         console.error(`[API] JSON parse error for ${endpoint}:`, parseError);
         console.error(`[API] Raw response was:`, rawText.substring(0, 1000));
+        span.setStatus({ code: 2, message: 'internal_error' });
         throw parseError;
       }
     } finally {
