@@ -23,6 +23,30 @@ function MyBubblesScreenWithBoundary(props: React.ComponentProps<typeof MyBubble
   );
 }
 
+function CreateBubbleScreenWithBoundary(props: React.ComponentProps<typeof CreateBubbleScreen>) {
+  return (
+    <ScreenErrorBoundary context="CreateBubbleScreen" message="Couldn't load bubble creation — tap to retry">
+      <CreateBubbleScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function CreateEventScreenWithBoundary(props: React.ComponentProps<typeof CreateEventScreen>) {
+  return (
+    <ScreenErrorBoundary context="CreateEventScreen" message="Couldn't load event creation — tap to retry">
+      <CreateEventScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function NotificationsScreenWithBoundary(props: React.ComponentProps<typeof NotificationsScreen>) {
+  return (
+    <ScreenErrorBoundary context="NotificationsScreen" message="Couldn't load notifications — tap to retry">
+      <NotificationsScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function BubblesNavigator() {
   return (
     <Stack.Navigator
@@ -33,9 +57,9 @@ export default function BubblesNavigator() {
       }}
     >
       <Stack.Screen name="MyBubblesList" component={MyBubblesScreenWithBoundary} />
-      <Stack.Screen name="CreateBubble" component={CreateBubbleScreen} options={{ gestureEnabled: false }} />
-      <Stack.Screen name="CreateEvent" component={CreateEventScreen} options={{ gestureEnabled: false }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="CreateBubble" component={CreateBubbleScreenWithBoundary} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="CreateEvent" component={CreateEventScreenWithBoundary} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreenWithBoundary} />
     </Stack.Navigator>
   );
 }
