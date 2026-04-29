@@ -7,9 +7,13 @@ import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { initSentry, installGlobalHandlers } from './src/utils/crashReporter';
+import * as Sentry from '@sentry/react-native';
 
 initSentry();
 installGlobalHandlers();
+
+// TEMPORARY: remove once Sentry is confirmed working
+Sentry.captureMessage('Bubble app started — Sentry connectivity test', 'info');
 
 const queryClient = new QueryClient();
 
