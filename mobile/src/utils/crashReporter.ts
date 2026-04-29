@@ -38,7 +38,13 @@ export function initSentry(): void {
     Platform.OS === 'ios'
       ? (Constants.expoConfig?.ios?.buildNumber ?? '')
       : String(Constants.expoConfig?.android?.versionCode ?? '');
-  const release = buildNumber ? `${appVersion}+${buildNumber}` : appVersion;
+  const bundleId =
+    Platform.OS === 'ios'
+      ? (Constants.expoConfig?.ios?.bundleIdentifier ?? 'com.bubble.mobile')
+      : (Constants.expoConfig?.android?.package ?? 'com.bubble.mobile');
+  const release = buildNumber
+    ? `${bundleId}@${appVersion}+${buildNumber}`
+    : `${bundleId}@${appVersion}`;
   try {
     Sentry.init({
       dsn,
@@ -56,7 +62,7 @@ export function initSentry(): void {
       level: 'info',
       data: { environment: __DEV__ ? 'development' : 'production' },
     });
-    console.log('[CrashReporter] Sentry initialized successfully');
+    console.log(`[CrashReporter] Sentry initialized successfully (release: ${release})`);
   } catch (e) {
     console.error('[CrashReporter] Sentry.init() threw — running without Sentry:', e);
   }
