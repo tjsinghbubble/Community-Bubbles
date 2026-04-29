@@ -134,23 +134,26 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [taskSpotsNeeded, setTaskSpotsNeeded] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
 
-  const [showReorderModal, setShowReorderModal] = useState(false);
-  const [reorderedTasks, setReorderedTasks] = useState<SignupTask[]>([]);
-  const [reorderDraggingId, setReorderDraggingId] = useState<number | null>(null);
-  const [reorderHoverIndex, setReorderHoverIndex] = useState<number | null>(null);
-  const [reorderSaving, setReorderSaving] = useState(false);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [inlineDraggingId, setInlineDraggingId] = useState<number | null>(null);
+  const [inlineHoverIndex, setInlineHoverIndex] = useState<number | null>(null);
 
+  const scrollViewRef = useRef<ScrollView>(null);
   const reorderDragAnim = useRef(new Animated.Value(0)).current;
-  const reorderTasksRef = useRef<SignupTask[]>([]);
+  const signupTasksRef = useRef<SignupTask[]>([]);
+  const reorderTasksRef = signupTasksRef;
   const reorderItemLayouts = useRef<{ [id: number]: { y: number; height: number } }>({});
   const reorderContainerRef = useRef<View>(null);
   const containerPageY = useRef(0);
   const activeDragRef = useRef<{ id: number; index: number; origY: number } | null>(null);
   const activeHoverRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDragRef = useRef<{ id: number; index: number; origY: number; pageY: number } | null>(null);
+  const pendingDragRef = useRef<{ id: number; index: number; origY: number; pageY: number; pageX: number; isOptions: boolean } | null>(null);
+  const canManageRef = useRef(false);
+  const handleToggleSignupRef = useRef<(task: SignupTask) => void>(() => {});
+  const autoSaveInlineOrderRef = useRef<(tasks: SignupTask[]) => void>(() => {});
+  const showTaskOptionsRef = useRef<(task: SignupTask) => void>(() => {});
 
-  const scrollViewRef = useRef<ScrollView>(null);
   const tasksYRef = useRef<number>(0);
   const [highlightedTaskId, setHighlightedTaskId] = useState<string | null>(null);
   const appliedHighlightRef = useRef<string | null>(null);
@@ -415,35 +418,44 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   };
 
   useEffect(() => {
-    reorderTasksRef.current = reorderedTasks;
-  }, [reorderedTasks]);
+    signupTasksRef.current = signupTasks;
+  }, [signupTasks]);
 
   const reorderPanResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => canManageRef.current,
       onMoveShouldSetPanResponder: () => activeDragRef.current !== null,
 
       onPanResponderGrant: (evt) => {
+        if (!canManageRef.current) return;
         const touchY = evt.nativeEvent.pageY - containerPageY.current;
+        const touchX = evt.nativeEvent.pageX;
+        const optionsThreshold = SCREEN_WIDTH - CONTENT_PADDING - 40;
         const tasks = reorderTasksRef.current;
         for (let i = 0; i < tasks.length; i++) {
           const layout = reorderItemLayouts.current[tasks[i].id];
           if (layout && touchY >= layout.y && touchY < layout.y + layout.height) {
+            const isOptions = touchX >= optionsThreshold;
             pendingDragRef.current = {
               id: tasks[i].id,
               index: i,
               origY: layout.y,
               pageY: evt.nativeEvent.pageY,
+              pageX: touchX,
+              isOptions,
             };
-            longPressTimerRef.current = setTimeout(() => {
-              const pending = pendingDragRef.current;
-              if (!pending) return;
-              activeDragRef.current = { id: pending.id, index: pending.index, origY: pending.origY };
-              activeHoverRef.current = pending.index;
-              reorderDragAnim.setValue(pending.origY);
-              setReorderDraggingId(pending.id);
-              setReorderHoverIndex(pending.index);
-            }, 400);
+            if (!isOptions) {
+              longPressTimerRef.current = setTimeout(() => {
+                const pending = pendingDragRef.current;
+                if (!pending || pending.isOptions) return;
+                activeDragRef.current = { id: pending.id, index: pending.index, origY: pending.origY };
+                activeHoverRef.current = pending.index;
+                reorderDragAnim.setValue(pending.origY);
+                setInlineDraggingId(pending.id);
+                setInlineHoverIndex(pending.index);
+                setScrollEnabled(false);
+              }, 400);
+            }
             return;
           }
         }
@@ -456,7 +468,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         const tasks = reorderTasksRef.current;
         const itemHeight = reorderItemLayouts.current[activeDragRef.current.id]?.height ?? 72;
         const centerY = newY + itemHeight / 2;
-        // Default to inserting at the end (tasks.length) if dragged past all items
         let hoverIdx = tasks.length;
         for (let i = 0; i < tasks.length; i++) {
           if (tasks[i].id === activeDragRef.current.id) continue;
@@ -468,7 +479,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         }
         if (hoverIdx !== activeHoverRef.current) {
           activeHoverRef.current = hoverIdx;
-          setReorderHoverIndex(hoverIdx);
+          setInlineHoverIndex(hoverIdx);
         }
       },
 
@@ -477,22 +488,39 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           clearTimeout(longPressTimerRef.current);
           longPressTimerRef.current = null;
         }
+        const pending = pendingDragRef.current;
         pendingDragRef.current = null;
-        if (!activeDragRef.current) return;
+
+        if (!activeDragRef.current) {
+          // Was a tap (long press never fired)
+          if (pending) {
+            const task = reorderTasksRef.current.find(t => t.id === pending.id);
+            if (task) {
+              if (pending.isOptions) {
+                showTaskOptionsRef.current(task);
+              } else {
+                handleToggleSignupRef.current(task);
+              }
+            }
+          }
+          return;
+        }
+
         const tasks = reorderTasksRef.current;
         const startIndex = activeDragRef.current.index;
         const finalHover = activeHoverRef.current ?? startIndex;
-        setReorderDraggingId(null);
-        setReorderHoverIndex(null);
         activeDragRef.current = null;
+        setInlineDraggingId(null);
+        setInlineHoverIndex(null);
+        setScrollEnabled(true);
+
         if (finalHover !== startIndex) {
           const newTasks = [...tasks];
           const [item] = newTasks.splice(startIndex, 1);
-          // After removing the item, indices above startIndex shift down by 1,
-          // so adjust the insertion index for downward moves
           const insertAt = finalHover > startIndex ? finalHover - 1 : finalHover;
           newTasks.splice(insertAt, 0, item);
-          setReorderedTasks(newTasks);
+          setSignupTasks(newTasks);
+          autoSaveInlineOrderRef.current(newTasks);
         }
       },
 
@@ -502,30 +530,21 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           longPressTimerRef.current = null;
         }
         pendingDragRef.current = null;
-        setReorderDraggingId(null);
-        setReorderHoverIndex(null);
+        setInlineDraggingId(null);
+        setInlineHoverIndex(null);
         activeDragRef.current = null;
+        setScrollEnabled(true);
       },
     })
   ).current;
 
-  const openReorderModal = () => {
-    reorderItemLayouts.current = {};
-    setReorderedTasks([...signupTasks]);
-    setShowReorderModal(true);
-  };
-
-  const saveReorder = async () => {
-    setReorderSaving(true);
+  const autoSaveInlineOrder = async (orderedTasks: SignupTask[]) => {
     try {
-      const taskIds = reorderedTasks.map(t => t.id);
+      const taskIds = orderedTasks.map(t => t.id);
       await apiService.reorderEventSignupTasks(eventId, taskIds);
-      setSignupTasks(reorderedTasks);
-      setShowReorderModal(false);
     } catch {
       Alert.alert('Error', 'Failed to save order. Please try again.');
-    } finally {
-      setReorderSaving(false);
+      await fetchSignupTasks();
     }
   };
 
@@ -715,6 +734,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const isBubbleAdmin = myBubbleRole === 'admin';
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
+  canManageRef.current = canManage;
+  handleToggleSignupRef.current = handleToggleSignup;
+  autoSaveInlineOrderRef.current = autoSaveInlineOrder;
+  showTaskOptionsRef.current = showTaskOptions;
+
   const goingCount = attendees.filter(a => a.status === 'going').length;
   const waitlistCount = attendees.filter(a => a.status === 'waitlisted').length;
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
@@ -801,7 +825,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         />
       )}
 
-      <ScrollView ref={scrollViewRef} style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        scrollEnabled={scrollEnabled}
+      >
         {hasImages && (
           <View style={styles.coverImageContainer}>
             {eventImages.length === 1 ? (
@@ -988,19 +1017,14 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Sign-Up and Help {creatorName}
             </Text>
             {canManage && (
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {signupTasks.length > 1 && (
-                  <TouchableOpacity style={[styles.addButtonInline, { flexDirection: 'row', alignItems: 'center' }]} onPress={openReorderModal} data-testid="button-reorder-tasks">
-                    <Ionicons name="menu" size={13} color="#fff" />
-                    <Text style={[styles.addButtonInlineText, { marginLeft: 4 }]}>Reorder</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
-                  <Text style={styles.addButtonInlineText}>+ Add Task</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
+                <Text style={styles.addButtonInlineText}>+ Add Task</Text>
+              </TouchableOpacity>
             )}
           </View>
+          {canManage && signupTasks.length > 1 && (
+            <Text style={styles.inlineDragHint}>Hold ☰ and drag to reorder · tap ⋮ to edit</Text>
+          )}
 
           {signupTasks.length === 0 ? (
             <View style={styles.emptyTasksBox}>
@@ -1010,6 +1034,121 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   ? 'Add tasks for members to volunteer for!'
                   : 'No sign-up tasks yet.'}
               </Text>
+            </View>
+          ) : canManage ? (
+            <View
+              ref={reorderContainerRef}
+              onLayout={() => {
+                reorderContainerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
+                  containerPageY.current = py;
+                });
+              }}
+              {...reorderPanResponder.panHandlers}
+            >
+              {signupTasks.map((task, index) => {
+                const spotsLeft = task.spotsNeeded != null ? task.spotsNeeded - task.signupCount : null;
+                const isFull = spotsLeft !== null && spotsLeft <= 0;
+                const isDragging = inlineDraggingId === task.id;
+                const draggingIdx = signupTasks.findIndex(t => t.id === inlineDraggingId);
+                const isDropTarget = inlineHoverIndex === index && inlineDraggingId !== null && !isDragging;
+                return (
+                  <View
+                    key={task.id}
+                    onLayout={(e) => {
+                      reorderItemLayouts.current[task.id] = {
+                        y: e.nativeEvent.layout.y,
+                        height: e.nativeEvent.layout.height,
+                      };
+                    }}
+                  >
+                    {isDropTarget && index < draggingIdx && (
+                      <View style={styles.inlineDropIndicator} />
+                    )}
+                    <View
+                      style={[
+                        styles.taskCard,
+                        task.hasSignedUp && styles.taskCardSigned,
+                        isDragging && styles.taskCardDragging,
+                      ]}
+                      data-testid={`card-task-${task.id}`}
+                    >
+                      <View style={styles.taskHeader}>
+                        <View style={styles.inlineDragHandle}>
+                          <Ionicons name="menu" size={18} color={Colors.text.tertiary} />
+                        </View>
+                        <View style={styles.taskIconWrap}>
+                          <Text style={styles.taskEmoji}>{task.icon}</Text>
+                        </View>
+                        <View style={styles.taskMeta}>
+                          <Text style={styles.taskTitle}>{task.title}</Text>
+                          {task.description ? (
+                            <Text style={styles.taskDesc}>{task.description}</Text>
+                          ) : null}
+                          <View style={styles.taskSignerRow}>
+                            {task.signers.map((s) => (
+                              <View key={s.id} style={styles.signerAvatar}>
+                                {s.profilePhoto ? (
+                                  <Image source={{ uri: s.profilePhoto }} style={styles.signerImg} />
+                                ) : (
+                                  <Text style={styles.signerInitial}>{s.name?.[0] ?? '?'}</Text>
+                                )}
+                              </View>
+                            ))}
+                            <Text style={styles.signerCount}>
+                              {task.signupCount} signed up
+                              {task.spotsNeeded != null ? ` · ${Math.max(0, spotsLeft!)} spot${spotsLeft === 1 ? '' : 's'} left` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.taskAdminActions}>
+                          {task.hasSignedUp ? (
+                            <View style={styles.signedBadge}>
+                              <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                            </View>
+                          ) : isFull ? (
+                            <View style={styles.fullBadge}>
+                              <Text style={styles.fullBadgeText}>Full</Text>
+                            </View>
+                          ) : null}
+                          <View style={styles.taskOptionsBtn}>
+                            <Ionicons name="ellipsis-vertical" size={16} color={Colors.text.tertiary} />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                    {isDropTarget && index >= draggingIdx && (
+                      <View style={styles.inlineDropIndicator} />
+                    )}
+                  </View>
+                );
+              })}
+
+              {inlineDraggingId !== null && (() => {
+                const draggingTask = signupTasks.find(t => t.id === inlineDraggingId);
+                if (!draggingTask) return null;
+                return (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.taskCard,
+                      styles.taskCardDragClone,
+                      { transform: [{ translateY: reorderDragAnim }] },
+                    ]}
+                  >
+                    <View style={styles.taskHeader}>
+                      <View style={styles.inlineDragHandle}>
+                        <Ionicons name="menu" size={18} color={Colors.brand.primary} />
+                      </View>
+                      <View style={styles.taskIconWrap}>
+                        <Text style={styles.taskEmoji}>{draggingTask.icon}</Text>
+                      </View>
+                      <View style={styles.taskMeta}>
+                        <Text style={styles.taskTitle} numberOfLines={1}>{draggingTask.title}</Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+                );
+              })()}
             </View>
           ) : (
             signupTasks.map((task) => {
@@ -1022,8 +1161,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   activeOpacity={canToggle ? 0.7 : 1}
                   style={[styles.taskCard, task.hasSignedUp && styles.taskCardSigned, highlightedTaskId === String(task.id) && styles.taskCardHighlighted]}
                   onPress={() => { if (canToggle) handleToggleSignup(task); }}
-                  onLongPress={() => { if (canManage) showTaskOptions(task); }}
-                  delayLongPress={400}
+                  data-testid={`card-task-${task.id}`}
                 >
                   <View style={styles.taskHeader}>
                     <View style={styles.taskIconWrap}>
@@ -1309,126 +1447,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Reorder Sign-Up Tasks Modal */}
-      <Modal
-        visible={showReorderModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowReorderModal(false)}
-      >
-        <View style={styles.reorderOverlay}>
-          <View style={styles.reorderDialog}>
-            <View style={styles.reorderHeader}>
-              <Text style={styles.reorderTitle}>Reorder Tasks</Text>
-              <TouchableOpacity onPress={() => setShowReorderModal(false)} data-testid="button-close-reorder">
-                <Ionicons name="close" size={24} color={Colors.text.primary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.reorderHint}>Press and hold a task, then drag to reorder.</Text>
-
-            <View
-              ref={reorderContainerRef}
-              style={styles.reorderList}
-              onLayout={() => {
-                reorderContainerRef.current?.measure((_x, _y, _w, _h, _px, py) => {
-                  containerPageY.current = py;
-                });
-              }}
-              {...reorderPanResponder.panHandlers}
-            >
-              {reorderedTasks.map((task, index) => {
-                const isDragging = reorderDraggingId === task.id;
-                const isDropTarget = reorderHoverIndex === index && reorderDraggingId !== null && !isDragging;
-                return (
-                  <View
-                    key={task.id}
-                    onLayout={(e) => {
-                      reorderItemLayouts.current[task.id] = {
-                        y: e.nativeEvent.layout.y,
-                        height: e.nativeEvent.layout.height,
-                      };
-                    }}
-                  >
-                    {isDropTarget && index < (reorderTasksRef.current.findIndex(t => t.id === reorderDraggingId)) && (
-                      <View style={styles.reorderDropIndicator} />
-                    )}
-                    <View
-                      style={[
-                        styles.reorderTaskCard,
-                        isDragging && styles.reorderTaskCardDragging,
-                      ]}
-                      data-testid={`card-reorder-task-${task.id}`}
-                    >
-                      <View style={styles.reorderDragHandle}>
-                        <Ionicons name="menu" size={20} color={Colors.text.tertiary} />
-                      </View>
-                      <View style={styles.taskIconWrap}>
-                        <Text style={styles.taskEmoji}>{task.icon}</Text>
-                      </View>
-                      <View style={styles.taskMeta}>
-                        <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
-                        {task.description ? (
-                          <Text style={styles.taskDesc} numberOfLines={1}>{task.description}</Text>
-                        ) : null}
-                      </View>
-                    </View>
-                    {isDropTarget && index >= (reorderTasksRef.current.findIndex(t => t.id === reorderDraggingId)) && (
-                      <View style={styles.reorderDropIndicator} />
-                    )}
-                  </View>
-                );
-              })}
-
-              {reorderDraggingId !== null && (() => {
-                const draggingTask = reorderedTasks.find(t => t.id === reorderDraggingId);
-                if (!draggingTask) return null;
-                return (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.reorderTaskCard,
-                      styles.reorderDragClone,
-                      { transform: [{ translateY: reorderDragAnim }] },
-                    ]}
-                  >
-                    <View style={styles.reorderDragHandle}>
-                      <Ionicons name="menu" size={20} color={Colors.brand.primary} />
-                    </View>
-                    <View style={styles.taskIconWrap}>
-                      <Text style={styles.taskEmoji}>{draggingTask.icon}</Text>
-                    </View>
-                    <View style={styles.taskMeta}>
-                      <Text style={styles.taskTitle} numberOfLines={1}>{draggingTask.title}</Text>
-                    </View>
-                  </Animated.View>
-                );
-              })()}
-            </View>
-
-            <View style={styles.reorderFooter}>
-              <TouchableOpacity
-                style={styles.reorderCancelBtn}
-                onPress={() => setShowReorderModal(false)}
-                data-testid="button-cancel-reorder"
-              >
-                <Text style={styles.reorderCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.reorderSaveBtn, reorderSaving && { opacity: 0.6 }]}
-                onPress={saveReorder}
-                disabled={reorderSaving}
-                data-testid="button-save-reorder"
-              >
-                {reorderSaving ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.reorderSaveText}>Save Order</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -2080,61 +2098,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  reorderOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'flex-end',
-  },
-  reorderDialog: {
-    backgroundColor: Colors.background.primary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
-    maxHeight: '80%',
-  },
-  reorderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 6,
-  },
-  reorderTitle: {
-    fontSize: Typography.sizes.lg,
-    fontWeight: Typography.weights.bold,
-    color: Colors.text.primary,
-  },
-  reorderHint: {
-    fontSize: Typography.sizes.sm,
+  inlineDragHint: {
+    fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
-    paddingHorizontal: 20,
-    marginBottom: 14,
-  },
-  reorderList: {
-    paddingHorizontal: 16,
-    overflow: 'hidden',
-  },
-  reorderTaskCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.background.primary,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: '#E8E8E8',
-    padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
-  reorderTaskCardDragging: {
-    opacity: 0.35,
-  },
-  reorderDragHandle: {
-    paddingRight: 12,
+  inlineDragHandle: {
+    paddingRight: 10,
     paddingVertical: 4,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  reorderDragClone: {
+  taskAdminActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: Spacing.sm,
+  },
+  taskOptionsBtn: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  taskCardDragging: {
+    opacity: 0.35,
+  },
+  taskCardDragClone: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -2144,46 +2134,11 @@ const styles = StyleSheet.create({
     elevation: 8,
     zIndex: 999,
   },
-  reorderDropIndicator: {
+  inlineDropIndicator: {
     height: 2,
     backgroundColor: Colors.brand.primary,
     borderRadius: 2,
     marginBottom: 4,
     marginHorizontal: 4,
-  },
-  reorderFooter: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    marginTop: 6,
-  },
-  reorderCancelBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    alignItems: 'center',
-  },
-  reorderCancelText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.text.secondary,
-  },
-  reorderSaveBtn: {
-    flex: 2,
-    paddingVertical: 13,
-    borderRadius: 12,
-    backgroundColor: Colors.brand.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reorderSaveText: {
-    fontSize: Typography.sizes.base,
-    fontWeight: Typography.weights.semiBold,
-    color: '#fff',
   },
 });
