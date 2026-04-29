@@ -911,6 +911,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         key={event.id}
         style={styles.eventCard}
         onPress={() => handleEventPress(event)}
+        data-testid={`card-event-${event.id}`}
       >
         <Image
           source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
@@ -925,11 +926,19 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
           )}
           {openTasks > 0 && (
-            <View style={styles.tasksBadge} testID={`badge-tasks-${event.id}`}>
-              <Text style={styles.tasksBadgeText}>
+            <TouchableOpacity
+              style={styles.eventTasksBadge}
+              data-testid={`badge-tasks-${event.id}`}
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEventPress(event);
+              }}
+            >
+              <Text style={styles.eventTasksBadgeText}>
                 {openTasks === 1 ? '1 task open' : `${openTasks} tasks open`}
               </Text>
-            </View>
+            </TouchableOpacity>
           )}
         </View>
         <View style={styles.eventChevronContainer}>
@@ -1581,6 +1590,19 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.medium,
     color: Colors.status.error,
+  },
+  eventTasksBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    marginTop: Spacing.xs,
+  },
+  eventTasksBadgeText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.primary,
   },
   eventChevronContainer: {
     paddingHorizontal: Spacing.sm,

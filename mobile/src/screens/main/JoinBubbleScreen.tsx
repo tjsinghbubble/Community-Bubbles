@@ -340,11 +340,16 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
                       {(item as any).attendeeCount || 0} members showing up
                     </Text>
                     {openTasks > 0 && (
-                      <View style={styles.tasksBadge} data-testid={`badge-tasks-${item.id}`}>
+                      <TouchableOpacity
+                        style={styles.tasksBadge}
+                        data-testid={`badge-tasks-${item.id}`}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('EventDetails' as any, { eventId: item.id, event: item, bubbleTitle: bubble.title })}
+                      >
                         <Text style={styles.tasksBadgeText}>
                           {openTasks === 1 ? '1 task open' : `${openTasks} tasks open`}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     )}
                   </View>
                 );
