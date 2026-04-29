@@ -112,6 +112,50 @@ No extra build step is needed — source maps are uploaded automatically on ever
 the Sentry dashboard — the stack trace should show original TypeScript file
 paths and line numbers.
 
+## Production Builds — Version Bumping
+
+Every production build must carry a unique semver version so that Sentry can create a distinct release slug and accurately track regressions across builds.
+
+### How it works
+
+`mobile/scripts/bump-version.js` increments the **patch** component of the semver version (e.g. `1.0.0 → 1.0.1`) and writes the new value to both `mobile/app.json` (`expo.version`) and `mobile/package.json` (`version`) in one atomic step. `app.config.js` reads `app.json` at build time and passes the version as the Sentry `release` identifier, so the three values always stay in sync.
+
+### Required: use `npm run build:production`
+
+**Do not run `eas build --profile production` directly.** Always use the npm script instead:
+
+```bash
+cd mobile
+npm run build:production
+```
+
+This single command:
+1. Bumps the patch version in `app.json` and `package.json`.
+2. Stages both files and commits the change (`chore: bump version for production build`).
+3. Runs `eas build --profile production`.
+
+Running `eas build` directly skips step 1 and 2, causing multiple builds to share the same Sentry release slug and making crash regression tracking unreliable.
+
+### Manual version bump (without building)
+
+```bash
+cd mobile
+npm run version:bump
+```
+
+### CI/CD notes
+
+If your CI pipeline calls `eas build` directly (e.g. GitHub Actions), add a pre-build step that runs `node scripts/bump-version.js`, then commits the result before calling EAS:
+
+```yaml
+- run: node scripts/bump-version.js
+- run: git config user.email "ci@example.com" && git config user.name "CI"
+- run: git add mobile/app.json mobile/package.json && git commit -m "chore: bump version for production build"
+- run: cd mobile && eas build --profile production --non-interactive
+```
+
+---
+
 ## CI/CD — Automated Production Builds (GitHub Actions)
 
 The repository includes a GitHub Actions workflow (`.github/workflows/eas-build.yml`) that automatically triggers EAS production builds and store submissions on every push to `main` or any release tag (e.g. `v1.2.3`).
@@ -162,10 +206,18 @@ Once stored in EAS, these credentials are reused automatically on every CI run �
 
 ### Triggering a release manually
 
-If you need to kick off a build outside the normal push flow:
+If you need to kick off a build outside the normal push flow, use the `build:production` script so the version is bumped and committed automatically:
 
 ```bash
 cd mobile
+npm run build:production
+```
+
+To target both platforms in a single EAS job, you can add `-- --platform all --wait --auto-submit` after bumping and committing the version:
+
+```bash
+npm run version:bump
+git add app.json package.json && git commit -m "chore: bump version for production build"
 eas build --platform all --profile production --wait --auto-submit
 ```
 
