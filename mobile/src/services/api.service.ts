@@ -874,6 +874,10 @@ class ApiService {
       method: 'DELETE',
     });
   }
+
+  async getAppStatus(): Promise<{ status: string; version: string; uptime: string; timestamp: string }> {
+    return this.request<{ status: string; version: string; uptime: string; timestamp: string }>('/api/v1/status');
+  }
 }
 
 export const apiService = new ApiService();

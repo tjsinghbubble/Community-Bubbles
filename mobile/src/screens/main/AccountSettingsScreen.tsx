@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,13 +12,19 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
+import apiService from '../../services/api.service';
 
-
-const APP_VERSION = '26.01';
 const APP_STAGE = 'alpha';
 
 export default function AccountSettingsScreen() {
   const navigation = useNavigation<any>();
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiService.getAppStatus()
+      .then((status) => setAppVersion(status.version))
+      .catch(() => setAppVersion(null));
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -67,7 +73,7 @@ export default function AccountSettingsScreen() {
         <View style={styles.versionSeparator} />
 
         <Text style={styles.versionText} testID="text-version">
-          Version {APP_VERSION}, {APP_STAGE}
+          {appVersion ? `Version ${appVersion}, ${APP_STAGE}` : `Version unavailable, ${APP_STAGE}`}
         </Text>
       </View>
     </SafeAreaView>
