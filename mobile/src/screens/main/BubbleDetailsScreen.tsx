@@ -96,6 +96,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [maxBubblePhotos, setMaxBubblePhotos] = useState(20);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [signupTaskCounts, setSignupTaskCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     checkMembership();
@@ -171,9 +172,24 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const fetchEvents = async () => {
+    setSignupTaskCounts({});
     try {
       const data = await apiService.getBubbleEvents(bubble.id) as Event[];
       setEvents(data);
+      if (data.length > 0) {
+        const taskResults = await Promise.all(
+          data.map((ev) => apiService.getEventSignupTasks(ev.id).catch(() => []))
+        );
+        const counts: Record<string, number> = {};
+        data.forEach((ev, idx) => {
+          const tasks: any[] = taskResults[idx] || [];
+          const openCount = tasks.filter(
+            (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+          ).length;
+          if (openCount > 0) counts[ev.id] = openCount;
+        });
+        setSignupTaskCounts(counts);
+      }
     } catch (error) {
       console.error('Failed to fetch events:', error);
     } finally {
@@ -888,30 +904,40 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     return Object.entries(groups);
   };
 
-  const renderEventCard = (event: Event) => (
-    <TouchableOpacity
-      key={event.id}
-      style={styles.eventCard}
-      onPress={() => handleEventPress(event)}
-    >
-      <Image
-        source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
-        style={styles.eventImage}
-        contentFit="cover"
-      />
-      <View style={styles.eventInfo}>
-        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-        <Text style={styles.eventDateText}>{getEventFullDate(event.date)}</Text>
-        <Text style={styles.eventTimeText}>{getEventTimeRange(event.startTime, event.endTime)}</Text>
-        {getSpotsLabel(event) !== null && (
-          <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
-        )}
-      </View>
-      <View style={styles.eventChevronContainer}>
-        <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
-      </View>
-    </TouchableOpacity>
-  );
+  const renderEventCard = (event: Event) => {
+    const openTasks = signupTaskCounts[event.id] || 0;
+    return (
+      <TouchableOpacity
+        key={event.id}
+        style={styles.eventCard}
+        onPress={() => handleEventPress(event)}
+      >
+        <Image
+          source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
+          style={styles.eventImage}
+          contentFit="cover"
+        />
+        <View style={styles.eventInfo}>
+          <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+          <Text style={styles.eventDateText}>{getEventFullDate(event.date)}</Text>
+          <Text style={styles.eventTimeText}>{getEventTimeRange(event.startTime, event.endTime)}</Text>
+          {getSpotsLabel(event) !== null && (
+            <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
+          )}
+          {openTasks > 0 && (
+            <View style={styles.tasksBadge} testID={`badge-tasks-${event.id}`}>
+              <Text style={styles.tasksBadgeText}>
+                {openTasks === 1 ? '1 task open' : `${openTasks} tasks open`}
+              </Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.eventChevronContainer}>
+          <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEventsTab = () => {
     const grouped = groupEventsByMonth(events);
@@ -1560,6 +1586,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tasksBadge: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tasksBadgeText: {
+    fontSize: Typography.sizes.xxs,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.primary,
   },
   createFab: {
     position: 'absolute',
