@@ -22,7 +22,13 @@ export interface CrashReport {
   username?: string;
 }
 
-export const navigationIntegration = Sentry.reactNavigationIntegration();
+let _navigationIntegration: ReturnType<typeof Sentry.reactNavigationIntegration> | null = null;
+try {
+  _navigationIntegration = Sentry.reactNavigationIntegration();
+} catch (e) {
+  console.warn('[CrashReporter] reactNavigationIntegration() unavailable (Expo Go):', e);
+}
+export const navigationIntegration = _navigationIntegration;
 
 let _currentUserId: string | undefined;
 let _currentUsername: string | undefined;
@@ -41,7 +47,7 @@ export function initSentry(): void {
       debug: __DEV__,
       enableNativeNagger: false,
       tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-      integrations: [navigationIntegration],
+      integrations: _navigationIntegration ? [_navigationIntegration] : [],
     });
     Sentry.addBreadcrumb({
       category: 'app.lifecycle',

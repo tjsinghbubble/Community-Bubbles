@@ -136,7 +136,7 @@ export default function RootNavigator() {
     <NavigationContainer
       ref={navigationRef}
       linking={linkingConfig}
-      onReady={() => navigationIntegration.registerNavigationContainer(navigationRef)}
+      onReady={() => navigationIntegration?.registerNavigationContainer(navigationRef)}
     >
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
         {!isAuthenticated ? (
