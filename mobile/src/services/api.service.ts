@@ -570,6 +570,13 @@ class ApiService {
     return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>("/api/admin/error-logs");
   }
 
+  async getSlowCallTrends(days = 30) {
+    return this.request<{
+      trends: Array<{ endpoint: string; method: string; count: number; avgMs: number; maxMs: number; date: string }>;
+      generatedAt: string;
+    }>(`/api/admin/slow-calls?days=${days}`);
+  }
+
   async clearErrorLogs() {
     return this.request<{ success: boolean }>("/api/admin/error-logs", {
       method: "DELETE",

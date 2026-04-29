@@ -259,6 +259,20 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
               </AnimatedPressable>
             )}
+            {isSuperAdmin && (
+              <AnimatedPressable
+                style={styles.menuItem}
+                scaleValue={0.97}
+                onPress={() => navigation.navigate('SlowCallTrends')}
+                testID="link-slow-call-trends"
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons name="speedometer-outline" size={24} color={Colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Slow-Call Trends</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </AnimatedPressable>
+            )}
           </View>
         )}
 
