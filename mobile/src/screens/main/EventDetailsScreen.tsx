@@ -162,6 +162,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const rsvpYRef = useRef<number>(0);
   const [highlightRsvp, setHighlightRsvp] = useState(false);
   const appliedRsvpScrollRef = useRef(false);
+  const rsvpPulseAnim = useRef(new Animated.Value(1)).current;
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -280,7 +281,25 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: rsvpYRef.current, animated: true });
       setHighlightRsvp(true);
-      setTimeout(() => setHighlightRsvp(false), 3000);
+      rsvpPulseAnim.setValue(1);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(rsvpPulseAnim, {
+            toValue: 1.05,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(rsvpPulseAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]),
+        { iterations: 3 },
+      ).start(() => {
+        setHighlightRsvp(false);
+        rsvpPulseAnim.setValue(1);
+      });
     }, 300);
   }, [scrollToRsvp, event]);
 
@@ -893,31 +912,33 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               </View>
             </View>
             <View style={styles.rsvpDropdownWrapper}>
-              <TouchableOpacity
-                style={[
-                  styles.rsvpDropdownButton,
-                  (rsvpStatus === 'going' || (isEventCreator && !rsvpStatus)) && styles.rsvpDropdownGoing,
-                  rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
-                  rsvpStatus === 'waitlisted' && styles.rsvpDropdownWaitlisted,
-                  (!rsvpStatus && !isEventCreator) && styles.rsvpDropdownDefault,
-                  highlightRsvp && styles.rsvpDropdownHighlighted,
-                ]}
-                onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
-                disabled={isRsvping}
-              >
-                {isRsvping ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.rsvpDropdownButtonText}>
-                      {isEventCreator
-                        ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
-                        : (rsvpStatus === 'waitlisted' ? 'Waitlisted' : rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
-                    </Text>
-                    {showRsvpDropdown ? <ChevronUpIcon size={14} color="#FFFFFF" /> : <ChevronDownIcon size={14} color="#FFFFFF" />}
-                  </>
-                )}
-              </TouchableOpacity>
+              <Animated.View style={{ transform: [{ scale: rsvpPulseAnim }] }}>
+                <TouchableOpacity
+                  style={[
+                    styles.rsvpDropdownButton,
+                    (rsvpStatus === 'going' || (isEventCreator && !rsvpStatus)) && styles.rsvpDropdownGoing,
+                    rsvpStatus === 'not_going' && styles.rsvpDropdownNotGoing,
+                    rsvpStatus === 'waitlisted' && styles.rsvpDropdownWaitlisted,
+                    (!rsvpStatus && !isEventCreator) && styles.rsvpDropdownDefault,
+                    highlightRsvp && styles.rsvpDropdownHighlighted,
+                  ]}
+                  onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
+                  disabled={isRsvping}
+                >
+                  {isRsvping ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.rsvpDropdownButtonText}>
+                        {isEventCreator
+                          ? (rsvpStatus === 'not_going' ? 'Not Going' : 'Going')
+                          : (rsvpStatus === 'waitlisted' ? 'Waitlisted' : rsvpStatus === 'going' ? 'Going' : rsvpStatus === 'not_going' ? 'Not Going' : 'RSVP')}
+                      </Text>
+                      {showRsvpDropdown ? <ChevronUpIcon size={14} color="#FFFFFF" /> : <ChevronDownIcon size={14} color="#FFFFFF" />}
+                    </>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
               {showRsvpDropdown && (
                 <View style={styles.rsvpDropdownMenu}>
                   {(!isEventCreator || rsvpStatus === 'not_going') && (
