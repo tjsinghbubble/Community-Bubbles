@@ -119,20 +119,87 @@ jobs:
           echo "prev_tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
           echo "Previous reference: ${PREV_TAG}"
 
+      - name: Generate grouped release notes
+        id: grouped-notes
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          PREV_TAG="${{ steps.prev-tag.outputs.prev_tag }}"
+
+          BREAKING=""
+          FEAT=""
+          FIX=""
+          CHORE=""
+          REFACTOR=""
+          DOCS=""
+          PERF=""
+          TEST=""
+          BUILD=""
+          CI=""
+          STYLE=""
+          REVERT=""
+          OTHER=""
+
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            subject="${line#- }"
+            case "$subject" in
+              feat!:*|fix!:*|"feat("*"!:"*|"fix("*"!:"*)
+                                  BREAKING="${BREAKING}${line}"$'\n' ;;
+              feat:*|feat\(*)     FEAT="${FEAT}${line}"$'\n' ;;
+              fix:*|fix\(*)       FIX="${FIX}${line}"$'\n' ;;
+              chore:*|chore\(*)   CHORE="${CHORE}${line}"$'\n' ;;
+              refactor:*|refactor\(*) REFACTOR="${REFACTOR}${line}"$'\n' ;;
+              docs:*|docs\(*)     DOCS="${DOCS}${line}"$'\n' ;;
+              perf:*|perf\(*)     PERF="${PERF}${line}"$'\n' ;;
+              test:*|test\(*)     TEST="${TEST}${line}"$'\n' ;;
+              build:*|build\(*)   BUILD="${BUILD}${line}"$'\n' ;;
+              ci:*|ci\(*)         CI="${CI}${line}"$'\n' ;;
+              style:*|style\(*)   STYLE="${STYLE}${line}"$'\n' ;;
+              revert:*|revert\(*) REVERT="${REVERT}${line}"$'\n' ;;
+              *)                  OTHER="${OTHER}${line}"$'\n' ;;
+            esac
+          done < <(git log "${PREV_TAG}..${CURRENT_TAG}" \
+            --pretty=format:"- %s (%h)" \
+            --no-merges \
+            --invert-grep \
+            --grep='\[skip ci\]')
+
+          BODY=""
+          [ -n "$BREAKING" ] && BODY="${BODY}### Breaking Changes"$'\n'"${BREAKING}"$'\n'
+          [ -n "$FEAT" ]     && BODY="${BODY}### Features"$'\n'"${FEAT}"$'\n'
+          [ -n "$FIX" ]      && BODY="${BODY}### Bug Fixes"$'\n'"${FIX}"$'\n'
+          [ -n "$CHORE" ]    && BODY="${BODY}### Chores"$'\n'"${CHORE}"$'\n'
+          [ -n "$REFACTOR" ] && BODY="${BODY}### Refactoring"$'\n'"${REFACTOR}"$'\n'
+          [ -n "$DOCS" ]     && BODY="${BODY}### Documentation"$'\n'"${DOCS}"$'\n'
+          [ -n "$PERF" ]     && BODY="${BODY}### Performance"$'\n'"${PERF}"$'\n'
+          [ -n "$TEST" ]     && BODY="${BODY}### Tests"$'\n'"${TEST}"$'\n'
+          [ -n "$BUILD" ]    && BODY="${BODY}### Build"$'\n'"${BUILD}"$'\n'
+          [ -n "$CI" ]       && BODY="${BODY}### CI/CD"$'\n'"${CI}"$'\n'
+          [ -n "$STYLE" ]    && BODY="${BODY}### Style"$'\n'"${STYLE}"$'\n'
+          [ -n "$REVERT" ]   && BODY="${BODY}### Reverts"$'\n'"${REVERT}"$'\n'
+          [ -n "$OTHER" ]    && BODY="${BODY}### Other"$'\n'"${OTHER}"$'\n'
+
+          if [ -z "$BODY" ]; then
+            BODY="No notable changes recorded."
+          fi
+
+          printf '%s' "$BODY" > /tmp/release-notes.md
+          echo "--- Release notes preview ---"
+          cat /tmp/release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           target_commitish: ${{ github.sha }}
-          generate_release_notes: true
+          body_path: /tmp/release-notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update CHANGELOG.md
         run: |
           CURRENT_TAG="${GITHUB_REF_NAME}"
-          PREV_TAG="${{ steps.prev-tag.outputs.prev_tag }}"
           DATE=$(date -u +%Y-%m-%d)
 
           # Idempotency: skip if this tag's section already exists.
@@ -141,27 +208,21 @@ jobs:
             exit 0
           fi
 
-          COMMITS=$(git log "${PREV_TAG}..${CURRENT_TAG}" \
-            --pretty=format:"- %s (%h)" \
-            --no-merges \
-            --invert-grep \
-            --grep='\[skip ci\]')
-          [ -z "$COMMITS" ] && COMMITS="- No notable changes recorded."
-
-          NEW_ENTRY="## ${CURRENT_TAG} (${DATE})\n\n${COMMITS}\n"
+          NOTES=$(cat /tmp/release-notes.md)
+          NEW_ENTRY="## ${CURRENT_TAG} (${DATE})"$'\n\n'"${NOTES}"
 
           if [ -f CHANGELOG.md ]; then
             TMP=$(mktemp)
             head -n 1 CHANGELOG.md > "$TMP"
-            printf '\n%b\n' "$NEW_ENTRY" >> "$TMP"
+            printf '\n%s\n' "$NEW_ENTRY" >> "$TMP"
             tail -n +2 CHANGELOG.md >> "$TMP"
             mv "$TMP" CHANGELOG.md
           else
-            printf '# Changelog\n\n%b\n' "$NEW_ENTRY" > CHANGELOG.md
+            printf '# Changelog\n\n%s\n' "$NEW_ENTRY" > CHANGELOG.md
           fi
 
           echo "--- CHANGELOG.md preview ---"
-          head -30 CHANGELOG.md
+          head -40 CHANGELOG.md
 
       - name: Commit updated CHANGELOG.md
         run: |
