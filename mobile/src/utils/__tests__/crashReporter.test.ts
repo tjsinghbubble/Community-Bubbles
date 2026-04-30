@@ -41,6 +41,9 @@ import {
   initSentry,
   measureScreenLoad,
   withBackgroundTask,
+  recordSpanExpiry,
+  getSpanExpiryEvents,
+  clearSpanExpiryEvents,
   MAX_MESSAGE_CHARS,
   MAX_STACK_CHARS,
   MAX_CONTEXT_CHARS,
@@ -1419,6 +1422,233 @@ describe('measureScreenLoad', () => {
     const result = await measureScreenLoad('PreWorkExpiredScreen', async () => 'still-runs');
 
     expect(result).toBe('still-runs');
+  });
+});
+
+describe('recordSpanExpiry', () => {
+  beforeEach(() => {
+    clearSpanExpiryEvents();
+  });
+
+  it('stores a single event in the buffer', () => {
+    recordSpanExpiry('HomeScreen', 'pre-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0].screenName).toBe('HomeScreen');
+    expect(events[0].phase).toBe('pre-work');
+  });
+
+  it('stores the correct screenName and phase for post-work events', () => {
+    recordSpanExpiry('SettingsScreen', 'post-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events[0].screenName).toBe('SettingsScreen');
+    expect(events[0].phase).toBe('post-work');
+  });
+
+  it('records a timestamp in ISO 8601 format', () => {
+    recordSpanExpiry('ProfileScreen', 'pre-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events[0].timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+  });
+
+  it('accumulates multiple events up to the buffer limit', () => {
+    for (let i = 0; i < 10; i++) {
+      recordSpanExpiry(`Screen${i}`, 'pre-work');
+    }
+
+    expect(getSpanExpiryEvents()).toHaveLength(10);
+  });
+
+  it('evicts the oldest event when the buffer exceeds 50 entries', () => {
+    for (let i = 0; i < 50; i++) {
+      recordSpanExpiry(`Screen${i}`, 'pre-work');
+    }
+    recordSpanExpiry('NewestScreen', 'post-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events).toHaveLength(50);
+    const screenNames = events.map((e) => e.screenName);
+    expect(screenNames).toContain('NewestScreen');
+    expect(screenNames).not.toContain('Screen0');
+  });
+
+  it('keeps the correct 50 entries after multiple overflows', () => {
+    for (let i = 0; i < 60; i++) {
+      recordSpanExpiry(`Screen${i}`, 'pre-work');
+    }
+
+    const events = getSpanExpiryEvents();
+    expect(events).toHaveLength(50);
+    const screenNames = events.map((e) => e.screenName);
+    expect(screenNames).not.toContain('Screen0');
+    expect(screenNames).not.toContain('Screen9');
+    expect(screenNames).toContain('Screen59');
+    expect(screenNames).toContain('Screen10');
+  });
+});
+
+describe('getSpanExpiryEvents', () => {
+  beforeEach(() => {
+    clearSpanExpiryEvents();
+  });
+
+  it('returns an empty array when the buffer is empty', () => {
+    expect(getSpanExpiryEvents()).toEqual([]);
+  });
+
+  it('returns events in newest-first order', () => {
+    recordSpanExpiry('First', 'pre-work');
+    recordSpanExpiry('Second', 'post-work');
+    recordSpanExpiry('Third', 'pre-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events[0].screenName).toBe('Third');
+    expect(events[1].screenName).toBe('Second');
+    expect(events[2].screenName).toBe('First');
+  });
+
+  it('returns a copy — mutations do not affect the internal buffer', () => {
+    recordSpanExpiry('Screen', 'pre-work');
+
+    const copy = getSpanExpiryEvents();
+    copy.length = 0;
+
+    expect(getSpanExpiryEvents()).toHaveLength(1);
+  });
+
+  it('returns a copy — pushes to the returned array do not affect the buffer', () => {
+    recordSpanExpiry('Screen', 'pre-work');
+
+    const copy = getSpanExpiryEvents();
+    copy.push({ screenName: 'Injected', phase: 'post-work', timestamp: new Date().toISOString() });
+
+    expect(getSpanExpiryEvents()).toHaveLength(1);
+  });
+});
+
+describe('clearSpanExpiryEvents', () => {
+  beforeEach(() => {
+    clearSpanExpiryEvents();
+  });
+
+  it('empties the buffer when events are present', () => {
+    recordSpanExpiry('Screen', 'pre-work');
+    recordSpanExpiry('Screen', 'post-work');
+
+    clearSpanExpiryEvents();
+
+    expect(getSpanExpiryEvents()).toEqual([]);
+  });
+
+  it('is a no-op on an already empty buffer', () => {
+    expect(() => clearSpanExpiryEvents()).not.toThrow();
+    expect(getSpanExpiryEvents()).toEqual([]);
+  });
+
+  it('allows new events to be recorded after clearing', () => {
+    recordSpanExpiry('OldScreen', 'pre-work');
+    clearSpanExpiryEvents();
+    recordSpanExpiry('NewScreen', 'post-work');
+
+    const events = getSpanExpiryEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0].screenName).toBe('NewScreen');
+  });
+});
+
+describe('measureScreenLoad — ring buffer integration', () => {
+  type MockCurrentScope = { setTag: jest.Mock };
+  let mockCurrentScope: MockCurrentScope;
+
+  beforeEach(() => {
+    mockCurrentScope = { setTag: jest.fn() };
+    jest.resetAllMocks();
+    (Sentry.getCurrentScope as jest.Mock).mockReturnValue(mockCurrentScope);
+    clearSpanExpiryEvents();
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    clearSpanExpiryEvents();
+  });
+
+  it('records a pre-work ring buffer entry when the child span is already expired before work', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('RingPreWorkScreen', async () => 'ok');
+
+    const events = getSpanExpiryEvents();
+    const preWork = events.find((e) => e.phase === 'pre-work');
+    expect(preWork).toBeDefined();
+    expect(preWork!.screenName).toBe('RingPreWorkScreen');
+  });
+
+  it('records a post-work ring buffer entry when the child span is expired after work', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('RingPostWorkScreen', async () => 'ok');
+
+    const events = getSpanExpiryEvents();
+    const postWork = events.find((e) => e.phase === 'post-work');
+    expect(postWork).toBeDefined();
+    expect(postWork!.screenName).toBe('RingPostWorkScreen');
+  });
+
+  it('records both pre-work and post-work entries for an expired span', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('BothPhasesScreen', async () => 'ok');
+
+    const events = getSpanExpiryEvents();
+    const phases = events.map((e) => e.phase);
+    expect(phases).toContain('pre-work');
+    expect(phases).toContain('post-work');
+  });
+
+  it('does not record any ring buffer entry when the child span is still recording', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(true) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('ActiveScreen', async () => 'ok');
+
+    expect(getSpanExpiryEvents()).toHaveLength(0);
+  });
+
+  it('does not record any ring buffer entry when no active span exists', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(null);
+
+    await measureScreenLoad('NoSpanScreen', async () => 'ok');
+
+    expect(getSpanExpiryEvents()).toHaveLength(0);
+  });
+
+  it('records the correct screenName on both entries', async () => {
+    const rootSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(rootSpan);
+    const childSpan = { end: jest.fn(), isRecording: jest.fn().mockReturnValue(false) };
+    (Sentry.startInactiveSpan as jest.Mock).mockReturnValue(childSpan);
+
+    await measureScreenLoad('TargetScreen', async () => 'ok');
+
+    const events = getSpanExpiryEvents();
+    events.forEach((e) => {
+      expect(e.screenName).toBe('TargetScreen');
+    });
   });
 });
 
