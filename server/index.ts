@@ -14,6 +14,7 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { seedStaging } from "./seed-staging";
+import { autoMigrate } from "./auto-migrate";
 
 initialiseSentry();
 
@@ -95,6 +96,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await autoMigrate();
   initErrorBuffer(storage);
   await loadSlowCallConfigFromDb((key) => storage.getAppConfigValue(key));
   registerHealthRoutes(app);
