@@ -65,6 +65,10 @@ export async function autoMigrate(): Promise<void> {
         updated_at       TIMESTAMP NOT NULL DEFAULT NOW()
       );
 
+      -- push_paused master toggle (Task #353: pause all push notifications at once)
+      ALTER TABLE notification_preferences
+        ADD COLUMN IF NOT EXISTS push_paused BOOLEAN NOT NULL DEFAULT false;
+
       -- event_attendees reminder-sent flags (Task: per-attendee reminder flags)
       ALTER TABLE event_attendees
         ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN NOT NULL DEFAULT false,

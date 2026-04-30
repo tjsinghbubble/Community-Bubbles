@@ -89,6 +89,7 @@ async function isPushAllowed(userId: string, type: NotificationType): Promise<bo
   try {
     const prefs = await storage.getNotificationPreferences(userId);
     if (!prefs) return true;
+    if (prefs.pushPaused) return false;
     const category = NOTIFICATION_CATEGORY_MAP[type];
     return prefs[category] !== false;
   } catch (error) {

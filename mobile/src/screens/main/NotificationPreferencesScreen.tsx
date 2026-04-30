@@ -17,6 +17,7 @@ import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
 
 type Prefs = {
+  pushPaused: boolean;
   bubbleActivity: boolean;
   eventActivity: boolean;
   eventReminders: boolean;
@@ -26,6 +27,7 @@ type Prefs = {
 };
 
 const DEFAULT_PREFS: Prefs = {
+  pushPaused: false,
   bubbleActivity: true,
   eventActivity: true,
   eventReminders: true,
@@ -87,6 +89,7 @@ const PREFERENCE_SECTIONS = [
 ];
 
 const PREF_KEYS: Array<keyof Prefs> = [
+  'pushPaused',
   'bubbleActivity',
   'eventActivity',
   'eventReminders',
@@ -197,6 +200,8 @@ export default function NotificationPreferencesScreen() {
     }
   }, [prefs, userCacheKey]);
 
+  const isPaused = prefs.pushPaused;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <NavHeader title="Notification Preferences" onBack={() => navigation.goBack()} />
@@ -245,8 +250,29 @@ export default function NotificationPreferencesScreen() {
             </View>
           )}
 
+          {/* Master toggle */}
+          <View style={styles.masterCard} testID="row-notif-master-toggle">
+            <View style={styles.masterInfo}>
+              <Text style={styles.masterLabel}>Pause all push notifications</Text>
+              <Text style={styles.masterDescription}>
+                {isPaused
+                  ? 'Push notifications are paused. Your category settings are saved.'
+                  : 'Quickly silence all push notifications without losing your settings.'}
+              </Text>
+            </View>
+            <Switch
+              value={isPaused}
+              onValueChange={(val) => handleToggle('pushPaused', val)}
+              trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
+              thumbColor="#FFFFFF"
+              disabled={saving === 'pushPaused'}
+              testID="switch-notif-master-toggle"
+            />
+          </View>
+
+          {/* Per-category toggles */}
           {PREFERENCE_SECTIONS.map((section) => (
-            <View key={section.title}>
+            <View key={section.title} style={isPaused && styles.sectionDimmed}>
               <Text style={styles.sectionHeader}>{section.title}</Text>
               <View style={styles.section}>
                 {section.items.map((item, index) => (
@@ -259,15 +285,15 @@ export default function NotificationPreferencesScreen() {
                     testID={`row-notif-pref-${item.key}`}
                   >
                     <View style={styles.toggleInfo}>
-                      <Text style={styles.toggleLabel}>{item.label}</Text>
-                      <Text style={styles.toggleDescription}>{item.description}</Text>
+                      <Text style={[styles.toggleLabel, isPaused && styles.dimmedText]}>{item.label}</Text>
+                      <Text style={[styles.toggleDescription, isPaused && styles.dimmedText]}>{item.description}</Text>
                     </View>
                     <Switch
-                      value={prefs[item.key]}
+                      value={prefs[item.key] as boolean}
                       onValueChange={(val) => handleToggle(item.key, val)}
                       trackColor={{ false: Colors.neutral.lightSilver, true: Colors.brand.bubbleBlue }}
                       thumbColor="#FFFFFF"
-                      disabled={saving === item.key}
+                      disabled={isPaused || saving === item.key}
                       testID={`switch-notif-pref-${item.key}`}
                     />
                   </View>
@@ -371,6 +397,32 @@ const styles = StyleSheet.create({
     color: '#7A5C00',
     lineHeight: 17,
   },
+  masterCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+    ...CardShadow,
+  },
+  masterInfo: {
+    flex: 1,
+  },
+  masterLabel: {
+    fontSize: Typography.sizes.base,
+    color: Colors.text.primary,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  masterDescription: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    lineHeight: 17,
+  },
   sectionHeader: {
     fontSize: Typography.sizes.xs,
     fontWeight: '600',
@@ -386,6 +438,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: Spacing.lg,
     ...CardShadow,
+  },
+  sectionDimmed: {
+    opacity: 0.45,
   },
   toggleRow: {
     flexDirection: 'row',
@@ -411,6 +466,9 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     color: Colors.text.tertiary,
     lineHeight: 17,
+  },
+  dimmedText: {
+    color: Colors.text.tertiary,
   },
   errorContainer: {
     flex: 1,

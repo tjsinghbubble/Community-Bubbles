@@ -3655,6 +3655,7 @@ export async function registerRoutes(
       if (!prefs) {
         return res.json({
           userId: req.userId,
+          pushPaused: false,
           bubbleActivity: true,
           eventActivity: true,
           eventReminders: true,
@@ -3671,7 +3672,7 @@ export async function registerRoutes(
 
   app.put("/api/notification-preferences", authMiddleware, async (req, res) => {
     try {
-      const allowed = ["bubbleActivity", "eventActivity", "eventReminders", "taskReminders", "waitlistUpdates", "announcements"];
+      const allowed = ["pushPaused", "bubbleActivity", "eventActivity", "eventReminders", "taskReminders", "waitlistUpdates", "announcements"];
       const updates: Record<string, boolean> = {};
       for (const key of allowed) {
         if (typeof req.body[key] === "boolean") {

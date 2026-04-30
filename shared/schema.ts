@@ -407,6 +407,7 @@ export type DevicePushToken = typeof devicePushTokens.$inferSelect;
 
 export const notificationPreferences = pgTable("notification_preferences", {
   userId: varchar("user_id").primaryKey().references(() => users.id),
+  pushPaused: boolean("push_paused").notNull().default(false),
   bubbleActivity: boolean("bubble_activity").notNull().default(true),
   eventActivity: boolean("event_activity").notNull().default(true),
   eventReminders: boolean("event_reminders").notNull().default(true),
