@@ -38,6 +38,7 @@ import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from 
 import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
+import { showToast } from '../../components/Toast';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
@@ -279,6 +280,9 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         setShowSuccessModal(true);
       } else {
         if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+
+        const restoredDmCount = await cometChatService.getAdmConversationCountForBubble(String(bubble.id));
+
         try {
           await cometChatService.createGroup(bubble.id, bubble.title);
         } catch (e) {
@@ -293,7 +297,24 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         setMembershipStatus('approved');
         setMemberCount(prev => prev + 1);
         logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
-        setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+
+        if (restoredDmCount > 0) {
+          const convoWord = restoredDmCount === 1 ? 'conversation' : 'conversations';
+          setSuccessModalConfig({
+            title: 'Welcome Back!',
+            subtitle: `Welcome back to ${bubble.title}. Your ${restoredDmCount} previous DM ${convoWord} with this bubble's members have been restored.`,
+          });
+          showToast({
+            message:
+              restoredDmCount === 1
+                ? '1 previous conversation restored'
+                : `${restoredDmCount} previous conversations restored`,
+            type: 'success',
+            duration: 4000,
+          });
+        } else {
+          setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+        }
         setShowSuccessModal(true);
       }
     } catch (error: any) {
