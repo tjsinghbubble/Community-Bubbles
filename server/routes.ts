@@ -169,8 +169,16 @@ function generateVerificationCode(): string {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
-function serverError(res: any, error: unknown) {
-  console.error(error);
+function serverError(res: any, error: unknown, context?: string) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  const label = context ? `[${context}]` : '[serverError]';
+  console.error(`${label} ${message}`);
+  if (stack) console.error(stack);
+  db.execute(drizzleSql`
+    INSERT INTO error_logs (message, timestamp, platform, level)
+    VALUES (${`${label} ${message}`}, ${new Date().toISOString()}, ${'server'}, ${'error'})
+  `).catch(() => {});
   res.status(500).json({ error: "An unexpected error occurred" });
 }
 
@@ -2907,7 +2915,7 @@ export async function registerRoutes(
         }
       })));
     } catch (error: any) {
-      serverError(res, error);
+      serverError(res, error, `GET /api/events/${req.params.id}/attendees`);
     }
   });
 
