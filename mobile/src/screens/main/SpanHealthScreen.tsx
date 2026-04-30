@@ -15,6 +15,7 @@ import {
   getSpanExpiryEvents,
   clearSpanExpiryEvents,
   SpanExpiryEvent,
+  CURRENT_SESSION_ID,
 } from '../../utils/crashReporter';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
@@ -147,43 +148,61 @@ export default function SpanHealthScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {events.map((event, index) => (
-              <View
-                key={`${event.screenName}-${event.phase}-${event.timestamp}-${index}`}
-                style={styles.eventCard}
-                testID={`card-span-event-${index}`}
-              >
-                <View style={styles.eventHeader}>
+            {events.map((event, index) => {
+              const prevEvent = index > 0 ? events[index - 1] : null;
+              const showBoundary = prevEvent !== null && prevEvent.sessionId !== event.sessionId;
+              const isCurrentSession = event.sessionId === CURRENT_SESSION_ID;
+              return (
+                <React.Fragment key={`${event.screenName}-${event.phase}-${event.timestamp}-${index}`}>
+                  {showBoundary && (
+                    <View style={styles.sessionBoundary} testID={`session-boundary-${index}`}>
+                      <View style={styles.sessionBoundaryLine} />
+                      <Text style={styles.sessionBoundaryLabel}>Previous session</Text>
+                      <View style={styles.sessionBoundaryLine} />
+                    </View>
+                  )}
                   <View
-                    style={[
-                      styles.phaseTag,
-                      { backgroundColor: PHASE_COLOR[event.phase] + '22' },
-                    ]}
+                    style={styles.eventCard}
+                    testID={`card-span-event-${index}`}
                   >
-                    <View
-                      style={[styles.phaseDot, { backgroundColor: PHASE_COLOR[event.phase] }]}
-                    />
-                    <Text
-                      style={[styles.phaseLabel, { color: PHASE_COLOR[event.phase] }]}
-                      testID={`text-phase-${index}`}
-                    >
-                      {PHASE_LABEL[event.phase]}
+                    <View style={styles.eventHeader}>
+                      <View
+                        style={[
+                          styles.phaseTag,
+                          { backgroundColor: PHASE_COLOR[event.phase] + '22' },
+                        ]}
+                      >
+                        <View
+                          style={[styles.phaseDot, { backgroundColor: PHASE_COLOR[event.phase] }]}
+                        />
+                        <Text
+                          style={[styles.phaseLabel, { color: PHASE_COLOR[event.phase] }]}
+                          testID={`text-phase-${index}`}
+                        >
+                          {PHASE_LABEL[event.phase]}
+                        </Text>
+                      </View>
+                      <View style={styles.timestampCol}>
+                        <Text style={styles.timeText} testID={`text-time-${index}`}>
+                          {formatTimestamp(event.timestamp)}
+                        </Text>
+                        <Text style={styles.dateText}>
+                          {formatDate(event.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.screenName} testID={`text-screen-${index}`}>
+                      {event.screenName}
                     </Text>
+                    {!isCurrentSession && (
+                      <Text style={styles.sessionTag} testID={`text-session-tag-${index}`}>
+                        prior session
+                      </Text>
+                    )}
                   </View>
-                  <View style={styles.timestampCol}>
-                    <Text style={styles.timeText} testID={`text-time-${index}`}>
-                      {formatTimestamp(event.timestamp)}
-                    </Text>
-                    <Text style={styles.dateText}>
-                      {formatDate(event.timestamp)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.screenName} testID={`text-screen-${index}`}>
-                  {event.screenName}
-                </Text>
-              </View>
-            ))}
+                </React.Fragment>
+              );
+            })}
           </>
         )}
       </ScrollView>
@@ -302,5 +321,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text.primary,
     fontFamily: 'monospace',
+  },
+  sessionBoundary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginVertical: Spacing.xs,
+  },
+  sessionBoundaryLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border.light,
+  },
+  sessionBoundaryLabel: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sessionTag: {
+    fontSize: Typography.sizes.xs,
+    color: Colors.text.tertiary,
+    fontStyle: 'italic',
+    alignSelf: 'flex-start',
   },
 });

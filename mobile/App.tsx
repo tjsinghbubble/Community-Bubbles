@@ -6,11 +6,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { initSentry, installGlobalHandlers } from './src/utils/crashReporter';
+import { initSentry, installGlobalHandlers, hydrateSpanExpiryEvents } from './src/utils/crashReporter';
 import * as Sentry from '@sentry/react-native';
 
 initSentry();
 installGlobalHandlers();
+hydrateSpanExpiryEvents();
 
 // TEMPORARY: remove once Sentry is confirmed working
 Sentry.captureMessage('Bubble app started — Sentry connectivity test', 'info');

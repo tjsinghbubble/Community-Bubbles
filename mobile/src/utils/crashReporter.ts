@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { version } from '../../package.json';
 import * as Sentry from '@sentry/react-native';
@@ -88,14 +89,69 @@ export interface SpanExpiryEvent {
   screenName: string;
   phase: SpanExpiryPhase;
   timestamp: string;
+  /** Identifies which app session produced this event. Used for session-boundary display. */
+  sessionId: string;
 }
 
 const SPAN_EXPIRY_BUFFER_SIZE = 50;
+const SPAN_EXPIRY_STORAGE_KEY = '@debug/spanExpiryEvents';
+
+/**
+ * A stable identifier for the current JS runtime session, set once at module
+ * load time.  Events from a previous run will carry a different value, which
+ * the debug UI uses to render session-boundary separators.
+ */
+export const CURRENT_SESSION_ID = `session-${Date.now()}`;
+
 const _spanExpiryBuffer: SpanExpiryEvent[] = [];
 
 /**
- * Push a new span-expiry event into the ring buffer.
+ * All AsyncStorage operations are serialised through this chain so that:
+ *  1. Hydration always runs before any write.
+ *  2. Concurrent writes/clears are applied in the order they were requested.
+ * This prevents a span-expiry recorded before hydration completes from
+ * overwriting persisted history with an incomplete (current-session-only)
+ * snapshot.
+ */
+let _storageChain: Promise<void> = Promise.resolve();
+
+/** Append an async storage operation to the serial chain (never throws). */
+function _enqueueStorage(op: () => Promise<unknown>): void {
+  _storageChain = _storageChain.then(op).catch(() => {
+    // All storage failures are silently swallowed — instrumentation must
+    // never crash the app.
+  });
+}
+
+/**
+ * Hydrate the in-memory ring buffer from AsyncStorage.
+ * Call this once during app start (before any events can be recorded) so that
+ * span-expiry events from previous sessions survive restarts.
+ * The combined buffer is capped at SPAN_EXPIRY_BUFFER_SIZE.
+ * Returns the hydration promise so callers can await completion when needed.
+ */
+export function hydrateSpanExpiryEvents(): Promise<void> {
+  _enqueueStorage(async () => {
+    const raw = await AsyncStorage.getItem(SPAN_EXPIRY_STORAGE_KEY);
+    if (!raw) return;
+    const stored: SpanExpiryEvent[] = JSON.parse(raw);
+    if (!Array.isArray(stored)) return;
+    // Prepend stored events (older) before any events already in the buffer
+    // (there should be none this early in startup, but guard anyway).
+    _spanExpiryBuffer.unshift(...stored);
+    // Enforce cap — keep the most recent SPAN_EXPIRY_BUFFER_SIZE entries.
+    if (_spanExpiryBuffer.length > SPAN_EXPIRY_BUFFER_SIZE) {
+      _spanExpiryBuffer.splice(0, _spanExpiryBuffer.length - SPAN_EXPIRY_BUFFER_SIZE);
+    }
+  });
+  return _storageChain;
+}
+
+/**
+ * Push a new span-expiry event into the ring buffer and persist it.
  * When the buffer is full the oldest entry is discarded.
+ * The write is serialised after any in-flight hydration so it always
+ * captures the full merged buffer, not just the current session's events.
  * Safe to call from instrumentation — never throws.
  */
 export function recordSpanExpiry(screenName: string, phase: SpanExpiryPhase): void {
@@ -104,11 +160,16 @@ export function recordSpanExpiry(screenName: string, phase: SpanExpiryPhase): vo
       screenName,
       phase,
       timestamp: new Date().toISOString(),
+      sessionId: CURRENT_SESSION_ID,
     };
     _spanExpiryBuffer.push(event);
     if (_spanExpiryBuffer.length > SPAN_EXPIRY_BUFFER_SIZE) {
       _spanExpiryBuffer.shift();
     }
+    // Snapshot the buffer now so the correct state is captured even if further
+    // mutations happen before the enqueued write executes.
+    const snapshot = JSON.stringify(_spanExpiryBuffer);
+    _enqueueStorage(() => AsyncStorage.setItem(SPAN_EXPIRY_STORAGE_KEY, snapshot));
   } catch {
     // Instrumentation must never crash the app
   }
@@ -123,11 +184,14 @@ export function getSpanExpiryEvents(): SpanExpiryEvent[] {
 }
 
 /**
- * Clear all buffered span-expiry events.
+ * Clear all buffered span-expiry events and remove them from AsyncStorage.
+ * The removal is serialised after any in-flight hydration or write so the
+ * storage reflects the cleared state even if operations were queued ahead.
  * Exported so tests and the debug screen can reset state.
  */
 export function clearSpanExpiryEvents(): void {
   _spanExpiryBuffer.length = 0;
+  _enqueueStorage(() => AsyncStorage.removeItem(SPAN_EXPIRY_STORAGE_KEY));
 }
 
 const _recentMessages = new Map<string, number>();
