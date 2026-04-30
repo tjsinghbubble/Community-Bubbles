@@ -2910,7 +2910,6 @@ export async function registerRoutes(
         user: {
           id: a.user.id,
           name: a.user.name,
-          email: a.user.email,
           profilePhoto: a.user.profilePhoto,
         }
       })));
