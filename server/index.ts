@@ -47,6 +47,12 @@ app.use(
 );
 
 app.use(
+  '/api/campus/send-verification',
+  express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+  authEntityTooLargeHandler,
+);
+
+app.use(
   express.json({
     limit: '50kb',
     verify: (req, _res, buf) => {

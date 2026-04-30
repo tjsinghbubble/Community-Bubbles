@@ -5,12 +5,18 @@ import {
   registerCampusSendVerificationRoute,
   type CampusSendVerificationStorage,
 } from "../campus-handler";
+import { AUTH_PAYLOAD_LIMIT_BYTES, authEntityTooLargeHandler } from "../auth-handler";
 
 const noopAuthMiddleware: RequestHandler = (_req, _res, next) => next();
 
 function buildApp(storage: CampusSendVerificationStorage) {
   const app = express();
-  app.use(express.json());
+  app.use(
+    "/api/campus/send-verification",
+    express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+    authEntityTooLargeHandler,
+  );
+  app.use(express.json({ limit: "50kb" }));
   registerCampusSendVerificationRoute(app, storage, noopAuthMiddleware, {
     generateCode: () => "123456",
     sendEmail: vi.fn().mockResolvedValue(undefined),
@@ -118,7 +124,12 @@ describe("POST /api/campus/send-verification", () => {
   it("normalizes email to lowercase before sending and storing", async () => {
     const sendEmail = vi.fn().mockResolvedValue(undefined);
     const app = express();
-    app.use(express.json());
+    app.use(
+      "/api/campus/send-verification",
+      express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+      authEntityTooLargeHandler,
+    );
+    app.use(express.json({ limit: "50kb" }));
     registerCampusSendVerificationRoute(app, mockStorage, noopAuthMiddleware, {
       generateCode: () => "654321",
       sendEmail,
@@ -133,5 +144,19 @@ describe("POST /api/campus/send-verification", () => {
     expect(mockStorage.createVerificationCode).toHaveBeenCalledWith(
       expect.objectContaining({ email: "alice@state.edu" }),
     );
+  });
+
+  it("returns 413 when the request body exceeds 10 KB", async () => {
+    const app = buildApp(mockStorage);
+    const oversizedBody = JSON.stringify({ email: "a".repeat(11 * 1024) + "@state.edu" });
+
+    const res = await request(app)
+      .post("/api/campus/send-verification")
+      .set("Content-Type", "application/json")
+      .send(oversizedBody);
+
+    expect(res.status).toBe(413);
+    expect(res.body).toHaveProperty("error", "Request payload too large");
+    expect(mockStorage.createVerificationCode).not.toHaveBeenCalled();
   });
 });
