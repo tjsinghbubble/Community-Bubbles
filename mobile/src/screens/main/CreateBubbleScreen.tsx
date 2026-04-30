@@ -23,6 +23,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
@@ -547,7 +548,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
                   {sub.image ? (
                     <Image
-                      source={{ uri: sub.image }}
+                      source={{ uri: resolveMediaUrl(sub.image) }}
                       style={styles.categoryImage}
                       resizeMode="cover"
                     />
