@@ -9,6 +9,7 @@ import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
+import { registerCampusSendVerificationRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -3085,62 +3086,9 @@ export async function registerRoutes(
   });
 
   // Send campus verification code
-  app.post("/api/campus/send-verification", authMiddleware, async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-
-      // Validate .edu email domain
-      const emailLower = email.toLowerCase();
-      const domain = emailLower.split("@")[1];
-      if (!domain || !domain.endsWith(".edu")) {
-        return res.status(400).json({ error: "Please use a valid .edu email address" });
-      }
-
-      // Check if campus exists
-      const campus = await storage.getCampusByDomain(domain);
-      if (!campus) {
-        return res.status(400).json({ error: "This university is not yet supported. Check back later!" });
-      }
-
-      // Generate and store verification code
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-      await storage.createVerificationCode({
-        email: emailLower,
-        code,
-        expiresAt,
-      });
-
-      let emailFailed = false;
-      try {
-        await sendVerificationEmail(emailLower, code);
-      } catch (emailError: any) {
-        console.error(`[EMAIL] Delivery failed for ${emailLower}:`, emailError.message);
-        emailFailed = true;
-      }
-
-      const response: any = {
-        success: true,
-        message: "Verification code sent to your email",
-        campusId: campus.id,
-        campusName: campus.title,
-      };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
-        response.devCode = code;
-      }
-      res.json(response);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerCampusSendVerificationRoute(app, storage, authMiddleware, {
+    generateCode: generateVerificationCode,
+    sendEmail: sendVerificationEmail,
   });
 
   // Verify campus code and associate user with campus
