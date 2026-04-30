@@ -88,6 +88,9 @@ import {
   type InsertCrashReport,
   apiLatencySamples,
   type ApiLatencySample,
+  notificationPreferences,
+  type NotificationPreferences,
+  type InsertNotificationPreferences,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -250,6 +253,10 @@ export interface IStorage {
   getDevicePushTokens(userId: string): Promise<DevicePushToken[]>;
   deleteDevicePushToken(userId: string, token: string): Promise<void>;
   deleteStaleDevicePushTokens(olderThanDays?: number): Promise<number>;
+
+  // Notification Preferences
+  getNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined>;
+  upsertNotificationPreferences(userId: string, prefs: Partial<Omit<InsertNotificationPreferences, 'userId'>>): Promise<NotificationPreferences>;
 
   // Audit Logs
   insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog>;
@@ -1970,6 +1977,31 @@ export class DatabaseStorage implements IStorage {
       .where(lt(devicePushTokens.updatedAt, cutoff))
       .returning({ id: devicePushTokens.id });
     return result.length;
+  }
+
+  async getNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined> {
+    const result = await db.select().from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertNotificationPreferences(
+    userId: string,
+    prefs: Partial<Omit<InsertNotificationPreferences, 'userId'>>,
+  ): Promise<NotificationPreferences> {
+    const existing = await this.getNotificationPreferences(userId);
+    if (existing) {
+      const result = await db.update(notificationPreferences)
+        .set({ ...prefs, updatedAt: new Date() })
+        .where(eq(notificationPreferences.userId, userId))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(notificationPreferences)
+      .values({ userId, ...prefs })
+      .returning();
+    return result[0];
   }
 
   async insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog> {

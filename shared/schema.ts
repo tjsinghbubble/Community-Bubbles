@@ -405,6 +405,24 @@ export const insertDevicePushTokenSchema = createInsertSchema(devicePushTokens).
 export type InsertDevicePushToken = z.infer<typeof insertDevicePushTokenSchema>;
 export type DevicePushToken = typeof devicePushTokens.$inferSelect;
 
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  bubbleActivity: boolean("bubble_activity").notNull().default(true),
+  eventActivity: boolean("event_activity").notNull().default(true),
+  eventReminders: boolean("event_reminders").notNull().default(true),
+  taskReminders: boolean("task_reminders").notNull().default(true),
+  waitlistUpdates: boolean("waitlist_updates").notNull().default(true),
+  announcements: boolean("announcements").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  updatedAt: true,
+});
+
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
+
 export const bulletinBoards = pgTable("bulletin_boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),

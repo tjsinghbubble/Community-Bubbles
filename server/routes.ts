@@ -3695,6 +3695,43 @@ export async function registerRoutes(
     }
   });
 
+  // ===== NOTIFICATION PREFERENCES =====
+  app.get("/api/notification-preferences", authMiddleware, async (req, res) => {
+    try {
+      const prefs = await storage.getNotificationPreferences(req.userId!);
+      if (!prefs) {
+        return res.json({
+          userId: req.userId,
+          bubbleActivity: true,
+          eventActivity: true,
+          eventReminders: true,
+          taskReminders: true,
+          waitlistUpdates: true,
+          announcements: true,
+        });
+      }
+      res.json(prefs);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  app.put("/api/notification-preferences", authMiddleware, async (req, res) => {
+    try {
+      const allowed = ["bubbleActivity", "eventActivity", "eventReminders", "taskReminders", "waitlistUpdates", "announcements"];
+      const updates: Record<string, boolean> = {};
+      for (const key of allowed) {
+        if (typeof req.body[key] === "boolean") {
+          updates[key] = req.body[key];
+        }
+      }
+      const prefs = await storage.upsertNotificationPreferences(req.userId!, updates);
+      res.json(prefs);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
   // ===== DEVICE PUSH TOKENS =====
   app.post("/api/device-push-tokens", authMiddleware, async (req, res) => {
     try {

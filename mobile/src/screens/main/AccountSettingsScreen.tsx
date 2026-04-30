@@ -97,6 +97,18 @@ export default function AccountSettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('NotificationPreferences')}
+            testID="button-notification-preferences"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="notifications-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Notification Preferences</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
         </View>
 
         <View style={styles.versionSeparator} />

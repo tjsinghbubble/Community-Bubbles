@@ -26,6 +26,7 @@ import SlowCallTrendsScreen from '../screens/main/SlowCallTrendsScreen';
 import SpanHealthScreen from '../screens/main/SpanHealthScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
+import NotificationPreferencesScreen from '../screens/main/NotificationPreferencesScreen';
 
 export type ProfileStackParamList = {
   ProfileMain: undefined;
@@ -35,6 +36,7 @@ export type ProfileStackParamList = {
   PendingReviews: undefined;
   Notifications: undefined;
   AccountSettings: undefined;
+  NotificationPreferences: undefined;
   PersonalInformation: undefined;
   LoginSecurity: undefined;
   DeactivateReason: undefined;
@@ -257,6 +259,14 @@ function PrivacyPolicyScreenWithBoundary(props: React.ComponentProps<typeof Priv
   );
 }
 
+function NotificationPreferencesScreenWithBoundary(props: React.ComponentProps<typeof NotificationPreferencesScreen>) {
+  return (
+    <ScreenErrorBoundary context="NotificationPreferencesScreen" message="Couldn't load notification preferences — tap to retry">
+      <NotificationPreferencesScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 export default function ProfileNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', gestureEnabled: true }}>
@@ -285,6 +295,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="SpanHealth" component={SpanHealthScreenWithBoundary} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreenWithBoundary} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreenWithBoundary} />
+      <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreenWithBoundary} />
     </Stack.Navigator>
   );
 }

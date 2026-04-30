@@ -50,6 +50,53 @@ export type NotificationType =
   | "admin_announcement"
   | "peer_dm_started";
 
+type NotificationCategory = "bubbleActivity" | "eventActivity" | "eventReminders" | "taskReminders" | "waitlistUpdates" | "announcements";
+
+const NOTIFICATION_CATEGORY_MAP: Record<NotificationType, NotificationCategory> = {
+  bubble_join: "bubbleActivity",
+  bubble_leave: "bubbleActivity",
+  bubble_approved: "bubbleActivity",
+  bubble_rejected: "bubbleActivity",
+  bubble_join_request: "bubbleActivity",
+  bubble_request_approved: "bubbleActivity",
+  bubble_request_rejected: "bubbleActivity",
+  bubble_member_removed: "bubbleActivity",
+  bubble_role_changed: "bubbleActivity",
+  bubble_edited: "bubbleActivity",
+  membership_request: "bubbleActivity",
+  event_created: "eventActivity",
+  event_rsvp: "eventActivity",
+  event_unrsvp: "eventActivity",
+  event_cancelled: "eventActivity",
+  event_updated: "eventActivity",
+  event_full: "eventActivity",
+  event_reminder_24h: "eventReminders",
+  event_reminder_1h: "eventReminders",
+  event_task_reminder_24h: "taskReminders",
+  event_task_reminder_1h: "taskReminders",
+  waitlist_promoted: "waitlistUpdates",
+  waitlist_request: "waitlistUpdates",
+  waitlist_approved: "waitlistUpdates",
+  waitlist_on_hold: "waitlistUpdates",
+  waitlist_rejected: "waitlistUpdates",
+  report_submitted: "announcements",
+  report_resolved: "announcements",
+  admin_announcement: "announcements",
+  peer_dm_started: "announcements",
+};
+
+async function isPushAllowed(userId: string, type: NotificationType): Promise<boolean> {
+  try {
+    const prefs = await storage.getNotificationPreferences(userId);
+    if (!prefs) return true;
+    const category = NOTIFICATION_CATEGORY_MAP[type];
+    return prefs[category] !== false;
+  } catch (error) {
+    console.error("[Notifications] Failed to read notification preferences for user", userId, "— suppressing push:", error);
+    return false;
+  }
+}
+
 type NotificationMetadata = {
   bubbleId?: string;
   bubbleName?: string;
@@ -83,15 +130,18 @@ export async function sendNotification(params: {
     await storage.createNotification(data);
 
     if (!params.inAppOnly) {
-      const tokens = await storage.getDevicePushTokens(params.recipientId);
-      if (tokens.length > 0) {
-        await sendPushNotifications(
-          tokens.map((t) => t.token),
-          params.title,
-          params.body,
-          params.metadata,
-          params.type,
-        );
+      const pushAllowed = await isPushAllowed(params.recipientId, params.type);
+      if (pushAllowed) {
+        const tokens = await storage.getDevicePushTokens(params.recipientId);
+        if (tokens.length > 0) {
+          await sendPushNotifications(
+            tokens.map((t) => t.token),
+            params.title,
+            params.body,
+            params.metadata,
+            params.type,
+          );
+        }
       }
     }
   } catch (error) {

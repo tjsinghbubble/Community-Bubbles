@@ -639,6 +639,17 @@ class ApiService {
     });
   }
 
+  async getNotificationPreferences(): Promise<any> {
+    return this.request<any>("/api/notification-preferences");
+  }
+
+  async updateNotificationPreferences(prefs: Record<string, boolean>): Promise<any> {
+    return this.request<any>("/api/notification-preferences", {
+      method: "PUT",
+      body: JSON.stringify(prefs),
+    });
+  }
+
   async getBulletinPostTypes(): Promise<any[]> {
     return this.request<any[]>("/api/bulletin/post-types");
   }
