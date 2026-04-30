@@ -238,42 +238,63 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       return;
     }
 
+    if (membershipStatus === 'pending') {
+      Alert.alert(
+        'Withdraw Request',
+        `Are you sure you want to withdraw your request to join ${bubble.title}?\n\nAny DM conversations you may have in this bubble's context will also be hidden.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Withdraw',
+            style: 'destructive',
+            onPress: async () => {
+              setIsJoining(true);
+              try {
+                await apiService.leaveBubble(bubble.id);
+                setMembershipStatus(null);
+                setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
+                setShowSuccessModal(true);
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              } finally {
+                setIsJoining(false);
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+
     setIsJoining(true);
     try {
-      if (membershipStatus === 'pending') {
-        await apiService.leaveBubble(bubble.id);
-        setMembershipStatus(null);
-        setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
+      const result = await apiService.joinBubble(bubble.id);
+      const privacy = bubbleDetails?.privacy || bubble.privacy;
+      if (result.status === 'waitlisted') {
+        setMembershipStatus('waitlisted');
+        setShowWaitlistModal(true);
+      } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
+        setMembershipStatus('pending');
+        setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
         setShowSuccessModal(true);
       } else {
-        const result = await apiService.joinBubble(bubble.id);
-        const privacy = bubbleDetails?.privacy || bubble.privacy;
-        if (result.status === 'waitlisted') {
-          setMembershipStatus('waitlisted');
-          setShowWaitlistModal(true);
-        } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
-          setMembershipStatus('pending');
-          setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
-          setShowSuccessModal(true);
-        } else {
-          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
-          try {
-            await cometChatService.createGroup(bubble.id, bubble.title);
-          } catch (e) {
-            console.log('Group may already exist:', e);
-          }
-          try {
-            await cometChatService.joinGroup(bubble.id);
-          } catch (e) {
-            console.log('CometChat join error (may already be member):', e);
-          }
-          setIsMember(true);
-          setMembershipStatus('approved');
-          setMemberCount(prev => prev + 1);
-          logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
-          setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
-          setShowSuccessModal(true);
+        if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+        try {
+          await cometChatService.createGroup(bubble.id, bubble.title);
+        } catch (e) {
+          console.log('Group may already exist:', e);
         }
+        try {
+          await cometChatService.joinGroup(bubble.id);
+        } catch (e) {
+          console.log('CometChat join error (may already be member):', e);
+        }
+        setIsMember(true);
+        setMembershipStatus('approved');
+        setMemberCount(prev => prev + 1);
+        logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
+        setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
