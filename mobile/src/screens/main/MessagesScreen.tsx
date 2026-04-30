@@ -642,7 +642,10 @@ export default function MessagesScreen({ navigation, route }: Props) {
         }
         renderItem={({ item: conversation }) => (
           <AnimatedPressable
-            style={styles.conversationItem}
+            style={[
+              styles.conversationItem,
+              conversation.unreadMessageCount > 0 && styles.conversationItemUnread,
+            ]}
             scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
           >
@@ -813,6 +816,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 12,
+  },
+  conversationItemUnread: {
+    backgroundColor: Colors.background.brandTint,
   },
   bubbleAvatarRing: {
     width: 56,
