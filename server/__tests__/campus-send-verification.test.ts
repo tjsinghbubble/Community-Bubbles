@@ -114,4 +114,24 @@ describe("POST /api/campus/send-verification", () => {
     expect(res.body).toHaveProperty("error", "This university is not yet supported. Check back later!");
     expect(mockStorage.createVerificationCode).not.toHaveBeenCalled();
   });
+
+  it("normalizes email to lowercase before sending and storing", async () => {
+    const sendEmail = vi.fn().mockResolvedValue(undefined);
+    const app = express();
+    app.use(express.json());
+    registerCampusSendVerificationRoute(app, mockStorage, noopAuthMiddleware, {
+      generateCode: () => "654321",
+      sendEmail,
+    });
+
+    const res = await request(app)
+      .post("/api/campus/send-verification")
+      .send({ email: "Alice@STATE.EDU" });
+
+    expect(res.status).toBe(200);
+    expect(sendEmail).toHaveBeenCalledWith("alice@state.edu", "654321");
+    expect(mockStorage.createVerificationCode).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "alice@state.edu" }),
+    );
+  });
 });
