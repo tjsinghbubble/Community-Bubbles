@@ -1664,7 +1664,6 @@ export async function registerRoutes(
         user: {
           id: m.user.id,
           name: m.user.name,
-          ...(requesterIsAdmin ? { email: m.user.email } : {}),
           profilePhoto: m.user.profilePhoto,
         }
       })));
@@ -1905,7 +1904,6 @@ export async function registerRoutes(
         user: {
           id: r.user.id,
           name: r.user.name,
-          email: r.user.email,
           profilePhoto: r.user.profilePhoto,
         }
       })));
@@ -2000,7 +1998,7 @@ export async function registerRoutes(
         bubbleId: r.bubbleId,
         membershipStatus: r.membershipStatus,
         joinedAt: r.joinedAt,
-        user: { id: r.user.id, name: r.user.name, email: r.user.email, profilePhoto: r.user.profilePhoto },
+        user: { id: r.user.id, name: r.user.name, profilePhoto: r.user.profilePhoto },
       });
       res.json({
         waitlisted: waitlist.filter(r => r.membershipStatus === 'waitlisted').map(formatMember),
