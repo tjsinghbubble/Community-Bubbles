@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import cometChatService from '../../services/cometchat.service';
+import { useAuth } from '../../context/AuthContext';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -89,6 +91,7 @@ function getTimeAgo(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,6 +154,31 @@ export default function NotificationsScreen() {
 
     let meta: any = {};
     try { meta = notif.metadata ? JSON.parse(notif.metadata) : {}; } catch { meta = {}; }
+
+    if (notif.type === 'peer_dm_started' && meta.userId) {
+      if (!user) return;
+      try {
+        const ids = [user.id, meta.userId].sort();
+        const groupId = `peer_${ids[0]}_${ids[1]}`;
+        const groupName = `${meta.userName || 'Someone'} & ${user.name || 'Me'}`;
+
+        await cometChatService.ensureLoggedIn(user.id, user.name);
+        await cometChatService.joinGroup(groupId, 'private');
+
+        (navigation as any).navigate('Messages', {
+          screen: 'MessagesList',
+          params: {
+            openGroupId: groupId,
+            openGroupName: groupName,
+          },
+        });
+      } catch (err) {
+        console.error('Peer DM navigation error:', err);
+        Alert.alert('Error', 'Failed to open the conversation. Please try again.');
+      }
+      return;
+    }
+
     if (meta.bubbleId && !meta.eventId) {
       if (notif.type === 'bubble_request_rejected' || notif.type === 'waitlist_rejected') {
         (navigation as any).navigate('Explore', {
