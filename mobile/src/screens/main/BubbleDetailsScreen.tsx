@@ -196,25 +196,51 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleJoinLeave = async () => {
-    if (!user) return;
+  const performLeaveBubble = async () => {
     setIsJoining(true);
     try {
-      if (isMember) {
-        await apiService.leaveBubble(bubble.id);
-        try {
-          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
-          await cometChatService.leaveGroup(bubble.id);
-        } catch (e) {
-          console.log('CometChat leave error (may not be in group):', e);
-        }
-        setIsMember(false);
-        setMembershipStatus(null);
-        setMemberCount(prev => Math.max(0, prev - 1));
-        logAppEvent('[Bubble] User left bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
-        setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
-        setShowSuccessModal(true);
-      } else if (membershipStatus === 'pending') {
+      await apiService.leaveBubble(bubble.id);
+      try {
+        if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+        await cometChatService.leaveGroup(bubble.id);
+      } catch (e) {
+        console.log('CometChat leave error (may not be in group):', e);
+      }
+      setIsMember(false);
+      setMembershipStatus(null);
+      setMemberCount(prev => Math.max(0, prev - 1));
+      logAppEvent('[Bubble] User left bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
+      setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}. Your DM conversations with this bubble's members have been hidden.` });
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleJoinLeave = async () => {
+    if (!user) return;
+
+    if (isMember) {
+      Alert.alert(
+        'Leave Bubble',
+        `Are you sure you want to leave ${bubble.title}?\n\nYour direct message conversations with members of this bubble will also be hidden.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: () => performLeaveBubble(),
+          },
+        ],
+      );
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      if (membershipStatus === 'pending') {
         await apiService.leaveBubble(bubble.id);
         setMembershipStatus(null);
         setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
