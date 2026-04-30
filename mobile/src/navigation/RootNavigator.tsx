@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, StyleSheet, Alert } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './AuthNavigator';
@@ -112,6 +112,31 @@ export default function RootNavigator() {
 
     return params;
   };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const registerToken = async () => {
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') return;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+        await apiService.registerPushToken(tokenData.data, platform);
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err));
+        reportError(error, 'background.PushToken.registerToken');
+      }
+    };
+
+    registerToken();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
