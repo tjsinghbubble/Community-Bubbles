@@ -8,12 +8,16 @@ import {
   Image,
   Platform,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  DimensionValue,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
@@ -117,6 +121,264 @@ const hintRowStyles = StyleSheet.create({
   },
 });
 
+const CONFETTI_COLORS = ['#35A8F7', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FFD60A', '#5856D6'];
+const PARTICLE_COUNT = 28;
+
+type Particle = {
+  x: Animated.Value;
+  y: Animated.Value;
+  rotate: Animated.Value;
+  opacity: Animated.Value;
+  color: string;
+  size: number;
+  isCircle: boolean;
+  initialX: number;
+};
+
+function useConfettiParticles(screenWidth: number): Particle[] {
+  return useRef<Particle[]>(
+    Array.from({ length: PARTICLE_COUNT }, (_, i) => {
+      const initialX = Math.random() * screenWidth;
+      return {
+        x: new Animated.Value(initialX),
+        y: new Animated.Value(-20 - Math.random() * 60),
+        rotate: new Animated.Value(0),
+        opacity: new Animated.Value(1),
+        color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+        size: 6 + Math.floor(Math.random() * 7),
+        isCircle: Math.random() > 0.5,
+        initialX,
+      };
+    })
+  ).current;
+}
+
+type ConfettiOverlayProps = {
+  visible: boolean;
+  screenWidth: number;
+  screenHeight: number;
+  onDone: () => void;
+};
+
+function ConfettiOverlay({ visible, screenWidth, screenHeight, onDone }: ConfettiOverlayProps) {
+  const particles = useConfettiParticles(screenWidth);
+  const hasAnimated = useRef(false);
+
+  useEffect(() => {
+    if (!visible) {
+      hasAnimated.current = false;
+      return;
+    }
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+
+    particles.forEach((p) => {
+      p.x.setValue(p.initialX);
+      p.y.setValue(-20 - Math.random() * 60);
+      p.rotate.setValue(0);
+      p.opacity.setValue(1);
+    });
+
+    const animations = particles.map((p) => {
+      const delay = Math.random() * 300;
+      const duration = 1200 + Math.random() * 800;
+      const targetX = p.initialX + (Math.random() - 0.5) * 120;
+
+      return Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(p.y, {
+            toValue: screenHeight * 0.7,
+            duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(p.x, {
+            toValue: targetX,
+            duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(p.rotate, {
+            toValue: (Math.random() > 0.5 ? 1 : -1) * (3 + Math.random() * 5),
+            duration,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.timing(p.opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+            Animated.delay(duration - 400),
+            Animated.timing(p.opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          ]),
+        ]),
+      ]);
+    });
+
+    Animated.parallel(animations).start(() => {
+      onDone();
+    });
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <View style={confettiStyles.overlay} pointerEvents="none" testID="confetti-overlay">
+      {particles.map((p, i) => {
+        const rotate = p.rotate.interpolate({
+          inputRange: [-10, 10],
+          outputRange: ['-360deg', '360deg'],
+        });
+        return (
+          <Animated.View
+            key={i}
+            style={[
+              confettiStyles.particle,
+              p.isCircle && confettiStyles.circle,
+              {
+                width: p.size,
+                height: p.size,
+                borderRadius: p.isCircle ? p.size / 2 : 2,
+                backgroundColor: p.color,
+                transform: [
+                  { translateX: p.x },
+                  { translateY: p.y },
+                  { rotate },
+                ],
+                opacity: p.opacity,
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+const confettiStyles = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+  },
+  particle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  circle: {},
+});
+
+type CelebrationBannerProps = {
+  visible: boolean;
+  onDone: () => void;
+};
+
+function CelebrationBanner({ visible, onDone }: CelebrationBannerProps) {
+  const translateY = useRef(new Animated.Value(-120)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entryAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  const exitAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    translateY.setValue(-120);
+    opacity.setValue(0);
+    scale.setValue(0.9);
+
+    const entry = Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        speed: 12,
+        bounciness: 8,
+      }),
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }),
+    ]);
+    entryAnimRef.current = entry;
+
+    entry.start(() => {
+      holdTimerRef.current = setTimeout(() => {
+        const exit = Animated.parallel([
+          Animated.timing(translateY, { toValue: -120, duration: 300, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+        ]);
+        exitAnimRef.current = exit;
+        exit.start(onDone);
+      }, 3200);
+    });
+
+    return () => {
+      entryAnimRef.current?.stop();
+      exitAnimRef.current?.stop();
+      if (holdTimerRef.current !== null) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View
+      style={[
+        bannerStyles.container,
+        { transform: [{ translateY }, { scale }], opacity },
+      ]}
+      pointerEvents="none"
+      testID="celebration-banner"
+    >
+      <LinearGradient
+        colors={['#34C759', '#35A8F7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={bannerStyles.gradient}
+      >
+        <Text style={bannerStyles.emoji}>🎉</Text>
+        <View style={bannerStyles.textBlock}>
+          <Text style={bannerStyles.title}>Profile complete!</Text>
+          <Text style={bannerStyles.subtitle}>Your community will love getting to know you.</Text>
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 68,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    zIndex: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...CardShadow,
+  },
+  gradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  emoji: {
+    fontSize: 28,
+  },
+  textBlock: {
+    flex: 1,
+  },
+  title: {
+    fontSize: Typography.sizes.base,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  subtitle: {
+    fontSize: Typography.sizes.sm,
+    color: 'rgba(255,255,255,0.88)',
+    marginTop: 2,
+  },
+});
 
 type BubbleItem = {
   id: string;
@@ -128,10 +390,32 @@ type BubbleItem = {
 
 export default function ViewProfileScreen({ navigation }: Props) {
   const { user, token } = useAuth();
+
+  const completionFields = [
+    !!user?.profilePhoto,
+    !!user?.aboutMe,
+    Array.isArray(user?.interests) && (user?.interests?.length ?? 0) > 0,
+  ];
+  const completedCount = completionFields.filter(Boolean).length;
+  const totalCount = completionFields.length;
+  const completionRatio = completedCount / totalCount;
+  const progressPercent = `${Math.round(completionRatio * 100)}%`;
+  const isProfileComplete = completedCount === totalCount;
+
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const isBubbleAdmin = useRef(false);
+
+  const [showCompleteCard, setShowCompleteCard] = useState(!isProfileComplete);
+  const cardOpacity = useRef(new Animated.Value(isProfileComplete ? 0 : 1)).current;
+  const cardScale = useRef(new Animated.Value(isProfileComplete ? 0.9 : 1)).current;
+  const cardTranslateY = useRef(new Animated.Value(isProfileComplete ? -12 : 0)).current;
+
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
+
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   useEffect(() => {
     setCategoriesLoading(true);
@@ -149,6 +433,29 @@ export default function ViewProfileScreen({ navigation }: Props) {
     return cat ? cat.displayName : name;
   };
 
+  const animateCardOut = useCallback((onFinish?: () => void) => {
+    Animated.parallel([
+      Animated.timing(cardOpacity, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardScale, {
+        toValue: 0.9,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardTranslateY, {
+        toValue: -12,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowCompleteCard(false);
+      onFinish?.();
+    });
+  }, [cardOpacity, cardScale, cardTranslateY]);
+
   useFocusEffect(
     useCallback(() => {
       if (token) {
@@ -165,7 +472,34 @@ export default function ViewProfileScreen({ navigation }: Props) {
           logAppWarn('ViewProfile:bubblesLoadFailed', { error: err?.message ?? 'unknown' });
         });
       }
-    }, [token])
+
+      if (!user?.id) return;
+
+      const celebrationKey = `bubble:profile_celebrated:${user.id}`;
+
+      if (isProfileComplete) {
+        AsyncStorage.getItem(celebrationKey).then((alreadyCelebrated) => {
+          if (!alreadyCelebrated) {
+            AsyncStorage.setItem(celebrationKey, 'true').catch(() => {});
+            animateCardOut(() => {
+              setShowConfetti(true);
+              setShowBanner(true);
+            });
+          } else {
+            animateCardOut();
+          }
+        }).catch(() => {
+          animateCardOut();
+        });
+      } else {
+        cardOpacity.setValue(1);
+        cardScale.setValue(1);
+        cardTranslateY.setValue(0);
+        setShowCompleteCard(true);
+        setShowConfetti(false);
+        setShowBanner(false);
+      }
+    }, [token, isProfileComplete, user?.id, animateCardOut])
   );
 
   if (!user) return null;
@@ -173,18 +507,6 @@ export default function ViewProfileScreen({ navigation }: Props) {
   const isSuperAdmin = user.isSuperAdmin === true;
   const roleLabel = isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member';
   const previewBubbles = myBubbles.slice(0, 3);
-
-  const completionFields = [
-    !!user.profilePhoto,
-    !!user.aboutMe,
-    Array.isArray(user.interests) && user.interests.length > 0,
-  ];
-  const completedCount = completionFields.filter(Boolean).length;
-  const totalCount = completionFields.length;
-  const completionRatio = completedCount / totalCount;
-  const progressPercent = `${Math.round(completionRatio * 100)}%`;
-
-  const isProfileComplete = completedCount === totalCount;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -226,8 +548,17 @@ export default function ViewProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {!isProfileComplete && (
-          <View style={styles.completeSection} testID="section-complete-profile">
+        {showCompleteCard && (
+          <Animated.View
+            style={[
+              styles.completeSection,
+              {
+                opacity: cardOpacity,
+                transform: [{ scale: cardScale }, { translateY: cardTranslateY }],
+              },
+            ]}
+            testID="section-complete-profile"
+          >
             <View style={styles.progressHeader} testID="progress-header">
               <Text style={styles.progressLabel} testID="text-progress-count">
                 {completedCount} of {totalCount} complete
@@ -235,7 +566,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
             </View>
             <View style={styles.progressBarTrack} testID="progress-bar-track">
               <View
-                style={[styles.progressBarFill, { width: progressPercent }]}
+                style={[styles.progressBarFill, { width: progressPercent as DimensionValue }]}
                 testID="progress-bar-fill"
               />
             </View>
@@ -284,7 +615,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
                 <Text style={styles.getStartedText}>Get started</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         )}
 
         {Array.isArray(user.interests) && user.interests.length > 0 && (
@@ -342,6 +673,17 @@ export default function ViewProfileScreen({ navigation }: Props) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <ConfettiOverlay
+        visible={showConfetti}
+        screenWidth={screenWidth}
+        screenHeight={screenHeight}
+        onDone={() => setShowConfetti(false)}
+      />
+      <CelebrationBanner
+        visible={showBanner}
+        onDone={() => setShowBanner(false)}
+      />
     </SafeAreaView>
   );
 }
