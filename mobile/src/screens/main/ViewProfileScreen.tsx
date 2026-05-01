@@ -24,6 +24,66 @@ type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
 };
 
+type CompletionHintRowProps = {
+  label: string;
+  hint: string;
+  done: boolean;
+  testID?: string;
+  last?: boolean;
+};
+
+function CompletionHintRow({ label, hint, done, testID, last }: CompletionHintRowProps) {
+  return (
+    <View
+      style={[hintRowStyles.row, !last && hintRowStyles.rowBorder]}
+      testID={testID}
+    >
+      <Ionicons
+        name={done ? 'checkmark-circle' : 'ellipse-outline'}
+        size={22}
+        color={done ? '#34C759' : '#C7C7CC'}
+        style={hintRowStyles.icon}
+        testID={done ? `${testID}-done` : `${testID}-missing`}
+      />
+      <View style={hintRowStyles.textBlock}>
+        <Text style={[hintRowStyles.label, done && hintRowStyles.labelDone]}>{label}</Text>
+        {!done && <Text style={hintRowStyles.hint}>{hint}</Text>}
+      </View>
+    </View>
+  );
+}
+
+const hintRowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E8E8E8',
+  },
+  icon: {
+    marginRight: 12,
+  },
+  textBlock: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4D4D4D',
+  },
+  labelDone: {
+    color: '#34C759',
+  },
+  hint: {
+    fontSize: 12,
+    color: '#969696',
+    marginTop: 2,
+  },
+});
+
 
 type BubbleItem = {
   id: string;
@@ -114,6 +174,28 @@ export default function ViewProfileScreen({ navigation }: Props) {
             <Text style={styles.completeSubtitle}>
               Your Bubble profile is an important part of every community. Complete yours to help other admins and members get to know you.
             </Text>
+
+            <View style={styles.hintList}>
+              <CompletionHintRow
+                label="Profile photo"
+                hint="Add a photo so people can recognise you"
+                done={!!user.profilePhoto}
+                testID="hint-photo"
+              />
+              <CompletionHintRow
+                label="Bio"
+                hint="Tell people a little about yourself"
+                done={!!user.aboutMe}
+                testID="hint-bio"
+              />
+              <CompletionHintRow
+                label="Interests"
+                hint="Pick at least one interest"
+                done={Array.isArray(user.interests) && user.interests.length > 0}
+                testID="hint-interests"
+                last
+              />
+            </View>
 
             <TouchableOpacity
               onPress={() => navigation.navigate('EditProfile')}
@@ -265,6 +347,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 24,
     paddingHorizontal: 8,
+  },
+  hintList: {
+    width: '100%',
+    backgroundColor: Colors.background.primary,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
   getStartedBtn: {
     width: '100%',
