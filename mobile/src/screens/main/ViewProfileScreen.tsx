@@ -30,14 +30,12 @@ type CompletionHintRowProps = {
   done: boolean;
   testID?: string;
   last?: boolean;
+  onPress?: () => void;
 };
 
-function CompletionHintRow({ label, hint, done, testID, last }: CompletionHintRowProps) {
-  return (
-    <View
-      style={[hintRowStyles.row, !last && hintRowStyles.rowBorder]}
-      testID={testID}
-    >
+function CompletionHintRow({ label, hint, done, testID, last, onPress }: CompletionHintRowProps) {
+  const inner = (
+    <>
       <Ionicons
         name={done ? 'checkmark-circle' : 'ellipse-outline'}
         size={22}
@@ -49,6 +47,31 @@ function CompletionHintRow({ label, hint, done, testID, last }: CompletionHintRo
         <Text style={[hintRowStyles.label, done && hintRowStyles.labelDone]}>{label}</Text>
         {!done && <Text style={hintRowStyles.hint}>{hint}</Text>}
       </View>
+      {!done && onPress && (
+        <Ionicons name="chevron-forward" size={16} color="#C7C7CC" />
+      )}
+    </>
+  );
+
+  if (!done && onPress) {
+    return (
+      <TouchableOpacity
+        style={[hintRowStyles.row, !last && hintRowStyles.rowBorder]}
+        testID={testID}
+        onPress={onPress}
+        activeOpacity={0.6}
+      >
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View
+      style={[hintRowStyles.row, !last && hintRowStyles.rowBorder]}
+      testID={testID}
+    >
+      {inner}
     </View>
   );
 }
@@ -199,12 +222,14 @@ export default function ViewProfileScreen({ navigation }: Props) {
                 hint="Add a photo so people can recognise you"
                 done={!!user.profilePhoto}
                 testID="hint-photo"
+                onPress={() => navigation.navigate('EditProfile', { focusField: 'photo' })}
               />
               <CompletionHintRow
                 label="Bio"
                 hint="Tell people a little about yourself"
                 done={!!user.aboutMe}
                 testID="hint-bio"
+                onPress={() => navigation.navigate('EditProfile', { focusField: 'bio' })}
               />
               <CompletionHintRow
                 label="Interests"
@@ -212,6 +237,7 @@ export default function ViewProfileScreen({ navigation }: Props) {
                 done={Array.isArray(user.interests) && user.interests.length > 0}
                 testID="hint-interests"
                 last
+                onPress={() => navigation.navigate('EditProfile', { focusField: 'interests' })}
               />
             </View>
 

@@ -31,7 +31,7 @@ import NotificationPreferencesScreen from '../screens/main/NotificationPreferenc
 export type ProfileStackParamList = {
   ProfileMain: undefined;
   ViewProfile: undefined;
-  EditProfile: undefined;
+  EditProfile: { focusField?: 'photo' | 'bio' | 'interests' } | undefined;
   MyBubblesFromProfile: undefined;
   PendingReviews: undefined;
   Notifications: undefined;

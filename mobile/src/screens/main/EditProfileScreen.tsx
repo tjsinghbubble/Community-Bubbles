@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +30,7 @@ import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
+  route: RouteProp<ProfileStackParamList, 'EditProfile'>;
 };
 
 interface CategoryItem {
@@ -47,7 +49,8 @@ type BubbleItem = {
 };
 
 
-export default function EditProfileScreen({ navigation }: Props) {
+export default function EditProfileScreen({ navigation, route }: Props) {
+  const focusField = route?.params?.focusField;
   const { user, token, refreshUser } = useAuth();
   const [aboutMe, setAboutMe] = useState(user?.aboutMe || '');
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests || []);
@@ -56,8 +59,13 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [categoriesError, setCategoriesError] = useState(false);
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
   const [saving, setSaving] = useState(false);
-  const [editingAbout, setEditingAbout] = useState(false);
-  const [editingInterests, setEditingInterests] = useState(false);
+  const [editingAbout, setEditingAbout] = useState(focusField === 'bio');
+  const [editingInterests, setEditingInterests] = useState(focusField === 'interests');
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const photoSectionY = useRef(0);
+  const bioSectionY = useRef(0);
+  const interestsSectionY = useRef(0);
 
   const loadCategories = useCallback(async () => {
     setCategoriesLoading(true);
@@ -152,6 +160,20 @@ export default function EditProfileScreen({ navigation }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (!focusField) return;
+    const timer = setTimeout(() => {
+      if (focusField === 'photo') {
+        handlePickPhoto();
+      } else if (focusField === 'bio') {
+        scrollViewRef.current?.scrollTo({ y: bioSectionY.current, animated: true });
+      } else if (focusField === 'interests') {
+        scrollViewRef.current?.scrollTo({ y: interestsSectionY.current, animated: true });
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [focusField]);
+
   useFocusEffect(
     useCallback(() => {
       if (token) {
@@ -213,12 +235,16 @@ export default function EditProfileScreen({ navigation }: Props) {
         style={{ flex: 1 }}
       >
         <ScrollView
+          ref={scrollViewRef}
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.avatarSection}>
+          <View
+            style={styles.avatarSection}
+            onLayout={(e) => { photoSectionY.current = e.nativeEvent.layout.y; }}
+          >
             <TouchableOpacity style={styles.avatarWrapper} onPress={handlePickPhoto} activeOpacity={0.7} testID="button-edit-photo">
               {user.profilePhoto ? (
                 <Image source={{ uri: user.profilePhoto }} style={styles.avatarImage} />
@@ -244,7 +270,10 @@ export default function EditProfileScreen({ navigation }: Props) {
             </Text>
           </View>
 
-          <View style={[styles.sectionCard, CardShadow]}>
+          <View
+            style={[styles.sectionCard, CardShadow]}
+            onLayout={(e) => { bioSectionY.current = e.nativeEvent.layout.y; }}
+          >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>About Me</Text>
               <TouchableOpacity onPress={() => setEditingAbout(!editingAbout)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-about">
@@ -285,7 +314,10 @@ export default function EditProfileScreen({ navigation }: Props) {
             )}
           </View>
 
-          <View style={[styles.sectionCard, CardShadow]}>
+          <View
+            style={[styles.sectionCard, CardShadow]}
+            onLayout={(e) => { interestsSectionY.current = e.nativeEvent.layout.y; }}
+          >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Interests</Text>
               <TouchableOpacity onPress={() => setEditingInterests(!editingInterests)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} testID="button-toggle-interests">
