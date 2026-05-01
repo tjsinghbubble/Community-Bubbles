@@ -117,8 +117,13 @@ them in sync on every subsequent update.
 
 ## Local setup
 
-A `commit-msg` git hook is included via **husky**. It runs `commitlint`
-automatically on every local commit so you catch violations before pushing.
+Two git hooks are included via **husky** and activate automatically after
+`npm install`:
+
+| Hook | File | Purpose |
+|------|------|---------|
+| `pre-commit` | `.husky/pre-commit` | Runs `tsc --noEmit` when TypeScript files are staged |
+| `commit-msg` | `.husky/commit-msg` | Validates the commit message format with commitlint |
 
 ### First-time setup (run once after cloning)
 
@@ -128,32 +133,47 @@ npm install
 ```
 
 `npm install` triggers the `prepare` script which initialises husky and
-activates the `.husky/commit-msg` hook automatically. No additional steps are
-required.
+activates both hooks automatically. No additional steps are required.
 
 ### How it works
 
-- The hook lives at `.husky/commit-msg` in the repository root.
+#### Pre-commit TypeScript check
+
+- Runs **before** the commit is recorded.
+- Inspects the staged file list (`git diff --cached`).
+- If any `.ts` or `.tsx` files are staged **outside** `mobile/`, it runs
+  `tsc --noEmit` from the repository root.
+- If any `.ts` or `.tsx` files are staged **inside** `mobile/`, it runs
+  `tsc --noEmit` from the `mobile/` directory.
+- Commits that contain **no TypeScript files** (docs, images, configs, etc.)
+  skip the check entirely, so there is no unnecessary delay.
+- If type errors are found, the commit is **rejected immediately** with the
+  compiler output shown inline.
+
+#### Commit-message check
+
+- The hook lives at `.husky/commit-msg`.
 - It calls `commitlint --edit` against the message you wrote.
 - The rules come from `commitlint.config.js` at the repository root, which is
   the same file used by the CI workflow.
 - If your message violates the rules, the commit is **rejected immediately**
   with a clear error explaining what went wrong.
 
-### Verifying the hook is active
+### Verifying the hooks are active
 
 ```bash
 git config --get core.hooksPath   # should show .husky
+ls .husky/pre-commit              # file should exist
 ls .husky/commit-msg              # file should exist
 ```
 
 ### Bypassing (not recommended)
 
-If you need to commit without linting in an emergency:
+If you need to skip both hooks in an emergency:
 
 ```bash
 git commit --no-verify -m "your message"
 ```
 
 Use this sparingly — the CI check will still block non-conforming commits on
-pull requests.
+pull requests, and type errors will surface during the build.

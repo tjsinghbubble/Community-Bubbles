@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+
+# Run tsc --noEmit only when TypeScript files are staged.
+# This avoids unnecessary delays for docs-only or asset-only commits.
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+
+# Check for TypeScript files outside mobile/ (root project)
+ROOT_TS=$(echo "$STAGED" | grep -E '\.tsx?$' | grep -v '^mobile/' || true)
+
+# Check for TypeScript files inside mobile/
+MOBILE_TS=$(echo "$STAGED" | grep -E '^mobile/.*\.tsx?$' || true)
+
+FAILED=0
+
+if [ -n "$ROOT_TS" ]; then
+  echo "[pre-commit] TypeScript files staged in root — running tsc..."
+  npx tsc --noEmit || FAILED=1
+fi
+
+if [ -n "$MOBILE_TS" ]; then
+  echo "[pre-commit] TypeScript files staged in mobile/ — running tsc..."
+  (cd mobile && npx tsc --noEmit) || FAILED=1
+fi
+
+if [ "$FAILED" -eq 1 ]; then
+  echo ""
+  echo "[pre-commit] TypeScript check failed. Fix the errors above before committing."
+  echo "             To bypass in an emergency: git commit --no-verify"
+  exit 1
+fi
