@@ -11,7 +11,9 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Dimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -27,6 +29,16 @@ import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SECTION_CARD_PADDING = 20;
+const SCROLL_CONTENT_PADDING = Spacing.lg;
+const CARD_GAP = 8;
+const INTEREST_CARD_SIZE = Math.floor(
+  (SCREEN_WIDTH - SCROLL_CONTENT_PADDING * 2 - SECTION_CARD_PADDING * 2 - CARD_GAP * 2) / 3
+);
+const ALL_TAB_ID = -1;
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
@@ -55,6 +67,8 @@ export default function EditProfileScreen({ navigation, route }: Props) {
   const [aboutMe, setAboutMe] = useState(user?.aboutMe || '');
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests || []);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [parentCategories, setParentCategories] = useState<CategoryItem[]>([]);
+  const [activeTab, setActiveTab] = useState<number>(ALL_TAB_ID);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState(false);
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
@@ -74,6 +88,7 @@ export default function EditProfileScreen({ navigation, route }: Props) {
       const res = await fetch(`${API_URL}/api/categories/flat`);
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data: CategoryItem[] = await res.json();
+      setParentCategories(data.filter(c => c.parentId === null));
       setCategories(data.filter(c => c.parentId !== null));
     } catch (err: any) {
       logAppWarn('EditProfile:categoriesLoadFailed', { error: err?.message ?? 'unknown' });
@@ -193,11 +208,6 @@ export default function EditProfileScreen({ navigation, route }: Props) {
     setSelectedInterests(prev =>
       prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]
     );
-  };
-
-  const getDisplayName = (name: string): string => {
-    const cat = categories.find(c => c.name === name);
-    return cat ? cat.displayName : name;
   };
 
   const handleDone = async () => {
@@ -335,42 +345,123 @@ export default function EditProfileScreen({ navigation, route }: Props) {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View style={styles.interestsGrid}>
-                  {categories.map((category) => {
-                    const isSelected = selectedInterests.includes(category.name);
-                    return (
-                      <TouchableOpacity
-                        key={category.name}
-                        style={[
-                          styles.interestChip,
-                          isSelected && styles.interestChipSelected,
-                        ]}
-                        onPress={() => toggleInterest(category.name)}
-                        testID={`chip-interest-${category.name}`}
-                      >
-                        <Text
-                          style={[
-                            styles.interestChipText,
-                            isSelected && styles.interestChipTextSelected,
-                          ]}
+                <>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    nestedScrollEnabled
+                    style={styles.tabStrip}
+                    contentContainerStyle={styles.tabStripContent}
+                    testID="scroll-interest-category-tabs"
+                  >
+                    <TouchableOpacity
+                      style={[styles.tab, activeTab === ALL_TAB_ID && styles.tabActive]}
+                      onPress={() => setActiveTab(ALL_TAB_ID)}
+                      testID="tab-interest-all"
+                    >
+                      <View style={styles.tabContent}>
+                        <Text style={[styles.tabText, activeTab === ALL_TAB_ID && styles.tabTextActive]}>All</Text>
+                        {selectedInterests.length > 0 && (
+                          <View style={[styles.tabBadge, activeTab === ALL_TAB_ID && styles.tabBadgeActive]}>
+                            <Text style={styles.tabBadgeText}>{selectedInterests.length}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                    {parentCategories.map(parent => {
+                      const count = categories.filter(c => c.parentId === parent.id && selectedInterests.includes(c.name)).length;
+                      return (
+                        <TouchableOpacity
+                          key={parent.id}
+                          style={[styles.tab, activeTab === parent.id && styles.tabActive]}
+                          onPress={() => setActiveTab(parent.id)}
+                          testID={`tab-interest-category-${parent.id}`}
                         >
-                          {category.displayName}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
+                          <View style={styles.tabContent}>
+                            <Text style={[styles.tabText, activeTab === parent.id && styles.tabTextActive]}>
+                              {parent.displayName}
+                            </Text>
+                            {count > 0 && (
+                              <View style={[styles.tabBadge, activeTab === parent.id && styles.tabBadgeActive]}>
+                                <Text style={styles.tabBadgeText}>{count}</Text>
+                              </View>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                  <View style={styles.interestCardGrid}>
+                    {(activeTab === ALL_TAB_ID ? categories : categories.filter(c => c.parentId === activeTab)).map((category) => {
+                      const isSelected = selectedInterests.includes(category.name);
+                      const imageSource = resolveMediaUrl(category.image);
+                      return (
+                        <View key={category.name} style={styles.interestCardWrapper}>
+                          <TouchableOpacity
+                            style={[styles.interestCard, isSelected && styles.interestCardSelected]}
+                            onPress={() => toggleInterest(category.name)}
+                            activeOpacity={0.8}
+                            testID={`button-interest-${category.name}`}
+                          >
+                            <View style={styles.interestCardInner}>
+                              {imageSource ? (
+                                <ExpoImage
+                                  source={{ uri: imageSource }}
+                                  style={styles.interestCardImage}
+                                  contentFit="cover"
+                                />
+                              ) : (
+                                <View style={[styles.interestCardImage, styles.interestCardImagePlaceholder]} />
+                              )}
+                              {isSelected && (
+                                <View style={styles.interestCardOverlay}>
+                                  <View style={styles.interestCheckCircle}>
+                                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                                  </View>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                          <Text
+                            style={[styles.interestCardLabel, isSelected && styles.interestCardLabelSelected]}
+                            numberOfLines={2}
+                            testID={`text-interest-${category.name}`}
+                          >
+                            {category.displayName}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
               )
             ) : (
-              <View style={styles.interestsGrid}>
+              <View style={styles.interestCardGrid}>
                 {selectedInterests.length > 0 ? (
-                  selectedInterests.map((name) => (
-                    <View key={name} style={[styles.interestChip, styles.interestChipSelected]}>
-                      <Text style={[styles.interestChipText, styles.interestChipTextSelected]}>
-                        {getDisplayName(name)}
-                      </Text>
-                    </View>
-                  ))
+                  selectedInterests.map((interestName) => {
+                    const cat = categories.find(c => c.name === interestName);
+                    const imageSource = resolveMediaUrl(cat?.image);
+                    return (
+                      <View key={interestName} style={styles.interestCardWrapper}>
+                        <View style={[styles.interestCard, styles.interestCardSelected]}>
+                          <View style={styles.interestCardInner}>
+                            {imageSource ? (
+                              <ExpoImage
+                                source={{ uri: imageSource }}
+                                style={styles.interestCardImage}
+                                contentFit="cover"
+                              />
+                            ) : (
+                              <View style={[styles.interestCardImage, styles.interestCardImagePlaceholder]} />
+                            )}
+                          </View>
+                        </View>
+                        <Text style={[styles.interestCardLabel, styles.interestCardLabelSelected]} numberOfLines={2}>
+                          {cat?.displayName ?? interestName}
+                        </Text>
+                      </View>
+                    );
+                  })
                 ) : (
                   <Text style={styles.emptyText}>Tap the edit icon to select interests.</Text>
                 )}
@@ -549,30 +640,108 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold as any,
     color: Colors.brand.bubbleBlue,
   },
-  interestsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestChip: {
-    paddingHorizontal: 14,
+  tabStrip: { flexGrow: 0, marginHorizontal: -SECTION_CARD_PADDING, marginTop: 4, marginBottom: 4 },
+  tabStripContent: {
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.background.secondary,
-    borderWidth: 1,
-    borderColor: '#D9D9D9',
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  interestChipSelected: {
-    backgroundColor: Colors.brand.bubbleBlue + '15',
+  tab: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  tabActive: {
+    backgroundColor: '#EAF5FE',
     borderColor: Colors.brand.bubbleBlue,
   },
-  interestChipText: {
-    fontSize: Typography.sizes.sm,
-    color: Colors.neutral.coolMist,
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
-  interestChipTextSelected: {
+  tabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  tabTextActive: {
     color: Colors.brand.bubbleBlue,
-    fontWeight: Typography.weights.semiBold as any,
+  },
+  tabBadge: {
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#CCCCCC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  tabBadgeActive: {
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  interestCardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
+    marginTop: 4,
+  },
+  interestCardWrapper: {
+    width: INTEREST_CARD_SIZE,
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  interestCard: {
+    width: INTEREST_CARD_SIZE,
+    height: INTEREST_CARD_SIZE,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  interestCardSelected: {
+    borderColor: Colors.brand.bubbleBlue,
+  },
+  interestCardInner: {
+    flex: 1,
+    borderRadius: 17,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+  interestCardImage: { width: '100%', height: '100%' },
+  interestCardImagePlaceholder: { backgroundColor: '#E0E0E0' },
+  interestCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(53, 168, 247, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  interestCheckCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.brand.bubbleBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  interestCardLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4D4D4D',
+    textAlign: 'center',
+    marginTop: 5,
+  },
+  interestCardLabelSelected: {
+    color: Colors.brand.bubbleBlue,
   },
   emptyText: {
     fontSize: Typography.sizes.sm,
