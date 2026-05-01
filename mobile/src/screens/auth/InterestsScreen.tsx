@@ -48,7 +48,7 @@ const PROGRESS_STEP = 0.75;
 const ALL_TAB_ID = -1;
 
 export default function InterestsScreen({ navigation, route }: Props) {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>(route.params.selectedInterests ?? []);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [parentCategories, setParentCategories] = useState<CategoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<number>(route.params.activeTab ?? ALL_TAB_ID);
@@ -57,6 +57,10 @@ export default function InterestsScreen({ navigation, route }: Props) {
   const gridScrollRef = useRef<ScrollView>(null);
   const pendingScrollRestore = useRef(route.params.scrollOffset ?? 0);
   const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
+
+  useEffect(() => {
+    navigation.setParams({ selectedInterests: selected });
+  }, [selected]);
 
   const handleTabChange = (tabId: number) => {
     setActiveTab(tabId);
