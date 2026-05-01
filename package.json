@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "prepare": "husky"
+    "prepare": "husky",
+    "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)"
   },
   "dependencies": {
     "@cometchat/chat-sdk-javascript": "^4.1.9",
@@ -134,7 +135,8 @@
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",
-    "vite": "^7.1.9"
+    "vite": "^7.1.9",
+    "lint-staged": "^16.4.0"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
