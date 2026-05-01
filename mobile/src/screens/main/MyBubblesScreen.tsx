@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon } from '../../components/icons';
-import apiService from '../../services/api.service';
+import apiService, { JoinRequestMember } from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
@@ -49,6 +49,7 @@ export default function MyBubblesScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showCampusOnly, setShowCampusOnly] = useState(false);
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const isCampusVerified = user?.campusVerified === true;
@@ -72,6 +73,21 @@ export default function MyBubblesScreen() {
 
       setBubbles(bubblesData);
       setCreatedBubbles(createdBubblesData);
+
+      const adminBubbles = bubblesData.filter(b => b.role === 'admin');
+      const counts: Record<string, number> = {};
+      if (adminBubbles.length > 0) {
+        const results = await Promise.allSettled(
+          adminBubbles.map(b => apiService.getJoinRequests(b.id))
+        );
+        adminBubbles.forEach((b, i) => {
+          const result = results[i];
+          if (result.status === 'fulfilled') {
+            counts[b.id] = (result.value as JoinRequestMember[]).length;
+          }
+        });
+      }
+      setPendingCounts(counts);
     } catch (error) {
       console.error('[MyBubbles] Failed to fetch data:', error);
     } finally {
@@ -204,6 +220,7 @@ export default function MyBubblesScreen() {
                 style={styles.gridCard}
                 scaleValue={0.95}
                 onPress={() => handleBubblePress(bubble)}
+                testID={`card-bubble-${bubble.id}`}
               >
                 <View style={styles.gridImageShadowWrapper}>
                   <View style={styles.gridImageContainer}>
@@ -227,6 +244,13 @@ export default function MyBubblesScreen() {
                     </View>
                   )}
                 </View>
+                  {pendingCounts[bubble.id] > 0 && (
+                    <View style={styles.pendingRequestBadge} testID={`badge-pending-requests-${bubble.id}`}>
+                      <Text style={styles.pendingRequestBadgeText}>
+                        {pendingCounts[bubble.id] > 99 ? '99+' : pendingCounts[bubble.id]}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.gridTitle} numberOfLines={1}>{bubble.title}</Text>
                 <Text style={styles.gridRole}>
@@ -336,6 +360,27 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 14,
     ...CardShadow,
+  },
+  pendingRequestBadge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    backgroundColor: Colors.status.error,
+    borderRadius: 11,
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.background.secondary,
+    zIndex: 10,
+  },
+  pendingRequestBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: Typography.weights.bold as any,
+    lineHeight: 14,
   },
   gridImageContainer: {
     width: '100%',
