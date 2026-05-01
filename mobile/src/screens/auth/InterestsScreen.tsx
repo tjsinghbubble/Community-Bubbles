@@ -43,13 +43,16 @@ const MIN_SELECTIONS = 3;
 const MAX_SELECTIONS = 20;
 const PROGRESS_STEP = 0.75;
 
+const ALL_TAB_ID = -1;
+
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [parentCategories, setParentCategories] = useState<CategoryItem[]>([]);
+  const [activeTab, setActiveTab] = useState<number>(ALL_TAB_ID);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
-
   const loadCategories = async () => {
     setLoading(true);
     setFetchError(false);
@@ -57,7 +60,9 @@ export default function InterestsScreen({ navigation, route }: Props) {
       const res = await fetch(`${API_URL}/api/categories/flat`);
       if (!res.ok) throw new Error('Failed to fetch categories');
       const data: CategoryItem[] = await res.json();
+      const parents = data.filter(c => c.parentId === null);
       const subcategories = data.filter(c => c.parentId !== null);
+      setParentCategories(parents);
       setCategories(subcategories);
     } catch (err) {
       console.error('[InterestsScreen] Failed to load categories:', err);
@@ -89,6 +94,10 @@ export default function InterestsScreen({ navigation, route }: Props) {
     }
   };
 
+  const filteredCategories = activeTab === ALL_TAB_ID
+    ? categories
+    : categories.filter(c => c.parentId === activeTab);
+
   const remaining = Math.max(0, MIN_SELECTIONS - selected.length);
   const canContinue = selected.length >= MIN_SELECTIONS;
 
@@ -116,52 +125,82 @@ export default function InterestsScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
-        >
-          {categories.map((category) => {
-            const id = category.name;
-            const isSelected = selected.includes(id);
-            const imageSource = resolveMediaUrl(category.image);
-            return (
-              <View key={id} style={styles.cardWrapper}>
-                <TouchableOpacity
-                  style={[styles.card, isSelected && styles.cardSelected]}
-                  onPress={() => toggleInterest(id)}
-                  activeOpacity={0.8}
-                  testID={`button-interest-${id}`}
-                >
-                  <View style={styles.cardInner}>
-                    {imageSource ? (
-                      <Image
-                        source={{ uri: imageSource }}
-                        style={styles.cardImage}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
-                    )}
-                    {isSelected && (
-                      <View style={styles.selectedOverlay}>
-                        <View style={styles.checkCircle}>
-                          <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                </TouchableOpacity>
-                <Text
-                  style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
-                  testID={`text-interest-${id}`}
-                >
-                  {category.displayName}
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabStrip}
+            contentContainerStyle={styles.tabStripContent}
+            testID="scroll-category-tabs"
+          >
+            <TouchableOpacity
+              style={[styles.tab, activeTab === ALL_TAB_ID && styles.tabActive]}
+              onPress={() => setActiveTab(ALL_TAB_ID)}
+              testID="tab-all"
+            >
+              <Text style={[styles.tabText, activeTab === ALL_TAB_ID && styles.tabTextActive]}>All</Text>
+            </TouchableOpacity>
+            {parentCategories.map(parent => (
+              <TouchableOpacity
+                key={parent.id}
+                style={[styles.tab, activeTab === parent.id && styles.tabActive]}
+                onPress={() => setActiveTab(parent.id)}
+                testID={`tab-category-${parent.id}`}
+              >
+                <Text style={[styles.tabText, activeTab === parent.id && styles.tabTextActive]}>
+                  {parent.displayName}
                 </Text>
-              </View>
-            );
-          })}
-        </ScrollView>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.gridContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {filteredCategories.map((category) => {
+              const id = category.name;
+              const isSelected = selected.includes(id);
+              const imageSource = resolveMediaUrl(category.image);
+              return (
+                <View key={id} style={styles.cardWrapper}>
+                  <TouchableOpacity
+                    style={[styles.card, isSelected && styles.cardSelected]}
+                    onPress={() => toggleInterest(id)}
+                    activeOpacity={0.8}
+                    testID={`button-interest-${id}`}
+                  >
+                    <View style={styles.cardInner}>
+                      {imageSource ? (
+                        <Image
+                          source={{ uri: imageSource }}
+                          style={styles.cardImage}
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+                      )}
+                      {isSelected && (
+                        <View style={styles.selectedOverlay}>
+                          <View style={styles.checkCircle}>
+                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                  <Text
+                    style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
+                    testID={`text-interest-${id}`}
+                  >
+                    {category.displayName}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </>
       )}
 
       <View style={styles.footer}>
@@ -196,6 +235,34 @@ const styles = StyleSheet.create({
     borderRadius: 20, backgroundColor: '#35A8F7',
   },
   retryText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
+  tabStrip: { flexGrow: 0, marginTop: 8 },
+  tabStripContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  tabActive: {
+    backgroundColor: '#EAF5FE',
+    borderColor: '#35A8F7',
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666666',
+  },
+  tabTextActive: {
+    color: '#35A8F7',
+  },
   scroll: { flex: 1 },
   gridContainer: {
     flexDirection: 'row', flexWrap: 'wrap',
