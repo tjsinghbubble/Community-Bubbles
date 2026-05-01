@@ -54,7 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
             An unexpected error occurred. Please try again.
           </Text>
 
-          {isDev && this.state.error ? (
+          {this.state.error ? (
             <ScrollView style={styles.debugBox} testID="error-boundary-debug">
               <Text style={styles.debugText}>{this.state.error.message}</Text>
               {this.state.error.stack ? (

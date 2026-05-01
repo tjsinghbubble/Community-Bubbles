@@ -14,7 +14,7 @@ const noopSpan = {
   isRecording: () => false,
 };
 
-export const reactNavigationIntegration = () => ({});
+export const reactNavigationIntegration = () => null;
 export const init = noop;
 export const addBreadcrumb = noop;
 export const withScope = (fn: (scope: typeof noopScope) => void) => { try { fn(noopScope); } catch {} };
