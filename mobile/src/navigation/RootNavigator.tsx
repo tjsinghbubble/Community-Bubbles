@@ -28,6 +28,7 @@ const TASK_REMINDER_TYPES = new Set([
 const BUBBLE_REQUEST_TYPES = new Set([
   'bubble_request_approved',
   'bubble_request_rejected',
+  'waitlist_approved',
   'waitlist_rejected',
 ]);
 
@@ -175,7 +176,7 @@ export default function RootNavigator() {
           if (!bubbleId) return;
           const nav = navigationRef.current;
           if (!nav) return;
-          const screen = type === 'bubble_request_approved' ? 'BubbleDetails' : 'JoinBubble';
+          const screen = (type === 'bubble_request_approved' || type === 'waitlist_approved') ? 'BubbleDetails' : 'JoinBubble';
           setTimeout(() => {
             (nav as any).navigate('Main', {
               screen: 'Explore',
