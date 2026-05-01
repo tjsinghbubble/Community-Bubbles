@@ -415,13 +415,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     const spotsNum = taskSpotsNeeded.trim() && !isNaN(parsed) ? parsed : null;
     try {
       if (taskModalMode === 'create') {
-        const created = await apiService.createEventSignupTask(eventId, {
+        await apiService.createEventSignupTask(eventId, {
           title: taskTitle.trim(),
           description: taskDescription.trim() || undefined,
           icon: taskIcon,
           spotsNeeded: spotsNum,
         });
-        setSignupTasks(prev => [{ ...created }, ...prev]);
       } else if (editingTask) {
         await apiService.updateEventSignupTask(eventId, editingTask.id, {
           title: taskTitle.trim(),
@@ -429,7 +428,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           icon: taskIcon,
           spotsNeeded: spotsNum,
         });
-        await fetchSignupTasks();
+      }
+      const updatedTasks = await fetchSignupTasks();
+      if (onTasksChanged && updatedTasks !== null) {
+        const openCount = updatedTasks.filter(
+          (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+        ).length;
+        onTasksChanged(eventId, openCount);
       }
       setShowTaskModal(false);
     } catch (error) {
@@ -454,7 +459,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         text: 'Delete', style: 'destructive', onPress: async () => {
           try {
             await apiService.deleteEventSignupTask(eventId, task.id);
-            setSignupTasks(prev => prev.filter(t => t.id !== task.id));
+            const updatedTasks = await fetchSignupTasks();
+            if (onTasksChanged && updatedTasks !== null) {
+              const openCount = updatedTasks.filter(
+                (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+              ).length;
+              onTasksChanged(eventId, openCount);
+            }
           } catch {
             Alert.alert('Error', 'Failed to delete task.');
           }
