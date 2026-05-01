@@ -413,7 +413,7 @@ export function startSlowCallPrunerScheduler(): void {
   setTimeout(pruneSlowCallMetrics, 30000);
 }
 
-async function checkFatalCrashSpike(): Promise<void> {
+export async function checkFatalCrashSpike(): Promise<void> {
   try {
     const from = new Date(Date.now() - FATAL_CRASH_SPIKE_WINDOW_MINUTES * 60 * 1000);
     const reports = await storage.queryCrashReports({ isFatal: true, from, limit: FATAL_CRASH_SPIKE_THRESHOLD + 1 });
