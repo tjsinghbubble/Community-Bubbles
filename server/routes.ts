@@ -9,7 +9,7 @@ import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
-import { registerCampusSendVerificationRoute } from "./campus-handler";
+import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -3092,57 +3092,7 @@ export async function registerRoutes(
   });
 
   // Verify campus code and associate user with campus
-  app.post("/api/campus/verify-code", authMiddleware, async (req, res) => {
-    try {
-      const { email, code } = req.body;
-      if (!email || !code) {
-        return res.status(400).json({ error: "Email and code are required" });
-      }
-
-      const emailLower = email.toLowerCase();
-      const domain = emailLower.split("@")[1];
-
-      // Verify code
-      const validCode = await storage.getValidVerificationCode(emailLower, code);
-      if (!validCode) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-
-      // Get campus
-      const campus = await storage.getCampusByDomain(domain);
-      if (!campus) {
-        return res.status(400).json({ error: "Campus not found" });
-      }
-
-      // Mark code as used
-      await storage.markCodeAsUsed(validCode.id);
-
-      // Update user with campus info
-      await storage.updateUserCampus(req.userId!, campus.id, emailLower, true);
-
-      // Get updated user
-      const user = await storage.getUser(req.userId!);
-
-      res.json({
-        success: true,
-        campus: {
-          id: campus.id,
-          name: campus.title,
-          domain: campus.domain,
-        },
-        user: {
-          id: user!.id,
-          name: user!.name,
-          email: user!.email,
-          campusId: user!.campusId,
-          campusEmail: user!.campusEmail,
-          campusVerified: user!.campusVerified,
-        },
-      });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  registerCampusVerifyCodeRoute(app, storage, authMiddleware);
 
   // Dismiss campus prompt
   app.post("/api/campus/dismiss-prompt", authMiddleware, async (req, res) => {
