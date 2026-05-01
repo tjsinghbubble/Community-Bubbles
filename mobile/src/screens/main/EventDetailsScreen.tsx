@@ -606,6 +606,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     try {
       const taskIds = orderedTasks.map(t => t.id);
       await apiService.reorderEventSignupTasks(eventId, taskIds);
+      if (onTasksChanged) {
+        const openCount = orderedTasks.filter(
+          (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+        ).length;
+        onTasksChanged(eventId, openCount);
+      }
     } catch {
       Alert.alert('Error', 'Failed to save order. Please try again.');
       await fetchSignupTasks();
