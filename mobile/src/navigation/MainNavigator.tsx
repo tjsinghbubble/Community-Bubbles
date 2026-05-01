@@ -3,11 +3,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Platform, View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, CardShadow } from '../styles/theme';
-import { useFocusEffect } from '@react-navigation/native';
+import { NavigatorScreenParams, useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
-import ProfileNavigator from './ProfileNavigator';
+import ProfileNavigator, { ProfileStackParamList } from './ProfileNavigator';
 import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
@@ -20,7 +20,7 @@ export type MainTabParamList = {
   Upcoming: undefined;
   MyBubbles: undefined;
   Messages: undefined;
-  Profile: undefined;
+  Profile: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();

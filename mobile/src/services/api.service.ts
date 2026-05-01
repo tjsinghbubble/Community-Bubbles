@@ -639,8 +639,8 @@ class ApiService {
     });
   }
 
-  async getNotificationPreferences(): Promise<any> {
-    return this.request<any>("/api/notification-preferences");
+  async getNotificationPreferences(): Promise<{ pushPaused: boolean; bubbleActivity: boolean; eventActivity: boolean; eventReminders: boolean; taskReminders: boolean; waitlistUpdates: boolean; announcements: boolean }> {
+    return this.request("/api/notification-preferences");
   }
 
   async updateNotificationPreferences(prefs: Record<string, boolean>): Promise<any> {

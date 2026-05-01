@@ -17,13 +17,15 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
 import { ExploreGridSkeleton } from '../../components/SkeletonLoader';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { ExploreStackParamList, BubbleData } from '../../navigation/ExploreNavigator';
+import { MainTabParamList } from '../../navigation/MainNavigator';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
 import { useAuth } from '../../context/AuthContext';
@@ -33,7 +35,10 @@ import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, Card
 import { PeopleIcon, ClockIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 type EventData = {
   id: string;
@@ -69,6 +74,7 @@ export default function ExploreScreen() {
   const [showCampusContent, setShowCampusContent] = useState(false);
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [pushPaused, setPushPaused] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const isMountedRef = useRef(true);
@@ -146,6 +152,9 @@ export default function ExploreScreen() {
       fetchData(isInitial);
       if (refreshUser) refreshUser();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
+      apiService.getNotificationPreferences().then((prefs) => {
+        if (isMountedRef.current) setPushPaused(prefs.pushPaused);
+      }).catch(() => {});
     }, [isCampusVerified])
   );
 
@@ -241,8 +250,9 @@ export default function ExploreScreen() {
     extrapolate: 'clamp',
   });
 
-  const HEADER_EXPANDED = 89 + 60;
-  const HEADER_COLLAPSED = 89 + 32;
+  const PAUSED_BANNER_HEIGHT = 44;
+  const HEADER_EXPANDED = 89 + 60 + (pushPaused ? PAUSED_BANNER_HEIGHT : 0);
+  const HEADER_COLLAPSED = 89 + 32 + (pushPaused ? PAUSED_BANNER_HEIGHT : 0);
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
@@ -311,6 +321,22 @@ export default function ExploreScreen() {
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
         </TouchableOpacity>
       </View>
+    );
+  };
+
+  const renderPausedBanner = () => {
+    if (!pushPaused) return null;
+    return (
+      <TouchableOpacity
+        style={styles.pausedBanner}
+        onPress={() => navigation.navigate('Profile', { screen: 'NotificationPreferences' })}
+        activeOpacity={0.85}
+        testID="banner-push-paused"
+      >
+        <Ionicons name="notifications-off-outline" size={16} color={Colors.brand.skyWhite} />
+        <Text style={styles.pausedBannerText}>Push notifications are paused — tap to re-enable</Text>
+        <Ionicons name="chevron-forward" size={14} color={Colors.brand.skyWhite} />
+      </TouchableOpacity>
     );
   };
 
@@ -443,6 +469,7 @@ export default function ExploreScreen() {
       <View style={[styles.outerContainer, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
         <View style={[styles.overlayHeader, { height: HEADER_EXPANDED }]}>
           {renderSearchHeader()}
+          {renderPausedBanner()}
           {renderTabs()}
         </View>
         <View style={{ paddingTop: HEADER_EXPANDED }}>
@@ -477,6 +504,7 @@ export default function ExploreScreen() {
     <View style={[styles.outerContainer, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
       <View style={styles.overlayHeader}>
         {renderSearchHeader()}
+        {renderPausedBanner()}
         {renderTabs()}
       </View>
 
@@ -594,6 +622,21 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: Colors.background.secondary,
+  },
+  pausedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.status.warning,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.xs,
+    height: 44,
+  },
+  pausedBannerText: {
+    flex: 1,
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.medium,
+    color: Colors.brand.skyWhite,
   },
   searchContainer: {
     flexDirection: 'row',
