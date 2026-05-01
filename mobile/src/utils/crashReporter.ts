@@ -1,4 +1,5 @@
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { version } from '../../package.json';
@@ -256,6 +257,10 @@ export function reportError(error: Error, context?: string): void {
     scope.setLevel('error');
     Sentry.captureException(error);
   });
+  // Secondary delivery to the custom crash server (queued when offline).
+  if (_offlineRetryServerUrl) {
+    sendToServer(report, _offlineRetryServerUrl).catch(() => {});
+  }
 }
 
 export function reportFatalError(
@@ -276,6 +281,10 @@ export function reportFatalError(
     }
     Sentry.captureException(error);
   });
+  // Secondary delivery to the custom crash server (queued when offline).
+  if (_offlineRetryServerUrl) {
+    sendToServer(report, _offlineRetryServerUrl).catch(() => {});
+  }
 }
 
 /**
@@ -458,6 +467,219 @@ export async function withBackgroundTask<T>(
     });
     return undefined;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Offline crash-report queue
+// ---------------------------------------------------------------------------
+
+export const OFFLINE_QUEUE_STORAGE_KEY = '@crashReporter/offlineQueue';
+export const OFFLINE_QUEUE_MAX_SIZE = 50;
+
+/** A CrashReport entry waiting to be delivered to the custom crash server. */
+export interface QueuedReport {
+  id: string;
+  report: CrashReport;
+  queuedAt: string;
+}
+
+/**
+ * All offline-queue AsyncStorage operations are serialised through this chain
+ * so that concurrent queueReport / flushOfflineQueue calls are always applied
+ * in arrival order and never interleave.  This prevents a race where two
+ * near-simultaneous failed sendToServer calls both read the same stale queue,
+ * each append their own entry, and one write overwrites the other.
+ */
+let _queueChain: Promise<void> = Promise.resolve();
+
+/** Append an offline-queue async operation to the serial chain (never throws). */
+function _enqueueQueueOp(op: () => Promise<unknown>): Promise<void> {
+  const next = _queueChain.then(op).catch(() => {
+    // All storage failures are silently swallowed — instrumentation must
+    // never crash the app.
+  }) as Promise<void>;
+  _queueChain = next;
+  return next;
+}
+
+/**
+ * Read the current offline queue from AsyncStorage.
+ * Returns an empty array on any read/parse failure.
+ * NOTE: callers that need a consistent read-modify-write must run this inside
+ * `_enqueueQueueOp` to avoid interleaving with concurrent writes.
+ */
+export async function readOfflineQueue(): Promise<QueuedReport[]> {
+  try {
+    const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed as QueuedReport[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Append `report` to the offline queue, enforcing the OFFLINE_QUEUE_MAX_SIZE
+ * cap.  When the queue is full the oldest entry is evicted to make room.
+ *
+ * The operation is serialised through `_queueChain` so concurrent calls are
+ * applied in order and never overwrite each other.  Never throws.
+ */
+export function queueReport(report: CrashReport): Promise<void> {
+  return _enqueueQueueOp(async () => {
+    const queue = await readOfflineQueue();
+    const entry: QueuedReport = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      report,
+      queuedAt: new Date().toISOString(),
+    };
+    queue.push(entry);
+    if (queue.length > OFFLINE_QUEUE_MAX_SIZE) {
+      queue.splice(0, queue.length - OFFLINE_QUEUE_MAX_SIZE);
+    }
+    await AsyncStorage.setItem(OFFLINE_QUEUE_STORAGE_KEY, JSON.stringify(queue));
+  });
+}
+
+/**
+ * Clear all entries from the offline queue and remove the AsyncStorage key.
+ * The operation is serialised so it never races with in-flight writes.
+ * Exported for use by tests and debug tooling.
+ */
+export function clearOfflineQueue(): Promise<void> {
+  return _enqueueQueueOp(() => AsyncStorage.removeItem(OFFLINE_QUEUE_STORAGE_KEY));
+}
+
+/**
+ * POST `report` to `serverUrl`.
+ *
+ * On success the promise resolves.  On any network or HTTP failure the report
+ * is persisted to the offline queue so it can be retried later.
+ *
+ * Never throws — all errors are either queued or silently swallowed.
+ */
+export async function sendToServer(report: CrashReport, serverUrl: string): Promise<void> {
+  try {
+    const response = await fetch(serverUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(report),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  } catch {
+    await queueReport(report);
+  }
+}
+
+/**
+ * Attempt to flush all queued reports to `serverUrl`.
+ *
+ * Iterates through the queue in insertion order.  Successfully delivered
+ * reports are removed from the queue; reports that still fail are retained
+ * so they can be retried on the next call.  Stops sending as soon as one
+ * delivery fails (network likely still unavailable).
+ *
+ * The entire operation is serialised through `_queueChain` to prevent
+ * interleaving with concurrent `queueReport` calls.  Never throws.
+ */
+export function flushOfflineQueue(serverUrl: string): Promise<void> {
+  return _enqueueQueueOp(async () => {
+    const queue = await readOfflineQueue();
+    if (queue.length === 0) return;
+
+    const remaining: QueuedReport[] = [];
+    let stopSending = false;
+    for (const entry of queue) {
+      if (stopSending) {
+        remaining.push(entry);
+        continue;
+      }
+      let delivered = false;
+      try {
+        const response = await fetch(serverUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry.report),
+        });
+        delivered = response.ok;
+      } catch {
+        delivered = false;
+      }
+
+      if (!delivered) {
+        // Still failing — keep this and all remaining entries, stop sending.
+        remaining.push(entry);
+        stopSending = true;
+      }
+      // delivered === true → entry is not pushed (removed from queue)
+    }
+
+    await AsyncStorage.setItem(OFFLINE_QUEUE_STORAGE_KEY, JSON.stringify(remaining));
+  });
+}
+
+let _offlineRetryServerUrl: string | null = null;
+let _netInfoUnsubscribe: (() => void) | null = null;
+let _appStateSubscription: ReturnType<typeof AppState.addEventListener> | null = null;
+
+/**
+ * Register connectivity listeners that flush the offline queue whenever the
+ * device regains internet access.
+ *
+ * Two complementary listeners are installed:
+ *  1. **NetInfo** — fires whenever the network state changes.  Flushes when
+ *     `isInternetReachable` transitions to `true`, giving near-real-time
+ *     delivery even when the app remains in the foreground.
+ *  2. **AppState** — fires when the app comes to the foreground.  Acts as a
+ *     supplemental trigger for cases where NetInfo events may be delayed or
+ *     unavailable on a particular platform/OS version.
+ *
+ * An immediate flush is also attempted on init so that any reports queued
+ * during a previous session are delivered as soon as the app starts (and has
+ * network).
+ *
+ * Calling this more than once is safe — previous listeners are removed first.
+ * Pass `null` to disable retry and remove any registered listeners.
+ */
+export function initOfflineRetry(serverUrl: string | null): void {
+  // Remove previously registered listeners.
+  if (_netInfoUnsubscribe) {
+    _netInfoUnsubscribe();
+    _netInfoUnsubscribe = null;
+  }
+  if (_appStateSubscription) {
+    _appStateSubscription.remove();
+    _appStateSubscription = null;
+  }
+
+  _offlineRetryServerUrl = serverUrl;
+  if (!serverUrl) return;
+
+  // Immediate flush attempt — covers reports left from a previous session.
+  flushOfflineQueue(serverUrl).catch(() => {});
+
+  // NetInfo listener: flush when internet reachability transitions to true.
+  let _wasReachable: boolean | null = null;
+  _netInfoUnsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+    const reachable = state.isInternetReachable;
+    // Only flush on a positive transition (null → true or false → true)
+    // to avoid hammering the server on every network event.
+    if (reachable === true && _wasReachable !== true && _offlineRetryServerUrl) {
+      flushOfflineQueue(_offlineRetryServerUrl).catch(() => {});
+    }
+    _wasReachable = reachable ?? null;
+  });
+
+  // AppState listener: supplemental flush when app foregrounds.
+  _appStateSubscription = AppState.addEventListener('change', (nextState) => {
+    if (nextState === 'active' && _offlineRetryServerUrl) {
+      flushOfflineQueue(_offlineRetryServerUrl).catch(() => {});
+    }
+  });
 }
 
 export function installGlobalHandlers(): void {

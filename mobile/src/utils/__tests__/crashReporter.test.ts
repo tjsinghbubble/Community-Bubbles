@@ -1,5 +1,19 @@
+const mockAddEventListener = jest.fn().mockReturnValue({ remove: jest.fn() });
+
 jest.mock('react-native', () => ({
   Platform: { OS: 'ios' },
+  AppState: {
+    addEventListener: (...args: unknown[]) => mockAddEventListener(...args),
+  },
+}));
+
+const mockNetInfoAddEventListener = jest.fn().mockReturnValue(jest.fn());
+
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    addEventListener: (...args: unknown[]) => mockNetInfoAddEventListener(...args),
+  },
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -61,6 +75,14 @@ import {
   isDuplicate,
   resetDedupCache,
   dedupCacheSize,
+  sendToServer,
+  queueReport,
+  flushOfflineQueue,
+  clearOfflineQueue,
+  readOfflineQueue,
+  initOfflineRetry,
+  OFFLINE_QUEUE_MAX_SIZE,
+  OFFLINE_QUEUE_STORAGE_KEY,
 } from '../crashReporter';
 
 function makeError(message: string, stackLength: number): Error {
@@ -1744,5 +1766,577 @@ describe('withBackgroundTask', () => {
   it('does not swallow a task that resolves with undefined', async () => {
     const result = await withBackgroundTask('test.void', async () => undefined);
     expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Offline queue helpers
+// ---------------------------------------------------------------------------
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+function makeSampleReport(): import('../crashReporter').CrashReport {
+  return {
+    message: 'Test error',
+    platform: 'ios',
+    timestamp: new Date().toISOString(),
+    isFatal: false,
+    appVersion: '1.0.0',
+  };
+}
+
+describe('queueReport', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('writes a serialised QueuedReport array to AsyncStorage', async () => {
+    const report = makeSampleReport();
+
+    await queueReport(report);
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    const [key, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[0] as [string, string];
+    expect(key).toBe(OFFLINE_QUEUE_STORAGE_KEY);
+    const parsed = JSON.parse(raw);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].report).toEqual(report);
+  });
+
+  it('assigns a unique id and queuedAt timestamp to each entry', async () => {
+    await queueReport(makeSampleReport());
+
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[0] as [string, string];
+    const [entry] = JSON.parse(raw);
+    expect(typeof entry.id).toBe('string');
+    expect(entry.id.length).toBeGreaterThan(0);
+    expect(entry.queuedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('appends to an existing queue rather than replacing it', async () => {
+    const existing = [{ id: 'old-1', report: makeSampleReport(), queuedAt: new Date().toISOString() }];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(existing));
+
+    await queueReport(makeSampleReport());
+
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[0] as [string, string];
+    expect(JSON.parse(raw)).toHaveLength(2);
+  });
+
+  it('enforces the OFFLINE_QUEUE_MAX_SIZE cap by evicting the oldest entry', async () => {
+    const fullQueue = Array.from({ length: OFFLINE_QUEUE_MAX_SIZE }, (_, i) => ({
+      id: `id-${i}`,
+      report: { ...makeSampleReport(), message: `msg-${i}` },
+      queuedAt: new Date().toISOString(),
+    }));
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(fullQueue));
+
+    await queueReport({ ...makeSampleReport(), message: 'newest' });
+
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[0] as [string, string];
+    const saved = JSON.parse(raw);
+    expect(saved).toHaveLength(OFFLINE_QUEUE_MAX_SIZE);
+    expect(saved[saved.length - 1].report.message).toBe('newest');
+    expect(saved[0].id).toBe('id-1');
+  });
+
+  it('does not throw when AsyncStorage.getItem rejects', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('storage failure'));
+
+    await expect(queueReport(makeSampleReport())).resolves.toBeUndefined();
+  });
+
+  it('does not throw when AsyncStorage.setItem rejects', async () => {
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('write failure'));
+
+    await expect(queueReport(makeSampleReport())).resolves.toBeUndefined();
+  });
+});
+
+describe('sendToServer', () => {
+  const TEST_URL = 'https://crash.example.com/reports';
+  let mockFetch: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    mockFetch = jest.fn();
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete global.fetch;
+  });
+
+  it('POSTs to the provided URL with JSON content-type', async () => {
+    mockFetch.mockResolvedValue({ ok: true });
+    const report = makeSampleReport();
+
+    await sendToServer(report, TEST_URL);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(TEST_URL);
+    expect(options.method).toBe('POST');
+    expect((options.headers as Record<string, string>)['Content-Type']).toBe('application/json');
+  });
+
+  it('sends the report as JSON in the request body', async () => {
+    mockFetch.mockResolvedValue({ ok: true });
+    const report = makeSampleReport();
+
+    await sendToServer(report, TEST_URL);
+
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(options.body as string)).toEqual(report);
+  });
+
+  it('does not queue the report when the server responds with 2xx', async () => {
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await sendToServer(makeSampleReport(), TEST_URL);
+
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+
+  it('queues the report when fetch throws (network offline)', async () => {
+    mockFetch.mockRejectedValue(new Error('Network request failed'));
+
+    await sendToServer(makeSampleReport(), TEST_URL);
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    const [key] = (AsyncStorage.setItem as jest.Mock).mock.calls[0] as [string, string];
+    expect(key).toBe(OFFLINE_QUEUE_STORAGE_KEY);
+  });
+
+  it('queues the report when the server returns a non-2xx status', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 503 });
+
+    await sendToServer(makeSampleReport(), TEST_URL);
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not throw when both fetch and queueReport fail', async () => {
+    mockFetch.mockRejectedValue(new Error('offline'));
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('storage dead'));
+
+    await expect(sendToServer(makeSampleReport(), TEST_URL)).resolves.toBeUndefined();
+  });
+});
+
+describe('flushOfflineQueue', () => {
+  const FLUSH_URL = 'https://crash.example.com/reports';
+  let mockFetch: jest.Mock;
+
+  function makeQueuedReport(msgSuffix: string) {
+    return {
+      id: `id-${msgSuffix}`,
+      report: { ...makeSampleReport(), message: `msg-${msgSuffix}` },
+      queuedAt: new Date().toISOString(),
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    mockFetch = jest.fn();
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete global.fetch;
+  });
+
+  it('does nothing when the queue is empty', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('POSTs each queued report to the server URL', async () => {
+    const queue = [makeQueuedReport('a'), makeQueuedReport('b')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('removes all reports from the queue when all sends succeed', async () => {
+    const queue = [makeQueuedReport('1'), makeQueuedReport('2')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[
+      (AsyncStorage.setItem as jest.Mock).mock.calls.length - 1
+    ] as [string, string];
+    expect(JSON.parse(raw)).toHaveLength(0);
+  });
+
+  it('retains all reports when the first send fails and stops retrying', async () => {
+    const queue = [makeQueuedReport('x'), makeQueuedReport('y')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockRejectedValue(new Error('offline'));
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[
+      (AsyncStorage.setItem as jest.Mock).mock.calls.length - 1
+    ] as [string, string];
+    expect(JSON.parse(raw)).toHaveLength(2);
+  });
+
+  it('delivers reports in insertion order (oldest first)', async () => {
+    const queue = [makeQueuedReport('first'), makeQueuedReport('second')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    const bodies = (mockFetch as jest.Mock).mock.calls.map(
+      ([, opts]: [string, RequestInit]) => (JSON.parse(opts.body as string) as { message: string }).message,
+    );
+    expect(bodies[0]).toBe('msg-first');
+    expect(bodies[1]).toBe('msg-second');
+  });
+
+  it('delivers the first report and retains only the failing second', async () => {
+    const queue = [makeQueuedReport('ok'), makeQueuedReport('fail')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch
+      .mockResolvedValueOnce({ ok: true })
+      .mockRejectedValueOnce(new Error('offline'));
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[
+      (AsyncStorage.setItem as jest.Mock).mock.calls.length - 1
+    ] as [string, string];
+    const remaining = JSON.parse(raw);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].report.message).toBe('msg-fail');
+  });
+
+  it('does not throw when AsyncStorage read fails', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('read error'));
+
+    await expect(flushOfflineQueue(FLUSH_URL)).resolves.toBeUndefined();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when AsyncStorage write fails after successful sends', async () => {
+    const queue = [makeQueuedReport('a')];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+    (AsyncStorage.setItem as jest.Mock).mockRejectedValue(new Error('write error'));
+
+    await expect(flushOfflineQueue(FLUSH_URL)).resolves.toBeUndefined();
+  });
+});
+
+describe('initOfflineRetry', () => {
+  const SERVER_URL = 'https://crash.example.com/reports';
+  let mockFetch: jest.Mock;
+  let mockRemove: jest.Mock;
+  let mockNetInfoUnsubscribe: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRemove = jest.fn();
+    mockNetInfoUnsubscribe = jest.fn();
+    mockAddEventListener.mockReturnValue({ remove: mockRemove });
+    mockNetInfoAddEventListener.mockReturnValue(mockNetInfoUnsubscribe);
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    mockFetch = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    // Cleanup: remove any lingering listeners.
+    initOfflineRetry(null);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete global.fetch;
+  });
+
+  it('registers a NetInfo connectivity listener', () => {
+    initOfflineRetry(SERVER_URL);
+
+    expect(mockNetInfoAddEventListener).toHaveBeenCalledWith(expect.any(Function));
+  });
+
+  it('registers an AppState "change" listener as a supplemental trigger', () => {
+    initOfflineRetry(SERVER_URL);
+
+    expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+  });
+
+  it('does not register any listeners when serverUrl is null', () => {
+    initOfflineRetry(null);
+
+    expect(mockNetInfoAddEventListener).not.toHaveBeenCalled();
+    expect(mockAddEventListener).not.toHaveBeenCalled();
+  });
+
+  it('unsubscribes the previous NetInfo listener before registering a new one', () => {
+    initOfflineRetry(SERVER_URL);
+    const firstUnsubscribe = mockNetInfoUnsubscribe;
+
+    initOfflineRetry(SERVER_URL);
+
+    expect(firstUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the previous AppState listener before registering a new one', () => {
+    initOfflineRetry(SERVER_URL);
+    const firstRemove = mockRemove;
+
+    initOfflineRetry(SERVER_URL);
+
+    expect(firstRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes the queue when NetInfo reports internet reachable (false → true transition)', async () => {
+    const queue = [{ id: 'q1', report: makeSampleReport(), queuedAt: new Date().toISOString() }];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+
+    initOfflineRetry(SERVER_URL);
+
+    // Simulate NetInfo: not reachable, then reachable.
+    const [netInfoHandler] = mockNetInfoAddEventListener.mock.calls[0] as [(state: object) => void];
+    netInfoHandler({ isInternetReachable: false });
+    await new Promise(setImmediate);
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    netInfoHandler({ isInternetReachable: true });
+    await new Promise(setImmediate);
+
+    expect(mockFetch).toHaveBeenCalled();
+  });
+
+  it('does not flush again when NetInfo remains reachable (true → true, no new transition)', async () => {
+    const queue = [{ id: 'q2', report: makeSampleReport(), queuedAt: new Date().toISOString() }];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    initOfflineRetry(SERVER_URL);
+
+    const [netInfoHandler] = mockNetInfoAddEventListener.mock.calls[0] as [(state: object) => void];
+
+    // First transition: null → true (initial state unknown → reachable).
+    netInfoHandler({ isInternetReachable: true });
+    await new Promise(setImmediate);
+    const firstCallCount = mockFetch.mock.calls.length;
+
+    // Still reachable: should not trigger another flush.
+    netInfoHandler({ isInternetReachable: true });
+    await new Promise(setImmediate);
+
+    expect(mockFetch.mock.calls.length).toBe(firstCallCount);
+  });
+
+  it('flushes the queue when the AppState transitions to "active"', async () => {
+    const queue = [{ id: 'q3', report: makeSampleReport(), queuedAt: new Date().toISOString() }];
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    initOfflineRetry(SERVER_URL);
+
+    // Capture the AppState handler before clearing mocks.
+    const [, appStateHandler] = mockAddEventListener.mock.calls[0] as [string, (state: string) => void];
+
+    // Clear any calls from the initial flush.
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(queue));
+    mockFetch.mockResolvedValue({ ok: true });
+
+    appStateHandler('active');
+    await new Promise(setImmediate);
+
+    expect(mockFetch).toHaveBeenCalled();
+  });
+
+  it('does not flush when AppState transitions to "background"', async () => {
+    initOfflineRetry(SERVER_URL);
+
+    // Capture the AppState handler before clearing mocks.
+    const [, appStateHandler] = mockAddEventListener.mock.calls[0] as [string, (state: string) => void];
+
+    jest.clearAllMocks();
+
+    appStateHandler('background');
+    await new Promise(setImmediate);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('end-to-end: reportError offline → queue persisted → connectivity restored → flushed', () => {
+  const SERVER_URL = 'https://crash.example.com/reports';
+  let mockFetch: jest.Mock;
+  let mockRemove: jest.Mock;
+  let mockNetInfoUnsubscribe: jest.Mock;
+  let storedQueue: string | null;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRemove = jest.fn();
+    mockNetInfoUnsubscribe = jest.fn();
+    mockAddEventListener.mockReturnValue({ remove: mockRemove });
+    mockNetInfoAddEventListener.mockReturnValue(mockNetInfoUnsubscribe);
+
+    // Simulate a real AsyncStorage that accumulates state.
+    storedQueue = null;
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(() =>
+      Promise.resolve(storedQueue),
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation((_key: string, value: string) => {
+      storedQueue = value;
+      return Promise.resolve(undefined);
+    });
+    (AsyncStorage.removeItem as jest.Mock).mockImplementation(() => {
+      storedQueue = null;
+      return Promise.resolve(undefined);
+    });
+
+    mockFetch = jest.fn();
+    global.fetch = mockFetch;
+
+    // Provide a full mock scope so reportError / reportFatalError don't throw.
+    (Sentry.withScope as jest.Mock).mockImplementation(
+      (cb: (scope: ReturnType<typeof makeMockScope>) => void) => { cb(makeMockScope()); },
+    );
+
+    // Wire up offline retry (as App.tsx does at startup).
+    initOfflineRetry(SERVER_URL);
+  });
+
+  afterEach(() => {
+    initOfflineRetry(null);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete global.fetch;
+  });
+
+  it('queues a report from reportError when the server is offline, then delivers it on NetInfo reconnect', async () => {
+    // Step 1: device is offline — sendToServer should queue.
+    mockFetch.mockRejectedValue(new Error('Network request failed'));
+
+    reportError(new Error('offline error'), 'TestScreen');
+
+    // Allow the async sendToServer → queueReport chain to settle.
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+
+    // The queue should contain exactly one entry.
+    const queueAfterOffline = JSON.parse(storedQueue ?? '[]');
+    expect(queueAfterOffline).toHaveLength(1);
+    expect(queueAfterOffline[0].report.message).toBe('offline error');
+
+    // Step 2: connectivity restored — NetInfo fires isInternetReachable = true.
+    mockFetch.mockResolvedValue({ ok: true });
+
+    const [netInfoHandler] = mockNetInfoAddEventListener.mock.calls[0] as [(s: object) => void];
+    // Simulate transition: offline (false) → online (true)
+    netInfoHandler({ isInternetReachable: false });
+    await new Promise(setImmediate);
+    netInfoHandler({ isInternetReachable: true });
+
+    // Allow the flush to complete (multiple micro-tasks due to chain).
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+
+    // The report should have been POSTed.
+    const postCalls = mockFetch.mock.calls.filter(
+      ([url]: [string]) => url === SERVER_URL,
+    );
+    expect(postCalls.length).toBeGreaterThan(0);
+
+    // The queue should now be empty.
+    const queueAfterFlush = JSON.parse(storedQueue ?? '[]');
+    expect(queueAfterFlush).toHaveLength(0);
+  });
+
+  it('queues a report from reportFatalError when offline, then delivers on AppState foreground', async () => {
+    // Step 1: offline.
+    mockFetch.mockRejectedValue(new Error('offline'));
+
+    reportFatalError(new Error('fatal offline'), 'CrashScreen');
+
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+
+    const queuedBefore = JSON.parse(storedQueue ?? '[]');
+    expect(queuedBefore).toHaveLength(1);
+    expect(queuedBefore[0].report.isFatal).toBe(true);
+
+    // Step 2: app comes to foreground — assume connectivity now available.
+    mockFetch.mockResolvedValue({ ok: true });
+
+    const [, appStateHandler] = mockAddEventListener.mock.calls[0] as [string, (s: string) => void];
+    appStateHandler('active');
+
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+    await new Promise(setImmediate);
+
+    const queueAfterFlush = JSON.parse(storedQueue ?? '[]');
+    expect(queueAfterFlush).toHaveLength(0);
+    expect(mockFetch).toHaveBeenCalled();
+  });
+});
+
+describe('queueReport — concurrent writes do not overwrite each other', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Simulate AsyncStorage that returns an empty queue initially and accumulates writes.
+    let stored: string | null = null;
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(() =>
+      Promise.resolve(stored),
+    );
+    (AsyncStorage.setItem as jest.Mock).mockImplementation((_key: string, value: string) => {
+      stored = value;
+      return Promise.resolve(undefined);
+    });
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('serialises concurrent queueReport calls so no entry is lost', async () => {
+    const reports = Array.from({ length: 5 }, (_, i) => ({
+      ...makeSampleReport(),
+      message: `concurrent-${i}`,
+    }));
+
+    // Fire all five queueReport calls concurrently.
+    await Promise.all(reports.map((r) => queueReport(r)));
+
+    const queue = await readOfflineQueue();
+    expect(queue).toHaveLength(5);
+    const messages = queue.map((e) => e.report.message);
+    reports.forEach((r) => expect(messages).toContain(r.message));
   });
 });

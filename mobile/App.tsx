@@ -6,12 +6,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { initSentry, installGlobalHandlers, hydrateSpanExpiryEvents } from './src/utils/crashReporter';
+import { initSentry, installGlobalHandlers, hydrateSpanExpiryEvents, initOfflineRetry } from './src/utils/crashReporter';
+import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 
 initSentry();
 installGlobalHandlers();
 hydrateSpanExpiryEvents();
+
+// Wire up offline crash-report retry. Reports that fail while the device is
+// offline are queued in AsyncStorage and replayed when internet connectivity
+// returns (via NetInfo) or the app foregrounds (via AppState).
+const _crashServerUrl = Constants.expoConfig?.extra?.crashReporterUrl as string | undefined ?? null;
+initOfflineRetry(_crashServerUrl);
 
 // TEMPORARY: remove once Sentry is confirmed working
 Sentry.captureMessage('Bubble app started — Sentry connectivity test', 'info');
