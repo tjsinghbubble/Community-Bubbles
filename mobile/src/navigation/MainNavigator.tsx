@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Platform, View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet, Linking, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, CardShadow } from '../styles/theme';
 import { NavigatorScreenParams, useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
@@ -14,6 +15,11 @@ import apiService from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
 import { ExploreIcon, UpcomingIcon, BubblesIcon, MessagesIcon, ProfileIcon } from '../components/icons';
 import unreadEvents from '../utils/unreadEvents';
+import { useAppVersionCheck } from '../hooks/useAppVersionCheck';
+
+const STORE_URL = Platform.OS === 'ios'
+  ? 'https://apps.apple.com/app/id6743069298'
+  : 'https://play.google.com/store/apps/details?id=io.trybubble.app';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -31,6 +37,9 @@ export default function MainNavigator() {
   const { user } = useAuth();
   const [adminCount, setAdminCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { updateAvailable } = useAppVersionCheck();
+  const [updateDismissed, setUpdateDismissed] = useState(false);
+  const showUpdateBanner = updateAvailable && !updateDismissed;
 
   const fetchAdminCount = useCallback(async () => {
     if (!user) return;
@@ -72,7 +81,28 @@ export default function MainNavigator() {
   );
 
   return (
-    <Tab.Navigator
+    <View style={bannerStyles.root}>
+      {showUpdateBanner && (
+        <View style={[bannerStyles.banner, { paddingTop: insets.top + Spacing.sm }]} testID="banner-update-nudge">
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={bannerStyles.bannerCta}
+            onPress={() => Linking.openURL(STORE_URL).catch(() => {})}
+            testID="button-open-store"
+          >
+            <Ionicons name="arrow-up-circle" size={18} color="#FFFFFF" />
+            <Text style={bannerStyles.bannerText}>Update available — tap to get the latest</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setUpdateDismissed(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID="button-dismiss-update-nudge"
+          >
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+      <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -184,8 +214,36 @@ export default function MainNavigator() {
         })}
       />
     </Tab.Navigator>
+    </View>
   );
 }
+
+const bannerStyles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  banner: {
+    backgroundColor: Colors.brand.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+  },
+  bannerCta: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  bannerText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+  },
+});
 
 const badgeStyles = StyleSheet.create({
   badge: {
