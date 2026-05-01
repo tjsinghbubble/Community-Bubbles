@@ -1,0 +1,38 @@
+unning "expo doctor"
+Running 17 checks on your project...
+13/17 checks passed. 4 checks failed. Possible issues detected:
+Use the --verbose flag to see more details about passed checks.
+✖ Check for lock file
+No lock file detected.
+Advice:
+Install dependencies using the package manager of your choice to a generate a lock file.
+✖ Check Expo config for common issues
+You have an app.json file in your project, but your app.config.js is not using the values from it.
+Advice:
+Remove the static app.json, or use its values in your dynamic app.config.js. Learn more: https://docs.expo.dev/workflow/configuration
+✖ Check that no duplicate dependencies are installed
+Your project contains duplicate native module dependencies, which should be de-duplicated.
+Native builds may only contain one version of any given native module, and having multiple versions of a single Native module installed may lead to unexpected build errors.
+Found duplicates for expo-constants:
+  ├─ expo-constants@17.0.8 (at: node_modules/expo-constants)
+  ├─ expo-constants@18.0.13 (at: node_modules/expo/node_modules/expo-constants)
+  ├─ expo-constants@18.0.13 (at: node_modules/expo-asset/node_modules/expo-constants)
+  ├─ expo-constants@18.0.13 (at: node_modules/expo-linking/node_modules/expo-constants)
+  └─ expo-constants@18.0.13 (at: node_modules/expo-notifications/node_modules/expo-constants)
+Advice:
+Resolve your dependency issues and deduplicate your dependencies. Learn more: https://expo.fyi/resolving-dependency-issues
+✖ Check that packages match versions required by installed Expo SDK
+❗ Major version mismatches
+package         expected  found   
+expo-constants  ~18.0.13  17.0.8  
+expo-haptics    ~15.0.8   14.0.1  
+Changelogs:
+- expo-constants → https://github.com/expo/expo/blob/sdk-54/packages/expo-constants/CHANGELOG.md
+- expo-haptics → https://github.com/expo/expo/blob/sdk-54/packages/expo-haptics/CHANGELOG.md
+2 packages out of date.
+Advice:
+Use 'npx expo install --check' to review and upgrade your dependencies.
+To ignore specific packages, add them to "expo.install.exclude" in package.json. Learn more: https://expo.fyi/dependency-validation
+4 checks failed, indicating possible issues with the project.
+Command "expo doctor" failed.
+npx -y expo-doctor exited with non-zero code: 1
