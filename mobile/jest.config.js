@@ -1,5 +1,5 @@
 module.exports = {
-  preset: 'jest-expo',
+  preset: 'jest-expo/ios',
   testMatch: ['**/src/**/__tests__/**/*.test.(ts|tsx)'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   transformIgnorePatterns: [
@@ -20,5 +20,7 @@ module.exports = {
     '^react/jsx-dev-runtime$': '<rootDir>/../node_modules/react/jsx-dev-runtime',
     '^nativewind/jsx-runtime$': '<rootDir>/../node_modules/react/jsx-runtime',
     '^nativewind/jsx-dev-runtime$': '<rootDir>/../node_modules/react/jsx-dev-runtime',
+    '^react-native$': '<rootDir>/../node_modules/react-native',
+    '^react-native/(.*)': '<rootDir>/../node_modules/react-native/$1',
   },
 };
