@@ -242,7 +242,7 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
     const member = selectedMember;
     Alert.alert(
       `Remove '${member.user.name}' from '${bubbleTitle}'?`,
-      undefined,
+      `${member.user.name} will lose access to this bubble. Their direct message conversations with members of this bubble will also be hidden.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {

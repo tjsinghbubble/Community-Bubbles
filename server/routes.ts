@@ -1871,7 +1871,7 @@ export async function registerRoutes(
         recipientId: userId,
         type: "bubble_member_removed",
         title: "Removed from Bubble",
-        body: `You've been removed from ${kickBubble?.title || 'the bubble'}. Your DM conversations with that bubble have been hidden.`,
+        body: `You've been removed from ${kickBubble?.title || 'the bubble'}. Your direct message conversations with members of this bubble have been hidden.`,
         metadata: { bubbleId, bubbleName: kickBubble?.title },
       });
       
