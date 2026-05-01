@@ -162,7 +162,8 @@ export default function NotificationsScreen() {
         scaleValue={0.97}
         onPress={() => handleNotificationTap(item)}
         onLongPress={() => handleDeleteNotification(item.id)}
-        testID={`notification-item-${item.id}`}
+        testID={`notifications-item-${item.id}`}
+        accessibilityLabel={item.title}
       >
         <View style={[styles.iconCircle, { backgroundColor: iconInfo.bg }]}>
           <Ionicons name={iconInfo.name} size={20} color={iconInfo.color} />
@@ -195,12 +196,12 @@ export default function NotificationsScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} data-testid="button-back">
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} testID="notifications-back-button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notifications</Text>
         {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton} data-testid="button-mark-all-read">
+          <TouchableOpacity onPress={handleMarkAllRead} style={styles.markAllButton} testID="notifications-mark-all-read-button" accessibilityLabel="Mark all notifications as read">
             <Text style={styles.markAllText}>Mark all read</Text>
           </TouchableOpacity>
         )}

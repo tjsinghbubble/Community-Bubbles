@@ -118,6 +118,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       <TouchableOpacity
         style={[styles.filterChip, selectedTypeId === null && styles.filterChipActive]}
         onPress={() => handleFilterChange(null)}
+        testID="bulletin-filter-all"
+        accessibilityLabel="Filter: All"
       >
         <Text style={[styles.filterChipText, selectedTypeId === null && styles.filterChipTextActive]}>All</Text>
       </TouchableOpacity>
@@ -126,6 +128,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           key={pt.id}
           style={[styles.filterChip, selectedTypeId === pt.id && styles.filterChipActive]}
           onPress={() => handleFilterChange(pt.id)}
+          testID={`bulletin-filter-${pt.name}`}
+          accessibilityLabel={`Filter: ${pt.displayName}`}
         >
           <Text style={[styles.filterChipText, selectedTypeId === pt.id && styles.filterChipTextActive]}>{pt.displayName}</Text>
         </TouchableOpacity>
@@ -142,6 +146,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         ]}
         scaleValue={0.97}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
+        testID={`bulletin-post-card-${item.id}`}
+        accessibilityLabel={item.title}
       >
         <View style={styles.postTypeRow}>
           <View style={[styles.postTypeBadge, { backgroundColor: item.postType.color + '20' }]}>
@@ -180,6 +186,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
       <TouchableOpacity
         onPress={handleCreatePost}
         activeOpacity={0.8}
+        testID="bulletin-create-post-empty"
+        accessibilityLabel="Create a post"
       >
         <LinearGradient
           colors={Gradients.button.colors as [string, string]}
@@ -197,13 +205,15 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} testID="bulletin-back-button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bulletin Board</Text>
         <TouchableOpacity
           onPress={handleCreatePost}
           activeOpacity={0.8}
+          testID="bulletin-create-post-button"
+          accessibilityLabel="Create new post"
         >
           <LinearGradient
             colors={Gradients.button.colors as [string, string]}

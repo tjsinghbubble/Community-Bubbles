@@ -65,6 +65,8 @@ export default function WelcomeScreen({ navigation }: Props) {
         <View style={styles.buttons}>
           <TouchableOpacity
             onPress={() => navigation.navigate('Signup')}
+            testID="welcome-sign-up-button"
+            accessibilityLabel="Sign up"
           >
             <LinearGradient
               colors={Gradients.button.colors as [string, string]}
@@ -79,6 +81,8 @@ export default function WelcomeScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.logInButton}
             onPress={() => navigation.navigate('Login')}
+            testID="welcome-log-in-button"
+            accessibilityLabel="Log in"
           >
             <Text style={styles.logInText}>Log In</Text>
           </TouchableOpacity>

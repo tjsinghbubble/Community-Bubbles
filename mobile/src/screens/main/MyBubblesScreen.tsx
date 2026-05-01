@@ -131,7 +131,7 @@ export default function MyBubblesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Bubbles</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
+        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')} testID="my-bubbles-notifications-button" accessibilityLabel="View notifications">
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
             {unreadNotifCount > 0 && (
@@ -152,7 +152,7 @@ export default function MyBubblesScreen() {
           <Text style={styles.emptySubtitle}>
             Join some bubbles from the Explore tab or create your own!
           </Text>
-          <TouchableOpacity onPress={handleCreateBubble}>
+          <TouchableOpacity onPress={handleCreateBubble} testID="my-bubbles-create-first-button" accessibilityLabel="Create a bubble">
             <LinearGradient
               colors={Gradients.button.colors as [string, string]}
               start={Gradients.button.start}
@@ -178,6 +178,8 @@ export default function MyBubblesScreen() {
                 style={styles.gridCard}
                 scaleValue={0.95}
                 onPress={() => handleBubblePress(bubble)}
+                testID={`my-bubbles-bubble-card-${bubble.id}`}
+                accessibilityLabel={bubble.title}
               >
                 <View style={styles.gridImageContainer}>
                   <Image
@@ -210,7 +212,7 @@ export default function MyBubblesScreen() {
         </ScrollView>
       )}
 
-      <TouchableOpacity onPress={handleCreateBubble} style={styles.fab} activeOpacity={0.8}>
+      <TouchableOpacity onPress={handleCreateBubble} style={styles.fab} activeOpacity={0.8} testID="my-bubbles-create-fab" accessibilityLabel="Create a bubble">
         <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
     </SafeAreaView>

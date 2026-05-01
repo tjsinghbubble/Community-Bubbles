@@ -425,11 +425,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const renderHeader = () => (
     <View>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton} testID="bubble-details-back-button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
-        <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>
+        <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton} testID="bubble-details-kebab-menu-button" accessibilityLabel="More options">
           <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>
@@ -450,30 +450,30 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         onPress={() => setShowKebabMenu(false)}
       >
         <View style={styles.kebabDropdown}>
-          <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble} testID="bubble-details-menu-share" accessibilityLabel="Share Bubble">
             <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Share Bubble</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat} testID="bubble-details-menu-chat" accessibilityLabel="Bubble Chat">
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Bubble Chat</Text>
           </TouchableOpacity>
           {canManage && (
             <>
               <View style={styles.kebabSeparatorLight} />
-              <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}>
+              <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }} testID="bubble-details-menu-manage" accessibilityLabel="Manage Bubble">
                 <CrownIcon size={20} color={Colors.brand.primary} />
                 <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Manage Bubble</Text>
               </TouchableOpacity>
             </>
           )}
           <View style={styles.kebabSeparatorMedium} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern} testID="bubble-details-menu-report-concern" accessibilityLabel="Report a Concern">
             <FlagIcon size={20} color={Colors.status.error} />
             <Text style={styles.kebabItemText}>Report a Concern</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparatorLight} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
+          <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble} testID="bubble-details-menu-report-bubble" accessibilityLabel="Report this Bubble">
             <FlagIcon size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
           </TouchableOpacity>
@@ -488,12 +488,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'Details' && styles.tabActive]}
           onPress={() => setActiveTab('Details')}
+          testID="bubble-details-tab-details"
+          accessibilityLabel="Details tab"
         >
           <Text style={[styles.tabText, activeTab === 'Details' && styles.tabTextActive]}>Details</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'Events' && styles.tabActive]}
           onPress={() => setActiveTab('Events')}
+          testID="bubble-details-tab-events"
+          accessibilityLabel="Events tab"
         >
           <Text style={[styles.tabText, activeTab === 'Events' && styles.tabTextActive]}>Events</Text>
         </TouchableOpacity>
@@ -528,7 +532,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           fallbackImage="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800"
           borderRadius={Radius.md}
         />
-        <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress}>
+        <TouchableOpacity style={styles.cameraButton} onPress={handleCameraPress} testID="bubble-details-camera-button" accessibilityLabel="Change cover photo">
           <Ionicons name="camera" size={20} color={Colors.brand.primary} />
         </TouchableOpacity>
       </View>
@@ -552,7 +556,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionHeading}>Bulletin Board</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}>
+        <TouchableOpacity onPress={() => navigation.navigate('BulletinBoard' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })} testID="bubble-details-view-all-posts" accessibilityLabel="View all posts">
           <Text style={styles.linkText}>view all {'>'}</Text>
         </TouchableOpacity>
       </View>
@@ -563,6 +567,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
             style={[styles.bulletinCard, { marginBottom: Spacing.sm, borderLeftWidth: 3, borderLeftColor: '#FF9800' }]}
             onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id, bubbleId: bubble.id })}
             activeOpacity={0.7}
+            testID={`bubble-details-announcement-${post.id}`}
+            accessibilityLabel={post.title}
           >
             {post.isPinned && <Text style={styles.pinIcon}>📌</Text>}
             <Text style={styles.bulletinTitle}>{post.title}</Text>
@@ -579,7 +585,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const renderAboutSection = () => (
     <View style={styles.section}>
-      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAboutExpanded(!aboutExpanded)}>
+      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAboutExpanded(!aboutExpanded)} testID="bubble-details-about-toggle" accessibilityLabel={aboutExpanded ? "Collapse About section" : "Expand About section"}>
         <Text style={styles.sectionHeading}>About</Text>
         {aboutExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
@@ -593,7 +599,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
 
   const renderAttachmentsSection = () => (
     <View style={styles.section}>
-      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)}>
+      <TouchableOpacity style={styles.sectionHeaderRow} onPress={() => setAttachmentsExpanded(!attachmentsExpanded)} testID="bubble-details-attachments-toggle" accessibilityLabel={attachmentsExpanded ? "Collapse Attachments section" : "Expand Attachments section"}>
         <Text style={styles.sectionHeading}>Attachments</Text>
         {attachmentsExpanded ? <ChevronUpIcon size={22} color={Colors.text.primary} /> : <ChevronDownIcon size={22} color={Colors.text.primary} />}
       </TouchableOpacity>
@@ -605,7 +611,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               <Text style={styles.attachmentText}>{item}</Text>
             </View>
           ))}
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity style={styles.addButton} testID="bubble-details-add-attachment" accessibilityLabel="Add attachment">
             <Text style={styles.addButtonText}>+ Add</Text>
           </TouchableOpacity>
         </View>
@@ -621,7 +627,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>
-        <TouchableOpacity onPress={handleViewMembers}>
+        <TouchableOpacity onPress={handleViewMembers} testID="bubble-details-view-members" accessibilityLabel="View members">
           <Text style={styles.linkText}>view {'>'}</Text>
         </TouchableOpacity>
       </View>
@@ -638,6 +644,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
+          testID="bubble-details-leave-button"
+          accessibilityLabel="Leave Bubble"
         >
           {isJoining ? (
             <ActivityIndicator color={Colors.status.error} size="small" />
@@ -655,6 +663,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           scaleValue={0.96}
           onPress={handleJoinLeave}
           disabled={isJoining}
+          testID="bubble-details-pending-button"
+          accessibilityLabel="Request Pending"
         >
           {isJoining ? (
             <ActivityIndicator color={Colors.neutral.coolMist} size="small" />
@@ -674,6 +684,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         scaleValue={0.96}
         onPress={handleJoinLeave}
         disabled={isJoining}
+        testID="bubble-details-join-button"
+        accessibilityLabel={buttonLabel}
       >
         <LinearGradient
           colors={[...Gradients.button.colors] as [string, string]}
@@ -755,6 +767,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       key={event.id}
       style={styles.eventCard}
       onPress={() => handleEventPress(event)}
+      testID={`bubble-details-event-card-${event.id}`}
+      accessibilityLabel={event.title}
     >
       <Image
         source={{
@@ -825,6 +839,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={styles.createFab}
           onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
           activeOpacity={0.8}
+          testID="bubble-details-create-event-fab"
+          accessibilityLabel="Create event"
         >
           <CreateBubbleEventIcon size={56} />
         </TouchableOpacity>
@@ -849,7 +865,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <View style={styles.reportDialog}>
             <View style={styles.reportHeader}>
               <Text style={styles.reportTitle}>Report a Concern</Text>
-              <TouchableOpacity onPress={() => setReportModalVisible(false)}>
+              <TouchableOpacity onPress={() => setReportModalVisible(false)} testID="bubble-details-report-concern-close" accessibilityLabel="Close report a concern">
                 <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
@@ -865,6 +881,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                     reportReason === reason && styles.reportReasonSelected,
                   ]}
                   onPress={() => setReportReason(reason)}
+                  testID={`bubble-details-report-concern-reason-${reason.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                  accessibilityLabel={reason}
                 >
                   <Text style={[
                     styles.reportReasonText,
@@ -885,11 +903,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              testID="bubble-details-report-concern-text-input"
+              accessibilityLabel="Additional details for report"
             />
             <TouchableOpacity
               style={[styles.reportSubmitButton, !reportReason && styles.reportSubmitDisabled]}
               onPress={submitReport}
               disabled={!reportReason || reportSubmitting}
+              testID="bubble-details-report-concern-submit"
+              accessibilityLabel="Submit report"
             >
               {reportSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -913,7 +935,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <View style={styles.reportDialog}>
             <View style={styles.reportHeader}>
               <Text style={styles.reportTitle}>Report this Bubble</Text>
-              <TouchableOpacity onPress={() => setBubbleReportModalVisible(false)}>
+              <TouchableOpacity onPress={() => setBubbleReportModalVisible(false)} testID="bubble-details-report-bubble-close" accessibilityLabel="Close report this bubble">
                 <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
@@ -929,6 +951,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
                     bubbleReportReason === reason && styles.reportReasonSelected,
                   ]}
                   onPress={() => setBubbleReportReason(reason)}
+                  testID={`bubble-details-report-bubble-reason-${reason.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                  accessibilityLabel={reason}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -954,11 +978,15 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
               multiline
               numberOfLines={3}
               textAlignVertical="top"
+              testID="bubble-details-report-bubble-text-input"
+              accessibilityLabel="Additional details for bubble report"
             />
             <TouchableOpacity
               style={[styles.reportSubmitButton, !bubbleReportReason && styles.reportSubmitDisabled]}
               onPress={submitBubbleReport}
               disabled={!bubbleReportReason || bubbleReportSubmitting}
+              testID="bubble-details-report-bubble-submit"
+              accessibilityLabel="Submit bubble report"
             >
               {bubbleReportSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />

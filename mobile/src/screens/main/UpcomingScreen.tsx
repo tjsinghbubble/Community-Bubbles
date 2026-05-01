@@ -136,7 +136,7 @@ export default function UpcomingScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Upcoming Events</Text>
-          <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+          <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })} testID="upcoming-notifications-button" accessibilityLabel="View notifications">
             <View>
               <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
             </View>
@@ -151,7 +151,7 @@ export default function UpcomingScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Upcoming Events</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })} testID="upcoming-notifications-button" accessibilityLabel="View notifications">
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
             {unreadNotifCount > 0 && (
@@ -197,6 +197,8 @@ export default function UpcomingScreen() {
                   style={styles.eventCard}
                   scaleValue={0.97}
                   onPress={() => handleEventPress(event)}
+                  testID={`upcoming-event-card-${event.id}`}
+                  accessibilityLabel={event.title}
                 >
                   {event.bubble && (
                     <Text style={styles.bubbleName}>{event.bubble.title}</Text>

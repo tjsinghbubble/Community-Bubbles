@@ -99,9 +99,11 @@ export default function SignupScreen({ navigation }: Props) {
         style={styles.keyboardView}
       >
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            testID="signup-back-button"
+            accessibilityLabel="Go back"
           >
             <Ionicons name="arrow-back" size={24} color={Colors.brand.midnight} />
           </TouchableOpacity>
@@ -123,6 +125,8 @@ export default function SignupScreen({ navigation }: Props) {
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
+                testID="signup-name-input"
+                accessibilityLabel="Full name"
               />
               <Text style={styles.helperText}>
                 Make sure this matches the name on your government ID.
@@ -131,9 +135,11 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Gender</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.selectInput}
                 onPress={() => setShowGenderPicker(true)}
+                testID="signup-gender-picker"
+                accessibilityLabel="Select gender"
               >
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
@@ -144,9 +150,11 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.selectInput}
                 onPress={() => setShowDatePicker(true)}
+                testID="signup-dob-picker"
+                accessibilityLabel="Select date of birth"
               >
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
@@ -169,6 +177,8 @@ export default function SignupScreen({ navigation }: Props) {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                testID="signup-email-input"
+                accessibilityLabel="Email address"
               />
               <Text style={styles.helperText}>
                 We'll email you with occasional updates on your communities.
@@ -185,10 +195,14 @@ export default function SignupScreen({ navigation }: Props) {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  testID="signup-password-input"
+                  accessibilityLabel="Password"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setShowPassword(!showPassword)}
+                  testID="signup-password-toggle"
+                  accessibilityLabel="Toggle password visibility"
                 >
                   {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
                 </TouchableOpacity>
@@ -198,6 +212,8 @@ export default function SignupScreen({ navigation }: Props) {
             <TouchableOpacity
               onPress={handleContinue}
               disabled={!isFormValid || loading}
+              testID="signup-continue-button"
+              accessibilityLabel="Continue"
             >
               <LinearGradient
                 colors={Gradients.button.colors as [string, string]}
@@ -233,7 +249,7 @@ export default function SignupScreen({ navigation }: Props) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
-              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+              <TouchableOpacity onPress={() => setShowGenderPicker(false)} testID="signup-gender-modal-close" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
@@ -245,6 +261,8 @@ export default function SignupScreen({ navigation }: Props) {
                   setGender(option);
                   setShowGenderPicker(false);
                 }}
+                testID={`signup-gender-${option.toLowerCase().replace(/\s+/g, '-').replace(/-$/, '')}`}
+                accessibilityLabel={option}
               >
                 <Text style={[
                   styles.modalOptionText,
@@ -275,7 +293,7 @@ export default function SignupScreen({ navigation }: Props) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Date of Birth</Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} testID="signup-dob-modal-close" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
@@ -290,6 +308,8 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => setBirthMonth(text.slice(0, 2))}
                   keyboardType="number-pad"
                   maxLength={2}
+                  testID="signup-dob-month"
+                  accessibilityLabel="Birth month"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -302,6 +322,8 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => setBirthDay(text.slice(0, 2))}
                   keyboardType="number-pad"
                   maxLength={2}
+                  testID="signup-dob-day"
+                  accessibilityLabel="Birth day"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -314,12 +336,16 @@ export default function SignupScreen({ navigation }: Props) {
                   onChangeText={(text) => setBirthYear(text.slice(0, 4))}
                   keyboardType="number-pad"
                   maxLength={4}
+                  testID="signup-dob-year"
+                  accessibilityLabel="Birth year"
                 />
               </View>
             </View>
             <TouchableOpacity
               onPress={handleDateConfirm}
               disabled={!birthMonth || !birthDay || !birthYear}
+              testID="signup-dob-confirm"
+              accessibilityLabel="Confirm date of birth"
             >
               <LinearGradient
                 colors={Gradients.button.colors as [string, string]}

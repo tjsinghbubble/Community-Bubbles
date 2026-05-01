@@ -340,11 +340,11 @@ export default function CreateEventScreen({ navigation, route }: Props) {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn}>
+      <TouchableOpacity onPress={handleBack} style={styles.headerBackBtn} testID="create-event-back-button" accessibilityLabel="Go back">
         <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{STEP_TITLES[step - 1]}</Text>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerCancelBtn} testID="create-event-cancel-button" accessibilityLabel="Cancel">
         <Text style={styles.headerCancelText}>Cancel</Text>
       </TouchableOpacity>
     </View>
@@ -381,7 +381,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       {!isBubblePreselected && (
         <View style={styles.fieldGroup}>
           <Text style={styles.fieldLabel}>Select Bubble *</Text>
-          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowBubblePicker(true)}>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowBubblePicker(true)} testID="create-event-bubble-picker" accessibilityLabel="Select bubble">
             <Text style={selectedBubble ? styles.fieldValue : styles.fieldPlaceholder}>
               {selectedBubble ? selectedBubble.title : 'Choose a bubble for this event'}
             </Text>
@@ -399,6 +399,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           value={title}
           onChangeText={setTitle}
           maxLength={80}
+          testID="create-event-title-input"
+          accessibilityLabel="Event title"
         />
       </View>
 
@@ -413,6 +415,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           multiline
           numberOfLines={5}
           textAlignVertical="top"
+          testID="create-event-description-input"
+          accessibilityLabel="Event description"
         />
       </View>
 
@@ -434,7 +438,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer} keyboardShouldPersistTaps="handled">
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>Date *</Text>
-        <TouchableOpacity style={styles.fieldInput} onPress={() => setShowDatePicker(true)}>
+        <TouchableOpacity style={styles.fieldInput} onPress={() => setShowDatePicker(true)} testID="create-event-date-picker" accessibilityLabel="Select event date">
           <Text style={date ? styles.fieldValue : styles.fieldPlaceholder}>
             {date ? formatDateForDisplay(date) : 'Select Date'}
           </Text>
@@ -454,7 +458,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
       <View style={styles.timeRow}>
         <View style={styles.timeField}>
           <Text style={styles.fieldLabel}>Start Time *</Text>
-          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowStartTimePicker(true)}>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowStartTimePicker(true)} testID="create-event-start-time-picker" accessibilityLabel="Select start time">
             <Text style={startTime ? styles.fieldValue : styles.fieldPlaceholder}>
               {startTime ? formatTimeForDisplay(startTime) : '00:00'}
             </Text>
@@ -472,7 +476,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         </View>
         <View style={styles.timeField}>
           <Text style={styles.fieldLabel}>End Time</Text>
-          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowEndTimePicker(true)}>
+          <TouchableOpacity style={styles.fieldInput} onPress={() => setShowEndTimePicker(true)} testID="create-event-end-time-picker" accessibilityLabel="Select end time">
             <Text style={endTime ? styles.fieldValue : styles.fieldPlaceholder}>
               {endTime ? formatTimeForDisplay(endTime) : '00:00'}
             </Text>
@@ -512,6 +516,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.timePickerCancelBtn}
                   onPress={() => setShowStartTimePicker(false)}
+                  testID="create-event-start-time-cancel"
+                  accessibilityLabel="Cancel start time selection"
                 >
                   <Text style={styles.timePickerCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -523,6 +529,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     setStartTime(`${hours}:${minutes}`);
                     setShowStartTimePicker(false);
                   }}
+                  testID="create-event-start-time-confirm"
+                  accessibilityLabel="Confirm start time"
                 >
                   <Text style={styles.timePickerConfirmText}>Confirm</Text>
                 </TouchableOpacity>
@@ -554,6 +562,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.timePickerCancelBtn}
                   onPress={() => setShowEndTimePicker(false)}
+                  testID="create-event-end-time-cancel"
+                  accessibilityLabel="Cancel end time selection"
                 >
                   <Text style={styles.timePickerCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -565,6 +575,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     setEndTime(`${hours}:${minutes}`);
                     setShowEndTimePicker(false);
                   }}
+                  testID="create-event-end-time-confirm"
+                  accessibilityLabel="Confirm end time"
                 >
                   <Text style={styles.timePickerConfirmText}>Confirm</Text>
                 </TouchableOpacity>
@@ -590,6 +602,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           }}
           trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
           thumbColor={recurringEnabled ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+          testID="create-event-recurring-switch"
+          accessibilityLabel="Recurring event"
         />
       </View>
 
@@ -605,6 +619,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     setRecurringEnabled(false);
                   }
                 }}
+                testID={`create-event-recurrence-${option.value}`}
+                accessibilityLabel={option.label}
               >
                 <Text style={styles.recurrenceOptionText}>{option.label}</Text>
                 {recurrenceType === option.value && (
@@ -624,6 +640,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.fieldInput}
                   onPress={() => setShowCustomFrequencyPicker(!showCustomFrequencyPicker)}
+                  testID="create-event-custom-frequency-picker"
+                  accessibilityLabel="Select custom frequency"
                 >
                   <Text style={styles.fieldValue}>
                     {CUSTOM_FREQUENCY_OPTIONS.find(f => f.value === recurrenceCustomFrequency)?.label}
@@ -640,6 +658,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                           setRecurrenceCustomFrequency(freq.value);
                           setShowCustomFrequencyPicker(false);
                         }}
+                        testID={`create-event-custom-frequency-option-${freq.value}`}
+                        accessibilityLabel={freq.label}
                       >
                         <Text style={[
                           styles.dropdownItemText,
@@ -663,6 +683,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                   }}
                   keyboardType="number-pad"
                   maxLength={3}
+                  testID="create-event-recurrence-interval-input"
+                  accessibilityLabel="Recurrence interval"
                 />
               </View>
             </View>
@@ -677,6 +699,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               setRecurrenceEndType('never');
               setRecurrenceEndDate('');
             }}
+            testID="create-event-recurrence-end-never"
+            accessibilityLabel="Recurrence ends: Never"
           >
             <Text style={styles.recurrenceOptionText}>Never</Text>
             {recurrenceEndType === 'never' && (
@@ -692,6 +716,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                 setShowRecurrenceEndDatePicker(true);
               }
             }}
+            testID="create-event-recurrence-end-on-date"
+            accessibilityLabel="Recurrence ends: On a specific date"
           >
             <Text style={styles.recurrenceOptionText}>
               {recurrenceEndType === 'on_date' && recurrenceEndDate
@@ -706,6 +732,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <TouchableOpacity
               style={[styles.fieldInput, { marginTop: 8 }]}
               onPress={() => setShowRecurrenceEndDatePicker(true)}
+              testID="create-event-recurrence-end-date-picker"
+              accessibilityLabel="Select recurrence end date"
             >
               <Text style={recurrenceEndDate ? styles.fieldValue : styles.fieldPlaceholder}>
                 {recurrenceEndDate ? formatDateForDisplay(recurrenceEndDate) : 'Select end date'}
@@ -759,6 +787,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           onValueChange={setLocationTbd}
           trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
           thumbColor={locationTbd ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+          testID="create-event-location-tbd-switch"
+          accessibilityLabel="Location TBD"
         />
       </View>
 
@@ -779,6 +809,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           key={option.value}
           style={styles.radioRow}
           onPress={() => setVisibility(option.value)}
+          testID={`create-event-visibility-${option.value}`}
+          accessibilityLabel={option.label}
         >
           <View style={[styles.radioCircle, visibility === option.value && styles.radioCircleSelected]}>
             {visibility === option.value && <View style={styles.radioCircleInner} />}
@@ -809,6 +841,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             onValueChange={setCampusOnly}
             trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
             thumbColor={campusOnly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+            testID="create-event-campus-only-switch"
+            accessibilityLabel="Campus only"
           />
         </View>
       ) : null}
@@ -830,6 +864,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               if (option.key === 'smokeFree') setSmokeFree(!smokeFree);
               if (option.key === 'wheelchairAccessible') setWheelchairAccessible(!wheelchairAccessible);
             }}
+            testID={`create-event-environment-${option.key}`}
+            accessibilityLabel={option.label}
           >
             <CheckboxIcon size={18} checked={isChecked} />
             <Ionicons name={option.icon} size={20} color={Colors.neutral.coolMist} style={styles.checkboxIcon} />
@@ -852,6 +888,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
           value={attendeeLimit}
           onChangeText={(val) => setAttendeeLimit(val.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
+          testID="create-event-attendee-limit-input"
+          accessibilityLabel="Attendee limit"
         />
       </View>
 
@@ -868,6 +906,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               step3ScrollRef.current?.scrollTo({ y: rsvpSectionY.current - 40, animated: true });
             }, 100);
           }}
+          testID="create-event-rsvp-deadline-picker"
+          accessibilityLabel="Select RSVP deadline"
         >
           <Text style={rsvpDeadline ? styles.fieldValue : styles.fieldPlaceholder}>
             {rsvpDeadline ? formatRsvpForDisplay(rsvpDeadline) : 'Select deadline'}
@@ -1010,6 +1050,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
             <TouchableOpacity
               onPress={handleViewEventNavigation}
               style={{ width: '100%' }}
+              testID="create-event-view-event-button"
+              accessibilityLabel="View Event"
             >
               <LinearGradient
                 colors={[...Gradients.button.colors] as [string, string]}
@@ -1046,6 +1088,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
                     setSelectedBubble(bubble);
                     setShowBubblePicker(false);
                   }}
+                  testID={`create-event-bubble-option-${bubble.id}`}
+                  accessibilityLabel={bubble.title}
                 >
                   {bubble.coverImage ? (
                     <Image source={{ uri: bubble.coverImage }} style={styles.bubbleRowImage} />
@@ -1101,6 +1145,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               style={[styles.publishButton, loading && styles.primaryButtonDisabled]}
               onPress={handlePublish}
               disabled={loading}
+              testID="create-event-publish-button"
+              accessibilityLabel="Publish Event"
             >
               {loading ? (
                 <ActivityIndicator color={Colors.brand.skyWhite} />
@@ -1116,6 +1162,8 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               style={[loading && styles.primaryButtonDisabled]}
               onPress={handleNext}
               disabled={loading}
+              testID="create-event-next-button"
+              accessibilityLabel={getBottomButtonLabel()}
             >
               <LinearGradient
                 colors={[...Gradients.button.colors] as [string, string]}

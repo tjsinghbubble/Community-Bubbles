@@ -67,6 +67,8 @@ export default function LoginScreen({ navigation }: Props) {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              testID="login-email-input"
+              accessibilityLabel="Email address"
             />
           </View>
 
@@ -80,10 +82,14 @@ export default function LoginScreen({ navigation }: Props) {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                testID="login-password-input"
+                accessibilityLabel="Password"
               />
               <TouchableOpacity
                 style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
+                testID="login-password-toggle"
+                accessibilityLabel="Toggle password visibility"
               >
                 {showPassword ? <EyeIcon size={22} color="#969696" /> : <EyeOffIcon size={22} color="#969696" />}
               </TouchableOpacity>
@@ -94,6 +100,8 @@ export default function LoginScreen({ navigation }: Props) {
             onPress={handleLogin}
             disabled={!email || !password || isLoading}
             style={(!email || !password || isLoading) ? styles.buttonDisabled : undefined}
+            testID="login-sign-in-button"
+            accessibilityLabel="Sign in"
           >
             <LinearGradient
               colors={Gradients.button.colors as [string, string]}
@@ -112,7 +120,7 @@ export default function LoginScreen({ navigation }: Props) {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+          <TouchableOpacity onPress={() => navigation.navigate('Signup')} testID="login-go-to-sign-up" accessibilityLabel="Go to sign up">
             <Text style={styles.footerLink}>Sign Up</Text>
           </TouchableOpacity>
         </View>

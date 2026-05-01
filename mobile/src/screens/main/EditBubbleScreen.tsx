@@ -261,11 +261,11 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <TouchableOpacity style={styles.headerBack} onPress={goBack}>
+      <TouchableOpacity style={styles.headerBack} onPress={goBack} testID="edit-bubble-back-button" accessibilityLabel="Go back">
         <Ionicons name="chevron-back" size={24} color={Colors.text.primary} />
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{step === 3 ? title : STEP_TITLES[step]}</Text>
-      <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={styles.headerCancel} onPress={() => navigation.goBack()} testID="edit-bubble-cancel-button" accessibilityLabel="Cancel">
         <Text style={styles.cancelText}>Cancel</Text>
       </TouchableOpacity>
     </View>
@@ -305,6 +305,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           value={title}
           onChangeText={(t) => setTitle(t.slice(0, 60))}
           maxLength={60}
+          testID="edit-bubble-title-input"
+          accessibilityLabel="Bubble title"
         />
       </View>
 
@@ -317,6 +319,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           value={tagline}
           onChangeText={(t) => setTagline(t.slice(0, 100))}
           maxLength={100}
+          testID="edit-bubble-tagline-input"
+          accessibilityLabel="Bubble tagline"
         />
       </View>
 
@@ -332,6 +336,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           numberOfLines={6}
           textAlignVertical="top"
           maxLength={500}
+          testID="edit-bubble-description-input"
+          accessibilityLabel="Bubble description"
         />
       </View>
 
@@ -341,6 +347,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           style={styles.locationTappableField}
           onPress={() => setShowLocationPicker(true)}
           activeOpacity={0.7}
+          testID="edit-bubble-location-picker"
+          accessibilityLabel="Search location"
         >
           <LocationPinIcon size={20} color={locationName ? Colors.brand.primary : Colors.text.tertiary} />
           <View style={styles.locationTappableContent}>
@@ -362,6 +370,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               setLocationLat('');
               setLocationLng('');
             }}
+            testID="edit-bubble-location-clear"
+            accessibilityLabel="Clear location"
           >
             <Ionicons name="close-circle" size={16} color={Colors.text.tertiary} />
             <Text style={styles.locationClearText}>Clear location</Text>
@@ -427,6 +437,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
               onValueChange={setCampusOnly}
               trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
               thumbColor={campusOnly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+              testID="edit-bubble-campus-only-switch"
+              accessibilityLabel="Campus only"
             />
           </View>
         </View>
@@ -444,7 +456,7 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
   const renderStepRules = () => {
     return (
       <View style={styles.formSection}>
-        <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
+        <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule} testID="edit-bubble-add-rule-button" accessibilityLabel="Add rule">
           <View style={styles.addRuleDashedBorder}>
             <Ionicons name="add" size={20} color={Colors.brand.primary} />
             <Text style={styles.addRuleText}>Add Rule</Text>
@@ -460,6 +472,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.swipeDeleteAction}
                   onPress={() => deleteRule(index)}
+                  testID={`edit-bubble-rule-swipe-delete-${index}`}
+                  accessibilityLabel={`Delete rule ${index + 1}`}
                 >
                   <Ionicons name="trash-outline" size={20} color={Colors.background.primary} />
                   <Text style={styles.swipeDeleteText}>Delete</Text>
@@ -471,6 +485,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 style={styles.ruleItem}
                 onPress={() => toggleRuleExpand(index)}
                 activeOpacity={0.7}
+                testID={`edit-bubble-rule-item-${index}`}
+                accessibilityLabel={`Rule ${index + 1}: ${rule}`}
               >
                 <View style={styles.ruleContent}>
                   <Text style={styles.ruleText} numberOfLines={isExpanded ? undefined : 2}>{rule}</Text>
@@ -480,6 +496,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                         style={[styles.ruleActionButton, index === 0 && styles.ruleActionDisabled]}
                         onPress={() => moveRuleUp(index)}
                         disabled={index === 0}
+                        testID={`edit-bubble-rule-move-up-${index}`}
+                        accessibilityLabel={`Move rule ${index + 1} up`}
                       >
                         <Ionicons name="arrow-up" size={16} color={index === 0 ? Colors.text.tertiary : Colors.brand.primary} />
                       </TouchableOpacity>
@@ -487,18 +505,24 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                         style={[styles.ruleActionButton, index === customRules.length - 1 && styles.ruleActionDisabled]}
                         onPress={() => moveRuleDown(index)}
                         disabled={index === customRules.length - 1}
+                        testID={`edit-bubble-rule-move-down-${index}`}
+                        accessibilityLabel={`Move rule ${index + 1} down`}
                       >
                         <Ionicons name="arrow-down" size={16} color={index === customRules.length - 1 ? Colors.text.tertiary : Colors.brand.primary} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.ruleActionButton}
                         onPress={() => openEditRule(index)}
+                        testID={`edit-bubble-rule-edit-${index}`}
+                        accessibilityLabel={`Edit rule ${index + 1}`}
                       >
                         <Ionicons name="pencil" size={16} color={Colors.brand.primary} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.ruleActionButton, { borderColor: Colors.status.error }]}
                         onPress={() => deleteRule(index)}
+                        testID={`edit-bubble-rule-delete-${index}`}
+                        accessibilityLabel={`Delete rule ${index + 1}`}
                       >
                         <Ionicons name="trash-outline" size={16} color={Colors.status.error} />
                       </TouchableOpacity>
@@ -528,6 +552,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 key={opt.value}
                 style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
                 onPress={() => setPrivacy(opt.value)}
+                testID={`edit-bubble-privacy-${opt.value.toLowerCase().replace(/\s+/g, '-')}`}
+                accessibilityLabel={opt.label}
               >
                 <RadioIcon size={20} selected={selected} active={true} />
                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
@@ -550,6 +576,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           onChangeText={(t) => setMemberLimit(t.replace(/[^0-9]/g, '').slice(0, 5))}
           keyboardType="number-pad"
           maxLength={5}
+          testID="edit-bubble-member-limit-input"
+          accessibilityLabel="Member limit"
         />
         <Text style={styles.helperText}>Leave empty for unlimited</Text>
       </View>
@@ -637,6 +665,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
           onPress={isReview ? handleSubmit : goNext}
           disabled={disabled}
           activeOpacity={0.8}
+          testID={isReview ? "edit-bubble-save-button" : "edit-bubble-next-button"}
+          accessibilityLabel={isReview ? "Save Changes" : "Next"}
         >
           <LinearGradient
             colors={[...Gradients.button.colors] as [string, string]}
@@ -696,11 +726,15 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                 value={ruleText}
                 onChangeText={setRuleText}
                 autoFocus
+                testID="edit-bubble-rule-modal-input"
+                accessibilityLabel="Rule text"
               />
               <View style={styles.modalFooter}>
                 <TouchableOpacity
                   style={styles.modalSecondaryBtn}
                   onPress={() => setShowRuleModal(false)}
+                  testID="edit-bubble-rule-modal-cancel"
+                  accessibilityLabel="Cancel"
                 >
                   <Text style={styles.modalSecondaryText}>Cancel</Text>
                 </TouchableOpacity>
@@ -708,6 +742,8 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
                   onPress={saveRule}
                   disabled={!ruleText.trim()}
                   style={{ flex: 1 }}
+                  testID="edit-bubble-rule-modal-save"
+                  accessibilityLabel="Save rule"
                 >
                   <LinearGradient
                     colors={[...Gradients.button.colors] as [string, string]}

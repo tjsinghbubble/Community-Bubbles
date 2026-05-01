@@ -132,7 +132,7 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
+        <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')} testID="profile-notifications-button" accessibilityLabel="View notifications">
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
             {unreadNotifCount > 0 && (
@@ -185,10 +185,12 @@ export default function ProfileScreen() {
               </View>
             </View>
             
-            <AnimatedPressable 
+            <AnimatedPressable
               style={styles.menuItem}
               scaleValue={0.97}
               onPress={() => navigation.navigate('PendingReviews')}
+              testID="profile-pending-reviews-button"
+              accessibilityLabel="Needs attention"
             >
               <View style={styles.menuItemLeft}>
                 <ClockIcon size={24} color={Colors.text.secondary} />
@@ -207,7 +209,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           
-          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
+          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout} testID="profile-logout-button" accessibilityLabel="Log out">
             <View style={styles.menuItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Log Out</Text>
@@ -215,11 +217,13 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
 
-          <AnimatedPressable 
+          <AnimatedPressable
             style={[styles.menuItem, styles.deleteItem]}
             scaleValue={0.97}
             onPress={handleDeleteAccount}
             disabled={deleting}
+            testID="profile-delete-account-button"
+            accessibilityLabel="Delete account"
           >
             <View style={styles.menuItemLeft}>
               {deleting ? (

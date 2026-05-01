@@ -90,10 +90,12 @@ export default function MainNavigator() {
         },
       }}
     >
-      <Tab.Screen 
-        name="Explore" 
+      <Tab.Screen
+        name="Explore"
         component={ExploreNavigator}
         options={{
+          tabBarTestID: 'explore-tab-button',
+          tabBarAccessibilityLabel: 'Explore',
           tabBarIcon: ({ color, size }) => (
             <ExploreIcon size={size} color={color} />
           ),
@@ -105,20 +107,24 @@ export default function MainNavigator() {
           },
         })}
       />
-      <Tab.Screen 
-        name="Upcoming" 
+      <Tab.Screen
+        name="Upcoming"
         component={UpcomingScreen}
         options={{
+          tabBarTestID: 'upcoming-tab-button',
+          tabBarAccessibilityLabel: 'Upcoming',
           tabBarIcon: ({ color, size }) => (
             <UpcomingIcon size={size} color={color} />
           ),
         }}
       />
-      <Tab.Screen 
-        name="MyBubbles" 
+      <Tab.Screen
+        name="MyBubbles"
         component={BubblesNavigator}
-        options={{ 
+        options={{
           title: 'Bubbles',
+          tabBarTestID: 'bubbles-tab-button',
+          tabBarAccessibilityLabel: 'Bubbles',
           tabBarIcon: ({ color, size }) => (
             <BubblesIcon size={size} color={color} />
           ),
@@ -130,10 +136,12 @@ export default function MainNavigator() {
           },
         })}
       />
-      <Tab.Screen 
-        name="Messages" 
+      <Tab.Screen
+        name="Messages"
         component={MessagesNavigator}
         options={{
+          tabBarTestID: 'messages-tab-button',
+          tabBarAccessibilityLabel: 'Messages',
           tabBarIcon: ({ color, size }) => (
             <View>
               <MessagesIcon size={size} color={color} />
@@ -152,11 +160,13 @@ export default function MainNavigator() {
           },
         })}
       />
-      <Tab.Screen 
-        name="Profile" 
+      <Tab.Screen
+        name="Profile"
         component={ProfileNavigator}
         options={{
           title: 'Profile',
+          tabBarTestID: 'profile-tab-button',
+          tabBarAccessibilityLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <View>
               <ProfileIcon size={size} color={color} />

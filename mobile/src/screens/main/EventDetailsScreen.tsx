@@ -452,13 +452,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton} testID="event-details-back-button" accessibilityLabel="Go back">
           <Ionicons name="arrow-back" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.navRightActions}>
           <View style={{ position: 'relative', zIndex: 200 }}>
-            <TouchableOpacity onPress={() => setShowKebabMenu(!showKebabMenu)} style={styles.navShareButton}>
+            <TouchableOpacity onPress={() => setShowKebabMenu(!showKebabMenu)} style={styles.navShareButton} testID="event-details-kebab-button" accessibilityLabel="More options">
               <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
             </TouchableOpacity>
             {showKebabMenu && (
@@ -466,6 +466,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleShare(); }}
+                  testID="event-details-share-button"
+                  accessibilityLabel="Share Event"
                 >
                   <Ionicons name="paper-plane-outline" size={18} color={Colors.text.primary} />
                   <Text style={styles.kebabMenuText}>Share Event</Text>
@@ -474,6 +476,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     style={styles.kebabMenuItem}
                     onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
+                    testID="event-details-manage-button"
+                    accessibilityLabel="Manage Event"
                   >
                     <CrownIcon size={18} color={Colors.brand.primary} />
                     <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
@@ -483,6 +487,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
+                  testID="event-details-report-concern-button"
+                  accessibilityLabel="Report a Concern"
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={styles.kebabMenuText}>Report a Concern</Text>
@@ -491,6 +497,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
+                  testID="event-details-report-event-button"
+                  accessibilityLabel="Report this Event"
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report this Event</Text>
@@ -506,6 +514,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           style={styles.kebabBackdrop}
           activeOpacity={1}
           onPress={() => setShowKebabMenu(false)}
+          testID="event-details-kebab-backdrop"
+          accessibilityLabel="Close menu"
         />
       )}
 
@@ -565,6 +575,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 ]}
                 onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
                 disabled={isRsvping}
+                testID="event-details-rsvp-button"
+                accessibilityLabel="RSVP to this event"
               >
                 {isRsvping ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
@@ -586,6 +598,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                       <TouchableOpacity
                         style={styles.rsvpDropdownItem}
                         onPress={() => handleRsvpSelect('going')}
+                        testID="event-details-rsvp-going"
+                        accessibilityLabel="Going"
                       >
                         <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
                         <Text style={styles.rsvpDropdownItemText}>Going</Text>
@@ -597,6 +611,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     <TouchableOpacity
                       style={styles.rsvpDropdownItem}
                       onPress={() => handleRsvpSelect('not_going')}
+                      testID="event-details-rsvp-not-going"
+                      accessibilityLabel="Not Going"
                     >
                       <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
                       <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
@@ -613,12 +629,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.infoText}>
               {event.attendeeLimit ? `${goingCount} of ${event.attendeeLimit} spots filled` : `${goingCount} going`}
             </Text>
-            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
+            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink} testID="event-details-view-participants" accessibilityLabel="View participants">
               <Text style={styles.viewLinkText}>view {'>'}</Text>
             </TouchableOpacity>
           </View>
           {event.description && (
-            <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => Alert.alert(event.title, event.description || '')}>
+            <TouchableOpacity style={styles.infoRow} activeOpacity={0.7} onPress={() => Alert.alert(event.title, event.description || '')} testID="event-details-description-more" accessibilityLabel="View full description">
               <View style={styles.infoIconContainer}>
                 <Ionicons name="document-text-outline" size={18} color={Colors.text.tertiary} />
               </View>
@@ -634,7 +650,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.separator} />
 
-        <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
+        <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)} testID="event-details-creator-row" accessibilityLabel={`Created by ${creatorName}`}>
           {creatorProfilePhoto ? (
             <Image source={{ uri: creatorProfilePhoto }} style={styles.creatorAvatarImage} />
           ) : (
@@ -653,7 +669,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
+        <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)} testID="event-details-location-row" accessibilityLabel={event.locationName ? `Location: ${event.locationName}` : 'Location TBD'}>
           <View style={styles.locationIconContainer}>
             <LocationPinIcon size={20} color={Colors.brand.primary} />
           </View>
@@ -682,7 +698,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-            <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
+            <TouchableOpacity style={styles.directionsButton} onPress={openDirections} testID="event-details-directions-button" accessibilityLabel="Get Directions">
               <Image source={directionsIcon} style={{ width: 24, height: 24 }} resizeMode="contain" />
               <Text style={styles.directionsText}>Get Directions</Text>
             </TouchableOpacity>
@@ -706,7 +722,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             </View>
           ))}
 
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity style={styles.addButton} testID="event-details-bulletin-add-button" accessibilityLabel="Add bulletin post">
             <Text style={styles.addButtonText}>+ Add</Text>
           </TouchableOpacity>
         </View>
@@ -737,7 +753,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <View style={styles.eventReportDialog}>
             <View style={styles.eventReportHeader}>
               <Text style={styles.eventReportTitle}>Report a Concern</Text>
-              <TouchableOpacity onPress={() => setEventReportModalVisible(false)}>
+              <TouchableOpacity onPress={() => setEventReportModalVisible(false)} testID="event-details-concern-modal-close" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
@@ -754,6 +770,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     reason === 'Report a member' && styles.eventReportReasonLink,
                   ]}
                   onPress={() => handleConcernReasonSelect(reason)}
+                  testID={`event-details-concern-reason-${reason.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                  accessibilityLabel={reason}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -786,12 +804,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                testID="event-details-concern-text-input"
+                accessibilityLabel="Additional details"
               />
             )}
             <TouchableOpacity
               style={[styles.eventReportSubmitButton, !eventReportReason && styles.eventReportSubmitDisabled]}
               onPress={submitConcernReport}
               disabled={!eventReportReason || eventReportSubmitting}
+              testID="event-details-concern-submit-button"
+              accessibilityLabel="Submit Report"
             >
               {eventReportSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -815,7 +837,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <View style={styles.eventReportDialog}>
             <View style={styles.eventReportHeader}>
               <Text style={styles.eventReportTitle}>Report Event</Text>
-              <TouchableOpacity onPress={() => setReportEventModalVisible(false)}>
+              <TouchableOpacity onPress={() => setReportEventModalVisible(false)} testID="event-details-report-modal-close" accessibilityLabel="Close">
                 <Ionicons name="close" size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
@@ -831,6 +853,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     reportEventReason === reason && styles.eventReportReasonSelected,
                   ]}
                   onPress={() => setReportEventReason(reason)}
+                  testID={`event-details-report-reason-${reason.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
+                  accessibilityLabel={reason}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[
@@ -857,12 +881,16 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
+                testID="event-details-report-text-input"
+                accessibilityLabel="Additional details"
               />
             )}
             <TouchableOpacity
               style={[styles.eventReportSubmitButton, !reportEventReason && styles.eventReportSubmitDisabled]}
               onPress={submitEventReport}
               disabled={!reportEventReason || reportEventSubmitting}
+              testID="event-details-report-submit-button"
+              accessibilityLabel="Submit Report"
             >
               {reportEventSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />

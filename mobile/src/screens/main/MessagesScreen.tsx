@@ -276,6 +276,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
             style={styles.conversationItem}
             scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
+            testID={`messages-conversation-${conversation.conversationId}`}
+            accessibilityLabel={conversation.conversationWith.name}
           >
             {renderAvatar(conversation)}
             

@@ -244,7 +244,7 @@ export default function ExploreScreen() {
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
-      <TouchableOpacity style={styles.iconButton} onPress={handleFilterPress}>
+      <TouchableOpacity style={styles.iconButton} onPress={handleFilterPress} testID="explore-filter-button" accessibilityLabel="Filter results">
         <Ionicons name="options-outline" size={24} color={Colors.neutral.charcoal} />
       </TouchableOpacity>
       
@@ -256,15 +256,17 @@ export default function ExploreScreen() {
           placeholderTextColor={Colors.neutral.coolMist}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          testID="explore-search-input"
+          accessibilityLabel="Search bubbles and events"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+          <TouchableOpacity onPress={() => setSearchQuery('')} testID="explore-search-clear-button" accessibilityLabel="Clear search">
             <Ionicons name="close-circle" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         )}
       </View>
       
-      <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
+      <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress} testID="explore-notifications-button" accessibilityLabel="View notifications">
         <View>
           <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
           {unreadNotifCount > 0 && (
@@ -286,7 +288,7 @@ export default function ExploreScreen() {
         <Text style={styles.studentPromptSubtitle}>
           Unlock exclusive campus events, verified student communities, and connect with classmates
         </Text>
-        <TouchableOpacity onPress={handleJoinCampus}>
+        <TouchableOpacity onPress={handleJoinCampus} testID="explore-join-campus-button" accessibilityLabel="Join a campus">
           <LinearGradient
             colors={Gradients.button.colors as [string, string]}
             start={Gradients.button.start}
@@ -296,7 +298,7 @@ export default function ExploreScreen() {
             <Text style={styles.joinCampusButtonText}>Join a campus</Text>
           </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
+        <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt} testID="explore-not-student-button" accessibilityLabel="Dismiss student prompt">
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
         </TouchableOpacity>
       </View>
@@ -308,6 +310,8 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('bubbles')}
+        testID="explore-tab-bubbles"
+        accessibilityLabel="Bubbles tab"
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <BubblesIcon 
@@ -333,6 +337,8 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('events')}
+        testID="explore-tab-events"
+        accessibilityLabel="Events tab"
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <Ionicons 
@@ -364,10 +370,12 @@ export default function ExploreScreen() {
 
   const renderBubbleCard = (bubble: BubbleData) => (
     <AnimatedPressable
-      key={bubble.id} 
+      key={bubble.id}
       style={styles.card}
       scaleValue={0.95}
       onPress={() => handleBubblePress(bubble)}
+      testID={`explore-bubble-card-${bubble.id}`}
+      accessibilityLabel={bubble.title}
     >
       <View style={styles.imageContainer}>
         <Image source={{ uri: bubble.image }} style={styles.image} />
@@ -385,10 +393,12 @@ export default function ExploreScreen() {
 
   const renderEventCard = (event: EventData) => (
     <AnimatedPressable
-      key={event.id} 
+      key={event.id}
       style={styles.card}
       scaleValue={0.95}
       onPress={() => handleEventPress(event)}
+      testID={`explore-event-card-${event.id}`}
+      accessibilityLabel={event.title}
     >
       <View style={styles.imageContainer}>
         <Image 
@@ -512,9 +522,11 @@ export default function ExploreScreen() {
       )}
       
       {isCampusVerified && (
-        <TouchableOpacity 
-          style={[styles.campusFab, showCampusContent && styles.campusFabActive]} 
+        <TouchableOpacity
+          style={[styles.campusFab, showCampusContent && styles.campusFabActive]}
           onPress={handleCampusToggle}
+          testID="explore-campus-toggle-button"
+          accessibilityLabel={showCampusContent ? "Show all content" : "Show campus content"}
         >
           <Text style={{ fontSize: 24 }}>🎓</Text>
         </TouchableOpacity>
@@ -524,6 +536,8 @@ export default function ExploreScreen() {
         style={styles.createFab}
         onPress={() => setShowCreateSheet(true)}
         activeOpacity={0.8}
+        testID="explore-create-fab"
+        accessibilityLabel="Create a bubble or event"
       >
         <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
@@ -534,7 +548,7 @@ export default function ExploreScreen() {
         animationType="slide"
         onRequestClose={() => setShowCreateSheet(false)}
       >
-        <Pressable style={styles.sheetOverlay} onPress={() => setShowCreateSheet(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setShowCreateSheet(false)} testID="explore-create-sheet-overlay" accessibilityLabel="Dismiss create sheet">
           <Pressable style={styles.sheetContainer} onPress={(e) => e.stopPropagation()}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Create New</Text>
@@ -544,6 +558,8 @@ export default function ExploreScreen() {
                 setShowCreateSheet(false);
                 navigation.navigate('CreateBubble');
               }}
+              testID="explore-create-bubble-button"
+              accessibilityLabel="Create a bubble"
             >
               <Text style={styles.sheetOptionText}>Bubble</Text>
             </TouchableOpacity>
@@ -554,6 +570,8 @@ export default function ExploreScreen() {
                 setShowCreateSheet(false);
                 navigation.navigate('CreateEvent', {});
               }}
+              testID="explore-create-event-button"
+              accessibilityLabel="Create an event"
             >
               <Text style={styles.sheetOptionText}>Event</Text>
             </TouchableOpacity>

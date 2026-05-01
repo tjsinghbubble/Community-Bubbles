@@ -88,6 +88,8 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={styles.checkbox}
           onPress={() => setAccepted(!accepted)}
+          testID="guidelines-accept-checkbox"
+          accessibilityLabel="Accept community guidelines"
         >
           <CheckboxIcon size={18} checked={accepted} />
           <Text style={styles.checkboxLabel}>
@@ -100,6 +102,8 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
         <TouchableOpacity
           onPress={handleGetStarted}
           disabled={!accepted || isLoading}
+          testID="guidelines-get-started-button"
+          accessibilityLabel="Get started"
         >
           <LinearGradient
             colors={Gradients.button.colors as [string, string]}

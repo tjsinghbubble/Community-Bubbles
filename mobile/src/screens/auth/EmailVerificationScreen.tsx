@@ -112,9 +112,11 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
+          testID="email-verify-back-button"
+          accessibilityLabel="Go back"
         >
           <Ionicons name="arrow-back" size={24} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
@@ -142,6 +144,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
               keyboardType="number-pad"
               maxLength={1}
               selectTextOnFocus
+              testID={`email-verify-digit-${index}`}
+              accessibilityLabel={`Verification code digit ${index + 1}`}
             />
           ))}
         </View>
@@ -153,6 +157,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           ]}
           onPress={handleVerify}
           disabled={!isCodeComplete || loading}
+          testID="email-verify-submit-button"
+          accessibilityLabel="Verify email"
         >
           {loading ? (
             <ActivityIndicator color={Colors.brand.skyWhite} />
@@ -165,6 +171,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           style={styles.resendButton}
           onPress={handleResend}
           disabled={resending}
+          testID="email-verify-resend-button"
+          accessibilityLabel="Resend code"
         >
           {resending ? (
             <ActivityIndicator color={Colors.brand.bubbleBlue} />

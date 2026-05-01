@@ -74,6 +74,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
               key={interest.id}
               style={[styles.card, isSelected && styles.cardSelected]}
               onPress={() => toggleInterest(interest.id)}
+              testID={`interest-${interest.id}`}
+              accessibilityLabel={interest.label}
             >
               <Text style={styles.emoji}>{interest.emoji}</Text>
               <Text style={[styles.label, isSelected && styles.labelSelected]}>
@@ -88,6 +90,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
         <TouchableOpacity
           onPress={handleContinue}
           disabled={selected.length < 3}
+          testID="interests-continue-button"
+          accessibilityLabel="Continue"
         >
           <LinearGradient
             colors={Gradients.button.colors as [string, string]}
