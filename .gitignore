@@ -8,3 +8,6 @@ vite.config.ts.*
 .cache
 .local
 .upm
+*.tsbuildinfo
+.tsbuildinfo
+mobile/.tsbuildinfo
