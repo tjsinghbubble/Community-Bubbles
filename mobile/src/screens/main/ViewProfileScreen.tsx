@@ -123,10 +123,17 @@ export default function ViewProfileScreen({ navigation }: Props) {
   const roleLabel = isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member';
   const previewBubbles = myBubbles.slice(0, 3);
 
-  const isProfileComplete =
-    !!user.aboutMe &&
-    Array.isArray(user.interests) && user.interests.length > 0 &&
-    !!user.profilePhoto;
+  const completionFields = [
+    !!user.profilePhoto,
+    !!user.aboutMe,
+    Array.isArray(user.interests) && user.interests.length > 0,
+  ];
+  const completedCount = completionFields.filter(Boolean).length;
+  const totalCount = completionFields.length;
+  const completionRatio = completedCount / totalCount;
+  const progressPercent = `${Math.round(completionRatio * 100)}%`;
+
+  const isProfileComplete = completedCount === totalCount;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -170,6 +177,17 @@ export default function ViewProfileScreen({ navigation }: Props) {
 
         {!isProfileComplete && (
           <View style={styles.completeSection} testID="section-complete-profile">
+            <View style={styles.progressHeader} testID="progress-header">
+              <Text style={styles.progressLabel} testID="text-progress-count">
+                {completedCount} of {totalCount} complete
+              </Text>
+            </View>
+            <View style={styles.progressBarTrack} testID="progress-bar-track">
+              <View
+                style={[styles.progressBarFill, { width: progressPercent }]}
+                testID="progress-bar-fill"
+              />
+            </View>
             <Text style={styles.completeTitle}>Complete your profile</Text>
             <Text style={styles.completeSubtitle}>
               Your Bubble profile is an important part of every community. Complete yours to help other admins and members get to know you.
@@ -332,6 +350,29 @@ const styles = StyleSheet.create({
   completeSection: {
     alignItems: 'center',
     marginBottom: 24,
+  },
+  progressHeader: {
+    width: '100%',
+    alignItems: 'flex-end',
+    marginBottom: 6,
+  },
+  progressLabel: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.bubbleBlue,
+  },
+  progressBarTrack: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#E8E8E8',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 18,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 3,
   },
   completeTitle: {
     fontSize: Typography.sizes.xl,
