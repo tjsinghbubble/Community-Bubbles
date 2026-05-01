@@ -98,11 +98,13 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
   const [signupTaskCounts, setSignupTaskCounts] = useState<Record<string, number>>({});
+  const [pendingJoinRequestCount, setPendingJoinRequestCount] = useState(0);
 
   useEffect(() => {
     checkMembership();
     fetchBubbleDetails();
     fetchMemberCount();
+    fetchPendingJoinRequests();
     apiService.getAppConfig('max_bubble_photos')
       .then(({ value }) => setMaxBubblePhotos(parseInt(value, 10) || 20))
       .catch(() => {});
@@ -113,8 +115,18 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       fetchEvents();
       fetchMemberCount();
       fetchAnnouncements();
+      fetchPendingJoinRequests();
     }, [bubble.id])
   );
+
+  const fetchPendingJoinRequests = async () => {
+    try {
+      const requests = await apiService.getJoinRequests(bubble.id);
+      setPendingJoinRequestCount(Array.isArray(requests) ? requests.length : 0);
+    } catch {
+      // Non-admins will get a 403; silently ignore
+    }
+  };
 
   const fetchAnnouncements = async () => {
     try {
@@ -911,15 +923,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     if (!canManage) return null;
     return (
       <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionHeading}>Waitlist</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
-            accessibilityLabel="Manage waitlist"
-          >
-            <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.sectionHeaderRow}
+          onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          accessibilityLabel="Manage waitlist"
+          testID="button-waitlist-manage"
+        >
+          <View style={styles.waitlistLabelRow}>
+            <Text style={styles.sectionHeading}>Waitlist</Text>
+            {pendingJoinRequestCount > 0 && (
+              <View style={styles.waitlistBadge} testID="badge-waitlist-count">
+                <Text style={styles.waitlistBadgeText}>{pendingJoinRequestCount}</Text>
+              </View>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -1794,6 +1813,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold,
+  },
+  waitlistLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  waitlistBadge: {
+    backgroundColor: Colors.status.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waitlistBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: Typography.weights.bold,
+    lineHeight: 14,
   },
   waitlistModalOverlay: {
     flex: 1,
