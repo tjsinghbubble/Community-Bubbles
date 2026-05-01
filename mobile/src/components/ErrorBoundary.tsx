@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Colors, Typography, Spacing, Radius } from '../styles/theme';
 import { reportFatalError } from '../utils/crashReporter';
 
@@ -26,6 +26,9 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo): void {
     const context = this.props.context ?? 'ErrorBoundary';
     reportFatalError(error, context, info.componentStack ?? undefined);
+    const msg = (error?.message || String(error) || '(no message)');
+    const stack = (info.componentStack || '').slice(0, 300);
+    Alert.alert('Crash Details', `${msg}\n\n${stack}`, [{ text: 'OK' }]);
   }
 
   private handleReset = (): void => {
@@ -189,24 +192,24 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.base,
   },
   debugBox: {
-    backgroundColor: Colors.background.surface,
+    backgroundColor: '#FFDDDD',
     borderRadius: Radius.sm,
+    borderWidth: 2,
+    borderColor: '#CC0000',
     padding: Spacing.md,
     marginBottom: Spacing.lg,
-    maxHeight: 180,
+    maxHeight: 200,
     width: '100%',
   },
   debugText: {
-    fontSize: Typography.sizes.xs,
+    fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.semiBold,
-    color: Colors.status.error,
-    fontFamily: 'monospace',
+    color: '#CC0000',
     marginBottom: Spacing.xs,
   },
   debugStack: {
     fontSize: Typography.sizes.xs,
-    color: Colors.text.tertiary,
-    fontFamily: 'monospace',
+    color: '#880000',
   },
   button: {
     height: 48,
