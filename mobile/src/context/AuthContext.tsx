@@ -165,6 +165,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // End session on logout
     await endSession();
 
+    // Remove push token from server so this device stops receiving notifications
+    try {
+      const storedPushToken = await AsyncStorage.getItem('pushToken');
+      if (storedPushToken) {
+        await apiService.removePushToken(storedPushToken);
+        await AsyncStorage.removeItem('pushToken');
+      }
+    } catch (e) {
+      console.warn('[Auth] Failed to remove push token on logout:', e);
+    }
+
     // Invalidate token server-side before clearing locally
     try {
       await apiService.serverLogout();

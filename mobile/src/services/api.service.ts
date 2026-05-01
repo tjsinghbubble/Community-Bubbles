@@ -676,6 +676,13 @@ class ApiService {
     });
   }
 
+  async removePushToken(token: string): Promise<any> {
+    return this.request<any>("/api/device-push-tokens", {
+      method: "DELETE",
+      body: JSON.stringify({ token }),
+    });
+  }
+
   async getNotificationPreferences(): Promise<{ pushPaused: boolean; bubbleActivity: boolean; eventActivity: boolean; eventReminders: boolean; taskReminders: boolean; waitlistUpdates: boolean; announcements: boolean }> {
     return this.request("/api/notification-preferences");
   }

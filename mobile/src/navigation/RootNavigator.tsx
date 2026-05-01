@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './AuthNavigator';
@@ -130,6 +131,7 @@ export default function RootNavigator() {
         const tokenData = await Notifications.getExpoPushTokenAsync();
         const platform = Platform.OS === 'ios' ? 'ios' : 'android';
         await apiService.registerPushToken(tokenData.data, platform);
+        await AsyncStorage.setItem('pushToken', tokenData.data);
       } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
         reportError(error, 'background.PushToken.registerToken');
