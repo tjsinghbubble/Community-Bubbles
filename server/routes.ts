@@ -1447,6 +1447,39 @@ export async function registerRoutes(
     }
   });
 
+  function parseSpikePositiveInt(value: string | undefined, defaultValue: number): number {
+    const parsed = parseInt(value ?? "", 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+  }
+
+  app.get("/api/admin/crash-spike-status", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+
+      const windowMinutes = parseSpikePositiveInt(process.env.FATAL_CRASH_SPIKE_WINDOW_MINUTES, 5);
+      const threshold = parseSpikePositiveInt(process.env.FATAL_CRASH_SPIKE_THRESHOLD, 5);
+      const from = new Date(Date.now() - windowMinutes * 60 * 1000);
+
+      const [fatalCount, lastSpikeAtValue] = await Promise.all([
+        storage.countCrashReports({ isFatal: true, from }),
+        storage.getAppConfigValue("last_fatal_crash_spike_at"),
+      ]);
+      const spikeDetected = fatalCount >= threshold;
+
+      res.json({
+        fatalCount,
+        windowMinutes,
+        threshold,
+        spikeDetected,
+        lastSpikeAt: lastSpikeAtValue ?? null,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.post("/api/bubbles/:id/join", authMiddleware, async (req, res) => {
     try {
       const bubbleId = req.params.id;

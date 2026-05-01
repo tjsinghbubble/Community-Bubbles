@@ -26,6 +26,7 @@ import {
   Shield,
   Wrench,
   Zap,
+  Flame,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -120,6 +121,15 @@ interface EndpointMetric {
 interface LatencyData {
   metrics: EndpointMetric[];
   generatedAt: string;
+}
+
+interface CrashSpikeStatus {
+  fatalCount: number;
+  windowMinutes: number;
+  threshold: number;
+  spikeDetected: boolean;
+  lastSpikeAt: string | null;
+  checkedAt: string;
 }
 
 function formatUptime(seconds: number): string {
@@ -395,6 +405,13 @@ export default function AdminMonitor() {
     refetchInterval: 30_000,
   });
 
+  const { data: crashSpikeData, isLoading: crashSpikeLoading } = useQuery<CrashSpikeStatus>({
+    queryKey: ["/api/admin/crash-spike-status"],
+    queryFn: () => apiRequest("GET", "/api/admin/crash-spike-status").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 60_000,
+  });
+
   const maintenanceMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       apiRequest("PATCH", "/api/admin/maintenance-mode", { enabled }).then((r) => r.json()),
@@ -633,6 +650,76 @@ export default function AdminMonitor() {
                   <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                   <span className="text-[11px] font-semibold text-red-600" data-testid="text-maintenance-error">
                     Failed to update maintenance mode. Please try again.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* ── Fatal Crash Spike ── */}
+            <div
+              className={cn(
+                "overflow-hidden rounded-2xl ring-1",
+                crashSpikeData?.spikeDetected
+                  ? "bg-red-50 ring-red-300"
+                  : "bg-white/70 ring-black/8"
+              )}
+              data-testid="section-crash-spike"
+            >
+              <div className="px-5 py-4 flex items-center gap-3">
+                <div className={cn(
+                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+                  crashSpikeData?.spikeDetected ? "bg-red-100" : "bg-black/6"
+                )}>
+                  <Flame className={cn(
+                    "h-5 w-5",
+                    crashSpikeData?.spikeDetected ? "text-red-600" : "text-muted-foreground"
+                  )} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-bold">Fatal Crash Monitor</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {crashSpikeLoading
+                      ? "Loading…"
+                      : crashSpikeData
+                      ? `Last ${crashSpikeData.windowMinutes} min · threshold ${crashSpikeData.threshold}`
+                      : "Unavailable"}
+                  </div>
+                </div>
+                {crashSpikeLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : crashSpikeData ? (
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={cn(
+                        "text-[26px] font-bold leading-none tabular-nums",
+                        crashSpikeData.spikeDetected ? "text-red-600" : "text-foreground"
+                      )}
+                      data-testid="text-crash-fatal-count"
+                    >
+                      {crashSpikeData.fatalCount}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">fatals</span>
+                  </div>
+                ) : null}
+              </div>
+              {crashSpikeData?.spikeDetected && (
+                <div className="border-t border-red-200 px-5 py-2.5 flex items-center gap-2 bg-red-100/50">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-600" />
+                  <span className="text-[11px] font-semibold text-red-700" data-testid="text-crash-spike-warning">
+                    Spike threshold crossed — {crashSpikeData.fatalCount} fatal crash
+                    {crashSpikeData.fatalCount !== 1 ? "es" : ""} in the last {crashSpikeData.windowMinutes} minutes.
+                    {crashSpikeData.lastSpikeAt
+                      ? ` Last at ${formatDateTime(crashSpikeData.lastSpikeAt)}.`
+                      : ""}
+                  </span>
+                </div>
+              )}
+              {crashSpikeData && !crashSpikeData.spikeDetected && (
+                <div className="border-t border-black/5 px-5 py-2.5 flex items-center gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  <span className="text-[11px] text-muted-foreground" data-testid="text-crash-spike-ok">
+                    No spike detected. Last alert:{" "}
+                    {crashSpikeData.lastSpikeAt ? formatDateTime(crashSpikeData.lastSpikeAt) : "Never"}.
                   </span>
                 </div>
               )}

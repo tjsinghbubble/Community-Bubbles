@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockQueryCrashReports, mockReportFatalCrashSpike } = vi.hoisted(() => ({
-  mockQueryCrashReports: vi.fn(),
+const { mockCountCrashReports, mockSetAppConfigValue, mockReportFatalCrashSpike } = vi.hoisted(() => ({
+  mockCountCrashReports: vi.fn(),
+  mockSetAppConfigValue: vi.fn(),
   mockReportFatalCrashSpike: vi.fn(),
 }));
 
 vi.mock("../storage", () => ({
   storage: {
-    queryCrashReports: mockQueryCrashReports,
+    countCrashReports: mockCountCrashReports,
+    setAppConfigValue: mockSetAppConfigValue,
   },
 }));
 
@@ -27,10 +29,11 @@ const DEFAULT_THRESHOLD = parsePositiveInt(process.env.FATAL_CRASH_SPIKE_THRESHO
 describe("checkFatalCrashSpike — below threshold", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSetAppConfigValue.mockResolvedValue(undefined);
   });
 
   it("does NOT call reportFatalCrashSpike when count is zero", async () => {
-    mockQueryCrashReports.mockResolvedValue([]);
+    mockCountCrashReports.mockResolvedValue(0);
 
     await checkFatalCrashSpike();
 
@@ -38,23 +41,30 @@ describe("checkFatalCrashSpike — below threshold", () => {
   });
 
   it("does NOT call reportFatalCrashSpike when count is one below the threshold", async () => {
-    const reports = Array(DEFAULT_THRESHOLD - 1).fill({});
-    mockQueryCrashReports.mockResolvedValue(reports);
+    mockCountCrashReports.mockResolvedValue(DEFAULT_THRESHOLD - 1);
 
     await checkFatalCrashSpike();
 
     expect(mockReportFatalCrashSpike).not.toHaveBeenCalled();
+  });
+
+  it("does NOT persist last_fatal_crash_spike_at when below threshold", async () => {
+    mockCountCrashReports.mockResolvedValue(DEFAULT_THRESHOLD - 1);
+
+    await checkFatalCrashSpike();
+
+    expect(mockSetAppConfigValue).not.toHaveBeenCalled();
   });
 });
 
 describe("checkFatalCrashSpike — at or above threshold", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSetAppConfigValue.mockResolvedValue(undefined);
   });
 
   it("calls reportFatalCrashSpike when count equals the threshold", async () => {
-    const reports = Array(DEFAULT_THRESHOLD).fill({});
-    mockQueryCrashReports.mockResolvedValue(reports);
+    mockCountCrashReports.mockResolvedValue(DEFAULT_THRESHOLD);
 
     await checkFatalCrashSpike();
 
@@ -67,29 +77,39 @@ describe("checkFatalCrashSpike — at or above threshold", () => {
   });
 
   it("calls reportFatalCrashSpike when count exceeds the threshold", async () => {
-    const reports = Array(DEFAULT_THRESHOLD + 1).fill({});
-    mockQueryCrashReports.mockResolvedValue(reports);
+    mockCountCrashReports.mockResolvedValue(DEFAULT_THRESHOLD + 10);
 
     await checkFatalCrashSpike();
 
     expect(mockReportFatalCrashSpike).toHaveBeenCalledTimes(1);
     expect(mockReportFatalCrashSpike).toHaveBeenCalledWith(
-      DEFAULT_THRESHOLD + 1,
+      DEFAULT_THRESHOLD + 10,
       expect.any(Number),
       DEFAULT_THRESHOLD,
     );
   });
 
-  it("queries crash reports with isFatal=true and a limit one above the threshold", async () => {
-    mockQueryCrashReports.mockResolvedValue([]);
+  it("queries crash reports with isFatal=true and a from timestamp", async () => {
+    mockCountCrashReports.mockResolvedValue(0);
 
     await checkFatalCrashSpike();
 
-    expect(mockQueryCrashReports).toHaveBeenCalledWith(
+    expect(mockCountCrashReports).toHaveBeenCalledWith(
       expect.objectContaining({
         isFatal: true,
-        limit: DEFAULT_THRESHOLD + 1,
+        from: expect.any(Date),
       }),
+    );
+  });
+
+  it("persists last_fatal_crash_spike_at when spike is detected", async () => {
+    mockCountCrashReports.mockResolvedValue(DEFAULT_THRESHOLD);
+
+    await checkFatalCrashSpike();
+
+    expect(mockSetAppConfigValue).toHaveBeenCalledWith(
+      "last_fatal_crash_spike_at",
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
     );
   });
 });
@@ -97,10 +117,11 @@ describe("checkFatalCrashSpike — at or above threshold", () => {
 describe("checkFatalCrashSpike — storage error", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSetAppConfigValue.mockResolvedValue(undefined);
   });
 
-  it("does not throw when queryCrashReports rejects", async () => {
-    mockQueryCrashReports.mockRejectedValue(new Error("DB connection failed"));
+  it("does not throw when countCrashReports rejects", async () => {
+    mockCountCrashReports.mockRejectedValue(new Error("DB connection failed"));
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(checkFatalCrashSpike()).resolves.toBeUndefined();
@@ -108,9 +129,9 @@ describe("checkFatalCrashSpike — storage error", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("logs the error to console.error when queryCrashReports rejects", async () => {
+  it("logs the error to console.error when countCrashReports rejects", async () => {
     const dbError = new Error("DB connection failed");
-    mockQueryCrashReports.mockRejectedValue(dbError);
+    mockCountCrashReports.mockRejectedValue(dbError);
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await checkFatalCrashSpike();
@@ -124,7 +145,7 @@ describe("checkFatalCrashSpike — storage error", () => {
   });
 
   it("does NOT call reportFatalCrashSpike when storage throws", async () => {
-    mockQueryCrashReports.mockRejectedValue(new Error("timeout"));
+    mockCountCrashReports.mockRejectedValue(new Error("timeout"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await checkFatalCrashSpike();

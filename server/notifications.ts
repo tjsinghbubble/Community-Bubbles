@@ -416,10 +416,10 @@ export function startSlowCallPrunerScheduler(): void {
 export async function checkFatalCrashSpike(): Promise<void> {
   try {
     const from = new Date(Date.now() - FATAL_CRASH_SPIKE_WINDOW_MINUTES * 60 * 1000);
-    const reports = await storage.queryCrashReports({ isFatal: true, from, limit: FATAL_CRASH_SPIKE_THRESHOLD + 1 });
-    const count = reports.length;
+    const count = await storage.countCrashReports({ isFatal: true, from });
     if (count >= FATAL_CRASH_SPIKE_THRESHOLD) {
       reportFatalCrashSpike(count, FATAL_CRASH_SPIKE_WINDOW_MINUTES, FATAL_CRASH_SPIKE_THRESHOLD);
+      await storage.setAppConfigValue("last_fatal_crash_spike_at", new Date().toISOString()).catch(() => {});
     }
   } catch (error) {
     console.error("[FatalCrashSpike] Error checking for fatal crash spike:", error);

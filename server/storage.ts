@@ -339,6 +339,7 @@ export interface IStorage {
   // Crash Reports
   insertCrashReport(data: InsertCrashReport): Promise<CrashReport>;
   queryCrashReports(opts?: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number }): Promise<CrashReport[]>;
+  countCrashReports(opts?: { isFatal?: boolean; from?: Date; to?: Date }): Promise<number>;
   purgeCrashReports(olderThanDays?: number): Promise<number>;
 
   // API Latency Samples (persisted aggregates)
@@ -2651,6 +2652,19 @@ export class DatabaseStorage implements IStorage {
     const query = db.select().from(crashReports);
     if (conditions.length > 0) query.where(and(...conditions));
     return query.orderBy(desc(crashReports.createdAt)).limit(limit).offset(offset);
+  }
+
+  async countCrashReports(opts: { isFatal?: boolean; from?: Date; to?: Date } = {}): Promise<number> {
+    const { isFatal, from, to } = opts;
+    const conditions = [];
+    if (isFatal !== undefined) conditions.push(eq(crashReports.isFatal, isFatal));
+    if (from !== undefined) conditions.push(gte(crashReports.createdAt, from));
+    if (to !== undefined) conditions.push(lt(crashReports.createdAt, to));
+
+    const query = db.select({ count: sql<number>`count(*)::int` }).from(crashReports);
+    if (conditions.length > 0) query.where(and(...conditions));
+    const result = await query;
+    return result[0]?.count ?? 0;
   }
 
   async purgeCrashReports(olderThanDays = 90): Promise<number> {
