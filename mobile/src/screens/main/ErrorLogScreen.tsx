@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,13 @@ import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import apiService from '../../services/api.service';
 import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
+import {
+  readRetryState,
+  readOfflineQueue,
+  triggerManualRetry,
+  RetryState,
+  getOfflineRetryServerUrl,
+} from '../../utils/crashReporter';
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ErrorLog'>;
@@ -70,6 +77,95 @@ function levelColor(_level: string): string {
   return Colors.status.error;
 }
 
+type RetryStatePanelProps = {
+  retryState: RetryState | null;
+  queueCount: number;
+  secondsUntilRetry: number;
+  retryingNow: boolean;
+  serverUrl: string | null;
+  onRetryNow: () => void;
+};
+
+function RetryStatePanel({
+  retryState,
+  queueCount,
+  secondsUntilRetry,
+  retryingNow,
+  serverUrl,
+  onRetryNow,
+}: RetryStatePanelProps) {
+  const isBackingOff = retryState !== null && secondsUntilRetry > 0;
+  const hasQueue = queueCount > 0;
+
+  if (!hasQueue && !retryState) return null;
+
+  return (
+    <View
+      style={[
+        styles.retryPanel,
+        isBackingOff ? styles.retryPanelWarning : styles.retryPanelIdle,
+      ]}
+      testID="panel-retry-state"
+    >
+      <View style={styles.retryPanelHeader}>
+        <Ionicons
+          name={isBackingOff ? 'cloud-offline-outline' : 'cloud-upload-outline'}
+          size={18}
+          color={isBackingOff ? Colors.status.warning : Colors.text.secondary}
+        />
+        <Text
+          style={[
+            styles.retryPanelTitle,
+            isBackingOff && styles.retryPanelTitleWarning,
+          ]}
+          testID="text-retry-status"
+        >
+          {isBackingOff
+            ? `Crash delivery held back — retry in ${secondsUntilRetry}s`
+            : 'Crash delivery queue'}
+        </Text>
+      </View>
+
+      <View style={styles.retryPanelMeta}>
+        <Text style={styles.retryPanelMetaText} testID="text-queue-count">
+          {`Queued reports: ${queueCount}`}
+        </Text>
+        {retryState && (
+          <Text style={styles.retryPanelMetaText} testID="text-retry-attempt">
+            {`Attempt: ${retryState.attempt}`}
+          </Text>
+        )}
+        {serverUrl ? (
+          <Text style={styles.retryPanelMetaText} numberOfLines={1} testID="text-server-url">
+            {`Server: ${serverUrl}`}
+          </Text>
+        ) : (
+          <Text style={styles.retryPanelMetaText} testID="text-server-url">
+            Server: not configured
+          </Text>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.retryButton, retryingNow && styles.retryButtonDisabled]}
+        onPress={onRetryNow}
+        disabled={retryingNow}
+        testID="button-retry-now"
+        activeOpacity={0.7}
+      >
+        {retryingNow ? (
+          <ActivityIndicator size="small" color={Colors.background.primary} />
+        ) : (
+          <Ionicons name="refresh-outline" size={14} color={Colors.background.primary} />
+        )}
+        <Text style={styles.retryButtonText}>
+          {retryingNow ? 'Retrying…' : 'Retry now'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function ErrorLogScreen({ navigation }: Props) {
   const [errors, setErrors] = useState<ErrorEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +175,57 @@ export default function ErrorLogScreen({ navigation }: Props) {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const timeFilterRef = useRef<TimeFilter>('all');
   timeFilterRef.current = timeFilter;
+
+  const [retryState, setRetryState] = useState<RetryState | null>(null);
+  const [queueCount, setQueueCount] = useState(0);
+  const [retryingNow, setRetryingNow] = useState(false);
+  const [secondsUntilRetry, setSecondsUntilRetry] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshRetryState = useCallback(async () => {
+    const [state, queue] = await Promise.all([readRetryState(), readOfflineQueue()]);
+    setRetryState(state);
+    setQueueCount(queue.length);
+  }, []);
+
+  useEffect(() => {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    if (retryState && retryState.nextRetryAt > Date.now()) {
+      const tick = () => {
+        const remaining = Math.max(0, Math.ceil((retryState.nextRetryAt - Date.now()) / 1000));
+        setSecondsUntilRetry(remaining);
+        if (remaining === 0 && countdownRef.current) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+          refreshRetryState();
+        }
+      };
+      tick();
+      countdownRef.current = setInterval(tick, 1000);
+    } else {
+      setSecondsUntilRetry(0);
+    }
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    };
+  }, [retryState, refreshRetryState]);
+
+  const handleRetryNow = useCallback(async () => {
+    setRetryingNow(true);
+    try {
+      await triggerManualRetry();
+      await new Promise<void>((resolve) => setTimeout(resolve, 600));
+      await refreshRetryState();
+    } finally {
+      setRetryingNow(false);
+    }
+  }, [refreshRetryState]);
 
   const fetchErrors = useCallback(async (filter: TimeFilter = 'all') => {
     try {
@@ -100,7 +247,8 @@ export default function ErrorLogScreen({ navigation }: Props) {
       setLoading(true);
       AsyncStorage.setItem('errorLogLastSeenAt', new Date().toISOString()).catch(() => {});
       fetchErrors(timeFilterRef.current);
-    }, [fetchErrors]),
+      refreshRetryState();
+    }, [fetchErrors, refreshRetryState]),
   );
 
   const handleRefresh = () => {
@@ -250,6 +398,15 @@ export default function ErrorLogScreen({ navigation }: Props) {
           </Text>
         </View>
       )}
+
+      <RetryStatePanel
+        retryState={retryState}
+        queueCount={queueCount}
+        secondsUntilRetry={secondsUntilRetry}
+        retryingNow={retryingNow}
+        serverUrl={getOfflineRetryServerUrl()}
+        onRetryNow={handleRetryNow}
+      />
 
       {loading ? (
         <ActivityIndicator style={styles.loader} color={Colors.brand.primary} />
@@ -409,5 +566,64 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm,
     color: Colors.status.error,
     flex: 1,
+  },
+  retryPanel: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    ...CardShadow,
+  },
+  retryPanelWarning: {
+    backgroundColor: Colors.background.warningTint,
+    borderWidth: 1,
+    borderColor: Colors.status.warning,
+  },
+  retryPanelIdle: {
+    backgroundColor: Colors.background.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border.default,
+  },
+  retryPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  retryPanelTitle: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+    flex: 1,
+  },
+  retryPanelTitleWarning: {
+    color: Colors.status.warning,
+  },
+  retryPanelMeta: {
+    gap: 2,
+  },
+  retryPanelMetaText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+    fontFamily: 'monospace',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.brand.primary,
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    alignSelf: 'flex-start',
+  },
+  retryButtonDisabled: {
+    opacity: 0.6,
+  },
+  retryButtonText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: '600',
+    color: Colors.background.primary,
   },
 });

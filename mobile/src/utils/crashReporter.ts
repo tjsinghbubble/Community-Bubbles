@@ -754,6 +754,27 @@ export function initOfflineRetry(serverUrl: string | null): void {
   });
 }
 
+/**
+ * Return the server URL currently registered with `initOfflineRetry`, or
+ * `null` if offline retry is disabled.  Intended for debug tooling only.
+ */
+export function getOfflineRetryServerUrl(): string | null {
+  return _offlineRetryServerUrl;
+}
+
+/**
+ * Clear the persisted backoff state and immediately trigger a flush attempt
+ * against the currently configured server URL.  If no server URL is
+ * configured the backoff state is still cleared so the next automatic flush
+ * can start fresh.  Intended for use by debug tooling only.  Never throws.
+ */
+export async function triggerManualRetry(): Promise<void> {
+  await resetRetryState();
+  if (_offlineRetryServerUrl) {
+    flushOfflineQueue(_offlineRetryServerUrl).catch(() => {});
+  }
+}
+
 export function installGlobalHandlers(): void {
   const globalObj = global as Record<string, unknown>;
 
