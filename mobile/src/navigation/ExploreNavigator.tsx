@@ -82,7 +82,7 @@ export type ExploreStackParamList = {
   PostDetail: { postId: string; bubbleId: string };
   CreatePost: { bubbleId: string; bubbleTitle: string; preselectedTypeId?: number; editPostId?: string; editTitle?: string; editBody?: string };
   JoinBubble: { bubble: BubbleData };
-  BubbleWaitlist: { bubbleId: string; bubbleTitle: string };
+  BubbleWaitlist: { bubbleId: string; bubbleTitle: string; onPendingCountChange?: (count: number) => void };
   AdminDashboard: { bubbleId: string; bubbleTitle: string; bubble: BubbleData };
   MemberProfile: { userId: string };
 };

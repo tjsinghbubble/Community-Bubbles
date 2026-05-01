@@ -35,7 +35,7 @@ type DenyModalState = {
 };
 
 export default function BubbleWaitlistScreen({ navigation, route }: Props) {
-  const { bubbleId, bubbleTitle } = route.params;
+  const { bubbleId, bubbleTitle, onPendingCountChange } = route.params;
   const [waitlist, setWaitlist] = useState<WaitlistMemberRecord[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequestMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +70,7 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
 
     if (joinResult.status === 'fulfilled') {
       setJoinRequests(joinResult.value);
+      onPendingCountChange?.(joinResult.value.length);
     } else {
       Alert.alert('Error', (joinResult.reason as Error)?.message || 'Failed to load join requests');
     }
@@ -138,7 +139,11 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
             setActionLoading(userId);
             try {
               await apiService.approveJoinRequest(bubbleId, userId);
-              setJoinRequests(prev => prev.filter(r => r.userId !== userId));
+              setJoinRequests(prev => {
+                const updated = prev.filter(r => r.userId !== userId);
+                onPendingCountChange?.(updated.length);
+                return updated;
+              });
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to approve');
             } finally {
@@ -164,7 +169,11 @@ export default function BubbleWaitlistScreen({ navigation, route }: Props) {
     setActionLoading(userId);
     try {
       await apiService.rejectJoinRequest(bubbleId, userId, reason.trim() || undefined);
-      setJoinRequests(prev => prev.filter(r => r.userId !== userId));
+      setJoinRequests(prev => {
+        const updated = prev.filter(r => r.userId !== userId);
+        onPendingCountChange?.(updated.length);
+        return updated;
+      });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to deny request');
     } finally {

@@ -925,7 +925,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       <View style={styles.section}>
         <TouchableOpacity
           style={styles.sectionHeaderRow}
-          onPress={() => navigation.navigate('BubbleWaitlist' as any, { bubbleId: bubble.id, bubbleTitle: bubble.title })}
+          onPress={() => navigation.navigate('BubbleWaitlist' as any, {
+            bubbleId: bubble.id,
+            bubbleTitle: bubble.title,
+            onPendingCountChange: (count: number) => setPendingJoinRequestCount(count),
+          })}
           accessibilityLabel="Manage waitlist"
           testID="button-waitlist-manage"
         >
