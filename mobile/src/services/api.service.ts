@@ -701,7 +701,7 @@ class ApiService {
   }
 
   async getBubbleByShortId(shortId: string): Promise<any> {
-    return this.request<any>(`/b/${shortId}`);
+    return this.request<any>(`/api/bubbles/short/${shortId}`);
   }
 
   async getBulletinReplies(postId: string): Promise<any[]> {
