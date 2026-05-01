@@ -8,7 +8,7 @@ import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { initSentry, installGlobalHandlers, hydrateSpanExpiryEvents, initOfflineRetry } from './src/utils/crashReporter';
 import Constants from 'expo-constants';
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from './src/utils/sentry-stub';
 
 initSentry();
 installGlobalHandlers();
