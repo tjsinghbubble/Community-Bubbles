@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   Switch,
   Alert,
   TouchableOpacity,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
@@ -161,8 +164,8 @@ export default function NotificationPreferencesScreen() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [saving, setSaving] = useState<keyof Prefs | null>(null);
 
-  const fetchPrefs = useCallback(async () => {
-    setLoadState('loading');
+  const fetchPrefs = useCallback(async (silent = false) => {
+    if (!silent) setLoadState('loading');
     try {
       const data = await apiService.getNotificationPreferences();
       const loaded: Prefs = mergeWithDefaults(data);
@@ -170,18 +173,50 @@ export default function NotificationPreferencesScreen() {
       if (userCacheKey) writeCache(userCacheKey, loaded);
       setLoadState('loaded');
     } catch {
-      const cached = userCacheKey ? await readCache(userCacheKey) : null;
-      if (cached) {
-        setPrefs(cached);
-        setLoadState('cached');
-      } else {
-        setLoadState('error');
+      if (!silent) {
+        const cached = userCacheKey ? await readCache(userCacheKey) : null;
+        if (cached) {
+          setPrefs(cached);
+          setLoadState('cached');
+        } else {
+          setLoadState('error');
+        }
       }
     }
   }, [userCacheKey]);
 
   useEffect(() => {
     fetchPrefs();
+  }, [fetchPrefs]);
+
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const isConnectedRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+      if (
+        nextState === 'active' &&
+        (prev === 'background' || prev === 'inactive') &&
+        isConnectedRef.current !== false
+      ) {
+        fetchPrefs(true);
+      }
+    });
+    return () => subscription.remove();
+  }, [fetchPrefs]);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const isConnected = state.isConnected ?? false;
+      const wasConnected = isConnectedRef.current;
+      isConnectedRef.current = isConnected;
+      if (isConnected && wasConnected === false) {
+        fetchPrefs(true);
+      }
+    });
+    return () => unsubscribe();
   }, [fetchPrefs]);
 
   const handleToggle = useCallback(async (key: keyof Prefs, value: boolean) => {
