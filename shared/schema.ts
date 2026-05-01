@@ -704,6 +704,8 @@ export const latencyBuckets = pgTable(
   },
   (table) => [
     unique("latency_buckets_endpoint_method_ts_unique").on(table.method, table.endpoint, table.bucketTs),
+    index("latency_buckets_bucket_ts_idx").on(table.bucketTs),
+    index("latency_buckets_endpoint_method_idx").on(table.method, table.endpoint),
   ],
 );
 

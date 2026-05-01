@@ -45,6 +45,7 @@ export async function flushBucketsForKey(
   endpoint: string,
   samples: SampleIn[],
   sinceTs: number,
+  includeCurrent = true,
 ): Promise<void> {
   if (samples.length === 0) return;
 
@@ -54,7 +55,7 @@ export async function flushBucketsForKey(
   const bucketed = new Map<number, SampleIn[]>();
   for (const s of samples) {
     if (s.ts < sinceTs) continue;
-    if (s.ts >= currentBucketStart) continue;
+    if (!includeCurrent && s.ts >= currentBucketStart) continue;
     const bucketStart = Math.floor(s.ts / BUCKET_MS) * BUCKET_MS;
     if (!bucketed.has(bucketStart)) bucketed.set(bucketStart, []);
     bucketed.get(bucketStart)!.push(s);
