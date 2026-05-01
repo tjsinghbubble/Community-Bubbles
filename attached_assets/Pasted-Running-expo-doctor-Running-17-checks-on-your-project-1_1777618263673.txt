@@ -1,0 +1,43 @@
+Running "expo doctor"
+Running 17 checks on your project...
+12/17 checks passed. 5 checks failed. Possible issues detected:
+Use the --verbose flag to see more details about passed checks.
+✖ Check for lock file
+No lock file detected.
+Advice:
+Install dependencies using the package manager of your choice to a generate a lock file.
+✖ Check Expo config for common issues
+You have an app.json file in your project, but your app.config.js is not using the values from it.
+Advice:
+Remove the static app.json, or use its values in your dynamic app.config.js. Learn more: https://docs.expo.dev/workflow/configuration
+✖ Check that required peer dependencies are installed
+Missing peer dependency: react-native-worklets
+Required by: react-native-reanimated
+Advice:
+Install missing required peer dependency with "npx expo install react-native-worklets"
+Your app may crash outside of Expo Go without this dependency. Native module peer dependencies must be installed directly.
+✖ Check that no duplicate dependencies are installed
+Your project contains duplicate native module dependencies, which should be de-duplicated.
+Native builds may only contain one version of any given native module, and having multiple versions of a single Native module installed may lead to unexpected build errors.
+Found duplicates for expo-constants:
+  ├─ expo-constants@18.0.13 (at: node_modules/expo-constants)
+  └─ expo-constants@17.1.8 (at: node_modules/expo-notifications/node_modules/expo-constants)
+Advice:
+Resolve your dependency issues and deduplicate your dependencies. Learn more: https://expo.fyi/resolving-dependency-issues
+✖ Check that packages match versions required by installed Expo SDK
+❗ Major version mismatches
+package                          expected  found   
+@react-native-community/netinfo  11.4.1    12.0.1  
+⚠️ Minor version mismatches
+package                          expected  found   
+expo-notifications               ~0.32.17  0.31.5  
+react-native-reanimated          ~4.1.1    4.2.3   
+Changelogs:
+- expo-notifications → https://github.com/expo/expo/blob/sdk-54/packages/expo-notifications/CHANGELOG.md
+3 packages out of date.
+Advice:
+Use 'npx expo install --check' to review and upgrade your dependencies.
+To ignore specific packages, add them to "expo.install.exclude" in package.json. Learn more: https://expo.fyi/dependency-validation
+5 checks failed, indicating possible issues with the project.
+Command "expo doctor" failed.
+npx -y expo-doctor exited with non-zero code: 1
