@@ -18,6 +18,43 @@ type AuthResponse = {
   token: string;
 };
 
+export type MemberUserProfile = {
+  id: string;
+  name: string;
+  email?: string | null;
+  profilePhoto?: string | null;
+};
+
+export type WaitlistMemberRecord = {
+  id: string;
+  userId: string;
+  bubbleId: string;
+  membershipStatus: 'waitlisted' | 'on_hold';
+  joinedAt: string;
+  user: MemberUserProfile;
+};
+
+export type WaitlistResponse = {
+  waitlisted: WaitlistMemberRecord[];
+  on_hold: WaitlistMemberRecord[];
+};
+
+export type JoinRequestUserProfile = {
+  id: string;
+  name: string;
+  email?: string | null;
+  profilePhoto?: string | null;
+};
+
+export type JoinRequestMember = {
+  id: string;
+  userId: string;
+  bubbleId: string;
+  membershipStatus: 'pending';
+  joinedAt: string;
+  user: JoinRequestUserProfile;
+};
+
 class ApiService {
   private token: string | null = null;
   private onTokenRevokedCallback: (() => void) | null = null;
@@ -287,7 +324,7 @@ class ApiService {
   }
 
   async getWaitlist(bubbleId: string) {
-    return this.request(`/api/bubbles/${bubbleId}/waitlist`, { method: "GET" });
+    return this.request<WaitlistResponse>(`/api/bubbles/${bubbleId}/waitlist`, { method: "GET" });
   }
 
   async approveWaitlist(bubbleId: string, userId: string) {
@@ -335,7 +372,7 @@ class ApiService {
   }
 
   async getJoinRequests(bubbleId: string) {
-    return this.request(`/api/bubbles/${bubbleId}/join-requests`, {
+    return this.request<JoinRequestMember[]>(`/api/bubbles/${bubbleId}/join-requests`, {
       method: "GET",
     });
   }
