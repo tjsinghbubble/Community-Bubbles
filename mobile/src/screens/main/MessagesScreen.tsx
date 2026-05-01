@@ -649,6 +649,12 @@ export default function MessagesScreen({ navigation, route }: Props) {
             scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
           >
+            {conversation.unreadMessageCount > 0 && (
+              <View
+                style={styles.unreadAccentBar}
+                testID={`bar-unread-${conversation.conversationId}`}
+              />
+            )}
             {renderAvatar(conversation)}
 
             <View style={styles.conversationContent}>
@@ -819,6 +825,15 @@ const styles = StyleSheet.create({
   },
   conversationItemUnread: {
     backgroundColor: Colors.background.brandTint,
+  },
+  unreadAccentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 0,
   },
   bubbleAvatarRing: {
     width: 56,
