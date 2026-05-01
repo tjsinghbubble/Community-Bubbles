@@ -82,17 +82,36 @@ bots) that cannot follow the conventional format.
 
 ## Branch protection (required status checks)
 
-To enforce both checks, configure the following **required status checks** on
-your protected branch (e.g. `main`) in
-**Settings → Branches → Branch protection rules**:
+Branch protection is configured automatically by
+`.github/workflows/setup-branch-protection.yml`. The workflow runs whenever
+that file is updated on `main`, or on demand via **Actions → Setup Branch
+Protection → Run workflow**.
+
+The following status checks are enforced as **required** on `main`:
 
 | Status check name                          | Workflow file             |
 |--------------------------------------------|---------------------------|
 | `Validate PR title (conventional commit)`  | `pr-title-lint.yml`       |
 | `Lint commit messages`                     | `pr-commitlint.yml`       |
 
-With these checks marked as required, GitHub will block the merge button until
-both pass.
+With these checks required, GitHub blocks the merge button until both pass —
+even for repository administrators.
+
+### One-time secret setup
+
+The setup workflow needs an admin-scoped Personal Access Token to modify branch
+protection rules (the default `GITHUB_TOKEN` does not have that permission).
+
+1. Create a PAT at **GitHub → Settings → Developer settings → Personal access
+   tokens** with the `repo` scope (classic token) or `administration: write`
+   permission (fine-grained token).
+2. Add it to the repository as a secret named **`ADMIN_PAT`** under
+   **Settings → Secrets and variables → Actions**.
+3. Trigger the workflow once via **Actions → Setup Branch Protection → Run
+   workflow** to apply the rules, or push a change to the workflow file itself.
+
+After the initial run the settings persist in GitHub and the workflow keeps
+them in sync on every subsequent update.
 
 ---
 

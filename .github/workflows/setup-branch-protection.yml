@@ -1,0 +1,100 @@
+name: Setup Branch Protection
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/setup-branch-protection.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  protect:
+    name: Require PR lint checks on main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply required status checks to main
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_PAT }}
+        run: |
+          REPO="${{ github.repository }}"
+          BRANCH="main"
+
+          # Fetch current protection (empty object if none exists)
+          CURRENT=$(gh api "repos/$REPO/branches/$BRANCH/protection" 2>/dev/null || echo "{}")
+
+          # Build the merged required-contexts list.
+          # Always include the two lint checks; preserve any that already exist.
+          CONTEXTS=$(echo "$CURRENT" \
+            | jq --argjson add '["Validate PR title (conventional commit)","Lint commit messages"]' '
+                ((.required_status_checks.contexts // []) + $add) | unique | sort
+              ')
+
+          STRICT=$(echo "$CURRENT" | jq '.required_status_checks.strict // false')
+
+          # Preserve the full required_pull_request_reviews structure.
+          # The GET response uses nested objects; PUT expects login/slug arrays
+          # for dismissal_restrictions and bypass_pull_request_allowances.
+          PR_REVIEWS=$(echo "$CURRENT" | jq '
+            if .required_pull_request_reviews then {
+              dismiss_stale_reviews:
+                .required_pull_request_reviews.dismiss_stale_reviews,
+              require_code_owner_reviews:
+                .required_pull_request_reviews.require_code_owner_reviews,
+              required_approving_review_count:
+                .required_pull_request_reviews.required_approving_review_count,
+              require_last_push_approval:
+                (.required_pull_request_reviews.require_last_push_approval // false),
+              dismissal_restrictions: (
+                if .required_pull_request_reviews.dismissal_restrictions then {
+                  users: [.required_pull_request_reviews.dismissal_restrictions.users[].login],
+                  teams: [.required_pull_request_reviews.dismissal_restrictions.teams[].slug],
+                  apps:  [.required_pull_request_reviews.dismissal_restrictions.apps[].slug]
+                } else null end),
+              bypass_pull_request_allowances: (
+                if .required_pull_request_reviews.bypass_pull_request_allowances then {
+                  users: [.required_pull_request_reviews.bypass_pull_request_allowances.users[].login],
+                  teams: [.required_pull_request_reviews.bypass_pull_request_allowances.teams[].slug],
+                  apps:  [.required_pull_request_reviews.bypass_pull_request_allowances.apps[].slug]
+                } else null end)
+            } else null end')
+
+          # Preserve existing push restrictions (null = no restrictions).
+          RESTRICTIONS=$(echo "$CURRENT" | jq '
+            if .restrictions then {
+              users: [.restrictions.users[].login],
+              teams: [.restrictions.teams[].slug],
+              apps:  [.restrictions.apps[].slug]
+            } else null end')
+
+          # Assemble the full protection payload and apply it.
+          # enforce_admins is always true so no one — including repo admins —
+          # can bypass the required checks.
+          PAYLOAD=$(jq -n \
+            --argjson strict         "$STRICT" \
+            --argjson contexts       "$CONTEXTS" \
+            --argjson pr_reviews     "$PR_REVIEWS" \
+            --argjson restrictions   "$RESTRICTIONS" \
+            '{
+              required_status_checks: { strict: $strict, contexts: $contexts },
+              enforce_admins:         true,
+              required_pull_request_reviews: $pr_reviews,
+              restrictions:           $restrictions
+            }')
+
+          echo "$PAYLOAD" | gh api \
+            --method PUT \
+            "repos/$REPO/branches/$BRANCH/protection" \
+            --input -
+
+          echo ""
+          echo "Branch protection updated. Required status checks on $BRANCH:"
+          gh api "repos/$REPO/branches/$BRANCH/protection" \
+            --jq '.required_status_checks.contexts[]'
+          echo ""
+          echo "enforce_admins:"
+          gh api "repos/$REPO/branches/$BRANCH/protection" \
+            --jq '.enforce_admins.enabled'
