@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,30 +17,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
 import { NavHeader } from '../../components/ScreenHeader';
+import { API_URL } from '../../config/api';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Interests'>;
   route: RouteProp<AuthStackParamList, 'Interests'>;
 };
 
-const INTERESTS: { id: string; label: string; image: number | string }[] = [
-  { id: 'running', label: 'Running', image: require('../../assets/images/running.jpg') },
-  { id: 'cooking', label: 'Cooking', image: require('../../assets/images/cooking.jpg') },
-  { id: 'coffee', label: 'Coffee Meets', image: require('../../assets/images/coffee-meets.jpg') },
-  { id: 'gardening', label: 'Gardening', image: require('../../assets/images/gardening.jpg') },
-  { id: 'yoga', label: 'Yoga', image: require('../../assets/images/yoga.jpg') },
-  { id: 'tennis', label: 'Tennis', image: require('../../assets/images/tennis.jpg') },
-  { id: 'biking', label: 'Biking', image: require('../../assets/images/biking.jpg') },
-  { id: 'hiking', label: 'Hiking', image: require('../../assets/images/hiking.jpg') },
-  { id: 'wellness', label: 'Wellness', image: require('../../assets/images/wellness.jpg') },
-  { id: 'social', label: 'Social', image: require('../../assets/images/social.jpg') },
-  { id: 'art', label: 'Arts & Crafts', image: require('../../assets/images/arts-crafts.jpg') },
-  { id: 'community', label: 'Community', image: require('../../assets/images/community.jpg') },
-  { id: 'pets', label: 'Pets', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=300&h=300&fit=crop' },
-  { id: 'photography', label: 'Photography', image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=300&h=300&fit=crop' },
-  { id: 'music', label: 'Music', image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop' },
-  { id: 'gaming', label: 'Gaming', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&h=300&fit=crop' },
-];
+interface CategoryItem {
+  id: number;
+  name: string;
+  displayName: string;
+  image: string | null;
+  parentId: number | null;
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_PADDING = 8;
@@ -48,14 +40,43 @@ const TOTAL_GAPS = CARD_GAP * 2;
 const CARD_SIZE = Math.floor((SCREEN_WIDTH - GRID_PADDING * 2 - TOTAL_GAPS) / 3);
 
 const MIN_SELECTIONS = 3;
+const MAX_SELECTIONS = 20;
 const PROGRESS_STEP = 0.75;
 
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
 
+  const loadCategories = async () => {
+    setLoading(true);
+    setFetchError(false);
+    try {
+      const res = await fetch(`${API_URL}/api/categories/flat`);
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const data: CategoryItem[] = await res.json();
+      const subcategories = data.filter(c => c.parentId !== null);
+      setCategories(subcategories);
+    } catch (err) {
+      console.error('[InterestsScreen] Failed to load categories:', err);
+      setFetchError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
   const toggleInterest = (id: string) => {
-    setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    setSelected(prev => {
+      if (prev.includes(id)) return prev.filter(i => i !== id);
+      if (prev.length >= MAX_SELECTIONS) return prev;
+      return [...prev, id];
+    });
   };
 
   const handleContinue = () => {
@@ -83,46 +104,65 @@ export default function InterestsScreen({ navigation, route }: Props) {
       <Text style={styles.title}>Tell us your interests</Text>
       <Text style={styles.subtitle}>Select at least 3 to continue</Text>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.gridContainer}
-        showsVerticalScrollIndicator={false}
-      >
-        {INTERESTS.map((interest) => {
-          const isSelected = selected.includes(interest.id);
-          return (
-            <View key={interest.id} style={styles.cardWrapper}>
-              <TouchableOpacity
-                style={[styles.card, isSelected && styles.cardSelected]}
-                onPress={() => toggleInterest(interest.id)}
-                activeOpacity={0.8}
-                testID={`button-interest-${interest.id}`}
-              >
-                <View style={styles.cardInner}>
-                  <Image
-                    source={interest.image}
-                    style={styles.cardImage}
-                    contentFit="cover"
-                  />
-                  {isSelected && (
-                    <View style={styles.selectedOverlay}>
-                      <View style={styles.checkCircle}>
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#35A8F7" />
+        </View>
+      ) : fetchError ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>Couldn't load interests. Please try again.</Text>
+          <TouchableOpacity onPress={loadCategories} style={styles.retryButton} testID="button-retry-interests">
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {categories.map((category) => {
+            const id = category.name;
+            const isSelected = selected.includes(id);
+            const imageSource = resolveMediaUrl(category.image);
+            return (
+              <View key={id} style={styles.cardWrapper}>
+                <TouchableOpacity
+                  style={[styles.card, isSelected && styles.cardSelected]}
+                  onPress={() => toggleInterest(id)}
+                  activeOpacity={0.8}
+                  testID={`button-interest-${id}`}
+                >
+                  <View style={styles.cardInner}>
+                    {imageSource ? (
+                      <Image
+                        source={{ uri: imageSource }}
+                        style={styles.cardImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={[styles.cardImage, styles.cardImagePlaceholder]} />
+                    )}
+                    {isSelected && (
+                      <View style={styles.selectedOverlay}>
+                        <View style={styles.checkCircle}>
+                          <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                        </View>
                       </View>
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-              <Text
-                style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
-                testID={`text-interest-${interest.id}`}
-              >
-                {interest.label}
-              </Text>
-            </View>
-          );
-        })}
-      </ScrollView>
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <Text
+                  style={[styles.cardLabel, isSelected && styles.cardLabelSelected]}
+                  testID={`text-interest-${id}`}
+                >
+                  {category.displayName}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
 
       <View style={styles.footer}>
         <BubbleButton
@@ -149,6 +189,13 @@ const styles = StyleSheet.create({
     fontSize: 16, fontWeight: '500', color: '#4D4D4D',
     textAlign: 'center', marginTop: 34, marginBottom: 8,
   },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  errorText: { fontSize: 15, color: '#4D4D4D', textAlign: 'center', marginBottom: 16 },
+  retryButton: {
+    paddingHorizontal: 24, paddingVertical: 10,
+    borderRadius: 20, backgroundColor: '#35A8F7',
+  },
+  retryText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
   scroll: { flex: 1 },
   gridContainer: {
     flexDirection: 'row', flexWrap: 'wrap',
@@ -168,6 +215,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden', backgroundColor: '#FFFFFF',
   },
   cardImage: { width: '100%', height: '100%' },
+  cardImagePlaceholder: { backgroundColor: '#E0E0E0' },
   selectedOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(53, 168, 247, 0.25)',
