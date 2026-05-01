@@ -22,5 +22,8 @@ module.exports = {
   ],
   extra: {
     sentryDsn: process.env.SENTRY_DSN ?? '',
+    eas: {
+      projectId: '87aa84ba-0626-4ec1-b569-7276843813d9',
+    },
   },
 };
