@@ -17,8 +17,16 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Animated,
-  PanResponder,
 } from 'react-native';
+import {
+  PanGestureHandler,
+  LongPressGestureHandler,
+  NativeViewGestureHandler,
+  State,
+  LongPressGestureHandlerStateChangeEvent,
+  PanGestureHandlerGestureEvent,
+  PanGestureHandlerStateChangeEvent,
+} from 'react-native-gesture-handler';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -140,7 +148,9 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [inlineHoverIndex, setInlineHoverIndex] = useState<number | null>(null);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const reorderDragAnim = useRef(new Animated.Value(0)).current;
+  const dragTranslationY = useRef(new Animated.Value(0)).current;
+  const dragAnchorY = useRef(new Animated.Value(0)).current;
+  const reorderDragAnim = useRef(Animated.add(dragAnchorY, dragTranslationY)).current;
   const signupTasksRef = useRef<SignupTask[]>([]);
   const reorderTasksRef = signupTasksRef;
   const reorderItemLayouts = useRef<{ [id: number]: { y: number; height: number } }>({});
@@ -148,8 +158,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const containerPageY = useRef(0);
   const activeDragRef = useRef<{ id: number; index: number; origY: number } | null>(null);
   const activeHoverRef = useRef<number | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingDragRef = useRef<{ id: number; index: number; origY: number; pageY: number; pageX: number; isOptions: boolean } | null>(null);
+  const panGestureRef = useRef<PanGestureHandler>(null);
+  const longPressGestureRef = useRef<LongPressGestureHandler>(null);
+  const scrollNativeRef = useRef<NativeViewGestureHandler>(null);
+  const dragStartTouchRef = useRef<{ taskId: number; isOptions: boolean; startAbsX: number; startAbsY: number } | null>(null);
   const canManageRef = useRef(false);
   const handleToggleSignupRef = useRef<(task: SignupTask) => void>(() => {});
   const autoSaveInlineOrderRef = useRef<(tasks: SignupTask[]) => void>(() => {});
@@ -458,123 +470,121 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     signupTasksRef.current = signupTasks;
   }, [signupTasks]);
 
-  const reorderPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => canManageRef.current,
-      onMoveShouldSetPanResponder: () => activeDragRef.current !== null,
-
-      onPanResponderGrant: (evt) => {
-        if (!canManageRef.current) return;
-        const touchY = evt.nativeEvent.pageY - containerPageY.current;
-        const touchX = evt.nativeEvent.pageX;
-        const optionsThreshold = SCREEN_WIDTH - CONTENT_PADDING - 40;
-        const tasks = reorderTasksRef.current;
-        for (let i = 0; i < tasks.length; i++) {
-          const layout = reorderItemLayouts.current[tasks[i].id];
-          if (layout && touchY >= layout.y && touchY < layout.y + layout.height) {
-            const isOptions = touchX >= optionsThreshold;
-            pendingDragRef.current = {
-              id: tasks[i].id,
-              index: i,
-              origY: layout.y,
-              pageY: evt.nativeEvent.pageY,
-              pageX: touchX,
-              isOptions,
-            };
-            if (!isOptions) {
-              longPressTimerRef.current = setTimeout(() => {
-                const pending = pendingDragRef.current;
-                if (!pending || pending.isOptions) return;
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                activeDragRef.current = { id: pending.id, index: pending.index, origY: pending.origY };
-                activeHoverRef.current = pending.index;
-                reorderDragAnim.setValue(pending.origY);
-                setInlineDraggingId(pending.id);
-                setInlineHoverIndex(pending.index);
-                setScrollEnabled(false);
-              }, 400);
-            }
-            return;
-          }
-        }
-      },
-
-      onPanResponderMove: (_, gestureState) => {
-        if (!activeDragRef.current) return;
-        const newY = activeDragRef.current.origY + gestureState.dy;
-        reorderDragAnim.setValue(newY);
-        const tasks = reorderTasksRef.current;
-        const itemHeight = reorderItemLayouts.current[activeDragRef.current.id]?.height ?? 72;
-        const centerY = newY + itemHeight / 2;
-        let hoverIdx = tasks.length;
-        for (let i = 0; i < tasks.length; i++) {
-          if (tasks[i].id === activeDragRef.current.id) continue;
-          const layout = reorderItemLayouts.current[tasks[i].id];
-          if (layout && centerY < layout.y + layout.height / 2) {
-            hoverIdx = i;
-            break;
-          }
-        }
-        if (hoverIdx !== activeHoverRef.current) {
-          activeHoverRef.current = hoverIdx;
-          setInlineHoverIndex(hoverIdx);
-        }
-      },
-
-      onPanResponderRelease: () => {
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }
-        const pending = pendingDragRef.current;
-        pendingDragRef.current = null;
-
-        if (!activeDragRef.current) {
-          // Was a tap (long press never fired)
-          if (pending) {
-            const task = reorderTasksRef.current.find(t => t.id === pending.id);
-            if (task) {
-              if (pending.isOptions) {
-                showTaskOptionsRef.current(task);
-              } else {
-                handleToggleSignupRef.current(task);
-              }
+  const onPanGestureEvent = useCallback(
+    Animated.event(
+      [{ nativeEvent: { translationY: dragTranslationY } }],
+      {
+        useNativeDriver: true,
+        listener: (evt: PanGestureHandlerGestureEvent) => {
+          if (!activeDragRef.current) return;
+          const newY = activeDragRef.current.origY + evt.nativeEvent.translationY;
+          const tasks = reorderTasksRef.current;
+          const itemHeight = reorderItemLayouts.current[activeDragRef.current.id]?.height ?? 72;
+          const centerY = newY + itemHeight / 2;
+          let hoverIdx = tasks.length;
+          for (let i = 0; i < tasks.length; i++) {
+            if (tasks[i].id === activeDragRef.current.id) continue;
+            const layout = reorderItemLayouts.current[tasks[i].id];
+            if (layout && centerY < layout.y + layout.height / 2) {
+              hoverIdx = i;
+              break;
             }
           }
+          if (hoverIdx !== activeHoverRef.current) {
+            activeHoverRef.current = hoverIdx;
+            setInlineHoverIndex(hoverIdx);
+          }
+        },
+      }
+    ),
+    []
+  );
+
+  const onLongPressStateChange = useCallback((evt: LongPressGestureHandlerStateChangeEvent) => {
+    const { state, absoluteX, absoluteY } = evt.nativeEvent;
+
+    if (state === State.BEGAN) {
+      if (!canManageRef.current) return;
+      const touchY = absoluteY - containerPageY.current;
+      const optionsThreshold = SCREEN_WIDTH - CONTENT_PADDING - 40;
+      const tasks = reorderTasksRef.current;
+      for (let i = 0; i < tasks.length; i++) {
+        const layout = reorderItemLayouts.current[tasks[i].id];
+        if (layout && touchY >= layout.y && touchY < layout.y + layout.height) {
+          dragStartTouchRef.current = { taskId: tasks[i].id, isOptions: absoluteX >= optionsThreshold, startAbsX: absoluteX, startAbsY: absoluteY };
           return;
         }
+      }
+      dragStartTouchRef.current = null;
+      return;
+    }
 
-        const tasks = reorderTasksRef.current;
-        const startIndex = activeDragRef.current.index;
-        const finalHover = activeHoverRef.current ?? startIndex;
-        activeDragRef.current = null;
-        setInlineDraggingId(null);
-        setInlineHoverIndex(null);
+    if (state === State.ACTIVE) {
+      const touchInfo = dragStartTouchRef.current;
+      if (!touchInfo || touchInfo.isOptions || !canManageRef.current) return;
+      const tasks = reorderTasksRef.current;
+      const idx = tasks.findIndex(t => t.id === touchInfo.taskId);
+      if (idx === -1) return;
+      const layout = reorderItemLayouts.current[touchInfo.taskId];
+      if (!layout) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      activeDragRef.current = { id: touchInfo.taskId, index: idx, origY: layout.y };
+      activeHoverRef.current = idx;
+      dragTranslationY.setValue(0);
+      dragAnchorY.setValue(layout.y);
+      setInlineDraggingId(touchInfo.taskId);
+      setInlineHoverIndex(idx);
+      setScrollEnabled(false);
+      return;
+    }
+
+    if (state === State.FAILED) {
+      const touchInfo = dragStartTouchRef.current;
+      dragStartTouchRef.current = null;
+      if (!touchInfo) return;
+      const dx = absoluteX - touchInfo.startAbsX;
+      const dy = absoluteY - touchInfo.startAbsY;
+      if (Math.sqrt(dx * dx + dy * dy) > 12) return;
+      const task = reorderTasksRef.current.find(t => t.id === touchInfo.taskId);
+      if (!task) return;
+      if (touchInfo.isOptions) {
+        showTaskOptionsRef.current(task);
+      } else {
+        handleToggleSignupRef.current(task);
+      }
+    }
+
+    if (state === State.CANCELLED) {
+      dragStartTouchRef.current = null;
+    }
+  }, []);
+
+  const onPanStateChange = useCallback((evt: PanGestureHandlerStateChangeEvent) => {
+    const { state } = evt.nativeEvent;
+    if (state === State.END || state === State.CANCELLED || state === State.FAILED) {
+      dragStartTouchRef.current = null;
+      if (!activeDragRef.current) {
         setScrollEnabled(true);
-
-        if (finalHover !== startIndex) {
-          const newTasks = [...tasks];
-          const [item] = newTasks.splice(startIndex, 1);
-          const insertAt = finalHover > startIndex ? finalHover - 1 : finalHover;
-          newTasks.splice(insertAt, 0, item);
-          setSignupTasks(newTasks);
-          autoSaveInlineOrderRef.current(newTasks);
-        }
-      },
-
-      onPanResponderTerminate: () => {
-        if (longPressTimerRef.current) {
-          clearTimeout(longPressTimerRef.current);
-          longPressTimerRef.current = null;
-        }
-        pendingDragRef.current = null;
-        setInlineDraggingId(null);
-        setInlineHoverIndex(null);
-        activeDragRef.current = null;
-        setScrollEnabled(true);
-      },
-    })
-  ).current;
+        return;
+      }
+      const tasks = reorderTasksRef.current;
+      const startIndex = activeDragRef.current.index;
+      const finalHover = activeHoverRef.current ?? startIndex;
+      activeDragRef.current = null;
+      setInlineDraggingId(null);
+      setInlineHoverIndex(null);
+      setScrollEnabled(true);
+      dragTranslationY.setValue(0);
+      if (finalHover !== startIndex) {
+        const newTasks = [...tasks];
+        const [item] = newTasks.splice(startIndex, 1);
+        const insertAt = finalHover > startIndex ? finalHover - 1 : finalHover;
+        newTasks.splice(insertAt, 0, item);
+        setSignupTasks(newTasks);
+        autoSaveInlineOrderRef.current(newTasks);
+      }
+    }
+  }, []);
 
   const autoSaveInlineOrder = async (orderedTasks: SignupTask[]) => {
     try {
@@ -869,6 +879,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         />
       )}
 
+      <NativeViewGestureHandler ref={scrollNativeRef}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -1083,6 +1094,19 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               </Text>
             </View>
           ) : canManage ? (
+            <LongPressGestureHandler
+              ref={longPressGestureRef}
+              minDurationMs={400}
+              maxDist={10}
+              simultaneousHandlers={[panGestureRef, scrollNativeRef]}
+              onHandlerStateChange={onLongPressStateChange}
+            >
+              <PanGestureHandler
+                ref={panGestureRef}
+                simultaneousHandlers={[longPressGestureRef, scrollNativeRef]}
+                onGestureEvent={onPanGestureEvent}
+                onHandlerStateChange={onPanStateChange}
+              >
             <View
               ref={reorderContainerRef}
               onLayout={() => {
@@ -1090,7 +1114,6 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   containerPageY.current = py;
                 });
               }}
-              {...reorderPanResponder.panHandlers}
             >
               {signupTasks.map((task, index) => {
                 const spotsLeft = task.spotsNeeded != null ? task.spotsNeeded - task.signupCount : null;
@@ -1197,6 +1220,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 );
               })()}
             </View>
+              </PanGestureHandler>
+            </LongPressGestureHandler>
           ) : (
             signupTasks.map((task) => {
               const spotsLeft = task.spotsNeeded != null ? task.spotsNeeded - task.signupCount : null;
@@ -1252,6 +1277,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         </View>
 
       </ScrollView>
+      </NativeViewGestureHandler>
 
       <SuccessModal
         visible={showSuccessModal}
