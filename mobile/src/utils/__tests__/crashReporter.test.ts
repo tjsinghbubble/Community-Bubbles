@@ -25,7 +25,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
-jest.mock('@sentry/react-native', () => ({
+jest.mock('../sentry-stub', () => ({
   init: jest.fn(),
   addBreadcrumb: jest.fn(),
   withScope: jest.fn(),
@@ -49,7 +49,7 @@ jest.mock('expo-constants', () => ({
 
 jest.mock('../../package.json', () => ({ version: '1.0.0' }), { virtual: true });
 
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from '../sentry-stub';
 import Constants from 'expo-constants';
 
 import {

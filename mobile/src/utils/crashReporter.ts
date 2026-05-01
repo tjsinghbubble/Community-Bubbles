@@ -3,7 +3,7 @@ import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { version } from '../../package.json';
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from './sentry-stub';
 
 export interface CrashReport {
   message: string;

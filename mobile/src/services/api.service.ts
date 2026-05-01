@@ -1,4 +1,4 @@
-import * as Sentry from '@sentry/react-native';
+import * as Sentry from '../utils/sentry-stub';
 import { reportError } from '../utils/crashReporter';
 
 const API_URL =
