@@ -42,7 +42,7 @@
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-reanimated": "~4.1.1",
-    "react-native-worklets": ">=0.5.0 <0.8.0",
+    "react-native-worklets": "0.5.1",
     "react-native-google-places-autocomplete": "^2.5.6",
     "react-native-qrcode-svg": "^6.3.2",
     "react-native-safe-area-context": "~5.6.0",
@@ -57,5 +57,8 @@
     "tailwindcss": "^3.3.2",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "resolutions": {
+    "react-native-worklets": "0.5.1"
+  }
 }

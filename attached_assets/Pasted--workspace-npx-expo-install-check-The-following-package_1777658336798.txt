@@ -1,0 +1,56 @@
+~/workspace$ npx expo install --check
+The following packages should be updated for best compatibility with the installed expo version:
+  @react-native-community/netinfo@12.0.1 - expected version: 11.5.2
+  @sentry/react-native@7.2.0 - expected version: ~7.11.0
+  @types/jest@30.0.0 - expected version: 29.5.14
+  expo-document-picker@14.0.8 - expected version: ~55.0.13
+  expo-image-picker@17.0.10 - expected version: ~55.0.19
+  expo-linking@8.0.12 - expected version: ~55.0.14
+  expo-notifications@0.31.5 - expected version: ~55.0.22
+  react@19.2.3 - expected version: 19.2.0
+  react-dom@19.2.3 - expected version: 19.2.0
+  @types/react@19.2.8 - expected version: ~19.2.10
+  typescript@5.6.3 - expected version: ~5.9.2
+Your project may not work correctly until you install the expected versions of the packages.
+✔ Fix dependencies? … yes
+› Installing 11 SDK 55.0.0 compatible native modules using npm
+> npm install
+npm error code ERESOLVE
+npm error ERESOLVE unable to resolve dependency tree
+npm error
+npm error While resolving: rest-express@1.9.2
+npm error Found: react@19.2.0
+npm error node_modules/react
+npm error   react@"19.2.0" from the root project
+npm error   peer react@"*" from @react-native-community/netinfo@11.5.2
+npm error   node_modules/@react-native-community/netinfo
+npm error     @react-native-community/netinfo@"11.5.2" from the root project
+npm error
+npm error Could not resolve dependency:
+npm error peer react@"^19.2.3" from react-native@0.85.2
+npm error node_modules/react-native
+npm error   peer react-native@">=0.59" from @react-native-community/netinfo@11.5.2
+npm error   node_modules/@react-native-community/netinfo
+npm error     @react-native-community/netinfo@"11.5.2" from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+npm error
+npm error
+npm error For a full report see:
+npm error /home/runner/.npm/_logs/2026-05-01T17_57_50_888Z-eresolve-report.txt
+npm error A complete log of this run can be found in: /home/runner/.npm/_logs/2026-05-01T17_57_50_888Z-debug-0.log
+Error: npm install exited with non-zero code: 1
+Error: npm install exited with non-zero code: 1
+    at ChildProcess.completionListener (/home/runner/workspace/node_modules/@expo/spawn-async/build/spawnAsync.js:42:23)
+    at Object.onceWrapper (node:events:639:26)
+    at ChildProcess.emit (node:events:524:28)
+    at maybeClose (node:internal/child_process:1104:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:304:5)
+    ...
+    at spawnAsync (/home/runner/workspace/node_modules/@expo/spawn-async/build/spawnAsync.js:7:23)
+    at NpmPackageManager.runAsync (/home/runner/workspace/node_modules/@expo/package-manager/build/node/BasePackageManager.js:41:42)
+    at /home/runner/workspace/node_modules/@expo/package-manager/build/node/NpmPackageManager.js:36:20
+    at /home/runner/workspace/node_modules/@expo/package-manager/build/utils/spawn.js:14:34
+~/workspace$ 
