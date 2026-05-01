@@ -98,6 +98,9 @@ export default function InterestsScreen({ navigation, route }: Props) {
     ? categories
     : categories.filter(c => c.parentId === activeTab);
 
+  const countForParent = (parentId: number) =>
+    categories.filter(c => c.parentId === parentId && selected.includes(c.name)).length;
+
   const remaining = Math.max(0, MIN_SELECTIONS - selected.length);
   const canContinue = selected.length >= MIN_SELECTIONS;
 
@@ -138,20 +141,41 @@ export default function InterestsScreen({ navigation, route }: Props) {
               onPress={() => setActiveTab(ALL_TAB_ID)}
               testID="tab-all"
             >
-              <Text style={[styles.tabText, activeTab === ALL_TAB_ID && styles.tabTextActive]}>All</Text>
+              <View style={styles.tabContent}>
+                <Text style={[styles.tabText, activeTab === ALL_TAB_ID && styles.tabTextActive]}>All</Text>
+                {selected.length > 0 && (
+                  <View style={[styles.badge, activeTab === ALL_TAB_ID && styles.badgeActive]}>
+                    <Text style={[styles.badgeText, activeTab === ALL_TAB_ID && styles.badgeTextActive]}>
+                      {selected.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
-            {parentCategories.map(parent => (
-              <TouchableOpacity
-                key={parent.id}
-                style={[styles.tab, activeTab === parent.id && styles.tabActive]}
-                onPress={() => setActiveTab(parent.id)}
-                testID={`tab-category-${parent.id}`}
-              >
-                <Text style={[styles.tabText, activeTab === parent.id && styles.tabTextActive]}>
-                  {parent.displayName}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {parentCategories.map(parent => {
+              const count = countForParent(parent.id);
+              return (
+                <TouchableOpacity
+                  key={parent.id}
+                  style={[styles.tab, activeTab === parent.id && styles.tabActive]}
+                  onPress={() => setActiveTab(parent.id)}
+                  testID={`tab-category-${parent.id}`}
+                >
+                  <View style={styles.tabContent}>
+                    <Text style={[styles.tabText, activeTab === parent.id && styles.tabTextActive]}>
+                      {parent.displayName}
+                    </Text>
+                    {count > 0 && (
+                      <View style={[styles.badge, activeTab === parent.id && styles.badgeActive]}>
+                        <Text style={[styles.badgeText, activeTab === parent.id && styles.badgeTextActive]}>
+                          {count}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           <ScrollView
@@ -255,6 +279,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF5FE',
     borderColor: '#35A8F7',
   },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   tabText: {
     fontSize: 13,
     fontWeight: '600',
@@ -262,6 +291,26 @@ const styles = StyleSheet.create({
   },
   tabTextActive: {
     color: '#35A8F7',
+  },
+  badge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#CCCCCC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeActive: {
+    backgroundColor: '#35A8F7',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  badgeTextActive: {
+    color: '#FFFFFF',
   },
   scroll: { flex: 1 },
   gridContainer: {
