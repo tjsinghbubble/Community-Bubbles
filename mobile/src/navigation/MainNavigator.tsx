@@ -16,10 +16,19 @@ import cometChatService from '../services/cometchat.service';
 import { ExploreIcon, UpcomingIcon, BubblesIcon, MessagesIcon, ProfileIcon } from '../components/icons';
 import unreadEvents from '../utils/unreadEvents';
 import { useAppVersionCheck } from '../hooks/useAppVersionCheck';
+import { ScreenErrorBoundary } from '../components/ErrorBoundary';
 
 const STORE_URL = Platform.OS === 'ios'
   ? 'https://apps.apple.com/app/id6743069298'
   : 'https://play.google.com/store/apps/details?id=io.trybubble.app';
+
+function UpcomingScreenWithBoundary(props: React.ComponentProps<typeof UpcomingScreen>) {
+  return (
+    <ScreenErrorBoundary context="UpcomingScreen" message="Couldn't load your upcoming events — tap to retry">
+      <UpcomingScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -139,7 +148,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen 
         name="Upcoming" 
-        component={UpcomingScreen}
+        component={UpcomingScreenWithBoundary}
         options={{
           tabBarIcon: ({ color, size }) => (
             <UpcomingIcon size={size} color={color} />
