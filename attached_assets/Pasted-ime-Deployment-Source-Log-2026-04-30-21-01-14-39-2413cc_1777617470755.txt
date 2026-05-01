@@ -1,0 +1,89 @@
+ime
+Deployment
+Source
+Log
+2026-04-30 21:01:14.39
+2413cce4
+User
+[Sentry] Server-side Sentry initialised (slow-call threshold=1000 ms)
+2026-04-30 21:02:16.92
+2413cce4
+User
+[seed-staging] "Billiards": 3 post(s) scanned, 3 skipped, 0 heart reaction(s) added
+2026-04-30 21:02:17.04
+2413cce4
+User
+[seed-staging] "Karting": 3 post(s) scanned, 3 skipped, 0 heart reaction(s) added
+2026-04-30 21:02:17.19
+2413cce4
+User
+[seed-staging] "ABC Farm": 4 post(s) scanned, 4 skipped, 0 heart reaction(s) added
+2026-04-30 21:02:19.21
+2413cce4
+User
+[seed-bubble-images] "Larry Bubble" done
+2026-04-30 21:02:19.24
+2413cce4
+User
+[seed-bubble-images] "foo ar" (fbc50163-1dca-4c93-8b54-f5f5de3a7e49) already done
+2026-04-30 23:26:21.00
+8fc6ee47
+System
+starting up user application
+2026-04-30 23:26:21.00
+8fc6ee47
+System
+metasidecar: loaded enterprise status from environment is_enterprise=false
+2026-04-30 23:26:21.01
+8fc6ee47
+System
+forwarding local port 5000 to external port 80 (mapped as 1104)
+2026-04-30 23:26:26.59
+2413cce4
+System
+system: received signal terminated
+2026-04-30 23:26:26.63
+2413cce4
+System
+command finished with error [node ./dist/index.cjs]: signal: terminated
+2026-04-30 23:26:26.77
+2413cce4
+System
+main done, exiting
+2026-04-30 23:26:42.80
+8fc6ee47
+User
+[Sentry] Server-side Sentry initialised (slow-call threshold=1000 ms)
+2026-04-30 23:26:42.81
+8fc6ee47
+User
+[autoMigrate] Checking schema...
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+(node:19) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+To prepare for this change:
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+(Use `node --trace-warnings ...` to show where the warning was created)
+2026-04-30 23:26:42.83
+8fc6ee47
+User
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
