@@ -476,6 +476,18 @@ export async function withBackgroundTask<T>(
 export const OFFLINE_QUEUE_STORAGE_KEY = '@crashReporter/offlineQueue';
 export const OFFLINE_QUEUE_MAX_SIZE = 50;
 
+export const RETRY_STATE_STORAGE_KEY = '@crashReporter/retryState';
+export const BACKOFF_BASE_MS = 30_000;       // 30 s — first retry interval
+export const BACKOFF_CAP_MS = 5 * 60_000;   // 5 min — maximum retry interval
+
+/** Persisted backoff bookkeeping written to AsyncStorage after a failed flush. */
+export interface RetryState {
+  /** Unix-ms timestamp before which the next flush attempt must be skipped. */
+  nextRetryAt: number;
+  /** Number of consecutive failed flush attempts (used to compute the next delay). */
+  attempt: number;
+}
+
 /** A CrashReport entry waiting to be delivered to the custom crash server. */
 export interface QueuedReport {
   id: string;
@@ -517,6 +529,36 @@ export async function readOfflineQueue(): Promise<QueuedReport[]> {
     return parsed as QueuedReport[];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Read the persisted backoff state from AsyncStorage.
+ * Returns `null` on any read / parse failure or when no state has been stored.
+ */
+export async function readRetryState(): Promise<RetryState | null> {
+  try {
+    const raw = await AsyncStorage.getItem(RETRY_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.nextRetryAt !== 'number' || typeof parsed?.attempt !== 'number') {
+      return null;
+    }
+    return parsed as RetryState;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Clear any persisted backoff state from AsyncStorage.
+ * Exported for use by tests and debug tooling.  Never throws.
+ */
+export async function resetRetryState(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(RETRY_STATE_STORAGE_KEY);
+  } catch {
+    // Instrumentation must never crash the app.
   }
 }
 
@@ -578,18 +620,37 @@ export async function sendToServer(report: CrashReport, serverUrl: string): Prom
 /**
  * Attempt to flush all queued reports to `serverUrl`.
  *
+ * Incorporates exponential backoff: if the previous flush failed, the
+ * persisted `RetryState` is checked and the attempt is skipped until the
+ * computed backoff interval has elapsed (30 s → 60 s → … up to 5 min).
+ * On a successful full flush the backoff state is cleared so the next
+ * foreground / reconnect event triggers an immediate attempt.
+ *
  * Iterates through the queue in insertion order.  Successfully delivered
  * reports are removed from the queue; reports that still fail are retained
  * so they can be retried on the next call.  Stops sending as soon as one
- * delivery fails (network likely still unavailable).
+ * delivery fails (server or network likely still unavailable).
  *
  * The entire operation is serialised through `_queueChain` to prevent
  * interleaving with concurrent `queueReport` calls.  Never throws.
  */
 export function flushOfflineQueue(serverUrl: string): Promise<void> {
   return _enqueueQueueOp(async () => {
+    // --- Backoff gate ---
+    const retryState = await readRetryState();
+    if (retryState && Date.now() < retryState.nextRetryAt) {
+      // Still within the backoff window — skip this attempt entirely.
+      return;
+    }
+
     const queue = await readOfflineQueue();
-    if (queue.length === 0) return;
+    if (queue.length === 0) {
+      // Nothing to send — clear any stale backoff state and return.
+      if (retryState) {
+        await AsyncStorage.removeItem(RETRY_STATE_STORAGE_KEY);
+      }
+      return;
+    }
 
     const remaining: QueuedReport[] = [];
     let stopSending = false;
@@ -619,6 +680,17 @@ export function flushOfflineQueue(serverUrl: string): Promise<void> {
     }
 
     await AsyncStorage.setItem(OFFLINE_QUEUE_STORAGE_KEY, JSON.stringify(remaining));
+
+    if (stopSending) {
+      // At least one delivery failed — record next backoff interval.
+      const attempt = retryState ? retryState.attempt + 1 : 1;
+      const delay = Math.min(BACKOFF_BASE_MS * Math.pow(2, attempt - 1), BACKOFF_CAP_MS);
+      const nextState: RetryState = { nextRetryAt: Date.now() + delay, attempt };
+      await AsyncStorage.setItem(RETRY_STATE_STORAGE_KEY, JSON.stringify(nextState));
+    } else {
+      // All queued reports delivered successfully — reset backoff.
+      await AsyncStorage.removeItem(RETRY_STATE_STORAGE_KEY);
+    }
   });
 }
 

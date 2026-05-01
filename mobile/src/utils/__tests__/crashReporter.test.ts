@@ -80,9 +80,14 @@ import {
   flushOfflineQueue,
   clearOfflineQueue,
   readOfflineQueue,
+  readRetryState,
+  resetRetryState,
   initOfflineRetry,
   OFFLINE_QUEUE_MAX_SIZE,
   OFFLINE_QUEUE_STORAGE_KEY,
+  RETRY_STATE_STORAGE_KEY,
+  BACKOFF_BASE_MS,
+  BACKOFF_CAP_MS,
 } from '../crashReporter';
 
 function makeError(message: string, stackLength: number): Error {
@@ -1999,10 +2004,10 @@ describe('flushOfflineQueue', () => {
     await flushOfflineQueue(FLUSH_URL);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[
-      (AsyncStorage.setItem as jest.Mock).mock.calls.length - 1
-    ] as [string, string];
-    expect(JSON.parse(raw)).toHaveLength(2);
+    const queueCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === OFFLINE_QUEUE_STORAGE_KEY,
+    ) as [string, string];
+    expect(JSON.parse(queueCall[1])).toHaveLength(2);
   });
 
   it('delivers reports in insertion order (oldest first)', async () => {
@@ -2028,10 +2033,10 @@ describe('flushOfflineQueue', () => {
 
     await flushOfflineQueue(FLUSH_URL);
 
-    const [, raw] = (AsyncStorage.setItem as jest.Mock).mock.calls[
-      (AsyncStorage.setItem as jest.Mock).mock.calls.length - 1
-    ] as [string, string];
-    const remaining = JSON.parse(raw);
+    const queueCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === OFFLINE_QUEUE_STORAGE_KEY,
+    ) as [string, string];
+    const remaining = JSON.parse(queueCall[1]);
     expect(remaining).toHaveLength(1);
     expect(remaining[0].report.message).toBe('msg-fail');
   });
@@ -2307,6 +2312,242 @@ describe('end-to-end: reportError offline → queue persisted → connectivity r
     const queueAfterFlush = JSON.parse(storedQueue ?? '[]');
     expect(queueAfterFlush).toHaveLength(0);
     expect(mockFetch).toHaveBeenCalled();
+  });
+});
+
+describe('flushOfflineQueue — exponential backoff', () => {
+  const FLUSH_URL = 'https://crash.example.com/reports';
+  let mockFetch: jest.Mock;
+
+  function makeQueuedReport(msgSuffix: string) {
+    return {
+      id: `id-${msgSuffix}`,
+      report: { ...makeSampleReport(), message: `msg-${msgSuffix}` },
+      queuedAt: new Date().toISOString(),
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (AsyncStorage.setItem as jest.Mock).mockResolvedValue(undefined);
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+    mockFetch = jest.fn();
+    global.fetch = mockFetch;
+  });
+
+  afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    delete global.fetch;
+  });
+
+  it('skips the flush attempt when the backoff window has not yet elapsed', async () => {
+    const retryState = { nextRetryAt: Date.now() + 60_000, attempt: 1 };
+    const queue = [makeQueuedReport('a')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(retryState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('proceeds with the flush when the backoff window has elapsed', async () => {
+    const retryState = { nextRetryAt: Date.now() - 1, attempt: 1 };
+    const queue = [makeQueuedReport('b')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(retryState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a RetryState in AsyncStorage after the first failure', async () => {
+    const queue = [makeQueuedReport('c')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(null);
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+    mockFetch.mockRejectedValue(new Error('network down'));
+
+    const before = Date.now();
+    await flushOfflineQueue(FLUSH_URL);
+
+    const retryCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === RETRY_STATE_STORAGE_KEY,
+    ) as [string, string] | undefined;
+    expect(retryCall).toBeDefined();
+    const saved = JSON.parse(retryCall![1]);
+    expect(saved.attempt).toBe(1);
+    expect(saved.nextRetryAt).toBeGreaterThanOrEqual(before + BACKOFF_BASE_MS);
+    expect(saved.nextRetryAt).toBeLessThanOrEqual(before + BACKOFF_BASE_MS + 200);
+  });
+
+  it('doubles the delay on the second consecutive failure', async () => {
+    const priorState = { nextRetryAt: Date.now() - 1, attempt: 1 };
+    const queue = [makeQueuedReport('d')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(priorState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+    mockFetch.mockRejectedValue(new Error('still down'));
+
+    const before = Date.now();
+    await flushOfflineQueue(FLUSH_URL);
+
+    const retryCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === RETRY_STATE_STORAGE_KEY,
+    ) as [string, string] | undefined;
+    expect(retryCall).toBeDefined();
+    const saved = JSON.parse(retryCall![1]);
+    expect(saved.attempt).toBe(2);
+    const expectedDelay = BACKOFF_BASE_MS * 2; // 60 s
+    expect(saved.nextRetryAt).toBeGreaterThanOrEqual(before + expectedDelay);
+    expect(saved.nextRetryAt).toBeLessThanOrEqual(before + expectedDelay + 200);
+  });
+
+  it('caps the backoff delay at BACKOFF_CAP_MS regardless of the attempt count', async () => {
+    const priorState = { nextRetryAt: Date.now() - 1, attempt: 10 };
+    const queue = [makeQueuedReport('e')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(priorState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+    mockFetch.mockRejectedValue(new Error('still down'));
+
+    const before = Date.now();
+    await flushOfflineQueue(FLUSH_URL);
+
+    const retryCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === RETRY_STATE_STORAGE_KEY,
+    ) as [string, string] | undefined;
+    expect(retryCall).toBeDefined();
+    const saved = JSON.parse(retryCall![1]);
+    expect(saved.nextRetryAt).toBeLessThanOrEqual(before + BACKOFF_CAP_MS + 200);
+    expect(saved.nextRetryAt).toBeGreaterThanOrEqual(before + BACKOFF_CAP_MS - 200);
+  });
+
+  it('removes the RetryState from AsyncStorage after a successful delivery', async () => {
+    const priorState = { nextRetryAt: Date.now() - 1, attempt: 3 };
+    const queue = [makeQueuedReport('f')];
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(priorState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(JSON.stringify(queue));
+      return Promise.resolve(null);
+    });
+    mockFetch.mockResolvedValue({ ok: true });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(RETRY_STATE_STORAGE_KEY);
+    const retrySetCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === RETRY_STATE_STORAGE_KEY,
+    );
+    expect(retrySetCall).toBeUndefined();
+  });
+
+  it('clears a stale RetryState when the queue is already empty', async () => {
+    const staleState = { nextRetryAt: Date.now() - 1, attempt: 2 };
+    (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
+      if (key === RETRY_STATE_STORAGE_KEY) return Promise.resolve(JSON.stringify(staleState));
+      if (key === OFFLINE_QUEUE_STORAGE_KEY) return Promise.resolve(null);
+      return Promise.resolve(null);
+    });
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(RETRY_STATE_STORAGE_KEY);
+  });
+
+  it('does not write a RetryState when there is no prior state and the queue is empty', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+
+    await flushOfflineQueue(FLUSH_URL);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    const retrySetCall = (AsyncStorage.setItem as jest.Mock).mock.calls.find(
+      ([key]: [string]) => key === RETRY_STATE_STORAGE_KEY,
+    );
+    expect(retrySetCall).toBeUndefined();
+  });
+});
+
+describe('readRetryState', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+  });
+
+  it('returns null when AsyncStorage has no entry', async () => {
+    const result = await readRetryState();
+    expect(result).toBeNull();
+  });
+
+  it('returns the parsed RetryState when a valid entry exists', async () => {
+    const state = { nextRetryAt: 12345, attempt: 2 };
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(state));
+
+    const result = await readRetryState();
+
+    expect(result).toEqual(state);
+  });
+
+  it('returns null when the stored JSON is missing nextRetryAt', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify({ attempt: 1 }));
+
+    const result = await readRetryState();
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when the stored JSON is missing attempt', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({ nextRetryAt: Date.now() + 1000 }),
+    );
+
+    const result = await readRetryState();
+
+    expect(result).toBeNull();
+  });
+
+  it('returns null when AsyncStorage.getItem throws', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockRejectedValue(new Error('storage error'));
+
+    const result = await readRetryState();
+
+    expect(result).toBeNull();
+  });
+});
+
+describe('resetRetryState', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.removeItem as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('removes the retry state key from AsyncStorage', async () => {
+    await resetRetryState();
+
+    expect(AsyncStorage.removeItem).toHaveBeenCalledWith(RETRY_STATE_STORAGE_KEY);
+  });
+
+  it('does not throw when AsyncStorage.removeItem rejects', async () => {
+    (AsyncStorage.removeItem as jest.Mock).mockRejectedValue(new Error('storage dead'));
+
+    await expect(resetRetryState()).resolves.toBeUndefined();
   });
 });
 
