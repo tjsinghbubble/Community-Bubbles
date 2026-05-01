@@ -115,16 +115,45 @@ them in sync on every subsequent update.
 
 ---
 
-## Local setup (optional)
+## Local setup
 
-To catch violations before pushing, install the git hook locally:
+A `commit-msg` git hook is included via **husky**. It runs `commitlint`
+automatically on every local commit so you catch violations before pushing.
+
+### First-time setup (run once after cloning)
 
 ```bash
-cd mobile
-npm install --save-dev @commitlint/cli @commitlint/config-conventional
-# Using husky (if already set up):
-npx husky add .husky/commit-msg 'npx --no -- commitlint --edit "$1"'
+# From the repository root
+npm install
 ```
 
-The `commitlint.config.js` at the repository root is picked up automatically by
-both the local hook and the CI workflow.
+`npm install` triggers the `prepare` script which initialises husky and
+activates the `.husky/commit-msg` hook automatically. No additional steps are
+required.
+
+### How it works
+
+- The hook lives at `.husky/commit-msg` in the repository root.
+- It calls `commitlint --edit` against the message you wrote.
+- The rules come from `commitlint.config.js` at the repository root, which is
+  the same file used by the CI workflow.
+- If your message violates the rules, the commit is **rejected immediately**
+  with a clear error explaining what went wrong.
+
+### Verifying the hook is active
+
+```bash
+git config --get core.hooksPath   # should show .husky
+ls .husky/commit-msg              # file should exist
+```
+
+### Bypassing (not recommended)
+
+If you need to commit without linting in an emergency:
+
+```bash
+git commit --no-verify -m "your message"
+```
+
+Use this sparingly — the CI check will still block non-conforming commits on
+pull requests.

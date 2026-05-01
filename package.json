@@ -9,10 +9,13 @@
     "build": "tsx script/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "prepare": "husky"
   },
   "dependencies": {
     "@cometchat/chat-sdk-javascript": "^4.1.9",
+    "@commitlint/cli": "^20.5.2",
+    "@commitlint/config-conventional": "^20.5.0",
     "@google-cloud/storage": "^7.19.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -75,6 +78,7 @@
     "express-session": "^1.18.1",
     "framer-motion": "^12.29.2",
     "google-auth-library": "^10.5.0",
+    "husky": "^9.1.7",
     "input-otp": "^1.4.2",
     "jest": "^29.7.0",
     "jest-expo": "^55.0.16",
