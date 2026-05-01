@@ -1,0 +1,40 @@
+appId: ${APP_ID}
+env:
+  METRO_HOST: metro_host
+---
+# Browse bubbles flow (web): logs in and verifies the Explore tab loads bubbles.
+#
+# The Expo web build (port 8081) uses react-native-web, so components and
+# accessibility labels are identical to the native mobile app.
+#
+# Prerequisites:
+#   - Server running: npm run dev:local
+#   - Expo dev server running: npm run mobile:start
+#   - Test data seeded: npm run db:seed-test:local  (creates "Weekend Hikers" bubble)
+#
+# Targets:
+#   Desktop browser: npm run test:e2e:web          (APP_ID=http://localhost:8081, --platform web)
+#   Mobile browser:  npm run test:e2e:web-mobile   (APP_ID=com.apple.mobilesafari, iOS Simulator)
+
+- launchApp:
+    clearState: true
+- openLink: "http://${METRO_HOST}:8081"
+
+- tapOn: "Log In"
+- tapOn: "Enter your email"
+- inputText: "test@example.com"
+- tapOn: "Enter your password"
+- inputText: "TestPass123!"
+- tapOn: "Sign In"
+
+- assertVisible: "Explore"
+
+- assertVisible: "Weekend Hikers"
+
+- tapOn: "Weekend Hikers"
+- assertVisible: "Explore trails together"
+
+- tapOn:
+    text: "Back"
+    optional: true
+- assertVisible: "Explore"

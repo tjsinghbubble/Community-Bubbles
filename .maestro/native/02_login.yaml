@@ -1,0 +1,34 @@
+appId: ${APP_ID}
+---
+# Login flow: signs in with the seeded test user.
+#
+# Prerequisites:
+#   - Server running: npm run dev:local
+#   - Test data seeded: npm run db:seed-test:local
+#   - Native dev build installed: npm run mobile:build:ios-sim
+#   - Metro bundler running (started by mobile:build:ios-sim or npm run mobile:start)
+#
+# clearState wipes the stored Metro URL from the dev client, so we must
+# immediately re-send the dev client deep link to reconnect it to Metro.
+
+- launchApp:
+    clearState: true
+- openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A8081"
+
+- tapOn: "Log In"
+
+- tapOn: "Enter your email"
+- inputText: "test@example.com"
+
+- tapOn: "Enter your password"
+- inputText: "TestPass123!"
+
+- tapOn: "Sign In"
+
+
+- assertVisible: "Explore"
+- assertVisible: "explore-tab-button"
+
+- tapOn:           
+    id: "explore-tab-button"
+- tapOn: "Sign in" 

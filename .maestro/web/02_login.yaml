@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+env:
+  METRO_HOST: metro_host
+---
+# Login flow (web): signs in with the seeded test user against the Expo web build.
+#
+# The Expo web build (port 8081) uses react-native-web, so components and
+# accessibility labels are identical to the native mobile app.
+#
+# Prerequisites:
+#   - Server running: npm run dev:local
+#   - Expo dev server running: npm run mobile:start
+#   - Test data seeded: npm run db:seed-test:local
+#
+# Targets:
+#   Desktop browser: npm run test:e2e:web          (APP_ID=http://metro_host:8081, --platform web)
+#   Mobile browser:  npm run test:e2e:web-mobile   (APP_ID=com.apple.mobilesafari, iOS Simulator)
+
+- launchApp:
+    clearState: true
+- openLink: "http://${METRO_HOST}:8081"
+
+- tapOn: "Log In"
+
+- tapOn: "Enter your email"
+- inputText: "test@example.com"
+
+- tapOn: "Enter your password"
+- inputText: "TestPass123!"
+
+- tapOn: "Sign In"
+
+- assertVisible: "Explore"
