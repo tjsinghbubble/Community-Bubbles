@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,9 +17,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
+import { API_URL } from '../../config/api';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import { FlowHeader } from '../../components/ScreenHeader';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
+
+interface CategoryItem {
+  id: number;
+  name: string;
+  displayName: string;
+  image: string | null;
+  parentId: number | null;
+}
 
 type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'ViewProfile'>;
@@ -119,7 +129,25 @@ type BubbleItem = {
 export default function ViewProfileScreen({ navigation }: Props) {
   const { user, token } = useAuth();
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const isBubbleAdmin = useRef(false);
+
+  useEffect(() => {
+    setCategoriesLoading(true);
+    fetch(`${API_URL}/api/categories/flat`)
+      .then(res => res.ok ? res.json() : Promise.reject('Failed to fetch categories'))
+      .then((data: CategoryItem[]) => setCategories(data.filter(c => c.parentId !== null)))
+      .catch((err: any) => {
+        logAppWarn('ViewProfile:categoriesLoadFailed', { error: err?.message ?? String(err) });
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
+  const getDisplayName = (name: string): string => {
+    const cat = categories.find(c => c.name === name);
+    return cat ? cat.displayName : name;
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -256,6 +284,23 @@ export default function ViewProfileScreen({ navigation }: Props) {
                 <Text style={styles.getStartedText}>Get started</Text>
               </LinearGradient>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {Array.isArray(user.interests) && user.interests.length > 0 && (
+          <View style={[styles.interestsCard, CardShadow]} testID="section-my-interests">
+            <Text style={styles.interestsCardTitle}>My Interests</Text>
+            {categoriesLoading ? (
+              <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} style={{ marginVertical: 8 }} testID="loading-interests" />
+            ) : (
+              <View style={styles.interestsGrid}>
+                {user.interests.map((name) => (
+                  <View key={name} style={styles.interestChip} testID={`chip-interest-${name}`}>
+                    <Text style={styles.interestChipText}>{getDisplayName(name)}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
         )}
 
@@ -435,6 +480,36 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     fontWeight: Typography.weights.semiBold as any,
     color: '#1E1F26',
+  },
+  interestsCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 15,
+  },
+  interestsCardTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.neutral.charcoal,
+    marginBottom: 12,
+  },
+  interestsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  interestChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.brand.bubbleBlue + '15',
+    borderWidth: 1,
+    borderColor: Colors.brand.bubbleBlue,
+  },
+  interestChipText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.brand.bubbleBlue,
+    fontWeight: Typography.weights.semiBold as any,
   },
   bubblesCard: {
     backgroundColor: Colors.background.primary,
