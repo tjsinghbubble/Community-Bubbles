@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,23 +31,13 @@ type Props = {
   navigation: NativeStackNavigationProp<ProfileStackParamList, 'EditProfile'>;
 };
 
-const INTERESTS = [
-  { id: 'running', label: 'Running' },
-  { id: 'cooking', label: 'Cooking' },
-  { id: 'coffee', label: 'Coffee Meets' },
-  { id: 'gardening', label: 'Gardening' },
-  { id: 'yoga', label: 'Yoga' },
-  { id: 'tennis', label: 'Tennis' },
-  { id: 'biking', label: 'Biking' },
-  { id: 'pets', label: 'Pets' },
-  { id: 'photography', label: 'Photography' },
-  { id: 'hiking', label: 'Hiking' },
-  { id: 'music', label: 'Music' },
-  { id: 'art', label: 'Art' },
-  { id: 'gaming', label: 'Gaming' },
-  { id: 'reading', label: 'Reading' },
-  { id: 'fitness', label: 'Fitness' },
-];
+interface CategoryItem {
+  id: number;
+  name: string;
+  displayName: string;
+  image: string | null;
+  parentId: number | null;
+}
 
 type BubbleItem = {
   id: string;
@@ -61,10 +51,33 @@ export default function EditProfileScreen({ navigation }: Props) {
   const { user, token, refreshUser } = useAuth();
   const [aboutMe, setAboutMe] = useState(user?.aboutMe || '');
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests || []);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(false);
   const [myBubbles, setMyBubbles] = useState<BubbleItem[]>([]);
   const [saving, setSaving] = useState(false);
   const [editingAbout, setEditingAbout] = useState(false);
   const [editingInterests, setEditingInterests] = useState(false);
+
+  const loadCategories = useCallback(async () => {
+    setCategoriesLoading(true);
+    setCategoriesError(false);
+    try {
+      const res = await fetch(`${API_URL}/api/categories/flat`);
+      if (!res.ok) throw new Error('Failed to fetch categories');
+      const data: CategoryItem[] = await res.json();
+      setCategories(data.filter(c => c.parentId !== null));
+    } catch (err: any) {
+      logAppWarn('EditProfile:categoriesLoadFailed', { error: err?.message ?? 'unknown' });
+      setCategoriesError(true);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const handlePickPhoto = async () => {
     const granted = await requestPhotoLibraryAccess();
@@ -154,10 +167,15 @@ export default function EditProfileScreen({ navigation }: Props) {
     }, [token])
   );
 
-  const toggleInterest = (id: string) => {
+  const toggleInterest = (name: string) => {
     setSelectedInterests(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+      prev.includes(name) ? prev.filter(i => i !== name) : [...prev, name]
     );
+  };
+
+  const getDisplayName = (name: string): string => {
+    const cat = categories.find(c => c.name === name);
+    return cat ? cat.displayName : name;
   };
 
   const handleDone = async () => {
@@ -275,37 +293,50 @@ export default function EditProfileScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             {editingInterests ? (
-              <View style={styles.interestsGrid}>
-                {INTERESTS.map((interest) => {
-                  const isSelected = selectedInterests.includes(interest.label);
-                  return (
-                    <TouchableOpacity
-                      key={interest.id}
-                      style={[
-                        styles.interestChip,
-                        isSelected && styles.interestChipSelected,
-                      ]}
-                      onPress={() => toggleInterest(interest.label)}
-                      testID={`chip-interest-${interest.id}`}
-                    >
-                      <Text
+              categoriesLoading ? (
+                <ActivityIndicator size="small" color={Colors.brand.bubbleBlue} style={{ marginVertical: 8 }} />
+              ) : categoriesError ? (
+                <View style={styles.categoriesErrorContainer}>
+                  <Text style={styles.categoriesErrorText}>Couldn't load interests. Please try again.</Text>
+                  <TouchableOpacity onPress={loadCategories} style={styles.categoriesRetryBtn} testID="button-retry-categories">
+                    <Text style={styles.categoriesRetryText}>Retry</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.interestsGrid}>
+                  {categories.map((category) => {
+                    const isSelected = selectedInterests.includes(category.name);
+                    return (
+                      <TouchableOpacity
+                        key={category.name}
                         style={[
-                          styles.interestChipText,
-                          isSelected && styles.interestChipTextSelected,
+                          styles.interestChip,
+                          isSelected && styles.interestChipSelected,
                         ]}
+                        onPress={() => toggleInterest(category.name)}
+                        testID={`chip-interest-${category.name}`}
                       >
-                        {interest.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        <Text
+                          style={[
+                            styles.interestChipText,
+                            isSelected && styles.interestChipTextSelected,
+                          ]}
+                        >
+                          {category.displayName}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )
             ) : (
               <View style={styles.interestsGrid}>
                 {selectedInterests.length > 0 ? (
-                  selectedInterests.map((label) => (
-                    <View key={label} style={[styles.interestChip, styles.interestChipSelected]}>
-                      <Text style={[styles.interestChipText, styles.interestChipTextSelected]}>{label}</Text>
+                  selectedInterests.map((name) => (
+                    <View key={name} style={[styles.interestChip, styles.interestChipSelected]}>
+                      <Text style={[styles.interestChipText, styles.interestChipTextSelected]}>
+                        {getDisplayName(name)}
+                      </Text>
                     </View>
                   ))
                 ) : (
@@ -514,6 +545,27 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: Typography.sizes.sm,
     color: Colors.neutral.coolMist,
+  },
+  categoriesErrorContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  categoriesErrorText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.neutral.coolMist,
+    textAlign: 'center',
+  },
+  categoriesRetryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.brand.bubbleBlue,
+  },
+  categoriesRetryText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.semiBold as any,
+    color: '#FFFFFF',
   },
   bubbleRow: {
     flexDirection: 'row',
