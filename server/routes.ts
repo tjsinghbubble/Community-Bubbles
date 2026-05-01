@@ -25,7 +25,7 @@ import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBub
 import { localToUtc, utcToLocal } from "./timezone";
 import { pingUrl, setMaintenanceModeCache, getMaintenanceMode } from "./health";
 import { getMetrics, resetMetrics, recordRequest, getStoreSnapshot, TimeRange } from "./metrics";
-import { flushBucketsForKey, getTimeSeriesFromDB, pruneOldLatencyBuckets, ensureLatencyBucketsTable } from "./metrics-persistence";
+import { flushBucketsForKey, getTimeSeriesFromDB, getSystemWideTrendFromDB, pruneOldLatencyBuckets, ensureLatencyBucketsTable } from "./metrics-persistence";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
@@ -1323,8 +1323,11 @@ export async function registerRoutes(
       const range = (["1h", "6h", "24h"].includes(req.query.range as string)
         ? req.query.range
         : "1h") as TimeRange;
-      const [dbTrends] = await Promise.all([getTimeSeriesFromDB(range)]);
-      res.json({ trends: dbTrends, range, generatedAt: new Date().toISOString() });
+      const [dbTrends, systemTrend] = await Promise.all([
+        getTimeSeriesFromDB(range),
+        getSystemWideTrendFromDB(range),
+      ]);
+      res.json({ trends: dbTrends, systemTrend, range, generatedAt: new Date().toISOString() });
     } catch (error: unknown) {
       serverError(res, error);
     }

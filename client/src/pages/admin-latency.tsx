@@ -18,7 +18,11 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip as RechartsTooltip,
+  ReferenceLine,
 } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -67,8 +71,16 @@ interface EndpointTrend {
   buckets: TrendBucket[];
 }
 
+interface SystemWideTrendBucket {
+  ts: number;
+  p95Ms: number;
+  maxP95Ms: number;
+  totalCount: number;
+}
+
 interface TrendsData {
   trends: EndpointTrend[];
+  systemTrend: SystemWideTrendBucket[];
   range: TimeRange;
   generatedAt: string;
 }
@@ -199,11 +211,197 @@ function Sparkline({
   );
 }
 
-const TIME_RANGE_LABELS: Record<TimeRange, string> = {
-  "1h": "1h",
-  "6h": "6h",
-  "24h": "24h",
-};
+function SystemWideTrendChart({
+  buckets,
+  range,
+  isFetching,
+  timeRange,
+  onRangeChange,
+}: {
+  buckets: SystemWideTrendBucket[];
+  range: TimeRange;
+  isFetching: boolean;
+  timeRange: TimeRange;
+  onRangeChange: (r: TimeRange) => void;
+}) {
+  const hasData = buckets.length > 0 && buckets.some((b) => b.totalCount > 0);
+
+  const chartData = buckets.map((b) => ({
+    ts: b.ts,
+    p95Ms: b.totalCount > 0 ? b.p95Ms : null,
+    maxP95Ms: b.totalCount > 0 ? b.maxP95Ms : null,
+    label: fmtBucketTs(b.ts, range),
+    count: b.totalCount,
+  }));
+
+  const allP95 = buckets.filter((b) => b.totalCount > 0).map((b) => b.maxP95Ms);
+  const maxVal = allP95.length ? Math.max(...allP95) : 0;
+  const chartColor = maxVal < 200 ? "#10b981" : maxVal < 500 ? "#f59e0b" : "#ef4444";
+
+  const latestBucket = [...buckets].filter((b) => b.totalCount > 0).at(-1);
+  const currentP95 = latestBucket?.p95Ms ?? 0;
+  const currentMaxP95 = latestBucket?.maxP95Ms ?? 0;
+
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8" data-testid="system-trend-chart">
+      <div className="border-b border-black/5 px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-3.5 w-3.5 text-[#35A8F7]" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            System-wide p95 Trend
+          </span>
+          {hasData && (
+            <div className="flex items-center gap-2 ml-2">
+              <span className={cn("text-[12px] font-bold tabular-nums", latencyColor(currentP95))} data-testid="text-system-p95">
+                {fmt(currentP95)} weighted
+              </span>
+              <span className="text-[10px] text-muted-foreground">/</span>
+              <span className={cn("text-[12px] font-bold tabular-nums", latencyColor(currentMaxP95))} data-testid="text-system-max-p95">
+                {fmt(currentMaxP95)} max
+              </span>
+              <span className="text-[10px] text-muted-foreground">latest bucket</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 rounded-xl bg-black/5 p-0.5" data-testid="system-trend-time-range-filter">
+          {(["1h", "6h", "24h"] as TimeRange[]).map((r) => (
+            <button
+              key={r}
+              onClick={() => onRangeChange(r)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
+                timeRange === r
+                  ? "bg-white text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              data-testid={`button-system-range-${r}`}
+            >
+              {r}
+            </button>
+          ))}
+          {isFetching && (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin text-muted-foreground" />
+          )}
+        </div>
+      </div>
+
+      <div className="px-5 py-4">
+        {!hasData ? (
+          <div className="flex h-32 items-center justify-center">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <TrendingUp className="h-6 w-6 text-muted-foreground/30" />
+              <span className="text-[12px] text-muted-foreground">No trend data yet for this window</span>
+            </div>
+          </div>
+        ) : (
+          <div className="h-40" data-testid="system-trend-area-chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="systemP95Grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="systemMaxP95Grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.1} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 9, fill: "var(--muted-foreground)" }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(v) => fmt(v)}
+                  width={44}
+                />
+                <ReferenceLine y={500} stroke="#ef4444" strokeDasharray="4 2" strokeOpacity={0.4} />
+                <ReferenceLine y={200} stroke="#f59e0b" strokeDasharray="4 2" strokeOpacity={0.3} />
+                <RechartsTooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as {
+                      label: string;
+                      p95Ms: number | null;
+                      maxP95Ms: number | null;
+                      count: number;
+                    };
+                    if (d.p95Ms == null) return null;
+                    return (
+                      <div className="rounded-lg bg-foreground/90 px-3 py-2 text-[10px] text-white shadow">
+                        <div className="font-semibold text-[11px]">{d.label}</div>
+                        <div className="mt-1 flex gap-3">
+                          <div>
+                            <div className="text-white/60">Weighted p95</div>
+                            <div className="font-bold">{fmt(d.p95Ms)}</div>
+                          </div>
+                          {d.maxP95Ms != null && (
+                            <div>
+                              <div className="text-white/60">Max p95</div>
+                              <div className="font-bold">{fmt(d.maxP95Ms)}</div>
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-white/60">Requests</div>
+                            <div className="font-bold">{d.count.toLocaleString()}</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="maxP95Ms"
+                  stroke={chartColor}
+                  strokeWidth={1}
+                  strokeOpacity={0.4}
+                  strokeDasharray="4 2"
+                  fill="url(#systemMaxP95Grad)"
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="p95Ms"
+                  stroke={chartColor}
+                  strokeWidth={2}
+                  fill="url(#systemP95Grad)"
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+            <div className="mt-1 flex items-center gap-4 px-1">
+              <div className="flex items-center gap-1.5">
+                <div className="h-0.5 w-4 rounded" style={{ background: chartColor }} />
+                <span className="text-[9px] text-muted-foreground">Weighted p95</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-0.5 w-4 rounded border-t border-dashed" style={{ borderColor: chartColor, opacity: 0.5 }} />
+                <span className="text-[9px] text-muted-foreground">Max p95</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-0.5 w-4 rounded" style={{ background: "#ef4444", opacity: 0.4 }} />
+                <span className="text-[9px] text-muted-foreground">500ms threshold</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 export default function AdminLatency() {
   const { user } = useAuth();
@@ -436,6 +634,15 @@ export default function AdminLatency() {
               </div>
             </div>
 
+            {/* System-wide p95 trend chart */}
+            <SystemWideTrendChart
+              buckets={trendsData?.systemTrend ?? []}
+              range={trendsData?.range ?? timeRange}
+              isFetching={trendsFetching}
+              timeRange={timeRange}
+              onRangeChange={setTimeRange}
+            />
+
             {/* Table */}
             {sorted.length === 0 ? (
               <div className="flex flex-col items-center gap-3 rounded-2xl bg-white/70 py-16 text-center ring-1 ring-black/8" data-testid="latency-empty">
@@ -452,28 +659,6 @@ export default function AdminLatency() {
                     Endpoint Latency
                   </span>
                   <div className="flex items-center gap-3">
-                    {/* Time range filter */}
-                    <div className="flex items-center gap-1 rounded-xl bg-black/5 p-0.5" data-testid="time-range-filter">
-                      <TrendingUp className="ml-1.5 h-3 w-3 text-muted-foreground" />
-                      {(["1h", "6h", "24h"] as TimeRange[]).map((r) => (
-                        <button
-                          key={r}
-                          onClick={() => setTimeRange(r)}
-                          className={cn(
-                            "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
-                            timeRange === r
-                              ? "bg-white text-foreground shadow-sm"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                          data-testid={`button-range-${r}`}
-                        >
-                          {TIME_RANGE_LABELS[r]}
-                        </button>
-                      ))}
-                      {trendsFetching && (
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin text-muted-foreground" />
-                      )}
-                    </div>
                     {data?.generatedAt && (
                       <span className="text-[10px] text-muted-foreground" data-testid="latency-generated-at">
                         Updated {fmtTime(data.generatedAt)}

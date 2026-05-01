@@ -150,6 +150,48 @@ export async function getTimeSeriesFromDB(
   return Array.from(grouped.values());
 }
 
+export interface SystemWideTrendBucket {
+  ts: number;
+  p95Ms: number;
+  maxP95Ms: number;
+  totalCount: number;
+}
+
+export async function getSystemWideTrendFromDB(
+  range: "1h" | "6h" | "24h",
+): Promise<SystemWideTrendBucket[]> {
+  const windowMs = RANGE_WINDOW_MS[range];
+  const since = new Date(Date.now() - windowMs);
+
+  const rows = await db
+    .select()
+    .from(latencyBuckets)
+    .where(gte(latencyBuckets.bucketTs, since))
+    .orderBy(latencyBuckets.bucketTs);
+
+  const byTs = new Map<number, { maxP95: number; totalCount: number; weightedSum: number }>();
+  for (const row of rows) {
+    const ts = row.bucketTs.getTime();
+    const existing = byTs.get(ts);
+    if (!existing) {
+      byTs.set(ts, { maxP95: row.p95Ms, totalCount: row.count, weightedSum: row.p95Ms * row.count });
+    } else {
+      existing.maxP95 = Math.max(existing.maxP95, row.p95Ms);
+      existing.totalCount += row.count;
+      existing.weightedSum += row.p95Ms * row.count;
+    }
+  }
+
+  return Array.from(byTs.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([ts, { maxP95, totalCount, weightedSum }]) => ({
+      ts,
+      p95Ms: totalCount > 0 ? Math.round(weightedSum / totalCount) : 0,
+      maxP95Ms: maxP95,
+      totalCount,
+    }));
+}
+
 export async function pruneOldLatencyBuckets(olderThanDays = 7): Promise<number> {
   const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
   const result = await db.delete(latencyBuckets).where(lt(latencyBuckets.bucketTs, cutoff));
