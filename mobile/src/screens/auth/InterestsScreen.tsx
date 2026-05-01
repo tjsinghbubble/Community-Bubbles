@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,10 +51,23 @@ export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [parentCategories, setParentCategories] = useState<CategoryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<number>(ALL_TAB_ID);
+  const [activeTab, setActiveTab] = useState<number>(route.params.activeTab ?? ALL_TAB_ID);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
+  const gridScrollRef = useRef<ScrollView>(null);
+  const pendingScrollRestore = useRef(route.params.scrollOffset ?? 0);
   const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
+
+  const handleTabChange = (tabId: number) => {
+    setActiveTab(tabId);
+    navigation.setParams({ activeTab: tabId, scrollOffset: 0 });
+    gridScrollRef.current?.scrollTo({ y: 0, animated: false });
+  };
+
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    navigation.setParams({ scrollOffset: y });
+  };
   const loadCategories = async () => {
     setLoading(true);
     setFetchError(false);
@@ -75,6 +90,16 @@ export default function InterestsScreen({ navigation, route }: Props) {
   useEffect(() => {
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    if (!loading && pendingScrollRestore.current > 0) {
+      const offset = pendingScrollRestore.current;
+      pendingScrollRestore.current = 0;
+      setTimeout(() => {
+        gridScrollRef.current?.scrollTo({ y: offset, animated: false });
+      }, 50);
+    }
+  }, [loading]);
 
   const toggleInterest = (id: string) => {
     setSelected(prev => {
@@ -138,7 +163,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
           >
             <TouchableOpacity
               style={[styles.tab, activeTab === ALL_TAB_ID && styles.tabActive]}
-              onPress={() => setActiveTab(ALL_TAB_ID)}
+              onPress={() => handleTabChange(ALL_TAB_ID)}
               testID="tab-all"
             >
               <View style={styles.tabContent}>
@@ -158,7 +183,7 @@ export default function InterestsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   key={parent.id}
                   style={[styles.tab, activeTab === parent.id && styles.tabActive]}
-                  onPress={() => setActiveTab(parent.id)}
+                  onPress={() => handleTabChange(parent.id)}
                   testID={`tab-category-${parent.id}`}
                 >
                   <View style={styles.tabContent}>
@@ -179,9 +204,12 @@ export default function InterestsScreen({ navigation, route }: Props) {
           </ScrollView>
 
           <ScrollView
+            ref={gridScrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.gridContainer}
             showsVerticalScrollIndicator={false}
+            onMomentumScrollEnd={handleScrollEnd}
+            onScrollEndDrag={handleScrollEnd}
           >
             {filteredCategories.map((category) => {
               const id = category.name;
