@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,47 +11,15 @@ import Constants from 'expo-constants';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
-import apiService from '../../services/api.service';
+import { useAppVersionCheck } from '../../hooks/useAppVersionCheck';
 
 const APP_STAGE = 'alpha';
 const LOCAL_VERSION = Constants.expoConfig?.version ?? null;
 
-function isNewerVersion(serverVer: string, localVer: string): boolean {
-  const toParts = (v: string): number[] => {
-    const parts = v.split('-')[0].split('.').map((n) => {
-      const parsed = parseInt(n, 10);
-      return isNaN(parsed) ? 0 : parsed;
-    });
-    while (parts.length < 3) parts.push(0);
-    return parts;
-  };
-  const sParts = toParts(serverVer);
-  const lParts = toParts(localVer);
-  for (let i = 0; i < Math.max(sParts.length, lParts.length); i++) {
-    const s = sParts[i] ?? 0;
-    const l = lParts[i] ?? 0;
-    if (s !== l) return s > l;
-  }
-  return false;
-}
-
 export default function AccountSettingsScreen() {
   const navigation = useNavigation<any>();
-  const [appVersion, setAppVersion] = useState<string | null>(LOCAL_VERSION);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-
-  useEffect(() => {
-    apiService.getAppVersion()
-      .then((res) => {
-        setAppVersion(res.version);
-        if (LOCAL_VERSION && isNewerVersion(res.version, LOCAL_VERSION)) {
-          setUpdateAvailable(true);
-        }
-      })
-      .catch(() => {
-        // Server unreachable — keep the locally bundled version already in state
-      });
-  }, []);
+  const { updateAvailable, serverVersion } = useAppVersionCheck();
+  const appVersion = serverVersion ?? LOCAL_VERSION;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
