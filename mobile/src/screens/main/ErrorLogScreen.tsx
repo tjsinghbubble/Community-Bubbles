@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -33,10 +33,37 @@ type ErrorEntry = {
 function formatTimestamp(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleString();
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }) + ' ' + d.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
   } catch {
     return iso;
   }
+}
+
+type TimeFilter = 'all' | '24h' | '7d';
+
+const TIME_FILTERS: { key: TimeFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: '24h', label: 'Last 24 h' },
+  { key: '7d', label: 'Last 7 days' },
+];
+
+function sinceFromFilter(filter: TimeFilter): Date | undefined {
+  if (filter === '24h') {
+    return new Date(Date.now() - 24 * 60 * 60 * 1000);
+  }
+  if (filter === '7d') {
+    return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  }
+  return undefined;
 }
 
 function levelColor(_level: string): string {
@@ -49,11 +76,15 @@ export default function ErrorLogScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
+  const timeFilterRef = useRef<TimeFilter>('all');
+  timeFilterRef.current = timeFilter;
 
-  const fetchErrors = useCallback(async () => {
+  const fetchErrors = useCallback(async (filter: TimeFilter = 'all') => {
     try {
       setFetchError(false);
-      const res = await apiService.getErrorLogs();
+      const since = sinceFromFilter(filter);
+      const res = await apiService.getErrorLogs(since);
       setErrors(res?.errors ?? []);
     } catch (e) {
       console.warn('[ErrorLogScreen] Failed to fetch error logs:', e);
@@ -68,13 +99,20 @@ export default function ErrorLogScreen({ navigation }: Props) {
     useCallback(() => {
       setLoading(true);
       AsyncStorage.setItem('errorLogLastSeenAt', new Date().toISOString()).catch(() => {});
-      fetchErrors();
+      fetchErrors(timeFilterRef.current);
     }, [fetchErrors]),
   );
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchErrors();
+    fetchErrors(timeFilter);
+  };
+
+  const handleFilterChange = (filter: TimeFilter) => {
+    setTimeFilter(filter);
+    setLoading(true);
+    setExpanded(new Set());
+    fetchErrors(filter);
   };
 
   const handleClear = () => {
@@ -187,6 +225,21 @@ export default function ErrorLogScreen({ navigation }: Props) {
             ? 'No in-memory server errors'
             : `${errors.length} in-memory server error${errors.length !== 1 ? 's' : ''} · last 100 · newest first`}
         </Text>
+      </View>
+
+      <View style={styles.filterBar}>
+        {TIME_FILTERS.map((f) => (
+          <TouchableOpacity
+            key={f.key}
+            style={[styles.filterChip, timeFilter === f.key && styles.filterChipActive]}
+            onPress={() => handleFilterChange(f.key)}
+            testID={`filter-${f.key}`}
+          >
+            <Text style={[styles.filterChipText, timeFilter === f.key && styles.filterChipTextActive]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {fetchError && !loading && (
@@ -310,6 +363,36 @@ const styles = StyleSheet.create({
   clearButton: {
     fontSize: Typography.sizes.base,
     color: Colors.status.error,
+    fontWeight: '600',
+  },
+  filterBar: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.background.primary,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border.light,
+  },
+  filterChip: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.background.secondary,
+    borderWidth: 1,
+    borderColor: Colors.border.light,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.brand.primary,
+    borderColor: Colors.brand.primary,
+  },
+  filterChipText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.secondary,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   fetchErrorBanner: {

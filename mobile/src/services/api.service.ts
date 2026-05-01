@@ -615,8 +615,12 @@ class ApiService {
     return this.request<{ count: number }>(`/api/admin/error-logs/count${qs}`);
   }
 
-  async getErrorLogs() {
-    return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>("/api/admin/error-logs");
+  async getErrorLogs(since?: Date, before?: Date) {
+    const params = new URLSearchParams();
+    if (since) params.set('since', since.toISOString());
+    if (before) params.set('before', before.toISOString());
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ errors: Array<{ message: string; timestamp: string; platform: string; level: string }> }>(`/api/admin/error-logs${qs}`);
   }
 
   async getErrorLogCount(): Promise<{ count: number }> {
