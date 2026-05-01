@@ -842,6 +842,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
   const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
   const creatorProfilePhoto = (event as any).creatorProfilePhoto || null;
+  const creatorDisplayName = (() => {
+    const parts = creatorName.trim().split(' ');
+    if (parts.length === 1) return parts[0];
+    return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+  })();
 
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
@@ -1113,7 +1118,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <View style={styles.bulletinSection} onLayout={(e) => { tasksYRef.current = e.nativeEvent.layout.y; }}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>
-              Sign-Up and Help {creatorName}
+              Sign-up & Help {creatorDisplayName}
             </Text>
             {canManage && (
               <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
@@ -2020,9 +2025,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF',
   },
   taskCardHighlighted: {
-    borderColor: Colors.status.warning,
+    borderColor: Colors.brand.bubbleBlue,
     borderWidth: 2,
-    backgroundColor: Colors.background.warningTint,
   },
   signedBadge: {
     marginLeft: Spacing.sm,

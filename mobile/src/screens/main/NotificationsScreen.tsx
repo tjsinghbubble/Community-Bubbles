@@ -368,7 +368,8 @@ const styles = StyleSheet.create({
     ...CardShadow,
   },
   notifRowUnread: {
-    backgroundColor: Colors.background.brandTint,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
   },
   iconCircle: {
     width: 40,

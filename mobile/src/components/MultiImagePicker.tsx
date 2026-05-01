@@ -115,79 +115,46 @@ export default function MultiImagePicker({
     if (!uri) return;
     setUploading(true);
     try {
-      let blob: Blob;
-      try {
-        const response = await fetch(uri);
-        blob = await response.blob();
-      } catch (fetchErr) {
-        console.warn('Blob fetch failed, trying FormData approach:', fetchErr);
-        const name = fileName || uri.split('/').pop() || 'image.jpg';
-        const contentType = mimeType || 'image/jpeg';
-
-        const uploadUrlResponse = await fetch(`${API_URL}/api/uploads/request-url`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ name, size: 0, contentType }),
-        });
-        if (!uploadUrlResponse.ok) throw new Error('Failed to get upload URL');
-        const { uploadURL, objectPath } = await uploadUrlResponse.json();
-
-        const formData = new FormData();
-        formData.append('file', { uri, name, type: contentType } as any);
-
-        const uploadResponse = await fetch(uploadURL, {
-          method: 'PUT',
-          body: formData,
-        });
-        if (!uploadResponse.ok) throw new Error('Failed to upload image');
-
-        const imageUrl = `${API_URL}${objectPath}`;
-        onImagesChange([...images, imageUrl]);
-        return;
-      }
-
       const name = fileName || uri.split('/').pop() || 'image.jpg';
-      const contentType = mimeType || blob.type || 'image/jpeg';
-      
+      const ext = name.split('.').pop()?.toLowerCase() || '';
+      const extToMime: Record<string, string> = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+      };
+      const contentType = mimeType && mimeType.startsWith('image/') ? mimeType
+        : extToMime[ext] || 'image/jpeg';
+
       const uploadUrlResponse = await fetch(`${API_URL}/api/uploads/request-url`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          name,
-          size: blob.size,
-          contentType,
-        }),
+        body: JSON.stringify({ name, size: 0, contentType }),
       });
 
       if (!uploadUrlResponse.ok) {
-        throw new Error('Failed to get upload URL');
+        const errData = await uploadUrlResponse.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to get upload URL');
       }
 
       const { uploadURL, objectPath } = await uploadUrlResponse.json();
 
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
-        body: blob,
-        headers: {
-          'Content-Type': contentType,
-        },
+        headers: { 'Content-Type': contentType },
+        body: { uri } as any,
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload image');
+        throw new Error('Failed to upload to storage');
       }
 
       const imageUrl = `${API_URL}${objectPath}`;
       onImagesChange([...images, imageUrl]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Image upload error:', error);
-      Alert.alert('Upload Failed', 'Failed to upload image. Please try again.');
+      Alert.alert('Upload Failed', error.message || 'Failed to upload image. Please try again.');
     } finally {
       setUploading(false);
     }
