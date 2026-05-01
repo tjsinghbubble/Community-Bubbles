@@ -172,6 +172,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [highlightRsvp, setHighlightRsvp] = useState(false);
   const appliedRsvpScrollRef = useRef(false);
   const rsvpPulseAnim = useRef(new Animated.Value(1)).current;
+  const taskPulseAnim = useRef(new Animated.Value(1)).current;
 
   const EVENT_CONCERN_REASONS = [
     'Safety issue at this event',
@@ -279,7 +280,25 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     setTimeout(() => {
       scrollViewRef.current?.scrollTo({ y: tasksYRef.current, animated: true });
       setHighlightedTaskId(highlightTaskId);
-      setTimeout(() => setHighlightedTaskId(null), 3000);
+      taskPulseAnim.setValue(1);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(taskPulseAnim, {
+            toValue: 1.05,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(taskPulseAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]),
+        { iterations: 3 },
+      ).start(() => {
+        setHighlightedTaskId(null);
+        taskPulseAnim.setValue(1);
+      });
     }, 300);
   }, [highlightTaskId, signupTasks]);
 
@@ -1237,8 +1256,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               const isFull = spotsLeft !== null && spotsLeft <= 0;
               const canToggle = !!user && (!isFull || task.hasSignedUp);
               return (
-                <TouchableOpacity
+                <Animated.View
                   key={task.id}
+                  style={highlightedTaskId === String(task.id) ? { transform: [{ scale: taskPulseAnim }] } : undefined}
+                >
+                <TouchableOpacity
                   activeOpacity={canToggle ? 0.7 : 1}
                   style={[styles.taskCard, task.hasSignedUp && styles.taskCardSigned, highlightedTaskId === String(task.id) && styles.taskCardHighlighted]}
                   onPress={() => { if (canToggle) handleToggleSignup(task); }}
@@ -1280,6 +1302,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     ) : null}
                   </View>
                 </TouchableOpacity>
+                </Animated.View>
               );
             })
           )}
