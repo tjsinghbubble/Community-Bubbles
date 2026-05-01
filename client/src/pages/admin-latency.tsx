@@ -12,7 +12,14 @@ import {
   ChevronUp,
   ChevronDown,
   ChevronsUpDown,
+  TrendingUp,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  Tooltip as RechartsTooltip,
+} from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
@@ -31,6 +38,7 @@ interface EndpointMetric {
   count: number;
   p50Ms: number;
   p95Ms: number;
+  p99Ms: number;
   avgMs: number;
   maxMs: number;
   errorRate: number;
@@ -42,7 +50,28 @@ interface LatencyData {
   generatedAt: string;
 }
 
-type SortKey = "p95Ms" | "p50Ms" | "avgMs" | "count" | "maxMs" | "errorRate";
+type SortKey = "p95Ms" | "p50Ms" | "p99Ms" | "avgMs" | "count" | "maxMs" | "errorRate";
+type TimeRange = "1h" | "6h" | "24h";
+
+interface TrendBucket {
+  ts: number;
+  p95Ms: number;
+  p50Ms: number;
+  avgMs: number;
+  count: number;
+}
+
+interface EndpointTrend {
+  method: string;
+  endpoint: string;
+  buckets: TrendBucket[];
+}
+
+interface TrendsData {
+  trends: EndpointTrend[];
+  range: TimeRange;
+  generatedAt: string;
+}
 
 function methodBadge(method: string) {
   const colors: Record<string, string> = {
@@ -67,6 +96,12 @@ function latencyBg(ms: number): string {
   return "bg-red-50";
 }
 
+function sparklineColor(maxP95: number): string {
+  if (maxP95 < 200) return "#10b981";
+  if (maxP95 < 500) return "#f59e0b";
+  return "#ef4444";
+}
+
 function fmt(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
@@ -85,11 +120,90 @@ function fmtTs(ts: number): string {
   return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
+function fmtBucketTs(ts: number, range: TimeRange): string {
+  const d = new Date(ts);
+  if (range === "24h") {
+    return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  }
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+}
+
 function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   if (!active) return <ChevronsUpDown className="h-3 w-3 text-muted-foreground/50" />;
   if (dir === "desc") return <ChevronDown className="h-3 w-3 text-[#35A8F7]" />;
   return <ChevronUp className="h-3 w-3 text-[#35A8F7]" />;
 }
+
+function Sparkline({
+  buckets,
+  range,
+  maxP95,
+}: {
+  buckets: TrendBucket[];
+  range: TimeRange;
+  maxP95: number;
+}) {
+  const color = sparklineColor(maxP95);
+  const hasData = buckets.some((b) => b.count > 0);
+
+  if (!hasData) {
+    return (
+      <div className="flex h-9 w-20 items-center justify-center">
+        <span className="text-[9px] text-muted-foreground/50">no data</span>
+      </div>
+    );
+  }
+
+  const chartData = buckets.map((b) => ({
+    ts: b.ts,
+    p95Ms: b.count > 0 ? b.p95Ms : null,
+    label: fmtBucketTs(b.ts, range),
+  }));
+
+  return (
+    <div className="h-9 w-20" data-testid="sparkline-chart">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 2, right: 0, left: 0, bottom: 2 }}>
+          <defs>
+            <linearGradient id={`sg-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="95%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="p95Ms"
+            stroke={color}
+            strokeWidth={1.5}
+            fill={`url(#sg-${color.replace("#", "")})`}
+            dot={false}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+          <RechartsTooltip
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0].payload as { label: string; p95Ms: number | null };
+              if (d.p95Ms == null) return null;
+              return (
+                <div className="rounded-lg bg-foreground/90 px-2 py-1 text-[10px] text-white shadow">
+                  <div className="font-semibold">{fmt(d.p95Ms)} p95</div>
+                  <div className="text-white/60">{d.label}</div>
+                </div>
+              );
+            }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+const TIME_RANGE_LABELS: Record<TimeRange, string> = {
+  "1h": "1h",
+  "6h": "6h",
+  "24h": "24h",
+};
 
 export default function AdminLatency() {
   const { user } = useAuth();
@@ -98,6 +212,7 @@ export default function AdminLatency() {
   const [sortKey, setSortKey] = useState<SortKey>("p95Ms");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRange>("1h");
 
   const { data: me, isLoading: meLoading, isError: meError } = useQuery<AuthMe>({
     queryKey: ["/api/auth/me"],
@@ -119,10 +234,22 @@ export default function AdminLatency() {
     refetchInterval: 30_000,
   });
 
+  const {
+    data: trendsData,
+    isFetching: trendsFetching,
+  } = useQuery<TrendsData>({
+    queryKey: ["/api/admin/latency/trends", timeRange],
+    queryFn: () =>
+      apiRequest("GET", `/api/admin/latency/trends?range=${timeRange}`).then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 30_000,
+  });
+
   const resetMutation = useMutation({
     mutationFn: () => apiRequest("DELETE", "/api/admin/latency").then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/latency"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/latency/trends"] });
       setShowConfirmReset(false);
     },
   });
@@ -178,6 +305,11 @@ export default function AdminLatency() {
   const totalRequests = metrics.reduce((s, m) => s + m.count, 0);
   const slowEndpoints = metrics.filter((m) => m.p95Ms >= 500).length;
 
+  const trendsByKey = new Map<string, TrendBucket[]>();
+  for (const t of trendsData?.trends ?? []) {
+    trendsByKey.set(`${t.method} ${t.endpoint}`, t.buckets);
+  }
+
   return (
     <AppShell active="profile">
       <div className="mx-auto w-full max-w-4xl px-4 pb-28 pt-6 md:pb-8">
@@ -229,7 +361,7 @@ export default function AdminLatency() {
               </div>
               <h2 className="text-[17px] font-bold" data-testid="text-confirm-reset-title">Reset all metrics?</h2>
               <p className="mt-2 text-[13px] text-muted-foreground">
-                This will clear all collected request samples from memory. New data will accumulate immediately.
+                This will clear all collected request samples from memory and the database. New data will accumulate immediately.
               </p>
               <div className="mt-5 flex gap-3">
                 <button
@@ -319,23 +451,51 @@ export default function AdminLatency() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                     Endpoint Latency
                   </span>
-                  {data?.generatedAt && (
-                    <span className="text-[10px] text-muted-foreground" data-testid="latency-generated-at">
-                      Updated {fmtTime(data.generatedAt)}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {/* Time range filter */}
+                    <div className="flex items-center gap-1 rounded-xl bg-black/5 p-0.5" data-testid="time-range-filter">
+                      <TrendingUp className="ml-1.5 h-3 w-3 text-muted-foreground" />
+                      {(["1h", "6h", "24h"] as TimeRange[]).map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setTimeRange(r)}
+                          className={cn(
+                            "rounded-lg px-2.5 py-1 text-[11px] font-semibold transition",
+                            timeRange === r
+                              ? "bg-white text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                          data-testid={`button-range-${r}`}
+                        >
+                          {TIME_RANGE_LABELS[r]}
+                        </button>
+                      ))}
+                      {trendsFetching && (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                    {data?.generatedAt && (
+                      <span className="text-[10px] text-muted-foreground" data-testid="latency-generated-at">
+                        Updated {fmtTime(data.generatedAt)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] text-left text-[12px]">
+                  <table className="w-full min-w-[720px] text-left text-[12px]">
                     <thead>
                       <tr className="border-b border-black/5 bg-black/2">
                         <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                           Endpoint
                         </th>
+                        <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Trend (p95)
+                        </th>
                         {(
                           [
                             { key: "p50Ms", label: "p50" },
                             { key: "p95Ms", label: "p95" },
+                            { key: "p99Ms", label: "p99" },
                             { key: "avgMs", label: "Avg" },
                             { key: "maxMs", label: "Max" },
                             { key: "count", label: "Requests" },
@@ -357,64 +517,77 @@ export default function AdminLatency() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-black/5">
-                      {sorted.map((m, i) => (
-                        <tr
-                          key={`${m.method}-${m.endpoint}`}
-                          className="transition hover:bg-black/3"
-                          data-testid={`row-endpoint-${i}`}
-                        >
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span
-                                className={cn(
-                                  "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
-                                  methodBadge(m.method),
-                                )}
-                                data-testid={`badge-method-${i}`}
-                              >
-                                {m.method}
-                              </span>
-                              <span
-                                className="truncate font-mono text-[11px] text-foreground"
-                                title={m.endpoint}
-                                data-testid={`text-endpoint-${i}`}
-                              >
-                                {m.endpoint}
-                              </span>
-                            </div>
-                            <div className="mt-0.5 pl-9 text-[9px] text-muted-foreground">
-                              last seen {fmtTs(m.lastSeenTs)}
-                            </div>
-                          </td>
-                          <td className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p50Ms))} data-testid={`text-p50-${i}`}>
-                            {fmt(m.p50Ms)}
-                          </td>
-                          <td
-                            className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p95Ms))}
-                            data-testid={`text-p95-${i}`}
+                      {sorted.map((m, i) => {
+                        const buckets = trendsByKey.get(`${m.method} ${m.endpoint}`) ?? [];
+                        const maxP95 = buckets.reduce((max, b) => Math.max(max, b.p95Ms), 0) || m.p95Ms;
+                        return (
+                          <tr
+                            key={`${m.method}-${m.endpoint}`}
+                            className="transition hover:bg-black/3"
+                            data-testid={`row-endpoint-${i}`}
                           >
-                            {fmt(m.p95Ms)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground" data-testid={`text-avg-${i}`}>
-                            {fmt(m.avgMs)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-muted-foreground" data-testid={`text-max-${i}`}>
-                            {fmt(m.maxMs)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums" data-testid={`text-count-${i}`}>
-                            {m.count.toLocaleString()}
-                          </td>
-                          <td
-                            className={cn(
-                              "px-4 py-3 text-right tabular-nums font-semibold",
-                              m.errorRate > 0 ? "text-red-600" : "text-muted-foreground",
-                            )}
-                            data-testid={`text-error-rate-${i}`}
-                          >
-                            {m.errorRate}%
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className={cn(
+                                    "shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                                    methodBadge(m.method),
+                                  )}
+                                  data-testid={`badge-method-${i}`}
+                                >
+                                  {m.method}
+                                </span>
+                                <span
+                                  className="truncate font-mono text-[11px] text-foreground"
+                                  title={m.endpoint}
+                                  data-testid={`text-endpoint-${i}`}
+                                >
+                                  {m.endpoint}
+                                </span>
+                              </div>
+                              <div className="mt-0.5 pl-9 text-[9px] text-muted-foreground">
+                                last seen {fmtTs(m.lastSeenTs)}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3" data-testid={`cell-trend-${i}`}>
+                              <Sparkline buckets={buckets} range={timeRange} maxP95={maxP95} />
+                            </td>
+                            <td className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p50Ms))} data-testid={`text-p50-${i}`}>
+                              {fmt(m.p50Ms)}
+                            </td>
+                            <td
+                              className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p95Ms))}
+                              data-testid={`text-p95-${i}`}
+                            >
+                              {fmt(m.p95Ms)}
+                            </td>
+                            <td
+                              className={cn("px-4 py-3 text-right font-bold tabular-nums", latencyColor(m.p99Ms))}
+                              data-testid={`text-p99-${i}`}
+                            >
+                              {fmt(m.p99Ms)}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-muted-foreground" data-testid={`text-avg-${i}`}>
+                              {fmt(m.avgMs)}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-muted-foreground" data-testid={`text-max-${i}`}>
+                              {fmt(m.maxMs)}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums" data-testid={`text-count-${i}`}>
+                              {m.count.toLocaleString()}
+                            </td>
+                            <td
+                              className={cn(
+                                "px-4 py-3 text-right tabular-nums font-semibold",
+                                m.errorRate > 0 ? "text-red-600" : "text-muted-foreground",
+                              )}
+                              data-testid={`text-error-rate-${i}`}
+                            >
+                              {m.errorRate}%
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -422,7 +595,7 @@ export default function AdminLatency() {
             )}
 
             <p className="text-center text-[10px] text-muted-foreground">
-              Data is held in-memory and resets on server restart. Sorted by{" "}
+              Metrics are persisted to the database every 5 minutes and survive server restarts. Sorted by{" "}
               <strong>{sortKey}</strong> {sortDir === "desc" ? "↓" : "↑"}.
             </p>
           </div>

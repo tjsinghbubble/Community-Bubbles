@@ -1,16 +1,22 @@
+import { initErrorBuffer } from "./errorBuffer";
 import express, { type Request, Response, NextFunction } from "express";
+import { initialiseSentry, reportSlowResponse } from "./sentry";
 import { registerRoutes } from "./routes";
 import { registerHealthRoutes } from "./health";
 import { AUTH_PAYLOAD_LIMIT_BYTES, authEntityTooLargeHandler } from "./auth-handler";
 import { serveStatic } from "./static";
 import { createServer } from "http";
-import { startEventReminderScheduler } from "./notifications";
+import { startEventReminderScheduler, startSlowCallPrunerScheduler, startFatalCrashSpikeScheduler } from "./notifications";
+import { loadSlowCallConfigFromDb } from "./slow-call-config";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { seedStaging } from "./seed-staging";
+import { autoMigrate } from "./auto-migrate";
+
+initialiseSentry();
 
 const app = express();
 const httpServer = createServer(app);
@@ -36,6 +42,18 @@ app.use(cors({
 
 app.use(
   '/api/auth',
+  express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+  authEntityTooLargeHandler,
+);
+
+app.use(
+  '/api/campus',
+  express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
+  authEntityTooLargeHandler,
+);
+
+app.use(
+  '/api/users/me',
   express.json({ limit: AUTH_PAYLOAD_LIMIT_BYTES }),
   authEntityTooLargeHandler,
 );
@@ -82,6 +100,7 @@ app.use((req, res, next) => {
       }
 
       log(logLine);
+      reportSlowResponse(req.method, path, duration);
     }
   });
 
@@ -89,6 +108,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await autoMigrate();
+  initErrorBuffer(storage);
+  await loadSlowCallConfigFromDb((key) => storage.getAppConfigValue(key));
   registerHealthRoutes(app);
   await registerRoutes(httpServer, app);
 
@@ -156,6 +178,8 @@ app.use((req, res, next) => {
     () => {
       log(`serving on port ${port}`);
       startEventReminderScheduler();
+      startSlowCallPrunerScheduler();
+      startFatalCrashSpikeScheduler();
     },
   );
 })();

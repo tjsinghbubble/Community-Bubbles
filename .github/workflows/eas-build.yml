@@ -1,0 +1,238 @@
+name: EAS Production Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: eas-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-gate:
+    name: Validate Release Tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check tag follows vMAJOR.MINOR.PATCH semver format
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: Tag '$TAG' does not follow the required vMAJOR.MINOR.PATCH format."
+            echo "Example of a valid tag: v1.2.3"
+            echo "Aborting — production EAS build will not run."
+            exit 1
+          fi
+          echo "Tag '$TAG' is valid semver. Proceeding with build."
+
+  build:
+    name: EAS Build & Submit (Production)
+    needs: release-gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Sync version from git tag into app.json
+        run: |
+          jq --version
+
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+          echo "Syncing version $TAG_VERSION from tag $GITHUB_REF_NAME into app.json"
+          jq --arg v "$TAG_VERSION" '.expo.version = $v' app.json > app.json.tmp
+          mv app.json.tmp app.json
+          echo "app.json version is now: $(jq -r '.expo.version' app.json)"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up EAS CLI
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Crash-free rate health check
+        run: node scripts/check-sentry-crash-free-rate.js
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+      - name: Build iOS (production) and submit to App Store
+        run: eas build --platform ios --profile production --non-interactive --wait --auto-submit
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+      - name: Build Android (production) and submit to Play Store
+        run: eas build --platform android --profile production --non-interactive --wait --auto-submit
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+  release-notes:
+    name: Generate Release Notes & Update Changelog
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Determine previous tag
+        id: prev-tag
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          # Use git describe to find the nearest reachable ancestor tag
+          # rather than the globally highest semver tag.
+          PREV_TAG=$(git describe --tags --abbrev=0 "${CURRENT_TAG}^" \
+            --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous semver tag found; using the initial commit as base."
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "prev_tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Previous reference: ${PREV_TAG}"
+
+      - name: Generate grouped release notes
+        id: grouped-notes
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          PREV_TAG="${{ steps.prev-tag.outputs.prev_tag }}"
+
+          BREAKING=""
+          FEAT=""
+          FIX=""
+          CHORE=""
+          REFACTOR=""
+          DOCS=""
+          PERF=""
+          TEST=""
+          BUILD=""
+          CI=""
+          STYLE=""
+          REVERT=""
+          OTHER=""
+
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            subject="${line#- }"
+            case "$subject" in
+              feat!:*|fix!:*|"feat("*"!:"*|"fix("*"!:"*)
+                                  BREAKING="${BREAKING}${line}"$'\n' ;;
+              feat:*|feat\(*)     FEAT="${FEAT}${line}"$'\n' ;;
+              fix:*|fix\(*)       FIX="${FIX}${line}"$'\n' ;;
+              chore:*|chore\(*)   CHORE="${CHORE}${line}"$'\n' ;;
+              refactor:*|refactor\(*) REFACTOR="${REFACTOR}${line}"$'\n' ;;
+              docs:*|docs\(*)     DOCS="${DOCS}${line}"$'\n' ;;
+              perf:*|perf\(*)     PERF="${PERF}${line}"$'\n' ;;
+              test:*|test\(*)     TEST="${TEST}${line}"$'\n' ;;
+              build:*|build\(*)   BUILD="${BUILD}${line}"$'\n' ;;
+              ci:*|ci\(*)         CI="${CI}${line}"$'\n' ;;
+              style:*|style\(*)   STYLE="${STYLE}${line}"$'\n' ;;
+              revert:*|revert\(*) REVERT="${REVERT}${line}"$'\n' ;;
+              *)                  OTHER="${OTHER}${line}"$'\n' ;;
+            esac
+          done < <(git log "${PREV_TAG}..${CURRENT_TAG}" \
+            --pretty=format:"- %s (%h)" \
+            --no-merges \
+            --invert-grep \
+            --grep='\[skip ci\]')
+
+          BODY=""
+          [ -n "$BREAKING" ] && BODY="${BODY}### Breaking Changes"$'\n'"${BREAKING}"$'\n'
+          [ -n "$FEAT" ]     && BODY="${BODY}### Features"$'\n'"${FEAT}"$'\n'
+          [ -n "$FIX" ]      && BODY="${BODY}### Bug Fixes"$'\n'"${FIX}"$'\n'
+          [ -n "$CHORE" ]    && BODY="${BODY}### Chores"$'\n'"${CHORE}"$'\n'
+          [ -n "$REFACTOR" ] && BODY="${BODY}### Refactoring"$'\n'"${REFACTOR}"$'\n'
+          [ -n "$DOCS" ]     && BODY="${BODY}### Documentation"$'\n'"${DOCS}"$'\n'
+          [ -n "$PERF" ]     && BODY="${BODY}### Performance"$'\n'"${PERF}"$'\n'
+          [ -n "$TEST" ]     && BODY="${BODY}### Tests"$'\n'"${TEST}"$'\n'
+          [ -n "$BUILD" ]    && BODY="${BODY}### Build"$'\n'"${BUILD}"$'\n'
+          [ -n "$CI" ]       && BODY="${BODY}### CI/CD"$'\n'"${CI}"$'\n'
+          [ -n "$STYLE" ]    && BODY="${BODY}### Style"$'\n'"${STYLE}"$'\n'
+          [ -n "$REVERT" ]   && BODY="${BODY}### Reverts"$'\n'"${REVERT}"$'\n'
+          [ -n "$OTHER" ]    && BODY="${BODY}### Other"$'\n'"${OTHER}"$'\n'
+
+          if [ -z "$BODY" ]; then
+            BODY="No notable changes recorded."
+          fi
+
+          printf '%s' "$BODY" > /tmp/release-notes.md
+          echo "--- Release notes preview ---"
+          cat /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          body_path: /tmp/release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update CHANGELOG.md
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          DATE=$(date -u +%Y-%m-%d)
+
+          # Idempotency: skip if this tag's section already exists.
+          if [ -f CHANGELOG.md ] && grep -qF "## ${CURRENT_TAG}" CHANGELOG.md; then
+            echo "CHANGELOG.md already contains an entry for ${CURRENT_TAG}. Skipping."
+            exit 0
+          fi
+
+          NOTES=$(cat /tmp/release-notes.md)
+          NEW_ENTRY="## ${CURRENT_TAG} (${DATE})"$'\n\n'"${NOTES}"
+
+          if [ -f CHANGELOG.md ]; then
+            TMP=$(mktemp)
+            head -n 1 CHANGELOG.md > "$TMP"
+            printf '\n%s\n' "$NEW_ENTRY" >> "$TMP"
+            tail -n +2 CHANGELOG.md >> "$TMP"
+            mv "$TMP" CHANGELOG.md
+          else
+            printf '# Changelog\n\n%s\n' "$NEW_ENTRY" > CHANGELOG.md
+          fi
+
+          echo "--- CHANGELOG.md preview ---"
+          head -40 CHANGELOG.md
+
+      - name: Commit updated CHANGELOG.md
+        run: |
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "CHANGELOG.md unchanged — nothing to commit."
+          else
+            git commit -m "chore: update CHANGELOG.md for ${{ github.ref_name }} [skip ci]"
+            git push origin "HEAD:${DEFAULT_BRANCH}"
+          fi

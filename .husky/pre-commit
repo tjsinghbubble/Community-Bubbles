@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+# Run lint-staged for fast per-file checks (linting, formatting).
+# For TypeScript files, this runs an incremental tsc --noEmit (root and/or
+# mobile/) scoped to whichever project has staged files — keeping most commits
+# well under 10 seconds thanks to the .tsbuildinfo cache.
+#
+# To run a fresh full type-check manually (skipping the cache):
+#   npm run type-check
+#
+# To bypass the hook in an emergency:
+#   git commit --no-verify
+
+npx lint-staged

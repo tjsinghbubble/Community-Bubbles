@@ -83,6 +83,7 @@ export interface EndpointMetric {
   count: number;
   p50Ms: number;
   p95Ms: number;
+  p99Ms: number;
   avgMs: number;
   maxMs: number;
   errorRate: number;
@@ -108,6 +109,7 @@ export function getMetrics(): EndpointMetric[] {
       count: samples.length,
       p50Ms: Math.round(percentile(durations, 50)),
       p95Ms: Math.round(percentile(durations, 95)),
+      p99Ms: Math.round(percentile(durations, 99)),
       avgMs: Math.round(sum / durations.length),
       maxMs: Math.round(durations[durations.length - 1] ?? 0),
       errorRate: Math.round((errorCount / samples.length) * 100),
@@ -121,4 +123,25 @@ export function getMetrics(): EndpointMetric[] {
 export function resetMetrics(): void {
   store.clear();
   lastSeenMap.clear();
+}
+
+export type TimeRange = "1h" | "6h" | "24h";
+
+export interface StoreEntry {
+  method: string;
+  endpoint: string;
+  samples: { durationMs: number; statusCode: number; ts: number }[];
+}
+
+export function getStoreSnapshot(): StoreEntry[] {
+  const result: StoreEntry[] = [];
+  for (const [key, samples] of store.entries()) {
+    const spaceIdx = key.indexOf(" ");
+    result.push({
+      method: key.slice(0, spaceIdx),
+      endpoint: key.slice(spaceIdx + 1),
+      samples: [...samples],
+    });
+  }
+  return result;
 }

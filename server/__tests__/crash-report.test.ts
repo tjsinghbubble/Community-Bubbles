@@ -1,7 +1,14 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import express from "express";
 import request from "supertest";
-import { registerCrashReportRoute, CRASH_REPORT_MAX_MESSAGE_CHARS, CRASH_REPORT_MAX_STACK_CHARS, CRASH_REPORT_MAX_CONTEXT_CHARS } from "../crash-report-handler";
+import {
+  registerCrashReportRoute,
+  CRASH_REPORT_MAX_MESSAGE_CHARS,
+  CRASH_REPORT_MAX_STACK_CHARS,
+  CRASH_REPORT_MAX_CONTEXT_CHARS,
+  CRASH_REPORT_MAX_USER_ID_CHARS,
+  CRASH_REPORT_MAX_USERNAME_CHARS,
+} from "../crash-report-handler";
 
 function buildApp() {
   const app = express();
@@ -121,5 +128,105 @@ describe("POST /api/crash-report", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ received: true });
+  });
+
+  it(`returns 400 when userId exceeds ${CRASH_REPORT_MAX_USER_ID_CHARS} chars`, async () => {
+    const res = await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "crash",
+        userId: "u".repeat(CRASH_REPORT_MAX_USER_ID_CHARS + 1),
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it(`returns 200 when userId is exactly ${CRASH_REPORT_MAX_USER_ID_CHARS} chars`, async () => {
+    const res = await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "crash",
+        userId: "u".repeat(CRASH_REPORT_MAX_USER_ID_CHARS),
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ received: true });
+  });
+
+  it(`returns 400 when username exceeds ${CRASH_REPORT_MAX_USERNAME_CHARS} chars`, async () => {
+    const res = await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "crash",
+        username: "n".repeat(CRASH_REPORT_MAX_USERNAME_CHARS + 1),
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it(`returns 200 when username is exactly ${CRASH_REPORT_MAX_USERNAME_CHARS} chars`, async () => {
+    const res = await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "crash",
+        username: "n".repeat(CRASH_REPORT_MAX_USERNAME_CHARS),
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ received: true });
+  });
+});
+
+describe("POST /api/crash-report — user identity surfacing", () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+  });
+
+  it("includes the username in the log line when userId and username are provided", async () => {
+    await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "Something went wrong",
+        platform: "ios",
+        isFatal: false,
+        appVersion: "1.0.0",
+        userId: "user-abc-123",
+        username: "Jane Doe",
+      });
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const logLine: string = consoleSpy.mock.calls[0][0];
+    expect(logLine).toContain("user=Jane Doe");
+  });
+
+  it("includes the userId in the log line when userId is provided but username is omitted", async () => {
+    await request(app)
+      .post("/api/crash-report")
+      .send({
+        message: "Crash without username",
+        userId: "user-xyz-789",
+      });
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const logLine: string = consoleSpy.mock.calls[0][0];
+    expect(logLine).toContain("user=user-xyz-789");
+  });
+
+  it("omits the user tag from the log line when no userId is provided", async () => {
+    await request(app)
+      .post("/api/crash-report")
+      .send({ message: "Anonymous crash" });
+
+    expect(consoleSpy).toHaveBeenCalled();
+    const logLine: string = consoleSpy.mock.calls[0][0];
+    expect(logLine).not.toContain("user=");
   });
 });

@@ -38,6 +38,7 @@ import { ChevronDownIcon, ChevronUpIcon, FlagIcon, CrownIcon, PeopleIcon } from 
 import BubbleButton from '../../components/BubbleButton';
 import ShareQRCodeModal from '../../components/ShareQRCodeModal';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
+import { showToast } from '../../components/Toast';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
@@ -96,6 +97,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [maxBubblePhotos, setMaxBubblePhotos] = useState(20);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
+  const [signupTaskCounts, setSignupTaskCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     checkMembership();
@@ -174,6 +176,20 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getBubbleEvents(bubble.id) as Event[];
       setEvents(data);
+      const counts: Record<string, number> = {};
+      if (data.length > 0) {
+        const taskResults = await Promise.all(
+          data.map((ev) => apiService.getEventSignupTasks(ev.id).catch(() => []))
+        );
+        data.forEach((ev, idx) => {
+          const tasks: any[] = taskResults[idx] || [];
+          const openCount = tasks.filter(
+            (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+          ).length;
+          if (openCount > 0) counts[ev.id] = openCount;
+        });
+      }
+      setSignupTaskCounts(counts);
     } catch (error) {
       console.error('Failed to fetch events:', error);
     } finally {
@@ -181,58 +197,125 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleJoinLeave = async () => {
-    if (!user) return;
+  const performLeaveBubble = async () => {
     setIsJoining(true);
     try {
-      if (isMember) {
-        await apiService.leaveBubble(bubble.id);
-        try {
-          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
-          await cometChatService.leaveGroup(bubble.id);
-        } catch (e) {
-          console.log('CometChat leave error (may not be in group):', e);
-        }
-        setIsMember(false);
-        setMembershipStatus(null);
-        setMemberCount(prev => Math.max(0, prev - 1));
-        logAppEvent('[Bubble] User left bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
-        setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}` });
-        setShowSuccessModal(true);
-      } else if (membershipStatus === 'pending') {
-        await apiService.leaveBubble(bubble.id);
-        setMembershipStatus(null);
-        setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
+      await apiService.leaveBubble(bubble.id);
+      try {
+        if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+        await cometChatService.leaveGroup(bubble.id);
+      } catch (e) {
+        console.log('CometChat leave error (may not be in group):', e);
+      }
+      setIsMember(false);
+      setMembershipStatus(null);
+      setMemberCount(prev => Math.max(0, prev - 1));
+      logAppEvent('[Bubble] User left bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
+      setSuccessModalConfig({ title: 'Left Bubble', subtitle: `You left ${bubble.title}. Your DM conversations with this bubble's members have been hidden.` });
+      setShowSuccessModal(true);
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  const handleJoinLeave = async () => {
+    if (!user) return;
+
+    if (isMember) {
+      Alert.alert(
+        'Leave Bubble',
+        `Are you sure you want to leave ${bubble.title}?\n\nYour direct message conversations with members of this bubble will also be hidden.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Leave',
+            style: 'destructive',
+            onPress: () => performLeaveBubble(),
+          },
+        ],
+      );
+      return;
+    }
+
+    if (membershipStatus === 'pending') {
+      Alert.alert(
+        'Withdraw Request',
+        `Are you sure you want to withdraw your request to join ${bubble.title}?\n\nAny DM conversations you may have in this bubble's context will also be hidden.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Withdraw',
+            style: 'destructive',
+            onPress: async () => {
+              setIsJoining(true);
+              try {
+                await apiService.leaveBubble(bubble.id);
+                setMembershipStatus(null);
+                setSuccessModalConfig({ title: 'Request Withdrawn', subtitle: `Your request to join ${bubble.title} has been withdrawn` });
+                setShowSuccessModal(true);
+              } catch (error: any) {
+                Alert.alert('Error', error.message);
+              } finally {
+                setIsJoining(false);
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    setIsJoining(true);
+    try {
+      const result = await apiService.joinBubble(bubble.id);
+      const privacy = bubbleDetails?.privacy || bubble.privacy;
+      if (result.status === 'waitlisted') {
+        setMembershipStatus('waitlisted');
+        setShowWaitlistModal(true);
+      } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
+        setMembershipStatus('pending');
+        setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
         setShowSuccessModal(true);
       } else {
-        const result = await apiService.joinBubble(bubble.id);
-        const privacy = bubbleDetails?.privacy || bubble.privacy;
-        if (result.status === 'waitlisted') {
-          setMembershipStatus('waitlisted');
-          setShowWaitlistModal(true);
-        } else if (result.status === 'pending' || privacy === 'Request to Join' || privacy === 'Request' || privacy === 'Private') {
-          setMembershipStatus('pending');
-          setSuccessModalConfig({ title: 'Request Sent!', subtitle: `Your request to join ${bubble.title} has been sent to the admins` });
-          setShowSuccessModal(true);
-        } else {
-          if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
-          try {
-            await cometChatService.createGroup(bubble.id, bubble.title);
-          } catch (e) {
-            console.log('Group may already exist:', e);
-          }
-          try {
-            await cometChatService.joinGroup(bubble.id);
-          } catch (e) {
-            console.log('CometChat join error (may already be member):', e);
-          }
-          setIsMember(true);
-          setMembershipStatus('approved');
-          setMemberCount(prev => prev + 1);
-          logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
-          setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
-          setShowSuccessModal(true);
+        if (user) await cometChatService.ensureLoggedIn(user.id, user.name);
+
+        const restoredDmCount = await cometChatService.getAdmConversationCountForBubble(String(bubble.id));
+
+        try {
+          await cometChatService.createGroup(bubble.id, bubble.title);
+        } catch (e) {
+          console.log('Group may already exist:', e);
         }
+        try {
+          await cometChatService.joinGroup(bubble.id);
+        } catch (e) {
+          console.log('CometChat join error (may already be member):', e);
+        }
+        setIsMember(true);
+        setMembershipStatus('approved');
+        setMemberCount(prev => prev + 1);
+        logAppEvent('[Bubble] User joined bubble', { bubbleId: bubble.id, bubbleTitle: bubble.title });
+
+        if (restoredDmCount > 0) {
+          const convoWord = restoredDmCount === 1 ? 'conversation' : 'conversations';
+          setSuccessModalConfig({
+            title: 'Welcome Back!',
+            subtitle: `Welcome back to ${bubble.title}. Your ${restoredDmCount} previous DM ${convoWord} with this bubble's members have been restored.`,
+          });
+          showToast({
+            message:
+              restoredDmCount === 1
+                ? '1 previous conversation restored'
+                : `${restoredDmCount} previous conversations restored`,
+            type: 'success',
+            duration: 4000,
+          });
+        } else {
+          setSuccessModalConfig({ title: 'Joined!', subtitle: `Welcome to ${bubble.title}` });
+        }
+        setShowSuccessModal(true);
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
@@ -242,7 +325,22 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   };
 
   const handleEventPress = (event: Event) => {
-    navigation.navigate('EventDetails' as any, { eventId: event.id, event, bubbleTitle: bubble.title });
+    navigation.navigate('EventDetails' as any, {
+      eventId: event.id,
+      event,
+      bubbleTitle: bubble.title,
+      onTasksChanged: (changedEventId: string, openCount: number) => {
+        setSignupTaskCounts(prev => {
+          const updated = { ...prev };
+          if (openCount > 0) {
+            updated[changedEventId] = openCount;
+          } else {
+            delete updated[changedEventId];
+          }
+          return updated;
+        });
+      },
+    });
   };
 
   const formatEventDate = (date: string) => {
@@ -888,30 +986,49 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     return Object.entries(groups);
   };
 
-  const renderEventCard = (event: Event) => (
-    <TouchableOpacity
-      key={event.id}
-      style={styles.eventCard}
-      onPress={() => handleEventPress(event)}
-    >
-      <Image
-        source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
-        style={styles.eventImage}
-        contentFit="cover"
-      />
-      <View style={styles.eventInfo}>
-        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-        <Text style={styles.eventDateText}>{getEventFullDate(event.date)}</Text>
-        <Text style={styles.eventTimeText}>{getEventTimeRange(event.startTime, event.endTime)}</Text>
-        {getSpotsLabel(event) !== null && (
-          <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
-        )}
-      </View>
-      <View style={styles.eventChevronContainer}>
-        <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
-      </View>
-    </TouchableOpacity>
-  );
+  const renderEventCard = (event: Event) => {
+    const openTasks = signupTaskCounts[event.id] || 0;
+    return (
+      <TouchableOpacity
+        key={event.id}
+        style={styles.eventCard}
+        onPress={() => handleEventPress(event)}
+        data-testid={`card-event-${event.id}`}
+      >
+        <Image
+          source={resolveMediaUrl(event.coverImage) ?? getFallbackImage(null)}
+          style={styles.eventImage}
+          contentFit="cover"
+        />
+        <View style={styles.eventInfo}>
+          <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+          <Text style={styles.eventDateText}>{getEventFullDate(event.date)}</Text>
+          <Text style={styles.eventTimeText}>{getEventTimeRange(event.startTime, event.endTime)}</Text>
+          {getSpotsLabel(event) !== null && (
+            <Text style={styles.eventSpotsText}>{getSpotsLabel(event)}</Text>
+          )}
+          {openTasks > 0 && (
+            <TouchableOpacity
+              style={styles.eventTasksBadge}
+              data-testid={`badge-tasks-${event.id}`}
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleEventPress(event);
+              }}
+            >
+              <Text style={styles.eventTasksBadgeText}>
+                {openTasks === 1 ? '1 task open' : `${openTasks} tasks open`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.eventChevronContainer}>
+          <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEventsTab = () => {
     const grouped = groupEventsByMonth(events);
@@ -1556,10 +1673,36 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.status.error,
   },
+  eventTasksBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    marginTop: Spacing.xs,
+  },
+  eventTasksBadgeText: {
+    fontSize: Typography.sizes.xs,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.primary,
+  },
   eventChevronContainer: {
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tasksBadge: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tasksBadgeText: {
+    fontSize: Typography.sizes.xxs,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.primary,
   },
   createFab: {
     position: 'absolute',

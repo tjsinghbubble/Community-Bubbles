@@ -337,6 +337,25 @@ class CometChatService {
     }
   }
 
+  async getAdmConversationCountForBubble(bubbleId: string): Promise<number> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) return 0;
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(50)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      const prefix = `adm_${bubbleId}_`;
+      return conversations.filter((conv: any) => {
+        const guid: string = conv.conversationWith?.guid || '';
+        return guid.startsWith(prefix);
+      }).length;
+    } catch {
+      return 0;
+    }
+  }
+
   async getMessages(guid: string, limit: number = 50) {
     try {
       const messagesRequest = new CometChat.MessagesRequestBuilder()

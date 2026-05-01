@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -203,6 +203,8 @@ export const eventAttendees = pgTable("event_attendees", {
   userId: varchar("user_id").notNull().references(() => users.id),
   status: text("status").notNull().default('going'), // going, interested, requested, waitlisted
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
+  reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -220,6 +222,8 @@ export const insertEventSchema = createInsertSchema(events).omit({
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
   id: true,
   joinedAt: true,
+  reminder24hSent: true,
+  reminder1hSent: true,
 });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
@@ -401,6 +405,25 @@ export const insertDevicePushTokenSchema = createInsertSchema(devicePushTokens).
 export type InsertDevicePushToken = z.infer<typeof insertDevicePushTokenSchema>;
 export type DevicePushToken = typeof devicePushTokens.$inferSelect;
 
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  pushPaused: boolean("push_paused").notNull().default(false),
+  bubbleActivity: boolean("bubble_activity").notNull().default(true),
+  eventActivity: boolean("event_activity").notNull().default(true),
+  eventReminders: boolean("event_reminders").notNull().default(true),
+  taskReminders: boolean("task_reminders").notNull().default(true),
+  waitlistUpdates: boolean("waitlist_updates").notNull().default(true),
+  announcements: boolean("announcements").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  updatedAt: true,
+});
+
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
+
 export const bulletinBoards = pgTable("bulletin_boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
@@ -575,6 +598,21 @@ export type CategoryRule = typeof categoryRules.$inferSelect;
 export type BubbleRule = typeof bubbleRules.$inferSelect;
 export type BubbleRuleOverride = typeof bubbleRuleOverrides.$inferSelect;
 
+// Persisted server error log entries
+export const errorLogs = pgTable("error_logs", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  timestamp: timestamp("timestamp", { withTimezone: true }).notNull().defaultNow(),
+  platform: text("platform").notNull().default("server"),
+  level: text("level").notNull().default("error"),
+}, (table) => [
+  index("error_logs_timestamp_idx").on(table.timestamp),
+]);
+
+export const insertErrorLogSchema = createInsertSchema(errorLogs).omit({ id: true, timestamp: true });
+export type InsertErrorLog = z.infer<typeof insertErrorLogSchema>;
+export type ErrorLog = typeof errorLogs.$inferSelect;
+
 // Audit log for super admin actions
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -587,3 +625,120 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// Event Sign-Up Sheet tables
+export const eventSignupTasks = pgTable("event_signup_tasks", {
+  id: serial("id").primaryKey(),
+  eventId: varchar("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  icon: text("icon").notNull().default('📋'),
+  spotsNeeded: integer("spots_needed"),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  position: integer("position").notNull().default(0),
+});
+
+export const eventTaskSignups = pgTable("event_task_signups", {
+  id: serial("id").primaryKey(),
+  taskId: integer("task_id").notNull().references(() => eventSignupTasks.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  reminderSent: boolean("reminder_sent").notNull().default(false),
+  reminderSent1h: boolean("reminder_sent_1h").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  unique("event_task_signups_task_user_unique").on(table.taskId, table.userId),
+]);
+
+export const insertEventSignupTaskSchema = createInsertSchema(eventSignupTasks).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  title: z.string().min(1).max(150),
+  description: z.string().max(500).optional().nullable(),
+  icon: z.string().default('📋'),
+  spotsNeeded: z.number().int().min(1).max(999).optional().nullable(),
+});
+
+export type EventSignupTask = typeof eventSignupTasks.$inferSelect;
+export type InsertEventSignupTask = z.infer<typeof insertEventSignupTaskSchema>;
+export type EventTaskSignup = typeof eventTaskSignups.$inferSelect;
+
+// Crash reports submitted by mobile clients
+export const crashReports = pgTable("crash_reports", {
+  id: serial("id").primaryKey(),
+  message: text("message").notNull(),
+  stack: text("stack"),
+  context: text("context"),
+  platform: text("platform"),
+  appVersion: text("app_version"),
+  isFatal: boolean("is_fatal").notNull().default(false),
+  userId: text("user_id"),
+  username: text("username"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertCrashReportSchema = createInsertSchema(crashReports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type CrashReport = typeof crashReports.$inferSelect;
+export type InsertCrashReport = z.infer<typeof insertCrashReportSchema>;
+
+// Latency trend buckets — 5-minute aggregated snapshots per endpoint
+export const latencyBuckets = pgTable(
+  "latency_buckets",
+  {
+    id: serial("id").primaryKey(),
+    method: text("method").notNull(),
+    endpoint: text("endpoint").notNull(),
+    bucketTs: timestamp("bucket_ts").notNull(),
+    p50Ms: integer("p50_ms").notNull(),
+    p95Ms: integer("p95_ms").notNull(),
+    p99Ms: integer("p99_ms").notNull(),
+    avgMs: integer("avg_ms").notNull(),
+    maxMs: integer("max_ms").notNull(),
+    count: integer("count").notNull(),
+    errorCount: integer("error_count").notNull().default(0),
+  },
+  (table) => [
+    unique("latency_buckets_endpoint_method_ts_unique").on(table.method, table.endpoint, table.bucketTs),
+  ],
+);
+
+export type LatencyBucket = typeof latencyBuckets.$inferSelect;
+
+// Slow API call alerts — persisted records for admin visibility
+export const slowCalls = pgTable("slow_calls", {
+  id: serial("id").primaryKey(),
+  endpoint: text("endpoint").notNull(),
+  method: text("method").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSlowCallSchema = createInsertSchema(slowCalls).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SlowCall = typeof slowCalls.$inferSelect;
+export type InsertSlowCall = z.infer<typeof insertSlowCallSchema>;
+
+// Aggregated API latency snapshots — flushed periodically from in-memory store
+export const apiLatencySamples = pgTable("api_latency_samples", {
+  id: serial("id").primaryKey(),
+  method: text("method").notNull(),
+  endpoint: text("endpoint").notNull(),
+  count: integer("count").notNull(),
+  p50Ms: integer("p50_ms").notNull(),
+  p95Ms: integer("p95_ms").notNull(),
+  p99Ms: integer("p99_ms").notNull(),
+  avgMs: integer("avg_ms").notNull(),
+  maxMs: integer("max_ms").notNull(),
+  errorRate: integer("error_rate").notNull(),
+  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+});
+
+export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;

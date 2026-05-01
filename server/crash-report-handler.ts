@@ -1,10 +1,13 @@
 import { z } from "zod";
 import type { Express } from "express";
 import rateLimit from "express-rate-limit";
+import { storage } from "./storage";
 
 export const CRASH_REPORT_MAX_MESSAGE_CHARS = 1024;
 export const CRASH_REPORT_MAX_STACK_CHARS = 4096;
 export const CRASH_REPORT_MAX_CONTEXT_CHARS = 2048;
+export const CRASH_REPORT_MAX_USER_ID_CHARS = 128;
+export const CRASH_REPORT_MAX_USERNAME_CHARS = 128;
 
 export const crashReportSchema = z.object({
   message: z.string().min(1, "message is required").max(
@@ -23,8 +26,14 @@ export const crashReportSchema = z.object({
   timestamp: z.string().optional(),
   isFatal: z.boolean().optional(),
   appVersion: z.string().optional(),
-  userId: z.string().max(128).optional(),
-  username: z.string().max(128).optional(),
+  userId: z.string().max(
+    CRASH_REPORT_MAX_USER_ID_CHARS,
+    `userId must not exceed ${CRASH_REPORT_MAX_USER_ID_CHARS} characters`,
+  ).optional(),
+  username: z.string().max(
+    CRASH_REPORT_MAX_USERNAME_CHARS,
+    `username must not exceed ${CRASH_REPORT_MAX_USERNAME_CHARS} characters`,
+  ).optional(),
 });
 
 const crashReportLimiter = rateLimit({
@@ -49,6 +58,22 @@ export function registerCrashReportRoute(app: Express) {
         `  message: ${message}\n` +
         (stack ? `  stack: ${stack}` : "  stack: (none)"),
       );
+
+      try {
+        await storage.insertCrashReport({
+          message,
+          stack: stack ?? null,
+          context: context ?? null,
+          platform: platform ?? null,
+          appVersion: appVersion ?? null,
+          isFatal: isFatal ?? false,
+          userId: userId ?? null,
+          username: username ?? null,
+        });
+      } catch (dbErr: unknown) {
+        console.error("[CrashReport] Failed to persist crash report to database:", dbErr);
+      }
+
       return res.status(200).json({ received: true });
     } catch (e) {
       console.error("[CrashReport] Failed to log crash report:", e);

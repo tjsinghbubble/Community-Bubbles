@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiService from '../../services/api.service';
+import cometChatService from '../../services/cometchat.service';
+import { useAuth } from '../../context/AuthContext';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
@@ -61,6 +63,7 @@ const ICON_MAP: Record<string, { name: keyof typeof Ionicons.glyphMap; color: st
   event_full: { name: 'people-circle', color: Colors.status.warning, bg: Colors.background.warningTint },
   event_reminder_24h: { name: 'alarm-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   event_reminder_1h: { name: 'alarm', color: Colors.status.warning, bg: Colors.background.warningTint },
+  event_task_reminder_24h: { name: 'clipboard-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   waitlist_request: { name: 'time-outline', color: Colors.brand.primary, bg: Colors.background.brandTint },
   waitlist_approved: { name: 'checkmark-circle', color: Colors.status.success, bg: Colors.background.successTint },
   waitlist_on_hold: { name: 'pause-circle-outline', color: Colors.status.warning, bg: Colors.background.warningTint },
@@ -88,6 +91,7 @@ function getTimeAgo(dateStr: string): string {
 
 export default function NotificationsScreen() {
   const navigation = useNavigation();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,15 +154,58 @@ export default function NotificationsScreen() {
 
     let meta: any = {};
     try { meta = notif.metadata ? JSON.parse(notif.metadata) : {}; } catch { meta = {}; }
+
+    if (notif.type === 'peer_dm_started' && meta.userId) {
+      if (!user) return;
+      try {
+        const ids = [user.id, meta.userId].sort();
+        const groupId = `peer_${ids[0]}_${ids[1]}`;
+        const groupName = `${meta.userName || 'Someone'} & ${user.name || 'Me'}`;
+
+        await cometChatService.ensureLoggedIn(user.id, user.name);
+        await cometChatService.joinGroup(groupId, 'private');
+
+        (navigation as any).navigate('Messages', {
+          screen: 'MessagesList',
+          params: {
+            openGroupId: groupId,
+            openGroupName: groupName,
+          },
+        });
+      } catch (err) {
+        console.error('Peer DM navigation error:', err);
+        Alert.alert('Error', 'Failed to open the conversation. Please try again.');
+      }
+      return;
+    }
+
     if (meta.bubbleId && !meta.eventId) {
-      (navigation as any).navigate('Explore', {
-        screen: 'BubbleDetails',
-        params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
-      });
+      if (notif.type === 'bubble_request_rejected' || notif.type === 'waitlist_rejected') {
+        (navigation as any).navigate('Explore', {
+          screen: 'JoinBubble',
+          params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
+        });
+      } else {
+        (navigation as any).navigate('Explore', {
+          screen: 'BubbleDetails',
+          params: { bubble: { id: meta.bubbleId, title: meta.bubbleName || '', category: '' } },
+        });
+      }
     } else if (meta.eventId) {
+      const eventParams: { eventId: string; bubbleId: string; bubbleTitle: string; highlightTaskId?: string; scrollToRsvp?: boolean } = {
+        eventId: meta.eventId,
+        bubbleId: meta.bubbleId,
+        bubbleTitle: meta.bubbleName,
+      };
+      if (notif.type === 'event_task_reminder_24h' && meta.taskId) {
+        eventParams.highlightTaskId = meta.taskId;
+      }
+      if (notif.type === 'event_reminder_1h') {
+        eventParams.scrollToRsvp = true;
+      }
       (navigation as any).navigate('Explore', {
         screen: 'EventDetails',
-        params: { eventId: meta.eventId, bubbleId: meta.bubbleId, bubbleTitle: meta.bubbleName },
+        params: eventParams,
       });
     }
   };

@@ -25,6 +25,7 @@ import {
   BarChart2,
   Shield,
   Wrench,
+  Zap,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -101,6 +102,24 @@ interface AuditLogEntry {
   ip: string | null;
   extra: string | null;
   createdAt: string;
+}
+
+interface EndpointMetric {
+  method: string;
+  endpoint: string;
+  count: number;
+  p50Ms: number;
+  p95Ms: number;
+  p99Ms: number;
+  avgMs: number;
+  maxMs: number;
+  errorRate: number;
+  lastSeenTs: number;
+}
+
+interface LatencyData {
+  metrics: EndpointMetric[];
+  generatedAt: string;
 }
 
 function formatUptime(seconds: number): string {
@@ -351,6 +370,16 @@ export default function AdminMonitor() {
   const { data: auditData } = useQuery<{ logs: AuditLogEntry[] }>({
     queryKey: ["/api/admin/audit-logs"],
     queryFn: () => apiRequest("GET", "/api/admin/audit-logs?limit=20").then((r) => r.json()),
+    enabled: !!user && me?.isSuperAdmin === true,
+    refetchInterval: 30_000,
+  });
+
+  const {
+    data: latencyData,
+    isLoading: latencyLoading,
+  } = useQuery<LatencyData>({
+    queryKey: ["/api/admin/latency"],
+    queryFn: () => apiRequest("GET", "/api/admin/latency").then((r) => r.json()),
     enabled: !!user && me?.isSuperAdmin === true,
     refetchInterval: 30_000,
   });
@@ -880,6 +909,33 @@ export default function AdminMonitor() {
               </div>
             </div>
 
+            {/* ── Performance Alerts ── */}
+            <div>
+              <SectionLabel>Performance Alerts</SectionLabel>
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8 divide-y divide-black/5">
+                <button
+                  onClick={() => navigate("/admin/slow-calls")}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-black/5"
+                  data-testid="nav-slow-calls"
+                >
+                  <Zap className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span className="flex-1 text-[13px] font-semibold">Slow API Calls</span>
+                  <span className="text-[11px] text-muted-foreground">persisted alerts &gt;2s</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => navigate("/admin/latency")}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-black/5"
+                  data-testid="nav-latency-dashboard"
+                >
+                  <Activity className="h-4 w-4 shrink-0 text-[#35A8F7]" />
+                  <span className="flex-1 text-[13px] font-semibold">Latency Dashboard</span>
+                  <span className="text-[11px] text-muted-foreground">live in-memory metrics</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
             {/* ── Analytics ── */}
             {a && (
               <div>
@@ -918,6 +974,107 @@ export default function AdminMonitor() {
                 </div>
               </div>
             )}
+
+            {/* ── Performance ── */}
+            <div data-testid="section-performance">
+              <SectionLabel>Performance</SectionLabel>
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">
+                {latencyLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#35A8F7]" />
+                  </div>
+                ) : (() => {
+                  const metrics = latencyData?.metrics ?? [];
+                  const totalRequests = metrics.reduce((s, m) => s + m.count, 0);
+                  const p95Slowest = metrics.length ? Math.max(...metrics.map((m) => m.p95Ms)) : 0;
+                  const slowCount = metrics.filter((m) => m.p95Ms >= 500).length;
+                  const errorEndpoints = metrics.filter((m) => m.errorRate > 0).length;
+                  const top5 = metrics.slice(0, 5);
+                  return (
+                    <>
+                      <div className="grid grid-cols-3 divide-x divide-black/5 border-b border-black/5">
+                        <div className="flex flex-col gap-1 px-4 py-3" data-testid="perf-stat-endpoints">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Endpoints</span>
+                          <span className="text-[20px] font-bold leading-none">{metrics.length}</span>
+                          <span className="text-[10px] text-muted-foreground">{totalRequests.toLocaleString()} requests</span>
+                        </div>
+                        <div className="flex flex-col gap-1 px-4 py-3" data-testid="perf-stat-slowest">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Slowest p95</span>
+                          <span className={cn(
+                            "text-[20px] font-bold leading-none",
+                            p95Slowest >= 1000 ? "text-red-600" : p95Slowest >= 500 ? "text-amber-600" : "text-emerald-600"
+                          )}>
+                            {metrics.length ? `${p95Slowest}ms` : "—"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{slowCount} slow (&ge;500ms)</span>
+                        </div>
+                        <div className="flex flex-col gap-1 px-4 py-3" data-testid="perf-stat-errors">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">5xx Errors</span>
+                          <span className={cn(
+                            "text-[20px] font-bold leading-none",
+                            errorEndpoints > 0 ? "text-red-600" : "text-emerald-600"
+                          )}>
+                            {errorEndpoints}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">endpoints w/ errors</span>
+                        </div>
+                      </div>
+
+                      {top5.length === 0 ? (
+                        <div className="flex flex-col items-center gap-2 py-8 text-center" data-testid="latency-empty">
+                          <Zap className="h-5 w-5 text-muted-foreground/40" />
+                          <p className="text-[12px] text-muted-foreground">No API calls recorded yet.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-3 border-b border-black/5 px-5 py-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Endpoint (top 5 by p95)</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-right w-12">p50</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-right w-12">p95</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-right w-12">p99</span>
+                          </div>
+                          <div className="divide-y divide-black/5">
+                            {top5.map((m) => (
+                              <div
+                                key={`${m.method} ${m.endpoint}`}
+                                className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-3 px-5 py-2.5"
+                                data-testid={`perf-row-${m.method.toLowerCase()}-${m.endpoint.replace(/\//g, "-").replace(/^-/, "")}`}
+                              >
+                                <div className="min-w-0 flex items-center gap-1.5">
+                                  <span className={cn(
+                                    "shrink-0 rounded px-1 py-0.5 text-[9px] font-bold uppercase",
+                                    m.method === "GET" ? "bg-sky-100 text-sky-700"
+                                      : m.method === "POST" ? "bg-emerald-100 text-emerald-700"
+                                      : m.method === "PATCH" || m.method === "PUT" ? "bg-amber-100 text-amber-700"
+                                      : m.method === "DELETE" ? "bg-red-100 text-red-600"
+                                      : "bg-black/6 text-muted-foreground"
+                                  )}>
+                                    {m.method}
+                                  </span>
+                                  <span className="truncate text-[11px] font-mono text-muted-foreground">{m.endpoint}</span>
+                                </div>
+                                <span className={cn("w-12 text-right text-[11px] font-bold tabular-nums", m.p50Ms >= 1000 ? "text-red-600" : m.p50Ms >= 500 ? "text-amber-600" : "")}>{m.p50Ms}ms</span>
+                                <span className={cn("w-12 text-right text-[11px] font-bold tabular-nums", m.p95Ms >= 1000 ? "text-red-600" : m.p95Ms >= 500 ? "text-amber-600" : "")}>{m.p95Ms}ms</span>
+                                <span className={cn("w-12 text-right text-[11px] font-bold tabular-nums", m.p99Ms >= 1000 ? "text-red-600" : m.p99Ms >= 500 ? "text-amber-600" : "")}>{m.p99Ms}ms</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      <button
+                        onClick={() => navigate("/admin/latency")}
+                        className="flex w-full items-center justify-between px-5 py-3 text-left transition hover:bg-black/5 border-t border-black/5"
+                        data-testid="button-view-latency-dashboard"
+                      >
+                        <span className="text-[12px] font-semibold text-[#35A8F7]">View full latency dashboard</span>
+                        <ChevronRight className="h-3.5 w-3.5 text-[#35A8F7]" />
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
 
             {/* ── Recent Admin Actions ── */}
             <div>

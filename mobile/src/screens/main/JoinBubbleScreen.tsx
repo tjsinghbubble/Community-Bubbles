@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
@@ -44,6 +45,8 @@ type Event = {
   attendeeCount?: number;
 };
 
+type SignupTaskCounts = Record<string, number>;
+
 export default function JoinBubbleScreen({ navigation, route }: Props) {
   const { bubble } = route.params;
   const { user } = useAuth();
@@ -58,12 +61,16 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const [showWaitlistConfirm, setShowWaitlistConfirm] = useState(false);
   const [myMembershipStatus, setMyMembershipStatus] = useState<string | null>(null);
   const [effectiveRules, setEffectiveRules] = useState<{ name: string; description: string }[]>([]);
+  const [signupTaskCounts, setSignupTaskCounts] = useState<SignupTaskCounts>({});
 
-  useEffect(() => {
-    fetchData();
-  }, [bubble.id]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [bubble.id])
+  );
 
   const fetchData = async () => {
+    setSignupTaskCounts({});
     try {
       const [details, eventsData, members, rulesData, membershipData] = await Promise.all([
         apiService.getBubble(bubble.id),
@@ -73,7 +80,8 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         apiService.checkMembership(bubble.id).catch(() => ({ isMember: false, role: null, membershipStatus: null })),
       ]);
       setBubbleDetails(details);
-      setEvents(eventsData as Event[]);
+      const fetchedEvents = eventsData as Event[];
+      setEvents(fetchedEvents);
       setMemberCount((members as any[]).length);
       setMyMembershipStatus((membershipData as any).membershipStatus || null);
       const visibleRules = (rulesData as any[]).filter((r: any) => !r.hidden).map((r: any) => {
@@ -83,6 +91,23 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
         return { name: r.text || '', description: '' };
       });
       setEffectiveRules(visibleRules);
+
+      if (fetchedEvents.length > 0) {
+        const taskResults = await Promise.all(
+          fetchedEvents.map((ev) =>
+            apiService.getEventSignupTasks(ev.id).catch(() => [])
+          )
+        );
+        const counts: SignupTaskCounts = {};
+        fetchedEvents.forEach((ev, idx) => {
+          const tasks: any[] = taskResults[idx] || [];
+          const openCount = tasks.filter(
+            (t) => t.spotsNeeded == null || t.signupCount < t.spotsNeeded
+          ).length;
+          if (openCount > 0) counts[ev.id] = openCount;
+        });
+        setSignupTaskCounts(counts);
+      }
     } catch (error) {
       console.error('Failed to fetch bubble data:', error);
     } finally {
@@ -97,6 +122,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
   const isFull = memberLimit != null && memberCount >= memberLimit;
 
   const handleJoin = async () => {
+    if (myMembershipStatus === 'pending') {
+      return;
+    }
     if (isFull) {
       setIsJoining(true);
       try {
@@ -307,16 +335,31 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.eventsListContent}
-              renderItem={({ item }) => (
-                <View style={styles.eventCard} data-testid={`card-event-${item.id}`}>
-                  <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
-                  <Text style={styles.eventDate}>{formatEventDate(item.date)}</Text>
-                  <Text style={styles.eventTime}>{formatTimeRange(item.startTime, item.endTime)}</Text>
-                  <Text style={styles.eventAttendees}>
-                    {(item as any).attendeeCount || 0} members showing up
-                  </Text>
-                </View>
-              )}
+              renderItem={({ item }) => {
+                const openTasks = signupTaskCounts[item.id] || 0;
+                return (
+                  <View style={styles.eventCard} data-testid={`card-event-${item.id}`}>
+                    <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+                    <Text style={styles.eventDate}>{formatEventDate(item.date)}</Text>
+                    <Text style={styles.eventTime}>{formatTimeRange(item.startTime, item.endTime)}</Text>
+                    <Text style={styles.eventAttendees}>
+                      {(item as any).attendeeCount || 0} members showing up
+                    </Text>
+                    {openTasks > 0 && (
+                      <TouchableOpacity
+                        style={styles.tasksBadge}
+                        data-testid={`badge-tasks-${item.id}`}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('EventDetails' as any, { eventId: item.id, event: item, bubbleTitle: bubble.title })}
+                      >
+                        <Text style={styles.tasksBadgeText}>
+                          {openTasks === 1 ? '1 task open' : `${openTasks} tasks open`}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              }}
               ItemSeparatorComponent={() => <View style={{ width: Spacing.sm }} />}
             />
           </View>
@@ -355,7 +398,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
       <View style={styles.buttonSection}>
         <BubbleButton
           title={
-            myMembershipStatus === 'waitlisted'
+            myMembershipStatus === 'pending'
+              ? 'Request Pending'
+              : myMembershipStatus === 'waitlisted'
               ? 'On Waitlist'
               : myMembershipStatus === 'on_hold'
               ? 'Waitlist On Hold'
@@ -366,7 +411,9 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
               : 'Join'
           }
           variant={
-            myMembershipStatus === 'waitlisted' || myMembershipStatus === 'on_hold'
+            myMembershipStatus === 'pending' ||
+            myMembershipStatus === 'waitlisted' ||
+            myMembershipStatus === 'on_hold'
               ? 'outline'
               : 'primary'
           }
@@ -374,11 +421,17 @@ export default function JoinBubbleScreen({ navigation, route }: Props) {
           loading={isJoining}
           disabled={
             isJoining ||
+            myMembershipStatus === 'pending' ||
             myMembershipStatus === 'waitlisted' ||
             myMembershipStatus === 'on_hold'
           }
           testID="button-join-bubble"
         />
+        {myMembershipStatus === 'pending' && (
+          <Text style={styles.pendingMessage} data-testid="text-pending-message">
+            Your request has been sent to the admins.
+          </Text>
+        )}
         <View style={{ height: Spacing.sm }} />
         <BubbleButton
           title="Contact"
@@ -537,7 +590,7 @@ const styles = StyleSheet.create({
   },
   eventCard: {
     width: EVENT_CARD_WIDTH,
-    height: EVENT_CARD_HEIGHT,
+    minHeight: EVENT_CARD_HEIGHT,
     borderWidth: 1,
     borderColor: Colors.neutral.lightSilver,
     borderRadius: 12,
@@ -565,6 +618,19 @@ const styles = StyleSheet.create({
     color: Colors.neutral.coolMist,
     marginTop: Spacing.xxs,
   },
+  tasksBadge: {
+    marginTop: Spacing.xs,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.background.brandTint,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tasksBadgeText: {
+    fontSize: Typography.sizes.xxs,
+    fontWeight: Typography.weights.semiBold as any,
+    color: Colors.brand.primary,
+  },
   aboutSection: {
     flex: 1,
     paddingHorizontal: Spacing.xl,
@@ -584,6 +650,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxxxl,
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.md,
+  },
+  pendingMessage: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
   },
   waitlistOverlay: {
     flex: 1,

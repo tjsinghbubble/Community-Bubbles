@@ -39,11 +39,13 @@ function EmptyState({ icon: Icon, label }: { icon: React.ElementType; label: str
 
 function RejectModal({
   title,
+  description,
   onConfirm,
   onClose,
   loading,
 }: {
   title: string;
+  description?: string;
   onConfirm: (reason: string) => void;
   onClose: () => void;
   loading: boolean;
@@ -54,7 +56,7 @@ function RejectModal({
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <h3 className="text-[16px] font-bold">Reject: {title}</h3>
         <p className="mt-1 text-[12px] text-muted-foreground">
-          Provide a reason (optional). It will be sent to the creator.
+          {description ?? "Provide a reason (optional). It will be sent to the creator."}
         </p>
         <textarea
           value={reason}
@@ -305,6 +307,7 @@ function PendingEventsTab() {
 
 function WaitlistTab() {
   const qc = useQueryClient();
+  const [rejectTarget, setRejectTarget] = useState<{ bubbleId: string; userId: string; name: string } | null>(null);
 
   const { data: waitlist = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/waitlist"],
@@ -318,9 +321,12 @@ function WaitlistTab() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ bubbleId, userId }: { bubbleId: string; userId: string }) =>
-      apiRequest("POST", `/api/bubbles/${bubbleId}/join-requests/${userId}/reject`).then((r) => r.json()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/waitlist"] }),
+    mutationFn: ({ bubbleId, userId, reason }: { bubbleId: string; userId: string; reason: string }) =>
+      apiRequest("POST", `/api/bubbles/${bubbleId}/join-requests/${userId}/reject`, { reason }).then((r) => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/admin/waitlist"] });
+      setRejectTarget(null);
+    },
   });
 
   if (isLoading)
@@ -332,63 +338,87 @@ function WaitlistTab() {
   if (!waitlist.length) return <EmptyState icon={Users} label="No pending join requests" />;
 
   return (
-    <div className="space-y-3">
-      {waitlist.map((item: any) => {
-        const initials = (item.user?.name || "?")
-          .split(" ")
-          .map((w: string) => w[0])
-          .join("")
-          .slice(0, 2)
-          .toUpperCase();
-        return (
-          <div
-            key={`${item.userId}-${item.bubbleId}`}
-            className="flex items-center gap-3 rounded-2xl bg-white/70 p-4 ring-1 ring-black/8"
-            data-testid={`card-waitlist-${item.userId}`}
-          >
-            {item.user?.profilePhoto ? (
-              <img
-                src={item.user.profilePhoto}
-                alt=""
-                className="h-10 w-10 shrink-0 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
-                style={{ background: "#35A8F7" }}
-              >
-                {initials}
+    <>
+      <div className="space-y-3">
+        {waitlist.map((item: any) => {
+          const initials = (item.user?.name || "?")
+            .split(" ")
+            .map((w: string) => w[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
+          return (
+            <div
+              key={`${item.userId}-${item.bubbleId}`}
+              className="flex items-center gap-3 rounded-2xl bg-white/70 p-4 ring-1 ring-black/8"
+              data-testid={`card-waitlist-${item.userId}`}
+            >
+              {item.user?.profilePhoto ? (
+                <img
+                  src={item.user.profilePhoto}
+                  alt=""
+                  className="h-10 w-10 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
+                  style={{ background: "#35A8F7" }}
+                >
+                  {initials}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-bold">{item.user?.name || "Unknown"}</div>
+                <div className="text-[12px] font-semibold text-[#35A8F7]">{item.bubbleTitle}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  Requested {formatDate(item.joinedAt)}
+                </div>
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold">{item.user?.name || "Unknown"}</div>
-              <div className="text-[12px] font-semibold text-[#35A8F7]">{item.bubbleTitle}</div>
-              <div className="text-[10px] text-muted-foreground">
-                Requested {formatDate(item.joinedAt)}
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => approveMutation.mutate({ bubbleId: item.bubbleId, userId: item.userId })}
+                  disabled={approveMutation.isPending}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-emerald-600 transition hover:bg-emerald-200 disabled:opacity-60"
+                  data-testid={`button-approve-waitlist-${item.userId}`}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() =>
+                    setRejectTarget({
+                      bubbleId: item.bubbleId,
+                      userId: item.userId,
+                      name: item.user?.name || "Unknown",
+                    })
+                  }
+                  disabled={rejectMutation.isPending}
+                  className="grid h-9 w-9 place-items-center rounded-full bg-red-100 text-red-500 transition hover:bg-red-200 disabled:opacity-60"
+                  data-testid={`button-reject-waitlist-${item.userId}`}
+                >
+                  <XCircle className="h-4 w-4" />
+                </button>
               </div>
             </div>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => approveMutation.mutate({ bubbleId: item.bubbleId, userId: item.userId })}
-                disabled={approveMutation.isPending}
-                className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-emerald-600 transition hover:bg-emerald-200 disabled:opacity-60"
-                data-testid={`button-approve-waitlist-${item.userId}`}
-              >
-                <CheckCircle className="h-4 w-4" />
-              </button>
-              <button
-                onClick={() => rejectMutation.mutate({ bubbleId: item.bubbleId, userId: item.userId })}
-                disabled={rejectMutation.isPending}
-                className="grid h-9 w-9 place-items-center rounded-full bg-red-100 text-red-500 transition hover:bg-red-200 disabled:opacity-60"
-                data-testid={`button-reject-waitlist-${item.userId}`}
-              >
-                <XCircle className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {rejectTarget && (
+        <RejectModal
+          title={rejectTarget.name}
+          description="Provide a reason (optional). It will be included in the notification sent to the user."
+          loading={rejectMutation.isPending}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={(reason) =>
+            rejectMutation.mutate({
+              bubbleId: rejectTarget.bubbleId,
+              userId: rejectTarget.userId,
+              reason,
+            })
+          }
+        />
+      )}
+    </>
   );
 }
 

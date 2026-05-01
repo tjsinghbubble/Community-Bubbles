@@ -74,8 +74,25 @@ import {
   type InsertCategoryPlaceholder,
   auditLogs,
   type AuditLog,
+  errorLogs,
+  type ErrorLog,
+  type InsertErrorLog,
+  eventSignupTasks,
+  eventTaskSignups,
+  type EventSignupTask,
+  type InsertEventSignupTask,
+  slowCalls,
+  type SlowCall,
+  crashReports,
+  type CrashReport,
+  type InsertCrashReport,
+  apiLatencySamples,
+  type ApiLatencySample,
+  notificationPreferences,
+  type NotificationPreferences,
+  type InsertNotificationPreferences,
 } from "@shared/schema";
-import { count, avg } from "drizzle-orm";
+import { count, avg, max } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -148,6 +165,15 @@ export interface IStorage {
   getEventsNeedingReminder(type: '24h' | '1h'): Promise<Event[]>;
   markReminderSent(eventId: string, type: '24h' | '1h'): Promise<void>;
   getEventGoingAttendeeIds(eventId: string): Promise<string[]>;
+  getAttendeesNeedingReminder(type: '24h' | '1h'): Promise<{ userId: string; eventId: string; event: Event }[]>;
+  markAttendeeReminderSent(userId: string, eventId: string, type: '24h' | '1h'): Promise<void>;
+  getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
+  markTaskSignupReminderSent(signupId: number): Promise<void>;
+  getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]>;
+  markTaskSignupReminder1hSent(signupId: number): Promise<void>;
+  resetTaskSignupReminder1hFlags(eventId: string): Promise<void>;
+  resetTaskSignupReminderFlags(eventId: string): Promise<void>;
+  resetEventReminderFlags(eventId: string): Promise<void>;
 
   // Campus
   getCampuses(): Promise<Campus[]>;
@@ -228,9 +254,19 @@ export interface IStorage {
   deleteDevicePushToken(userId: string, token: string): Promise<void>;
   deleteStaleDevicePushTokens(olderThanDays?: number): Promise<number>;
 
+  // Notification Preferences
+  getNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined>;
+  upsertNotificationPreferences(userId: string, prefs: Partial<Omit<InsertNotificationPreferences, 'userId'>>): Promise<NotificationPreferences>;
+
   // Audit Logs
   insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog>;
   getAuditLogs(limit?: number): Promise<AuditLog[]>;
+
+  // Error Logs (persisted)
+  insertErrorLogEntry(entry: InsertErrorLog): Promise<void>;
+  getErrorLogEntries(limit?: number, since?: Date, before?: Date): Promise<ErrorLog[]>;
+  countErrorLogEntries(since?: string): Promise<number>;
+  clearErrorLogEntries(): Promise<void>;
 
   // Bulletin Boards
   getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined>;
@@ -251,6 +287,7 @@ export interface IStorage {
 
   getAppConfigValue(key: string): Promise<string | undefined>;
   getAllAppConfig(): Promise<AppConfig[]>;
+  setAppConfigValue(key: string, value: string): Promise<void>;
 
   createRule(name: string, description: string): Promise<Rule>;
   getRule(id: number): Promise<Rule | undefined>;
@@ -282,6 +319,33 @@ export interface IStorage {
   isCategoryRuleLinked(categoryId: number, ruleId: number): Promise<boolean>;
   isAppRuleLinked(ruleId: number): Promise<boolean>;
   isRuleReferenced(ruleId: number): Promise<boolean>;
+
+  // Event Sign-Up Sheet
+  getEventSignupTasks(eventId: string, currentUserId?: string): Promise<(EventSignupTask & { signupCount: number; hasSignedUp: boolean; signers: { id: string; name: string; profilePhoto: string | null }[] })[]>;
+  getEventSignupTask(taskId: number): Promise<EventSignupTask | undefined>;
+  createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask>;
+  updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined>;
+  deleteEventSignupTask(taskId: number): Promise<void>;
+  reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<void>;
+  joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }>;
+  leaveEventSignupTask(taskId: number, userId: string): Promise<void>;
+
+  // Slow API Call Alerts
+  insertSlowCall(data: { endpoint: string; method: string; durationMs: number }): Promise<void>;
+  getSlowCalls(opts?: { limit?: number; sortBy?: 'durationMs' | 'endpoint' | 'createdAt'; sortDir?: 'asc' | 'desc' }): Promise<SlowCall[]>;
+  purgeOldSlowCalls(olderThanDays?: number): Promise<number>;
+  deleteAllSlowCalls(): Promise<void>;
+
+  // Crash Reports
+  insertCrashReport(data: InsertCrashReport): Promise<CrashReport>;
+  queryCrashReports(opts?: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number }): Promise<CrashReport[]>;
+  purgeCrashReports(olderThanDays?: number): Promise<number>;
+
+  // API Latency Samples (persisted aggregates)
+  insertLatencySamples(rows: Omit<ApiLatencySample, 'id' | 'recordedAt'>[]): Promise<void>;
+  getLatestLatencySamples(): Promise<ApiLatencySample[]>;
+  purgeOldLatencySamples(olderThanDays?: number): Promise<void>;
+  deleteAllLatencySamples(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1069,6 +1133,151 @@ export class DatabaseStorage implements IStorage {
     return attendees.map(a => a.userId);
   }
 
+  async getAttendeesNeedingReminder(type: '24h' | '1h'): Promise<{ userId: string; eventId: string; event: Event }[]> {
+    const now = new Date();
+    const hoursAhead = type === '24h' ? 24 : 1;
+    const windowEnd = new Date(now.getTime() + hoursAhead * 60 * 60 * 1000);
+    const attendeeCol = type === '24h' ? eventAttendees.reminder24hSent : eventAttendees.reminder1hSent;
+    const rows = await db
+      .select({ userId: eventAttendees.userId, event: events })
+      .from(eventAttendees)
+      .innerJoin(events, eq(events.id, eventAttendees.eventId))
+      .where(
+        and(
+          eq(eventAttendees.status, 'going'),
+          eq(attendeeCol, false),
+          eq(events.status, 'approved'),
+        )
+      );
+    return rows
+      .filter(r => {
+        const eventDateTime = new Date(`${r.event.date}T${r.event.startTime}:00`);
+        return eventDateTime > now && eventDateTime <= windowEnd;
+      })
+      .map(r => ({ userId: r.userId, eventId: r.event.id, event: r.event }));
+  }
+
+  async markAttendeeReminderSent(userId: string, eventId: string, type: '24h' | '1h'): Promise<void> {
+    const col = type === '24h' ? { reminder24hSent: true } : { reminder1hSent: true };
+    await db
+      .update(eventAttendees)
+      .set(col)
+      .where(and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId)));
+  }
+
+  async getTaskSignupsNeedingReminder(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        signupId: eventTaskSignups.id,
+        userId: eventTaskSignups.userId,
+        taskId: eventSignupTasks.id,
+        taskTitle: eventSignupTasks.title,
+        eventId: events.id,
+        eventTitle: events.title,
+        eventDate: events.date,
+        eventStartTime: events.startTime,
+        eventTimezone: events.timezone,
+        bubbleId: events.bubbleId,
+      })
+      .from(eventTaskSignups)
+      .innerJoin(eventSignupTasks, eq(eventSignupTasks.id, eventTaskSignups.taskId))
+      .innerJoin(events, eq(events.id, eventSignupTasks.eventId))
+      .where(
+        and(
+          eq(eventTaskSignups.reminderSent, false),
+          eq(events.status, 'approved'),
+        ),
+      );
+    return rows.filter(r => {
+      const eventDateTime = new Date(`${r.eventDate}T${r.eventStartTime}:00`);
+      return eventDateTime > now && eventDateTime <= windowEnd;
+    });
+  }
+
+  async markTaskSignupReminderSent(signupId: number): Promise<void> {
+    await db.update(eventTaskSignups).set({ reminderSent: true }).where(eq(eventTaskSignups.id, signupId));
+  }
+
+  async getTaskSignupsNeedingReminder1h(): Promise<{ signupId: number; userId: string; taskId: number; taskTitle: string; eventId: string; eventTitle: string; eventDate: string; eventStartTime: string; eventTimezone: string | null; bubbleId: string }[]> {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        signupId: eventTaskSignups.id,
+        userId: eventTaskSignups.userId,
+        taskId: eventTaskSignups.taskId,
+        taskTitle: eventSignupTasks.title,
+        eventId: events.id,
+        eventTitle: events.title,
+        eventDate: events.date,
+        eventStartTime: events.startTime,
+        eventTimezone: events.timezone,
+        bubbleId: events.bubbleId,
+      })
+      .from(eventTaskSignups)
+      .innerJoin(eventSignupTasks, eq(eventSignupTasks.id, eventTaskSignups.taskId))
+      .innerJoin(events, eq(events.id, eventSignupTasks.eventId))
+      .where(
+        and(
+          eq(eventTaskSignups.reminderSent1h, false),
+          eq(events.status, 'approved'),
+        ),
+      );
+    return rows.filter(r => {
+      const eventDateTime = new Date(`${r.eventDate}T${r.eventStartTime}:00`);
+      return eventDateTime > now && eventDateTime <= windowEnd;
+    });
+  }
+
+  async markTaskSignupReminder1hSent(signupId: number): Promise<void> {
+    await db.update(eventTaskSignups).set({ reminderSent1h: true }).where(eq(eventTaskSignups.id, signupId));
+  }
+
+  // Reset reminderSent1h for all task signups tied to this event so the
+  // poller can fire a fresh 1h reminder after the event is rescheduled.
+  async resetTaskSignupReminder1hFlags(eventId: string): Promise<void> {
+    const taskIds = await db
+      .select({ id: eventSignupTasks.id })
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.eventId, eventId));
+    if (taskIds.length === 0) return;
+    await db
+      .update(eventTaskSignups)
+      .set({ reminderSent1h: false })
+      .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
+  }
+
+  // Reset both reminderSent (24h) and reminderSent1h for all task signups tied
+  // to this event so the poller can fire fresh reminders after the event is rescheduled.
+  async resetTaskSignupReminderFlags(eventId: string): Promise<void> {
+    const taskIds = await db
+      .select({ id: eventSignupTasks.id })
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.eventId, eventId));
+    if (taskIds.length === 0) return;
+    await db
+      .update(eventTaskSignups)
+      .set({ reminderSent: false, reminderSent1h: false })
+      .where(inArray(eventTaskSignups.taskId, taskIds.map(t => t.id)));
+  }
+
+  // Reset the event-level attendee reminder flags so attendees receive fresh
+  // 24h and 1h push notifications after the event is rescheduled.
+  async resetEventReminderFlags(eventId: string): Promise<void> {
+    await db
+      .update(events)
+      .set({ reminder24hSent: false, reminder1hSent: false })
+      .where(eq(events.id, eventId));
+    // Also reset per-attendee flags so all attendees (including late RSVPs)
+    // receive fresh reminders for the new event time.
+    await db
+      .update(eventAttendees)
+      .set({ reminder24hSent: false, reminder1hSent: false })
+      .where(eq(eventAttendees.eventId, eventId));
+  }
+
   // Campus methods
   async getCampuses(): Promise<Campus[]> {
     return db.select().from(campuses).orderBy(campuses.title);
@@ -1770,6 +1979,31 @@ export class DatabaseStorage implements IStorage {
     return result.length;
   }
 
+  async getNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined> {
+    const result = await db.select().from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertNotificationPreferences(
+    userId: string,
+    prefs: Partial<Omit<InsertNotificationPreferences, 'userId'>>,
+  ): Promise<NotificationPreferences> {
+    const existing = await this.getNotificationPreferences(userId);
+    if (existing) {
+      const result = await db.update(notificationPreferences)
+        .set({ ...prefs, updatedAt: new Date() })
+        .where(eq(notificationPreferences.userId, userId))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(notificationPreferences)
+      .values({ userId, ...prefs })
+      .returning();
+    return result[0];
+  }
+
   async insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog> {
     const result = await db.insert(auditLogs).values(entry).returning();
     return result[0];
@@ -1777,6 +2011,37 @@ export class DatabaseStorage implements IStorage {
 
   async getAuditLogs(limit = 100): Promise<AuditLog[]> {
     return db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(limit);
+  }
+
+  async insertErrorLogEntry(entry: InsertErrorLog): Promise<void> {
+    await db.insert(errorLogs).values(entry);
+    // Keep only the latest 100 entries to bound table growth
+    await db.delete(errorLogs).where(
+      sql`id NOT IN (SELECT id FROM error_logs ORDER BY id DESC LIMIT 100)`
+    );
+  }
+
+  async getErrorLogEntries(limit = 100, since?: Date, before?: Date): Promise<ErrorLog[]> {
+    const conditions = [];
+    if (since) conditions.push(gte(errorLogs.timestamp, since));
+    if (before) conditions.push(lt(errorLogs.timestamp, before));
+    const query = db.select().from(errorLogs);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions)).orderBy(desc(errorLogs.timestamp)).limit(limit);
+    }
+    return query.orderBy(desc(errorLogs.timestamp)).limit(limit);
+  }
+
+  async countErrorLogEntries(since?: string): Promise<number> {
+    const query = since
+      ? db.select({ value: count() }).from(errorLogs).where(sql`${errorLogs.timestamp} > ${since}`)
+      : db.select({ value: count() }).from(errorLogs);
+    const [row] = await query;
+    return row?.value ?? 0;
+  }
+
+  async clearErrorLogEntries(): Promise<void> {
+    await db.delete(errorLogs);
   }
 
   async getBulletinBoard(bubbleId: string): Promise<BulletinBoard | undefined> {
@@ -2013,6 +2278,13 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(appConfig);
   }
 
+  async setAppConfigValue(key: string, value: string): Promise<void> {
+    await db
+      .insert(appConfig)
+      .values({ key, value })
+      .onConflictDoUpdate({ target: appConfig.key, set: { value, updatedAt: new Date() } });
+  }
+
   async createRule(name: string, description: string): Promise<Rule> {
     const text = description ? `${name}. ${description}` : name;
     const [rule] = await db.insert(rules).values({ text, name, description }).returning();
@@ -2225,6 +2497,218 @@ export class DatabaseStorage implements IStorage {
     const [bubRef] = await db.select().from(bubbleRules).where(eq(bubbleRules.ruleId, ruleId)).limit(1);
     if (bubRef) return true;
     return false;
+  }
+
+  async getEventSignupTasks(eventId: string, currentUserId?: string): Promise<(EventSignupTask & { signupCount: number; hasSignedUp: boolean; signers: { id: string; name: string; profilePhoto: string | null }[] })[]> {
+    const tasks = await db
+      .select()
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.eventId, eventId))
+      .orderBy(eventSignupTasks.position, eventSignupTasks.createdAt);
+
+    if (tasks.length === 0) return [];
+
+    const taskIds = tasks.map(t => t.id);
+
+    const signupRows = await db
+      .select({
+        taskId: eventTaskSignups.taskId,
+        userId: eventTaskSignups.userId,
+        name: users.name,
+        profilePhoto: users.profilePhoto,
+      })
+      .from(eventTaskSignups)
+      .leftJoin(users, eq(users.id, eventTaskSignups.userId))
+      .where(inArray(eventTaskSignups.taskId, taskIds))
+      .orderBy(eventTaskSignups.createdAt);
+
+    const signupsByTask: Record<number, { id: string; name: string; profilePhoto: string | null }[]> = {};
+    for (const row of signupRows) {
+      if (!signupsByTask[row.taskId]) signupsByTask[row.taskId] = [];
+      signupsByTask[row.taskId].push({ id: row.userId, name: row.name ?? '', profilePhoto: row.profilePhoto ?? null });
+    }
+
+    return tasks.map(task => {
+      const signers = signupsByTask[task.id] ?? [];
+      return {
+        ...task,
+        signupCount: signers.length,
+        hasSignedUp: currentUserId ? signers.some(s => s.id === currentUserId) : false,
+        signers: signers.slice(0, 3),
+      };
+    });
+  }
+
+  async createEventSignupTask(data: InsertEventSignupTask): Promise<EventSignupTask> {
+    const [task] = await db.insert(eventSignupTasks).values(data).returning();
+    return task;
+  }
+
+  async updateEventSignupTask(taskId: number, data: Partial<InsertEventSignupTask>): Promise<EventSignupTask | undefined> {
+    const [task] = await db
+      .update(eventSignupTasks)
+      .set(data)
+      .where(eq(eventSignupTasks.id, taskId))
+      .returning();
+    return task;
+  }
+
+  async deleteEventSignupTask(taskId: number): Promise<void> {
+    await db.delete(eventTaskSignups).where(eq(eventTaskSignups.taskId, taskId));
+    await db.delete(eventSignupTasks).where(eq(eventSignupTasks.id, taskId));
+  }
+
+  async reorderEventSignupTasks(eventId: string, taskIds: number[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < taskIds.length; i++) {
+        await tx
+          .update(eventSignupTasks)
+          .set({ position: i })
+          .where(and(eq(eventSignupTasks.id, taskIds[i]), eq(eventSignupTasks.eventId, eventId)));
+      }
+    });
+  }
+
+  async getEventSignupTask(taskId: number): Promise<EventSignupTask | undefined> {
+    const [task] = await db
+      .select()
+      .from(eventSignupTasks)
+      .where(eq(eventSignupTasks.id, taskId))
+      .limit(1);
+    return task;
+  }
+
+  async joinEventSignupTask(taskId: number, userId: string): Promise<{ success: boolean; error?: string }> {
+    return db.transaction(async (tx) => {
+      const [task] = await tx
+        .select()
+        .from(eventSignupTasks)
+        .where(eq(eventSignupTasks.id, taskId))
+        .limit(1);
+      if (!task) return { success: false, error: 'Task not found' };
+
+      if (task.spotsNeeded !== null) {
+        const [{ total }] = await tx
+          .select({ total: count() })
+          .from(eventTaskSignups)
+          .where(eq(eventTaskSignups.taskId, taskId));
+        if (total >= task.spotsNeeded) {
+          return { success: false, error: 'This task is full' };
+        }
+      }
+
+      await tx
+        .insert(eventTaskSignups)
+        .values({ taskId, userId })
+        .onConflictDoNothing();
+
+      return { success: true };
+    });
+  }
+
+  async leaveEventSignupTask(taskId: number, userId: string): Promise<void> {
+    await db
+      .delete(eventTaskSignups)
+      .where(and(eq(eventTaskSignups.taskId, taskId), eq(eventTaskSignups.userId, userId)));
+  }
+
+  async insertSlowCall(data: { endpoint: string; method: string; durationMs: number }): Promise<void> {
+    await db.insert(slowCalls).values(data);
+  }
+
+  async getSlowCalls(opts?: { limit?: number; sortBy?: 'durationMs' | 'endpoint' | 'createdAt'; sortDir?: 'asc' | 'desc' }): Promise<SlowCall[]> {
+    const { limit = 200, sortBy = 'createdAt', sortDir = 'desc' } = opts ?? {};
+    const col = sortBy === 'durationMs' ? slowCalls.durationMs
+      : sortBy === 'endpoint' ? slowCalls.endpoint
+      : slowCalls.createdAt;
+    const orderFn = sortDir === 'asc' ? col : desc(col);
+    return db.select().from(slowCalls).orderBy(orderFn).limit(limit);
+  }
+
+  async purgeOldSlowCalls(olderThanDays = 90): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const result = await db.delete(slowCalls).where(lt(slowCalls.createdAt, cutoff));
+    return (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  }
+
+  async deleteAllSlowCalls(): Promise<void> {
+    await db.delete(slowCalls);
+  }
+
+  async insertCrashReport(data: InsertCrashReport): Promise<CrashReport> {
+    const [row] = await db.insert(crashReports).values(data).returning();
+    return row;
+  }
+
+  async queryCrashReports(opts: { userId?: string; isFatal?: boolean; from?: Date; to?: Date; limit?: number; offset?: number } = {}): Promise<CrashReport[]> {
+    const { userId, isFatal, from, to, limit = 100, offset = 0 } = opts;
+    const conditions = [];
+    if (userId !== undefined) conditions.push(eq(crashReports.userId, userId));
+    if (isFatal !== undefined) conditions.push(eq(crashReports.isFatal, isFatal));
+    if (from !== undefined) conditions.push(gte(crashReports.createdAt, from));
+    if (to !== undefined) conditions.push(lt(crashReports.createdAt, to));
+
+    const query = db.select().from(crashReports);
+    if (conditions.length > 0) query.where(and(...conditions));
+    return query.orderBy(desc(crashReports.createdAt)).limit(limit).offset(offset);
+  }
+
+  async purgeCrashReports(olderThanDays = 90): Promise<number> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    const result = await db.delete(crashReports).where(lt(crashReports.createdAt, cutoff));
+    return (result as unknown as { rowCount?: number }).rowCount ?? 0;
+  }
+
+  async insertLatencySamples(rows: Omit<ApiLatencySample, 'id' | 'recordedAt'>[]): Promise<void> {
+    if (rows.length === 0) return;
+    await db.insert(apiLatencySamples).values(rows);
+  }
+
+  async getLatestLatencySamples(): Promise<ApiLatencySample[]> {
+    // Return the single most-recent snapshot per (method, endpoint) pair
+    const subquery = db
+      .select({
+        method: apiLatencySamples.method,
+        endpoint: apiLatencySamples.endpoint,
+        maxRecordedAt: max(apiLatencySamples.recordedAt).as("max_recorded_at"),
+      })
+      .from(apiLatencySamples)
+      .groupBy(apiLatencySamples.method, apiLatencySamples.endpoint)
+      .as("latest");
+
+    return db
+      .select({
+        id: apiLatencySamples.id,
+        method: apiLatencySamples.method,
+        endpoint: apiLatencySamples.endpoint,
+        count: apiLatencySamples.count,
+        p50Ms: apiLatencySamples.p50Ms,
+        p95Ms: apiLatencySamples.p95Ms,
+        p99Ms: apiLatencySamples.p99Ms,
+        avgMs: apiLatencySamples.avgMs,
+        maxMs: apiLatencySamples.maxMs,
+        errorRate: apiLatencySamples.errorRate,
+        recordedAt: apiLatencySamples.recordedAt,
+      })
+      .from(apiLatencySamples)
+      .innerJoin(
+        subquery,
+        and(
+          eq(apiLatencySamples.method, subquery.method),
+          eq(apiLatencySamples.endpoint, subquery.endpoint),
+          eq(apiLatencySamples.recordedAt, subquery.maxRecordedAt),
+        ),
+      )
+      .orderBy(desc(apiLatencySamples.p95Ms));
+  }
+
+  async purgeOldLatencySamples(olderThanDays = 7): Promise<void> {
+    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+    await db.delete(apiLatencySamples).where(lt(apiLatencySamples.recordedAt, cutoff));
+  }
+
+  async deleteAllLatencySamples(): Promise<void> {
+    await db.delete(apiLatencySamples);
   }
 }
 

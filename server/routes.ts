@@ -1,12 +1,15 @@
 import crypto from "crypto";
+import { clearBufferedErrors } from "./errorBuffer";
+import { getSlowCallThresholdMs, getSlowCallRetentionDays, setSlowCallConfig } from "./slow-call-config";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
+import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -21,12 +24,12 @@ import { ensureCometChatUser, ensureCometChatGroup, addMemberToGroup, addMembers
 import { sendNotification, sendNotificationToMany, notifyBubbleAdmins, notifyBubbleMembers } from "./notifications";
 import { localToUtc, utcToLocal } from "./timezone";
 import { pingUrl, setMaintenanceModeCache, getMaintenanceMode } from "./health";
-import { getMetrics, resetMetrics, recordRequest } from "./metrics";
+import { getMetrics, resetMetrics, recordRequest, getStoreSnapshot, TimeRange } from "./metrics";
+import { flushBucketsForKey, getTimeSeriesFromDB, pruneOldLatencyBuckets, ensureLatencyBucketsTable } from "./metrics-persistence";
 import { moderateText } from "./moderation";
 import { sendVerificationEmail } from "./email";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { registerCrashReportRoute } from "./crash-report-handler";
 
 const AUTH_RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_AUTH_MAX ?? "10", 10);
 const AUTH_RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MIN ?? "15", 10) * 60 * 1000;
@@ -167,8 +170,16 @@ function generateVerificationCode(): string {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
-function serverError(res: any, error: unknown) {
-  console.error(error);
+function serverError(res: any, error: unknown, context?: string) {
+  const message = error instanceof Error ? error.message : String(error);
+  const stack = error instanceof Error ? error.stack : undefined;
+  const label = context ? `[${context}]` : '[serverError]';
+  console.error(`${label} ${message}`);
+  if (stack) console.error(stack);
+  db.execute(drizzleSql`
+    INSERT INTO error_logs (message, timestamp, platform, level)
+    VALUES (${`${label} ${message}`}, ${new Date().toISOString()}, ${'server'}, ${'error'})
+  `).catch(() => {});
   res.status(500).json({ error: "An unexpected error occurred" });
 }
 
@@ -289,8 +300,6 @@ export async function registerRoutes(
     if (host && (origin === `https://${host}` || origin === `http://${host}`)) return next();
     return res.status(403).json({ error: "Forbidden: cross-origin request blocked" });
   });
-
-  registerCrashReportRoute(app);
 
   registerSendVerificationRoute(app, storage, {
     rateLimiter: sendLimiter,
@@ -1130,6 +1139,51 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/admin/error-logs/count", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      let since: string | undefined;
+      if (typeof req.query.since === "string") {
+        const parsed = new Date(req.query.since);
+        since = isNaN(parsed.getTime()) ? undefined : req.query.since;
+      }
+      const count = await storage.countErrorLogEntries(since);
+      res.json({ count });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.get("/api/admin/error-logs", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const sinceParam = req.query.since as string | undefined;
+      const beforeParam = req.query.before as string | undefined;
+      const since = sinceParam ? new Date(sinceParam) : undefined;
+      const before = beforeParam ? new Date(beforeParam) : undefined;
+      if (since && isNaN(since.getTime())) return res.status(400).json({ error: "Invalid 'since' parameter" });
+      if (before && isNaN(before.getTime())) return res.status(400).json({ error: "Invalid 'before' parameter" });
+      const errors = await storage.getErrorLogEntries(100, since, before);
+      res.json({ errors });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.delete("/api/admin/error-logs", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      clearBufferedErrors();
+      await storage.clearErrorLogEntries();
+      res.json({ success: true });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   const telemetryRateLimit = rateLimit({
     windowMs: 60 * 1000,
     max: 300,
@@ -1150,22 +1204,100 @@ export async function registerRoutes(
     z.array(telemetrySampleSchema).max(50),
   ]);
 
-  app.post("/api/telemetry/latency", telemetryRateLimit, (req, res) => {
+  app.post("/api/telemetry/latency", telemetryRateLimit, async (req, res) => {
     const parsed = telemetryBodySchema.safeParse(req.body);
     if (parsed.success) {
       const reports = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
       for (const report of reports) {
         recordRequest(report.method, report.endpoint, report.statusCode, report.durationMs);
+        if (report.durationMs > getSlowCallThresholdMs()) {
+          storage.insertSlowCall({
+            endpoint: report.endpoint,
+            method: report.method,
+            durationMs: report.durationMs,
+          }).catch(() => {});
+        }
       }
     }
     res.status(204).end();
   });
 
+  // Latency retention window (days); tune via env var (must be a positive integer, defaults to 7)
+  const _rawRetentionDays = parseInt(process.env.LATENCY_RETENTION_DAYS ?? "7", 10);
+  const LATENCY_RETENTION_DAYS = Number.isFinite(_rawRetentionDays) && _rawRetentionDays > 0 ? _rawRetentionDays : 7;
+
+  // Flush in-memory metrics to the database periodically
+  const LATENCY_FLUSH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+  // Track the timestamp of the last successful flush so we only persist
+  // metrics for endpoints that have seen new activity since then (avoids
+  // writing duplicate rows when traffic is idle).
+  let lastFlushTs = 0;
+
+  async function flushLatencyMetrics(): Promise<void> {
+    const flushStartTs = Date.now();
+    const metrics = getMetrics();
+    if (metrics.length === 0) return;
+    // Only persist endpoints that received new requests since the last flush
+    const rows = metrics
+      .filter((m) => m.lastSeenTs > lastFlushTs)
+      .map((m) => ({
+        method: m.method,
+        endpoint: m.endpoint,
+        count: m.count,
+        p50Ms: m.p50Ms,
+        p95Ms: m.p95Ms,
+        p99Ms: m.p99Ms,
+        avgMs: m.avgMs,
+        maxMs: m.maxMs,
+        errorRate: m.errorRate,
+      }));
+    if (rows.length === 0) return;
+    await storage.insertLatencySamples(rows);
+    lastFlushTs = flushStartTs;
+  }
+
+  // Flush on startup (capture any metrics already accumulated), then on interval
+  flushLatencyMetrics().catch(() => {});
+  setInterval(() => flushLatencyMetrics().catch(() => {}), LATENCY_FLUSH_INTERVAL_MS);
+
+  // Prune old latency samples on startup and daily
+  storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {});
+  setInterval(() => storage.purgeOldLatencySamples(LATENCY_RETENTION_DAYS).catch(() => {}), 24 * 60 * 60 * 1000);
+
+
   app.get("/api/admin/latency", authMiddleware, async (req, res) => {
     try {
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
-      const metrics = getMetrics();
+
+      // Merge: in-memory metrics take priority (most recent data since last flush);
+      // DB samples fill in endpoints that dropped out of the in-memory window.
+      const inMemory = getMetrics();
+      const inMemoryKeys = new Set(inMemory.map((m) => `${m.method} ${m.endpoint}`));
+
+      const dbSamples = await storage.getLatestLatencySamples();
+      const dbMetrics = dbSamples
+        .filter((s) => !inMemoryKeys.has(`${s.method} ${s.endpoint}`))
+        .map((s) => ({
+          method: s.method,
+          endpoint: s.endpoint,
+          count: s.count,
+          p50Ms: s.p50Ms,
+          p95Ms: s.p95Ms,
+          p99Ms: s.p99Ms,
+          avgMs: s.avgMs,
+          maxMs: s.maxMs,
+          errorRate: s.errorRate,
+          lastSeenTs: s.recordedAt.getTime(),
+          fromDb: true,
+        }));
+
+      const metrics = [
+        ...inMemory,
+        ...dbMetrics,
+      ].sort((a, b) => b.p95Ms - a.p95Ms);
+
       res.json({ metrics, generatedAt: new Date().toISOString() });
     } catch (error: unknown) {
       serverError(res, error);
@@ -1177,7 +1309,136 @@ export async function registerRoutes(
       const me = await storage.getUser(req.userId!);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       resetMetrics();
+      await storage.deleteAllLatencySamples();
       res.json({ ok: true });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.get("/api/admin/latency/trends", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const range = (["1h", "6h", "24h"].includes(req.query.range as string)
+        ? req.query.range
+        : "1h") as TimeRange;
+      const [dbTrends] = await Promise.all([getTimeSeriesFromDB(range)]);
+      res.json({ trends: dbTrends, range, generatedAt: new Date().toISOString() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  async function flushMetricsToDB(): Promise<void> {
+    const snapshot = getStoreSnapshot();
+    const since = Date.now() - 30 * 60 * 1000;
+    await Promise.all(
+      snapshot.map((entry) =>
+        flushBucketsForKey(entry.method, entry.endpoint, entry.samples, since).catch((err) => {
+          console.error("[LatencyFlush] Failed to flush bucket for", entry.method, entry.endpoint, err);
+        }),
+      ),
+    );
+  }
+
+  ensureLatencyBucketsTable()
+    .then(() => {
+      flushMetricsToDB().catch((err) => console.error("[LatencyFlush] Initial flush failed:", err));
+      const FLUSH_INTERVAL_MS = 5 * 60 * 1000;
+      setInterval(() => flushMetricsToDB().catch((err) => console.error("[LatencyFlush] Scheduled flush failed:", err)), FLUSH_INTERVAL_MS);
+      pruneOldLatencyBuckets(7).catch((err) => console.error("[LatencyFlush] Initial prune failed:", err));
+      setInterval(() => pruneOldLatencyBuckets(7).catch((err) => console.error("[LatencyFlush] Scheduled prune failed:", err)), 24 * 60 * 60 * 1000);
+    })
+    .catch((err) => console.error("[LatencyFlush] Failed to ensure latency_buckets table:", err));
+
+  const slowCallsSortBySchema = z.enum(["durationMs", "endpoint", "createdAt"]).optional().default("createdAt");
+  const slowCallsSortDirSchema = z.enum(["asc", "desc"]).optional().default("desc");
+
+  app.get("/api/admin/slow-calls", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const sortBy = slowCallsSortBySchema.parse(req.query.sortBy);
+      const sortDir = slowCallsSortDirSchema.parse(req.query.sortDir);
+      const calls = await storage.getSlowCalls({ sortBy, sortDir, limit: 200 });
+      res.json({ calls, generatedAt: new Date().toISOString(), threshold: getSlowCallThresholdMs() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.delete("/api/admin/slow-calls", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      await storage.deleteAllSlowCalls();
+      res.json({ ok: true });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.get("/api/admin/slow-call-config", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      res.json({ thresholdMs: getSlowCallThresholdMs(), retentionDays: getSlowCallRetentionDays() });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  const patchSlowCallConfigSchema = z.object({
+    thresholdMs: z.number().int().min(100).max(60000),
+    retentionDays: z.number().int().min(1).max(3650),
+  });
+
+  app.patch("/api/admin/slow-call-config", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      const parsed = patchSlowCallConfigSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      const { thresholdMs, retentionDays } = parsed.data;
+      await Promise.all([
+        storage.setAppConfigValue("slow_call_threshold_ms", String(thresholdMs)),
+        storage.setAppConfigValue("slow_call_retention_days", String(retentionDays)),
+      ]);
+      setSlowCallConfig(thresholdMs, retentionDays);
+      res.json({ thresholdMs, retentionDays });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  // Purge crash reports older than the retention window on startup, then daily
+  const CRASH_REPORT_RETENTION_DAYS = parseInt(process.env.CRASH_REPORT_RETENTION_DAYS ?? "90", 10);
+  storage.purgeCrashReports(CRASH_REPORT_RETENTION_DAYS).catch(() => {});
+  setInterval(() => storage.purgeCrashReports(CRASH_REPORT_RETENTION_DAYS).catch(() => {}), 24 * 60 * 60 * 1000);
+
+  const crashReportsQuerySchema = z.object({
+    userId: z.string().min(1).max(128).optional(),
+    isFatal: z.enum(["true", "false"]).transform(v => v === "true").optional(),
+    from: z.string().datetime({ offset: true }).transform(v => new Date(v)).optional(),
+    to: z.string().datetime({ offset: true }).transform(v => new Date(v)).optional(),
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    offset: z.coerce.number().int().min(0).default(0),
+  });
+
+  app.get("/api/crash-reports", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Super admin access required" });
+
+      const parsed = crashReportsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0]?.message ?? "Invalid query parameters" });
+      }
+      const { userId, isFatal, from, to, limit, offset } = parsed.data;
+
+      const reports = await storage.queryCrashReports({ userId, isFatal, from, to, limit, offset });
+      res.json({ reports, generatedAt: new Date().toISOString() });
     } catch (error: unknown) {
       serverError(res, error);
     }
@@ -1333,6 +1594,14 @@ export async function registerRoutes(
         "Member Left", `${leaverUser?.name || 'Someone'} left ${leaveBubble?.title || 'the bubble'}`,
         { bubbleId, bubbleName: leaveBubble?.title, userId: req.userId!, userName: leaverUser?.name },
         true);
+
+      sendNotification({
+        recipientId: req.userId!,
+        type: "bubble_member_removed",
+        title: "Left Bubble",
+        body: `You've left ${leaveBubble?.title || 'the bubble'}. Your DM conversations with that bubble have been hidden.`,
+        metadata: { bubbleId, bubbleName: leaveBubble?.title },
+      });
       
       res.json({ success: true });
     } catch (error: any) {
@@ -1396,7 +1665,6 @@ export async function registerRoutes(
         user: {
           id: m.user.id,
           name: m.user.name,
-          ...(requesterIsAdmin ? { email: m.user.email } : {}),
           profilePhoto: m.user.profilePhoto,
         }
       })));
@@ -1603,7 +1871,7 @@ export async function registerRoutes(
         recipientId: userId,
         type: "bubble_member_removed",
         title: "Removed from Bubble",
-        body: `You've been removed from ${kickBubble?.title || 'the bubble'}.`,
+        body: `You've been removed from ${kickBubble?.title || 'the bubble'}. Your DM conversations with that bubble have been hidden.`,
         metadata: { bubbleId, bubbleName: kickBubble?.title },
       });
       
@@ -1637,7 +1905,6 @@ export async function registerRoutes(
         user: {
           id: r.user.id,
           name: r.user.name,
-          email: r.user.email,
           profilePhoto: r.user.profilePhoto,
         }
       })));
@@ -1677,7 +1944,7 @@ export async function registerRoutes(
         recipientId: userId,
         type: "bubble_request_approved",
         title: "Request Approved!",
-        body: `You've been accepted into ${approvalBubble?.title || 'the bubble'}!`,
+        body: `Your request to join ${approvalBubble?.title || 'the bubble'} was approved!`,
         metadata: { bubbleId, bubbleName: approvalBubble?.title },
       });
       
@@ -1690,6 +1957,8 @@ export async function registerRoutes(
   app.post("/api/bubbles/:bubbleId/join-requests/:userId/reject", authMiddleware, async (req, res) => {
     try {
       const { bubbleId, userId } = req.params;
+      const rawReason = (req.body as { reason?: string })?.reason;
+      const reason = rawReason ? rawReason.trim().slice(0, 500) || undefined : undefined;
       const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
       const user = await storage.getUser(req.userId!);
       if (requesterRole !== 'admin' && !user?.isSuperAdmin) {
@@ -1699,11 +1968,13 @@ export async function registerRoutes(
       await storage.rejectMembership(userId, bubbleId);
 
       const rejBubble = await storage.getBubble(bubbleId);
+      const baseBody = `Your request to join ${rejBubble?.title || 'the bubble'} was not approved.`;
+      const notificationBody = reason ? `${baseBody} Reason: ${reason}` : baseBody;
       sendNotification({
         recipientId: userId,
         type: "bubble_request_rejected",
-        title: "Request Declined",
-        body: `Your request to join ${rejBubble?.title || 'the bubble'} was declined.`,
+        title: "Request Not Approved",
+        body: notificationBody,
         metadata: { bubbleId, bubbleName: rejBubble?.title },
       });
 
@@ -1728,7 +1999,7 @@ export async function registerRoutes(
         bubbleId: r.bubbleId,
         membershipStatus: r.membershipStatus,
         joinedAt: r.joinedAt,
-        user: { id: r.user.id, name: r.user.name, email: r.user.email, profilePhoto: r.user.profilePhoto },
+        user: { id: r.user.id, name: r.user.name, profilePhoto: r.user.profilePhoto },
       });
       res.json({
         waitlisted: waitlist.filter(r => r.membershipStatus === 'waitlisted').map(formatMember),
@@ -2211,7 +2482,27 @@ export async function registerRoutes(
         updateBody.timezone = tz;
       }
 
+      const originalDate = event.date;
+      const originalStartTime = event.startTime;
+
       const updated = await storage.updateEvent(req.params.id, updateBody);
+
+      const newDate = updateBody.date ?? originalDate;
+      const newStartTime = updateBody.startTime ?? originalStartTime;
+      if (newDate !== originalDate || newStartTime !== originalStartTime) {
+        // Reminder model overview:
+        //   - General attendee reminders are tracked PER-ATTENDEE via
+        //     event_attendees.reminder24hSent / reminder1hSent so that late
+        //     RSVPs receive notifications even after the event-wide batch ran.
+        //   - Volunteer (task-signup) reminders are tracked PER-SIGNUP via
+        //     event_task_signups.reminderSent (24h) and reminderSent1h (1h).
+        // Reset volunteer reminder flags so they get fresh notifications.
+        await storage.resetTaskSignupReminder1hFlags(req.params.id);
+        await storage.resetTaskSignupReminderFlags(req.params.id);
+        // Reset per-attendee and event-level reminder flags so everyone
+        // (including late RSVPs) receives fresh notifications for the new time.
+        await storage.resetEventReminderFlags(req.params.id);
+      }
 
       const attendees = await storage.getEventAttendees(req.params.id);
       const attendeeIds = attendees
@@ -2618,10 +2909,165 @@ export async function registerRoutes(
         user: {
           id: a.user.id,
           name: a.user.name,
-          email: a.user.email,
           profilePhoto: a.user.profilePhoto,
         }
       })));
+    } catch (error: any) {
+      serverError(res, error, `GET /api/events/${req.params.id}/attendees`);
+    }
+  });
+
+  // ============ EVENT SIGN-UP SHEET ROUTES ============
+
+  // GET /api/events/:id/signup-tasks — list tasks with signup counts (auth optional)
+  app.get("/api/events/:id/signup-tasks", optionalAuthMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const tasks = await storage.getEventSignupTasks(req.params.id, req.userId);
+      res.json(tasks);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/:id/signup-tasks — create a task (event creator or bubble admin only)
+  app.post("/api/events/:id/signup-tasks", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can add sign-up tasks" });
+      const parsed = insertEventSignupTaskSchema.safeParse({ ...req.body, eventId: event.id, createdBy: req.userId });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const nextPos = (await storage.getEventSignupTasks(event.id)).length;
+      const task = await storage.createEventSignupTask({ ...parsed.data, position: nextPos });
+      res.status(201).json({ ...task, signupCount: 0, hasSignedUp: false, signers: [] });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // PATCH /api/events/:id/signup-tasks/reorder — reorder tasks by position
+  // NOTE: Must be declared BEFORE /:taskId to avoid Express capturing "reorder" as a taskId
+  app.patch("/api/events/:id/signup-tasks/reorder", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can reorder sign-up tasks" });
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds) || taskIds.some((id) => typeof id !== 'number')) {
+        return res.status(400).json({ error: "taskIds must be an array of numbers" });
+      }
+      const existingTasks = await storage.getEventSignupTasks(event.id);
+      const existingIds = new Set(existingTasks.map(t => t.id));
+      if (taskIds.length !== existingIds.size) {
+        return res.status(400).json({ error: "taskIds must contain exactly the event's current tasks" });
+      }
+      const seen = new Set<number>();
+      for (const id of taskIds) {
+        if (seen.has(id)) return res.status(400).json({ error: "taskIds must not contain duplicates" });
+        if (!existingIds.has(id)) return res.status(400).json({ error: `Task ${id} does not belong to this event` });
+        seen.add(id);
+      }
+      await storage.reorderEventSignupTasks(event.id, taskIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // PATCH /api/events/:id/signup-tasks/:taskId — edit a task
+  app.patch("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can edit sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
+      const allowed = insertEventSignupTaskSchema.pick({ title: true, description: true, icon: true, spotsNeeded: true }).partial();
+      const parsed = allowed.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const updated = await storage.updateEventSignupTask(taskId, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Task not found" });
+      const allTasks = await storage.getEventSignupTasks(event.id, req.userId);
+      const enriched = allTasks.find(t => t.id === taskId);
+      res.json(enriched ?? updated);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/:id/signup-tasks/:taskId — delete a task
+  app.delete("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.creatorId === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can delete sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
+      await storage.deleteEventSignupTask(taskId);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/signup-tasks/:taskId/join — sign up for a task
+  app.post("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to sign up for tasks" });
+      const result = await storage.joinEventSignupTask(taskId, req.userId!);
+      if (!result.success) return res.status(409).json({ error: result.error ?? "Could not sign up" });
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/signup-tasks/:taskId/join — cancel sign-up
+  app.delete("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to manage your sign-ups" });
+      await storage.leaveEventSignupTask(taskId, req.userId!);
+      res.json({ success: true });
     } catch (error: any) {
       serverError(res, error);
     }
@@ -2640,116 +3086,13 @@ export async function registerRoutes(
   });
 
   // Send campus verification code
-  app.post("/api/campus/send-verification", authMiddleware, async (req, res) => {
-    try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
-
-      // Validate .edu email domain
-      const emailLower = email.toLowerCase();
-      const domain = emailLower.split("@")[1];
-      if (!domain || !domain.endsWith(".edu")) {
-        return res.status(400).json({ error: "Please use a valid .edu email address" });
-      }
-
-      // Check if campus exists
-      const campus = await storage.getCampusByDomain(domain);
-      if (!campus) {
-        return res.status(400).json({ error: "This university is not yet supported. Check back later!" });
-      }
-
-      // Generate and store verification code
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-
-      await storage.createVerificationCode({
-        email: emailLower,
-        code,
-        expiresAt,
-      });
-
-      let emailFailed = false;
-      try {
-        await sendVerificationEmail(emailLower, code);
-      } catch (emailError: any) {
-        console.error(`[EMAIL] Delivery failed for ${emailLower}:`, emailError.message);
-        emailFailed = true;
-      }
-
-      const response: any = {
-        success: true,
-        message: "Verification code sent to your email",
-        campusId: campus.id,
-        campusName: campus.title,
-      };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
-        response.devCode = code;
-      }
-      res.json(response);
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerCampusSendVerificationRoute(app, storage, authMiddleware, {
+    generateCode: generateVerificationCode,
+    sendEmail: sendVerificationEmail,
   });
 
   // Verify campus code and associate user with campus
-  app.post("/api/campus/verify-code", authMiddleware, async (req, res) => {
-    try {
-      const { email, code } = req.body;
-      if (!email || !code) {
-        return res.status(400).json({ error: "Email and code are required" });
-      }
-
-      const emailLower = email.toLowerCase();
-      const domain = emailLower.split("@")[1];
-
-      // Verify code
-      const validCode = await storage.getValidVerificationCode(emailLower, code);
-      if (!validCode) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-
-      // Get campus
-      const campus = await storage.getCampusByDomain(domain);
-      if (!campus) {
-        return res.status(400).json({ error: "Campus not found" });
-      }
-
-      // Mark code as used
-      await storage.markCodeAsUsed(validCode.id);
-
-      // Update user with campus info
-      await storage.updateUserCampus(req.userId!, campus.id, emailLower, true);
-
-      // Get updated user
-      const user = await storage.getUser(req.userId!);
-
-      res.json({
-        success: true,
-        campus: {
-          id: campus.id,
-          name: campus.title,
-          domain: campus.domain,
-        },
-        user: {
-          id: user!.id,
-          name: user!.name,
-          email: user!.email,
-          campusId: user!.campusId,
-          campusEmail: user!.campusEmail,
-          campusVerified: user!.campusVerified,
-        },
-      });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
+  registerCampusVerifyCodeRoute(app, storage, authMiddleware);
 
   // Dismiss campus prompt
   app.post("/api/campus/dismiss-prompt", authMiddleware, async (req, res) => {
@@ -3250,6 +3593,44 @@ export async function registerRoutes(
     try {
       await storage.deleteNotification(req.params.id, req.userId!);
       res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // ===== NOTIFICATION PREFERENCES =====
+  app.get("/api/notification-preferences", authMiddleware, async (req, res) => {
+    try {
+      const prefs = await storage.getNotificationPreferences(req.userId!);
+      if (!prefs) {
+        return res.json({
+          userId: req.userId,
+          pushPaused: false,
+          bubbleActivity: true,
+          eventActivity: true,
+          eventReminders: true,
+          taskReminders: true,
+          waitlistUpdates: true,
+          announcements: true,
+        });
+      }
+      res.json(prefs);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  app.put("/api/notification-preferences", authMiddleware, async (req, res) => {
+    try {
+      const allowed = ["pushPaused", "bubbleActivity", "eventActivity", "eventReminders", "taskReminders", "waitlistUpdates", "announcements"];
+      const updates: Record<string, boolean> = {};
+      for (const key of allowed) {
+        if (typeof req.body[key] === "boolean") {
+          updates[key] = req.body[key];
+        }
+      }
+      const prefs = await storage.upsertNotificationPreferences(req.userId!, updates);
+      res.json(prefs);
     } catch (error: any) {
       serverError(res, error);
     }

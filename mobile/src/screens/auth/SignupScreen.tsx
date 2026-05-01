@@ -102,7 +102,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
   const [selectedCal, setSelectedCal] = useState<CalDate | null>(null);
 
-  const isFormValid = !!(name && email && password && gender && dateOfBirth && termsAccepted);
+  const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 
   const handlePickPhoto = useCallback(async () => {
     const granted = await requestPhotoLibraryAccess();

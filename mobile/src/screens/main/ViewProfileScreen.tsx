@@ -63,6 +63,11 @@ export default function ViewProfileScreen({ navigation }: Props) {
   const roleLabel = isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member';
   const previewBubbles = myBubbles.slice(0, 3);
 
+  const isProfileComplete =
+    !!user.aboutMe &&
+    Array.isArray(user.interests) && user.interests.length > 0 &&
+    !!user.profilePhoto;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlowHeader
@@ -103,28 +108,30 @@ export default function ViewProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.completeSection}>
-          <Text style={styles.completeTitle}>Complete your profile</Text>
-          <Text style={styles.completeSubtitle}>
-            Your Bubble profile is an important part of every community. Complete yours to help other admins and members get to know you.
-          </Text>
+        {!isProfileComplete && (
+          <View style={styles.completeSection} testID="section-complete-profile">
+            <Text style={styles.completeTitle}>Complete your profile</Text>
+            <Text style={styles.completeSubtitle}>
+              Your Bubble profile is an important part of every community. Complete yours to help other admins and members get to know you.
+            </Text>
 
-          <TouchableOpacity
-            onPress={() => navigation.navigate('EditProfile')}
-            activeOpacity={0.7}
-            style={styles.getStartedBtn}
-            testID="button-get-started"
-          >
-            <LinearGradient
-              colors={['#35A8F7', '#FFFFFF']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0.7, y: 3.6 }}
-              style={styles.getStartedGradient}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditProfile')}
+              activeOpacity={0.7}
+              style={styles.getStartedBtn}
+              testID="button-get-started"
             >
-              <Text style={styles.getStartedText}>Get started</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+              <LinearGradient
+                colors={['#35A8F7', '#FFFFFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.7, y: 3.6 }}
+                style={styles.getStartedGradient}
+              >
+                <Text style={styles.getStartedText}>Get started</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <TouchableOpacity
           style={[styles.bubblesCard, CardShadow]}
