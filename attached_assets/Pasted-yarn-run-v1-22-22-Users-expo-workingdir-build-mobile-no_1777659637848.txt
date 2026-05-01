@@ -1,0 +1,59 @@
+yarn run v1.22.22
+$ /Users/expo/workingdir/build/mobile/node_modules/.bin/expo export:embed --eager --platform ios --dev false
+Starting Metro Bundler
+iOS ./index.ts ▓▓▓▓▓░░░░░░░░░░░ 36.0% (526/954)
+iOS ./index.ts ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 72.8% (1264/1481)
+iOS Bundling failed 8783ms index.ts (2414 modules)
+Unable to resolve module expo-haptics from /Users/expo/workingdir/build/mobile/src/screens/main/EventDetailsScreen.tsx: expo-haptics could not be found within the project or in these directories:
+  node_modules
+  node_modules
+  31 | import { RouteProp, useFocusEffect } from '@react-navigation/native';
+  32 | import { Ionicons } from '@expo/vector-icons';
+> 33 | import * as Haptics from 'expo-haptics';
+     |                           ^
+  34 | import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
+  35 | import { useAuth } from '../../context/AuthContext';
+  36 | import apiService from '../../services/api.service';
+Import stack:
+ src/screens/main/EventDetailsScreen.tsx
+ | import "expo-haptics"
+ src/navigation/ExploreNavigator.tsx
+ | import "../screens/main/EventDetailsScreen"
+ src/navigation/MainNavigator.tsx
+ | import "./ExploreNavigator"
+ src/navigation/RootNavigator.tsx
+ | import "./MainNavigator"
+ App.tsx
+ | import "./src/navigation/RootNavigator"
+ index.ts
+ | import "./App"
+ 
+ | import "/Users/expo/workingdir/build/mobile/index.ts"
+Error: Unable to resolve module expo-haptics from /Users/expo/workingdir/build/mobile/src/screens/main/EventDetailsScreen.tsx: expo-haptics could not be found within the project or in these directories:
+  node_modules
+  node_modules
+  31 | import { RouteProp, useFocusEffect } from '@react-navigation/native';
+  32 | import { Ionicons } from '@expo/vector-icons';
+> 33 | import * as Haptics from 'expo-haptics';
+     |                           ^
+  34 | import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
+  35 | import { useAuth } from '../../context/AuthContext';
+  36 | import apiService from '../../services/api.service';
+Import stack:
+ src/screens/main/EventDetailsScreen.tsx
+ | import "expo-haptics"
+ src/navigation/ExploreNavigator.tsx
+ | import "../screens/main/EventDetailsScreen"
+ src/navigation/MainNavigator.tsx
+ | import "./ExploreNavigator"
+ src/navigation/RootNavigator.tsx
+ | import "./MainNavigator"
+ App.tsx
+ | import "./src/navigation/RootNavigator"
+ index.ts
+ | import "./App"
+ 
+ | import "/Users/expo/workingdir/build/mobile/index.ts"
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+yarn expo export:embed --eager --platform ios --dev false exited with non-zero code: 1
