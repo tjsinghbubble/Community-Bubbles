@@ -12,11 +12,21 @@
     "preview": {
       "distribution": "internal"
     },
+    "staging": {
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "staging"
+      }
+    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production"
+      }
     }
   },
   "submit": {
+    "staging": {},
     "production": {}
   }
 }
