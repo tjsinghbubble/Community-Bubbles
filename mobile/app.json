@@ -27,7 +27,6 @@
         "backgroundColor": "#35A8F7"
       },
       "package": "io.trybubble.app",
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "READ_MEDIA_IMAGES",
