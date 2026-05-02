@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -95,6 +96,16 @@ export default function GiveFeedbackScreen() {
               ? <ActivityIndicator color="#FFFFFF" />
               : <Text style={styles.submitButtonText}>Submit Feedback</Text>}
           </TouchableOpacity>
+
+          <View style={styles.contactRow}>
+            <Text style={styles.contactLabel}>Need a direct response? </Text>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('mailto:support@trybubble.io')}
+              testID="link-contact-us"
+            >
+              <Text style={styles.contactLink}>Contact us</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -167,5 +178,20 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold,
     color: '#FFFFFF',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  contactLabel: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
+  },
+  contactLink: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.brand.bubbleBlue,
+    fontWeight: Typography.weights.semiBold,
   },
 });
