@@ -31,7 +31,8 @@
       "permissions": [
         "READ_MEDIA_IMAGES",
         "CAMERA"
-      ]
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
