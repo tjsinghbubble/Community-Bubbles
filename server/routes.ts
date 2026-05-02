@@ -572,6 +572,16 @@ export async function registerRoutes(
     }
   });
 
+  // Get current user's own feedback submissions
+  app.get("/api/feedback/my", authMiddleware, async (req: any, res: any) => {
+    try {
+      const entries = await storage.getMyFeedback(req.userId!);
+      res.json(entries);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Logout — invalidates all existing tokens for this user
   app.post("/api/auth/logout", authMiddleware, async (req, res) => {
     try {

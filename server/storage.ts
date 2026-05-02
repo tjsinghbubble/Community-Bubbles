@@ -353,6 +353,7 @@ export interface IStorage {
 
   // Feedback
   createFeedback(data: InsertFeedback): Promise<Feedback>;
+  getMyFeedback(userId: string): Promise<Feedback[]>;
 
   // Password reset
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
@@ -2737,6 +2738,14 @@ export class DatabaseStorage implements IStorage {
   async createFeedback(data: InsertFeedback): Promise<Feedback> {
     const [row] = await db.insert(feedback).values(data).returning();
     return row;
+  }
+
+  async getMyFeedback(userId: string): Promise<Feedback[]> {
+    return db
+      .select()
+      .from(feedback)
+      .where(eq(feedback.userId, userId))
+      .orderBy(desc(feedback.createdAt));
   }
 
   async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {

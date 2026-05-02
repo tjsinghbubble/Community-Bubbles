@@ -20,6 +20,8 @@ import GiveFeedbackScreen from '../screens/main/GiveFeedbackScreen';
 import HelpCenterScreen from '../screens/main/HelpCenterScreen';
 import FeedbackFormScreen from '../screens/main/FeedbackFormScreen';
 import ReportConcernScreen from '../screens/main/ReportConcernScreen';
+import FeedbackDetailScreen from '../screens/main/FeedbackDetailScreen';
+import type { FeedbackItem } from '../screens/main/HelpCenterScreen';
 import ManageRulesScreen from '../screens/main/ManageRulesScreen';
 import CategoryPlaceholdersScreen from '../screens/main/CategoryPlaceholdersScreen';
 import ErrorLogScreen from '../screens/main/ErrorLogScreen';
@@ -58,6 +60,7 @@ export type ProfileStackParamList = {
     buttonLabel: string;
   };
   ReportConcern: undefined;
+  FeedbackDetail: { item: FeedbackItem };
   ManageRules: undefined;
   CategoryPlaceholders: undefined;
   ErrorLog: undefined;
@@ -220,6 +223,13 @@ function ReportConcernScreenWithBoundary(props: React.ComponentProps<typeof Repo
     </ScreenErrorBoundary>
   );
 }
+function FeedbackDetailScreenWithBoundary(props: React.ComponentProps<typeof FeedbackDetailScreen>) {
+  return (
+    <ScreenErrorBoundary context="FeedbackDetailScreen" message="Couldn't load issue details — tap to retry">
+      <FeedbackDetailScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
 
 function ManageRulesScreenWithBoundary(props: React.ComponentProps<typeof ManageRulesScreen>) {
   return (
@@ -307,6 +317,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="HelpCenter" component={HelpCenterScreenWithBoundary} />
       <Stack.Screen name="FeedbackForm" component={FeedbackFormScreenWithBoundary} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreenWithBoundary} />
+      <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreenWithBoundary} />
       <Stack.Screen name="ManageRules" component={ManageRulesScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreenWithBoundary} />
       <Stack.Screen name="ErrorLog" component={ErrorLogScreenWithBoundary} />
