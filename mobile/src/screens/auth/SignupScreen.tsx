@@ -8,22 +8,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Modal,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { API_URL } from '../../config/api';
-import { Colors, Spacing, Radius } from '../../styles/theme';
+import { Colors, Spacing } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
+import SpinnerDatePickerModal from '../../components/SpinnerDatePickerModal';
 
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
@@ -41,13 +41,7 @@ const MAX_DOB_DATE = (() => {
 })();
 
 const MIN_DOB_DATE = new Date(1910, 0, 1);
-
-function formatDOB(date: Date): string {
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const yyyy = date.getFullYear();
-  return `${mm}/${dd}/${yyyy}`;
-}
+const DEFAULT_DOB = new Date(1990, 8, 9); // September 9, 1990
 
 export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
@@ -57,6 +51,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [tempDob, setTempDob] = useState<Date>(DEFAULT_DOB);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
@@ -68,14 +63,6 @@ export default function SignupScreen({ navigation }: Props) {
   const passwordError = passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
   const [emailBlurred, setEmailBlurred] = useState(false);
   const emailError = emailBlurred && (email.length === 0 || !EMAIL_REGEX.test(email));
-
-  // Spinner date picker state — default to 22 years ago so wheel feels natural
-  const defaultPickerDate = (() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 22);
-    return d;
-  })();
-  const [pickerDate, setPickerDate] = useState<Date>(defaultPickerDate);
 
   const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 
@@ -131,13 +118,26 @@ export default function SignupScreen({ navigation }: Props) {
     }
   }, [isFormValid, email, name, password, gender, dateOfBirth, profilePhotoUri, navigation]);
 
-  const handleConfirmDate = useCallback(() => {
-    setDateOfBirth(formatDOB(pickerDate));
-    setShowDatePicker(false);
-  }, [pickerDate]);
-
   const openDatePicker = useCallback(() => {
+    if (dateOfBirth) {
+      const parts = dateOfBirth.split('/');
+      if (parts.length === 3) {
+        const parsed = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        setTempDob(isNaN(parsed.getTime()) ? DEFAULT_DOB : parsed);
+      } else {
+        setTempDob(DEFAULT_DOB);
+      }
+    } else {
+      setTempDob(DEFAULT_DOB);
+    }
     setShowDatePicker(true);
+  }, [dateOfBirth]);
+
+  const handleConfirmDob = useCallback((date: Date) => {
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    setDateOfBirth(`${mm}/${dd}/${date.getFullYear()}`);
+    setShowDatePicker(false);
   }, []);
 
   return (
@@ -194,7 +194,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker} testID="button-dob">
+              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker} testID="button-open-dob">
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
@@ -330,35 +330,17 @@ export default function SignupScreen({ navigation }: Props) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Date of Birth — native 3-wheel spinner */}
-      <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
-        <View style={styles.dobOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
-          <View style={styles.dobSheet}>
-            <View style={styles.dobHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.dobCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={styles.dobTitle}>Date of Birth</Text>
-              <TouchableOpacity onPress={handleConfirmDate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.dobDoneText}>Done</Text>
-              </TouchableOpacity>
-            </View>
-            <DateTimePicker
-              value={pickerDate}
-              mode="date"
-              display="spinner"
-              maximumDate={MAX_DOB_DATE}
-              minimumDate={MIN_DOB_DATE}
-              onChange={(_event, selectedDate) => {
-                if (selectedDate) setPickerDate(selectedDate);
-              }}
-              textColor={Colors.brand.midnight}
-              style={styles.spinner}
-            />
-          </View>
-        </View>
-      </Modal>
+      {/* DOB — native 3-wheel spinner */}
+      <SpinnerDatePickerModal
+        visible={showDatePicker}
+        value={tempDob}
+        mode="date"
+        title="Date of Birth"
+        minimumDate={MIN_DOB_DATE}
+        maximumDate={MAX_DOB_DATE}
+        onConfirm={handleConfirmDob}
+        onCancel={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -422,7 +404,11 @@ const styles = StyleSheet.create({
   termsText: { flex: 1, fontSize: 13, color: Colors.text.secondary, lineHeight: 18 },
   termsLink: { color: Colors.brand.bubbleBlue, textDecorationLine: 'underline' },
   termsHint: { fontSize: 11, color: Colors.neutral.coolMist, textAlign: 'center', marginTop: -8 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
   modalContent: {
     backgroundColor: '#FAFAFA', borderTopLeftRadius: 20, borderTopRightRadius: 20,
     padding: 20, paddingBottom: 40,
@@ -438,21 +424,4 @@ const styles = StyleSheet.create({
   },
   modalOptionText: { fontSize: 16, color: Colors.neutral.charcoal },
   modalOptionSelected: { color: Colors.brand.bubbleBlue, fontWeight: '600' },
-
-  // DOB scroll-wheel sheet
-  dobOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  dobSheet: {
-    backgroundColor: '#F8F8F8',
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    paddingBottom: 34,
-  },
-  dobHeader: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#D9D9D9',
-  },
-  dobTitle: { fontSize: 16, fontWeight: '600', color: Colors.brand.midnight },
-  dobCancelText: { fontSize: 16, color: Colors.neutral.coolMist },
-  dobDoneText: { fontSize: 16, fontWeight: '600', color: Colors.brand.bubbleBlue },
-  spinner: { width: '100%', height: 216 },
 });

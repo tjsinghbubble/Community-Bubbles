@@ -11,11 +11,11 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, InputStyles, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
+import SpinnerDatePickerModal from '../../components/SpinnerDatePickerModal';
 
 const FEEDBACK_OPTIONS = ['Bubble', 'Event', 'Other'] as const;
 type FeedbackType = (typeof FEEDBACK_OPTIONS)[number];
@@ -36,8 +36,7 @@ export default function ReportConcernScreen() {
   const [email, setEmail] = useState('');
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
+  const [tempDate, setTempDate] = useState(new Date());
 
   const canProceed = feedbackType !== null && hasLink !== null;
   const canSubmit = name.trim() && date.trim() && description.trim() && fullName.trim() && email.trim();
@@ -50,127 +49,26 @@ export default function ReportConcernScreen() {
     ]);
   };
 
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
-
-  const MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-  ];
-
-  const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-  const handleDaySelect = (day: number) => {
-    const m = String(calendarMonth + 1).padStart(2, '0');
-    const d = String(day).padStart(2, '0');
-    setDate(`${m}/${d}/${calendarYear}`);
-    setShowDatePicker(false);
+  const openDatePicker = () => {
+    if (date) {
+      const parts = date.split('/');
+      if (parts.length === 3) {
+        const parsed = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
+        setTempDate(isNaN(parsed.getTime()) ? new Date() : parsed);
+      } else {
+        setTempDate(new Date());
+      }
+    } else {
+      setTempDate(new Date());
+    }
+    setShowDatePicker(true);
   };
 
-  const renderCalendar = () => {
-    const daysInMonth = getDaysInMonth(calendarYear, calendarMonth);
-    const firstDay = getFirstDayOfMonth(calendarYear, calendarMonth);
-    const weeks: (number | null)[][] = [];
-    let currentWeek: (number | null)[] = Array(firstDay).fill(null);
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      currentWeek.push(day);
-      if (currentWeek.length === 7) {
-        weeks.push(currentWeek);
-        currentWeek = [];
-      }
-    }
-    if (currentWeek.length > 0) {
-      while (currentWeek.length < 7) currentWeek.push(null);
-      weeks.push(currentWeek);
-    }
-
-    const selectedParts = date.split('/');
-    const selectedDay =
-      selectedParts.length === 3 &&
-      parseInt(selectedParts[0]) === calendarMonth + 1 &&
-      parseInt(selectedParts[2]) === calendarYear
-        ? parseInt(selectedParts[1])
-        : null;
-
-    return (
-      <View style={styles.calendarOverlay}>
-        <View style={styles.calendarCard}>
-          <View style={styles.calendarHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                if (calendarMonth === 0) {
-                  setCalendarMonth(11);
-                  setCalendarYear(calendarYear - 1);
-                } else {
-                  setCalendarMonth(calendarMonth - 1);
-                }
-              }}
-              testID="button-calendar-prev"
-            >
-              <Ionicons name="chevron-back" size={24} color={Colors.brand.midnight} />
-            </TouchableOpacity>
-            <Text style={styles.calendarMonthYear}>
-              {MONTH_NAMES[calendarMonth]} {calendarYear}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                if (calendarMonth === 11) {
-                  setCalendarMonth(0);
-                  setCalendarYear(calendarYear + 1);
-                } else {
-                  setCalendarMonth(calendarMonth + 1);
-                }
-              }}
-              testID="button-calendar-next"
-            >
-              <Ionicons name="chevron-forward" size={24} color={Colors.brand.midnight} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.dayHeaderRow}>
-            {DAY_HEADERS.map((d) => (
-              <Text key={d} style={styles.dayHeaderText}>{d}</Text>
-            ))}
-          </View>
-
-          {weeks.map((week, wi) => (
-            <View key={wi} style={styles.weekRow}>
-              {week.map((day, di) => (
-                <TouchableOpacity
-                  key={di}
-                  style={[
-                    styles.dayCell,
-                    day === selectedDay && styles.dayCellSelected,
-                  ]}
-                  disabled={day === null}
-                  onPress={() => day && handleDaySelect(day)}
-                  testID={day ? `button-day-${day}` : undefined}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      day === selectedDay && styles.dayTextSelected,
-                      day === null && styles.dayTextEmpty,
-                    ]}
-                  >
-                    {day ?? ''}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-
-          <TouchableOpacity
-            style={styles.calendarClose}
-            onPress={() => setShowDatePicker(false)}
-            testID="button-calendar-close"
-          >
-            <Text style={styles.calendarCloseText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+  const handleConfirmDate = (d: Date) => {
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setDate(`${m}/${day}/${d.getFullYear()}`);
+    setShowDatePicker(false);
   };
 
   return (
@@ -297,15 +195,13 @@ export default function ReportConcernScreen() {
               <Text style={[styles.fieldLabel, { marginTop: Spacing.lg }]}>When did this take place</Text>
               <TouchableOpacity
                 style={InputStyles.field}
-                onPress={() => setShowDatePicker(true)}
+                onPress={openDatePicker}
                 testID="button-date-picker"
               >
                 <Text style={{ color: date ? Colors.text.primary : Colors.text.disabled, fontSize: Typography.sizes.base, lineHeight: 56 }}>
                   {date || 'Select a date'}
                 </Text>
               </TouchableOpacity>
-
-              {showDatePicker && renderCalendar()}
 
               <Text style={[styles.fieldLabel, { marginTop: Spacing.lg }]}>Describe the situation</Text>
               <TextInput
@@ -372,6 +268,15 @@ export default function ReportConcernScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <SpinnerDatePickerModal
+        visible={showDatePicker}
+        value={tempDate}
+        mode="date"
+        title="When did this happen?"
+        onConfirm={handleConfirmDate}
+        onCancel={() => setShowDatePicker(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -507,73 +412,5 @@ const styles = StyleSheet.create({
   },
   submitButtonTextDisabled: {
     color: '#FFFFFF',
-  },
-  calendarOverlay: {
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  calendarCard: {
-    backgroundColor: Colors.background.primary,
-    borderRadius: 20,
-    padding: Spacing.lg,
-    ...CardShadow,
-  },
-  calendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  calendarMonthYear: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.semiBold,
-    color: Colors.brand.midnight,
-  },
-  dayHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: Spacing.sm,
-  },
-  dayHeaderText: {
-    fontSize: Typography.sizes.sm,
-    fontWeight: Typography.weights.medium,
-    color: Colors.text.tertiary,
-    width: 36,
-    textAlign: 'center',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 4,
-  },
-  dayCell: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayCellSelected: {
-    backgroundColor: Colors.brand.bubbleBlue,
-  },
-  dayText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.brand.midnight,
-  },
-  dayTextSelected: {
-    color: '#FFFFFF',
-    fontWeight: Typography.weights.semiBold,
-  },
-  dayTextEmpty: {
-    color: 'transparent',
-  },
-  calendarClose: {
-    alignItems: 'center',
-    marginTop: Spacing.md,
-  },
-  calendarCloseText: {
-    fontSize: Typography.sizes.base,
-    color: Colors.brand.bubbleBlue,
-    fontWeight: Typography.weights.semiBold,
   },
 });

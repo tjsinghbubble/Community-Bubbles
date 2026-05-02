@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import SpinnerDatePickerModal from '../../components/SpinnerDatePickerModal';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import LocationPickerModal from '../../components/LocationPickerModal';
@@ -135,32 +136,26 @@ export default function EditEventScreen({ navigation, route }: Props) {
     return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
   };
 
-  const handleDateChange = (e: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      const year = selectedDate.getFullYear();
-      const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-      const day = selectedDate.getDate().toString().padStart(2, '0');
-      setDate(`${year}-${month}-${day}`);
-    }
+  const handleConfirmDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    setDate(`${year}-${month}-${day}`);
+    setShowDatePicker(false);
   };
 
-  const handleStartTimeChange = (e: DateTimePickerEvent, selectedTime?: Date) => {
-    setShowStartTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      const hours = selectedTime.getHours().toString().padStart(2, '0');
-      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-      setStartTime(`${hours}:${minutes}`);
-    }
+  const handleConfirmStartTime = (d: Date) => {
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    setStartTime(`${hours}:${minutes}`);
+    setShowStartTimePicker(false);
   };
 
-  const handleEndTimeChange = (e: DateTimePickerEvent, selectedTime?: Date) => {
-    setShowEndTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      const hours = selectedTime.getHours().toString().padStart(2, '0');
-      const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
-      setEndTime(`${hours}:${minutes}`);
-    }
+  const handleConfirmEndTime = (d: Date) => {
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    setEndTime(`${hours}:${minutes}`);
+    setShowEndTimePicker(false);
   };
 
   const handleLocationSelect = (place: { name: string; address: string; latitude?: number; longitude?: number }) => {

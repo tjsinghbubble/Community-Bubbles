@@ -19,6 +19,7 @@ import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
 import { useAuth } from '../../context/AuthContext';
 import { BubbleData } from '../../navigation/ExploreNavigator';
+import { API_URL } from '../../config/api';
 
 export type MemberProfileStackParamList = {
   MemberProfile: { userId: string };
@@ -53,6 +54,14 @@ type PublicProfile = {
   sharedBubbles: SharedBubble[];
 };
 
+type CategoryItem = {
+  id: number;
+  name: string;
+  displayName: string;
+  image: string | null;
+  parentId: number | null;
+};
+
 function getInitials(name: string): string {
   if (!name) return '?';
   return name
@@ -74,6 +83,9 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
 
   const isOwnProfile = user && String(user.id) === String(userId);
 
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
   useEffect(() => {
     apiService
       .getUserPublicProfile(userId)
@@ -81,6 +93,21 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
       .catch(() => setError('Could not load profile.'))
       .finally(() => setIsLoading(false));
   }, [userId]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/categories/flat`)
+      .then(res => (res.ok ? res.json() : Promise.reject('Failed to fetch categories')))
+      .then((data: CategoryItem[]) => setCategories(data.filter(c => c.parentId !== null)))
+      .catch((err: any) => {
+        console.warn('MemberProfile:categoriesLoadFailed', err?.message ?? String(err));
+      })
+      .finally(() => setCategoriesLoading(false));
+  }, []);
+
+  const getDisplayName = (name: string): string => {
+    const cat = categories.find(c => c.name === name);
+    return cat ? cat.displayName : name;
+  };
 
   const handleMessage = async () => {
     if (!user || !profile) return;
@@ -186,15 +213,24 @@ export default function MemberProfileScreen({ navigation, route }: Props) {
 
           {/* Interests */}
           {profile.interests.length > 0 && (
-            <View style={[styles.sectionCard, CardShadow]}>
-              <Text style={styles.sectionTitle}>Interests</Text>
-              <View style={styles.tagsRow}>
-                {profile.interests.map((interest) => (
-                  <View key={interest} style={styles.interestTag} testID={`tag-interest-${interest}`}>
-                    <Text style={styles.interestTagText}>{interest}</Text>
-                  </View>
-                ))}
-              </View>
+            <View style={[styles.sectionCard, CardShadow]} testID="section-member-interests">
+              <Text style={styles.sectionTitle}>My Interests</Text>
+              {categoriesLoading ? (
+                <ActivityIndicator
+                  size="small"
+                  color={Colors.brand.bubbleBlue}
+                  style={{ marginVertical: 8 }}
+                  testID="loading-member-interests"
+                />
+              ) : (
+                <View style={styles.tagsRow}>
+                  {profile.interests.map((interest) => (
+                    <View key={interest} style={styles.interestTag} testID={`tag-interest-${interest}`}>
+                      <Text style={styles.interestTagText}>{getDisplayName(interest)}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           )}
 
