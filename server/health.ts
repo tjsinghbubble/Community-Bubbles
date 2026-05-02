@@ -3,7 +3,7 @@ import { db } from "./db";
 import { appConfig } from "@shared/schema";
 import { sql as drizzleSql, eq } from "drizzle-orm";
 
-const APP_VERSION = process.env.npm_package_version ?? "1.0.0";
+const APP_VERSION = "0.1.0";
 
 export function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
