@@ -12,10 +12,10 @@
     "preview": {
       "distribution": "internal"
     },
-    "staging": {
+    "testflight-staging": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "staging"
+        "APP_ENV": "testflight-staging"
       }
     },
     "production": {
@@ -26,7 +26,7 @@
     }
   },
   "submit": {
-    "staging": {},
+    "testflight-staging": {},
     "production": {}
   }
 }
