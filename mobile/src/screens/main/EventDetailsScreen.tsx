@@ -1116,12 +1116,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.bulletinSection} onLayout={(e) => { tasksYRef.current = e.nativeEvent.layout.y; }}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, styles.signupSectionTitle]}>
+          <View style={styles.signupSectionHeader}>
+            <Text style={styles.sectionTitle}>
               Sign-up & Help {creatorDisplayName}
             </Text>
             {canManage && (
-              <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
+              <TouchableOpacity style={[styles.addButtonInline, styles.addButtonBelow]} onPress={openCreateTask} data-testid="button-add-task">
                 <Text style={styles.addButtonInlineText}>+ Add Task</Text>
               </TouchableOpacity>
             )}
@@ -1205,15 +1205,25 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                           </View>
                         </View>
                         <View style={styles.taskAdminActions}>
-                          {task.hasSignedUp ? (
-                            <View style={styles.signedBadge}>
-                              <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
-                            </View>
-                          ) : isFull ? (
-                            <View style={styles.fullBadge}>
-                              <Text style={styles.fullBadgeText}>Full</Text>
-                            </View>
-                          ) : null}
+                          <TouchableOpacity
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            activeOpacity={isFull && !task.hasSignedUp ? 1 : 0.7}
+                            onPress={() => { if (!isFull || task.hasSignedUp) handleToggleSignup(task); }}
+                          >
+                            {task.hasSignedUp ? (
+                              <View style={styles.signedBadge}>
+                                <Ionicons name="checkmark-circle" size={20} color={Colors.brand.primary} />
+                              </View>
+                            ) : isFull ? (
+                              <View style={styles.fullBadge}>
+                                <Text style={styles.fullBadgeText}>Full</Text>
+                              </View>
+                            ) : (
+                              <View style={styles.signUpBadge}>
+                                <Ionicons name="add-circle-outline" size={20} color={Colors.brand.primary} />
+                              </View>
+                            )}
+                          </TouchableOpacity>
                           <View style={styles.taskOptionsBtn}>
                             <Ionicons name="ellipsis-vertical" size={16} color={Colors.text.tertiary} />
                           </View>
@@ -1920,11 +1930,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  signupSectionTitle: {
-    flex: 1,
-    fontWeight: Typography.weights.medium as any,
-    marginRight: Spacing.sm,
-    marginBottom: 0,
+  signupSectionHeader: {
+    marginBottom: Spacing.md,
+  },
+  addButtonBelow: {
+    alignSelf: 'flex-start',
+    marginTop: Spacing.xs,
   },
   addButtonInline: {
     paddingHorizontal: Spacing.md,
@@ -2035,6 +2046,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   signedBadge: {
+    marginLeft: Spacing.sm,
+    justifyContent: 'center',
+  },
+  signUpBadge: {
     marginLeft: Spacing.sm,
     justifyContent: 'center',
   },
