@@ -13,7 +13,7 @@ import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
 import { useAppVersionCheck } from '../../hooks/useAppVersionCheck';
 
-const APP_STAGE = 'alpha';
+const APP_STAGE = 'Pre-Alpha (Internal Testing)';
 const LOCAL_VERSION = Constants.expoConfig?.version ?? null;
 
 export default function AccountSettingsScreen() {

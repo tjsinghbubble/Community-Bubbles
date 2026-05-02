@@ -5,7 +5,7 @@ import { appConfig } from "@shared/schema";
 const defaults = [
   { key: "max_bubble_photos", value: "20" },
   { key: "maintenance_mode", value: "false" },
-  { key: "mobile_min_version", value: "1.0.0" },
+  { key: "mobile_min_version", value: "0.1.0" },
 ];
 
 export async function seedAppConfig() {
