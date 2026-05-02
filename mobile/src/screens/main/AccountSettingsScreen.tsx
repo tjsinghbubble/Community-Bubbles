@@ -7,14 +7,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import Constants from 'expo-constants';
 import { Colors, Spacing, Typography, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
 import { useAppVersionCheck } from '../../hooks/useAppVersionCheck';
+import { APP_STAGE, APP_VERSION } from '../../constants/app';
 
-const APP_STAGE = 'Pre-Alpha (Internal Testing)';
-const LOCAL_VERSION = Constants.expoConfig?.version ?? null;
+const LOCAL_VERSION = APP_VERSION;
 
 export default function AccountSettingsScreen() {
   const navigation = useNavigation<any>();

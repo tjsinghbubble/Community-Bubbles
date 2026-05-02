@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import Constants from 'expo-constants';
 import apiService from '../services/api.service';
+import { APP_VERSION } from '../constants/app';
 
-const LOCAL_VERSION = Constants.expoConfig?.version ?? null;
+const LOCAL_VERSION = APP_VERSION;
 
 function isNewerVersion(serverVer: string, localVer: string): boolean {
   const toParts = (v: string): number[] => {

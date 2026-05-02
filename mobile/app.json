@@ -40,6 +40,9 @@
     "plugins": [
       "expo-image-picker",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "appStage": "Pre-Alpha (Internal Testing)"
+    }
   }
 }
