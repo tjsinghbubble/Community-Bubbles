@@ -71,8 +71,14 @@ export function registerHealthRoutes(app: Express): void {
     res.status(200).type("text/plain").send("pong");
   });
 
-  app.get("/api/v1/version", (_req, res) => {
-    return res.status(200).json({ version: APP_VERSION });
+  app.get("/api/v1/version", async (_req, res) => {
+    try {
+      const rows = await db.select().from(appConfig).where(eq(appConfig.key, 'mobile_min_version'));
+      const mobileMinVersion = rows[0]?.value ?? '1.0.0';
+      return res.status(200).json({ version: APP_VERSION, mobileMinVersion });
+    } catch {
+      return res.status(200).json({ version: APP_VERSION, mobileMinVersion: '1.0.0' });
+    }
   });
 
   app.get("/api/v1/status", async (_req, res) => {

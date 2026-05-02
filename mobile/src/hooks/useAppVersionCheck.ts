@@ -36,7 +36,8 @@ export function useAppVersionCheck(): AppVersionCheckResult {
     apiService.getAppVersion()
       .then((res) => {
         setServerVersion(res.version);
-        if (LOCAL_VERSION && isNewerVersion(res.version, LOCAL_VERSION)) {
+        const minVersion = (res as any).mobileMinVersion ?? null;
+        if (LOCAL_VERSION && minVersion && isNewerVersion(minVersion, LOCAL_VERSION)) {
           setUpdateAvailable(true);
         }
       })
