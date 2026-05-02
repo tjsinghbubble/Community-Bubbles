@@ -1,0 +1,17 @@
+npx expo start --tunnel --clear 
+Starting project at /Users/navneetrandhawa/Community-Bubbles/mobile
+PluginError: Unable to resolve a valid config plugin for @react-native-community/datetimepicker.
+• No "app.plugin.js" file found in @react-native-community/datetimepicker: config plugins are typically exported from an "app.plugin.js" file in the package root.
+• main export of @react-native-community/datetimepicker does not appear to be a config plugin: the following error was thrown when importing /Users/navneetrandhawa/Community-Bubbles/mobile/node_modules/@react-native-community/datetimepicker/src/index.js: Cannot find module '/Users/navneetrandhawa/Community-Bubbles/mobile/node_modules/@react-native-community/datetimepicker/src/datetimepicker' imported from /Users/navneetrandhawa/Community-Bubbles/mobile/node_modules/@react-native-community/datetimepicker/src/index.js ERR_MODULE_NOT_FOUND
+Verify that @react-native-community/datetimepicker includes a config plugin. If it does not, then remove the entry from plugins in your app config file. Learn more: https://docs.expo.dev/guides/config-plugins/
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/navneetrandhawa/Community-Bubbles/mobile/node_modules/@react-native-community/datetimepicker/src/datetimepicker' imported from /Users/navneetrandhawa/Community-Bubbles/mobile/node_modules/@react-native-community/datetimepicker/src/index.js
+    at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+    at moduleResolve (node:internal/modules/esm/resolve:864:10)
+    at defaultResolve (node:internal/modules/esm/resolve:990:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:737:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:773:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:796:52)
+    at #cachedResolveSync (node:internal/modules/esm/loader:756:25)
+    at ModuleLoader.getModuleJobForRequire (node:internal/modules/esm/loader:450:50)
+    at #link (node:internal/modules/esm/module_job:447:34)
+    at new ModuleJobSync (node:internal/modules/esm/module_job:420:17)
