@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { API_URL } from '../../config/api';
 import { Colors, Spacing, Radius } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
@@ -28,14 +29,10 @@ type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
 };
 
-// Must match the min() constraint in shared/schema.ts insertUserSchema
 const PASSWORD_MIN_LENGTH = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'];
 
 const MAX_DOB_DATE = (() => {
   const d = new Date();
@@ -43,39 +40,13 @@ const MAX_DOB_DATE = (() => {
   return d;
 })();
 
-type CalDate = { year: number; month: number; day: number };
+const MIN_DOB_DATE = new Date(1910, 0, 1);
 
-function buildCalendarGrid(year: number, month: number): ({ day: number; inMonth: boolean; date: CalDate })[] {
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrev = new Date(year, month, 0).getDate();
-  const cells: { day: number; inMonth: boolean; date: CalDate }[] = [];
-
-  for (let i = firstWeekday - 1; i >= 0; i--) {
-    const d = daysInPrev - i;
-    const prevMonth = month === 0 ? 11 : month - 1;
-    const prevYear = month === 0 ? year - 1 : year;
-    cells.push({ day: d, inMonth: false, date: { year: prevYear, month: prevMonth, day: d } });
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push({ day: d, inMonth: true, date: { year, month, day: d } });
-  }
-  const remainder = 42 - cells.length;
-  for (let d = 1; d <= remainder; d++) {
-    const nextMonth = month === 11 ? 0 : month + 1;
-    const nextYear = month === 11 ? year + 1 : year;
-    cells.push({ day: d, inMonth: false, date: { year: nextYear, month: nextMonth, day: d } });
-  }
-  return cells;
-}
-
-function isAfterMax(date: CalDate): boolean {
-  const d = new Date(date.year, date.month, date.day);
-  return d > MAX_DOB_DATE;
-}
-
-function isBeforeMin(date: CalDate): boolean {
-  return date.year < 1910;
+function formatDOB(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
 }
 
 export default function SignupScreen({ navigation }: Props) {
@@ -98,9 +69,13 @@ export default function SignupScreen({ navigation }: Props) {
   const [emailBlurred, setEmailBlurred] = useState(false);
   const emailError = emailBlurred && (email.length === 0 || !EMAIL_REGEX.test(email));
 
-  const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
-  const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
-  const [selectedCal, setSelectedCal] = useState<CalDate | null>(null);
+  // Spinner date picker state — default to 22 years ago so wheel feels natural
+  const defaultPickerDate = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 22);
+    return d;
+  })();
+  const [pickerDate, setPickerDate] = useState<Date>(defaultPickerDate);
 
   const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 
@@ -156,45 +131,14 @@ export default function SignupScreen({ navigation }: Props) {
     }
   }, [isFormValid, email, name, password, gender, dateOfBirth, profilePhotoUri, navigation]);
 
-  const prevMonth = useCallback(() => {
-    setCalMonth(m => {
-      if (m === 0) { setCalYear(y => y - 1); return 11; }
-      return m - 1;
-    });
-  }, []);
-
-  const nextMonth = useCallback(() => {
-    setCalMonth(m => {
-      if (m === 11) { setCalYear(y => y + 1); return 0; }
-      return m + 1;
-    });
-  }, []);
-
-  const handleDayPress = useCallback((date: CalDate) => {
-    if (isAfterMax(date) || isBeforeMin(date)) return;
-    setSelectedCal(date);
-  }, []);
-
   const handleConfirmDate = useCallback(() => {
-    if (!selectedCal) return;
-    const mm = String(selectedCal.month + 1).padStart(2, '0');
-    const dd = String(selectedCal.day).padStart(2, '0');
-    setDateOfBirth(`${mm}/${dd}/${selectedCal.year}`);
+    setDateOfBirth(formatDOB(pickerDate));
     setShowDatePicker(false);
-  }, [selectedCal]);
+  }, [pickerDate]);
 
   const openDatePicker = useCallback(() => {
-    setSelectedCal(null);
-    setCalYear(MAX_DOB_DATE.getFullYear() - 2);
-    setCalMonth(MAX_DOB_DATE.getMonth());
     setShowDatePicker(true);
   }, []);
-
-  const canNavPrev = !(calYear <= 1910 && calMonth === 0);
-  const canNavNext = !(calYear > MAX_DOB_DATE.getFullYear() ||
-    (calYear === MAX_DOB_DATE.getFullYear() && calMonth >= MAX_DOB_DATE.getMonth()));
-
-  const calCells = buildCalendarGrid(calYear, calMonth);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -250,7 +194,7 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker}>
+              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker} testID="button-dob">
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
@@ -386,83 +330,32 @@ export default function SignupScreen({ navigation }: Props) {
         </TouchableOpacity>
       </Modal>
 
-      {/* Calendar Date Picker */}
+      {/* Date of Birth — native 3-wheel spinner */}
       <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
-        <View style={styles.calOverlay}>
+        <View style={styles.dobOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
-          <View style={styles.calModal}>
-            <View style={styles.calModalHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calBackBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
+          <View style={styles.dobSheet}>
+            <View style={styles.dobHeader}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.dobCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <Text style={styles.calModalTitle}>Date of Birth</Text>
-              <View style={styles.calBackBtn} />
-            </View>
-
-            <View style={styles.calNavRow}>
-              <TouchableOpacity
-                onPress={prevMonth}
-                disabled={!canNavPrev}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={[styles.calNavBtn, !canNavPrev && styles.calNavBtnDisabled]}
-              >
-                <Ionicons name="chevron-back" size={20} color={canNavPrev ? Colors.brand.midnight : Colors.neutral.coolMist} />
-              </TouchableOpacity>
-              <Text style={styles.calMonthYear}>{MONTH_NAMES[calMonth]} {calYear}</Text>
-              <TouchableOpacity
-                onPress={nextMonth}
-                disabled={!canNavNext}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={[styles.calNavBtn, !canNavNext && styles.calNavBtnDisabled]}
-              >
-                <Ionicons name="chevron-forward" size={20} color={canNavNext ? Colors.brand.midnight : Colors.neutral.coolMist} />
+              <Text style={styles.dobTitle}>Date of Birth</Text>
+              <TouchableOpacity onPress={handleConfirmDate} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.dobDoneText}>Done</Text>
               </TouchableOpacity>
             </View>
-
-            <View style={styles.calDayHeaders}>
-              {DAY_LABELS.map(d => (
-                <Text key={d} style={styles.calDayHeader}>{d}</Text>
-              ))}
-            </View>
-
-            <View style={styles.calGrid}>
-              {calCells.map((cell, idx) => {
-                const disabled = isAfterMax(cell.date) || isBeforeMin(cell.date);
-                const isSelected = !!(selectedCal &&
-                  selectedCal.year === cell.date.year &&
-                  selectedCal.month === cell.date.month &&
-                  selectedCal.day === cell.date.day &&
-                  cell.inMonth);
-                return (
-                  <TouchableOpacity
-                    key={idx}
-                    style={styles.calCell}
-                    onPress={() => cell.inMonth && !disabled && handleDayPress(cell.date)}
-                    disabled={!cell.inMonth || disabled}
-                    activeOpacity={0.7}
-                  >
-                    <View style={[styles.calDayCircle, isSelected && styles.calDayCircleSelected]}>
-                      <Text style={[
-                        styles.calDayText,
-                        !cell.inMonth && styles.calDayTextOtherMonth,
-                        disabled && styles.calDayTextDisabled,
-                        isSelected && styles.calDayTextSelected,
-                      ]}>
-                        {cell.day}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.calFooter}>
-              <BubbleButton
-                title="Confirm"
-                onPress={handleConfirmDate}
-                disabled={!selectedCal}
-              />
-            </View>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="spinner"
+              maximumDate={MAX_DOB_DATE}
+              minimumDate={MIN_DOB_DATE}
+              onChange={(_event, selectedDate) => {
+                if (selectedDate) setPickerDate(selectedDate);
+              }}
+              textColor={Colors.brand.midnight}
+              style={styles.spinner}
+            />
           </View>
         </View>
       </Modal>
@@ -546,53 +439,20 @@ const styles = StyleSheet.create({
   modalOptionText: { fontSize: 16, color: Colors.neutral.charcoal },
   modalOptionSelected: { color: Colors.brand.bubbleBlue, fontWeight: '600' },
 
-  // Calendar
-  calOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  calModal: {
-    backgroundColor: '#FAFAFA',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingBottom: 40,
+  // DOB scroll-wheel sheet
+  dobOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  dobSheet: {
+    backgroundColor: '#F8F8F8',
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    paddingBottom: 34,
   },
-  calModalHeader: {
+  dobHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: '#EEEEEE',
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#D9D9D9',
   },
-  calBackBtn: { width: 36, alignItems: 'flex-start' },
-  calModalTitle: { fontSize: 17, fontWeight: '600', color: Colors.brand.midnight },
-  calNavRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14,
-  },
-  calNavBtn: { padding: 4 },
-  calNavBtnDisabled: { opacity: 0.3 },
-  calMonthYear: { fontSize: 16, fontWeight: '600', color: Colors.brand.midnight },
-  calDayHeaders: {
-    flexDirection: 'row', paddingHorizontal: 12, marginBottom: 4,
-  },
-  calDayHeader: {
-    flex: 1, textAlign: 'center', fontSize: 12,
-    fontWeight: '600', color: Colors.neutral.coolMist,
-    paddingVertical: 4,
-  },
-  calGrid: {
-    flexDirection: 'row', flexWrap: 'wrap',
-    paddingHorizontal: 12,
-  },
-  calCell: {
-    width: `${100 / 7}%` as any,
-    aspectRatio: 1,
-    alignItems: 'center', justifyContent: 'center',
-    padding: 2,
-  },
-  calDayCircle: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  calDayCircleSelected: { backgroundColor: Colors.brand.bubbleBlue },
-  calDayText: { fontSize: 14, color: Colors.brand.midnight, fontWeight: '500' },
-  calDayTextOtherMonth: { color: Colors.neutral.coolMist, opacity: 0.4 },
-  calDayTextDisabled: { color: Colors.neutral.coolMist, opacity: 0.35 },
-  calDayTextSelected: { color: '#FFFFFF', fontWeight: '700' },
-  calFooter: { paddingHorizontal: 24, paddingTop: 16 },
+  dobTitle: { fontSize: 16, fontWeight: '600', color: Colors.brand.midnight },
+  dobCancelText: { fontSize: 16, color: Colors.neutral.coolMist },
+  dobDoneText: { fontSize: 16, fontWeight: '600', color: Colors.brand.bubbleBlue },
+  spinner: { width: '100%', height: 216 },
 });
