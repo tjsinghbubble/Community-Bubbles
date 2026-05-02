@@ -13,4 +13,9 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+config.resolver.blockList = [
+  /.*[/\\]\.local[/\\].*/,
+  /.*[/\\]\.git[/\\].*/,
+];
+
 module.exports = config;

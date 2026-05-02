@@ -1,6 +1,6 @@
 {
   "name": "bubble-mobile",
-  "version": "26.0.1",
+  "version": "0.1.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
