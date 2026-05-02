@@ -520,6 +520,12 @@ export default function ViewProfileScreen({ navigation }: Props) {
         }
       />
 
+      {showCompleteCard && (
+        <View style={styles.topProgressBarTrack}>
+          <View style={[styles.topProgressBarFill, { width: progressPercent as DimensionValue }]} />
+        </View>
+      )}
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.profileCard, CardShadow]}>
           {user.profilePhoto ? (
@@ -559,17 +565,9 @@ export default function ViewProfileScreen({ navigation }: Props) {
             ]}
             testID="section-complete-profile"
           >
-            <View style={styles.progressHeader} testID="progress-header">
-              <Text style={styles.progressLabel} testID="text-progress-count">
-                {completedCount} of {totalCount} complete
-              </Text>
-            </View>
-            <View style={styles.progressBarTrack} testID="progress-bar-track">
-              <View
-                style={[styles.progressBarFill, { width: progressPercent as DimensionValue }]}
-                testID="progress-bar-fill"
-              />
-            </View>
+            <Text style={styles.progressLabel} testID="text-progress-count">
+              {completedCount} of {totalCount} complete
+            </Text>
             <Text style={styles.completeTitle}>Complete your profile</Text>
             <Text style={styles.completeSubtitle}>
               Your Bubble profile is an important part of every community. Complete yours to help other admins and members get to know you.
@@ -764,28 +762,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  progressHeader: {
+  topProgressBarTrack: {
     width: '100%',
-    alignItems: 'flex-end',
-    marginBottom: 6,
+    height: 4,
+    backgroundColor: '#E8E8E8',
+  },
+  topProgressBarFill: {
+    height: '100%',
+    backgroundColor: Colors.brand.bubbleBlue,
   },
   progressLabel: {
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold as any,
     color: Colors.brand.bubbleBlue,
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#E8E8E8',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 18,
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: Colors.brand.bubbleBlue,
-    borderRadius: 3,
+    alignSelf: 'flex-end',
+    marginBottom: 14,
   },
   completeTitle: {
     fontSize: Typography.sizes.xl,

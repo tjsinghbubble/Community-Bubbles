@@ -1117,7 +1117,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.bulletinSection} onLayout={(e) => { tasksYRef.current = e.nativeEvent.layout.y; }}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, styles.signupSectionTitle]}>
               Sign-up & Help {creatorDisplayName}
             </Text>
             {canManage && (
@@ -1919,6 +1919,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
+  },
+  signupSectionTitle: {
+    flex: 1,
+    fontWeight: Typography.weights.medium as any,
+    marginRight: Spacing.sm,
+    marginBottom: 0,
   },
   addButtonInline: {
     paddingHorizontal: Spacing.md,
