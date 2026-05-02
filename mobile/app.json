@@ -32,7 +32,7 @@
         "READ_MEDIA_IMAGES",
         "CAMERA"
       ],
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
