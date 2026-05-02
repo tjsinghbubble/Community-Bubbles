@@ -12,15 +12,29 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Typography, Radius } from '../../styles/theme';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { Colors, Spacing, Typography } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 import SuccessModal from '../../components/SuccessModal';
 
-export default function GiveFeedbackScreen() {
+type FeedbackFormParams = {
+  FeedbackForm: {
+    type: 'feature' | 'defect' | 'help';
+    title: string;
+    subtitle: string;
+    placeholder: string;
+    successTitle: string;
+    successSubtitle: string;
+    buttonLabel: string;
+  };
+};
+
+export default function FeedbackFormScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<FeedbackFormParams, 'FeedbackForm'>>();
+  const { type, title, subtitle, placeholder, successTitle, successSubtitle, buttonLabel } = route.params;
   const { token } = useAuth();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -38,16 +52,16 @@ export default function GiveFeedbackScreen() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ type: 'feedback', message: trimmed }),
+        body: JSON.stringify({ type, message: trimmed }),
       });
       const data = await response.json();
       if (!response.ok) {
-        Alert.alert('Error', data.error || 'Failed to submit feedback. Please try again.');
+        Alert.alert('Error', data.error || 'Failed to submit. Please try again.');
         return;
       }
       setShowSuccessModal(true);
     } catch {
-      Alert.alert('Error', 'Failed to submit feedback. Please check your connection and try again.');
+      Alert.alert('Error', 'Failed to submit. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +69,7 @@ export default function GiveFeedbackScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Give us Feedback" onBack={() => navigation.goBack()} />
+      <NavHeader title={title} onBack={() => navigation.goBack()} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -66,14 +80,12 @@ export default function GiveFeedbackScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>Share your feedback</Text>
-          <Text style={styles.body}>
-            Thanks for sharing your ideas, issues, or appreciation. We can't respond individually, but we read everything and pass it to the teams making Bubble better.
-          </Text>
+          <Text style={styles.heading}>{title}</Text>
+          <Text style={styles.body}>{subtitle}</Text>
 
           <TextInput
             style={styles.textArea}
-            placeholder="What's on your mind?"
+            placeholder={placeholder}
             placeholderTextColor={Colors.neutral.coolMist}
             value={message}
             onChangeText={setMessage}
@@ -81,7 +93,7 @@ export default function GiveFeedbackScreen() {
             numberOfLines={6}
             textAlignVertical="top"
             maxLength={2000}
-            testID="input-feedback-message"
+            testID="input-form-message"
           />
           <Text style={styles.charCount}>{message.length}/2000</Text>
 
@@ -89,19 +101,19 @@ export default function GiveFeedbackScreen() {
             style={[styles.submitButton, (!message.trim() || isLoading) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={!message.trim() || isLoading}
-            testID="button-submit-feedback"
+            testID="button-submit-form"
           >
             {isLoading
               ? <ActivityIndicator color="#FFFFFF" />
-              : <Text style={styles.submitButtonText}>Submit Feedback</Text>}
+              : <Text style={styles.submitButtonText}>{buttonLabel}</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <SuccessModal
         visible={showSuccessModal}
-        title="Feedback Received!"
-        subtitle="Thank you for sharing your thoughts. We really appreciate it."
+        title={successTitle}
+        subtitle={successSubtitle}
         onClose={() => {
           setShowSuccessModal(false);
           navigation.goBack();

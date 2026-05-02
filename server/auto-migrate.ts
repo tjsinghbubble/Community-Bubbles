@@ -73,6 +73,15 @@ export async function autoMigrate(): Promise<void> {
       ALTER TABLE event_attendees
         ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS reminder_1h_sent  BOOLEAN NOT NULL DEFAULT false;
+
+      -- feedback (user-submitted feedback, feature requests, defect reports, help requests)
+      CREATE TABLE IF NOT EXISTS feedback (
+        id         SERIAL PRIMARY KEY,
+        user_id    VARCHAR REFERENCES users(id) ON DELETE SET NULL,
+        type       TEXT NOT NULL,
+        message    TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     console.log("[autoMigrate] Schema is up to date.");

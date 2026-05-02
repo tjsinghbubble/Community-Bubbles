@@ -100,7 +100,7 @@ export default function LoginScreen({ navigation }: Props) {
                     : <EyeOffIcon size={24} color="#969696" />}
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => {}}>
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} testID="button-forgot-password">
                 <Text style={styles.forgotPassword}>Forgot your password?</Text>
               </TouchableOpacity>
             </View>

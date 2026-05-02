@@ -458,6 +458,120 @@ export async function registerRoutes(
     signupRateLimiter: sendLimiter,
   });
 
+  // Send verification code to the currently logged-in user's email (for account confirmation)
+  app.post("/api/auth/send-account-verification", authMiddleware, async (req: any, res: any) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      await storage.createVerificationCode({ email: user.email, code, expiresAt });
+
+      let emailFailed = false;
+      try {
+        await sendVerificationEmail(user.email, code);
+      } catch (e: any) {
+        console.error("[EMAIL] send-account-verification failed:", e.message);
+        emailFailed = true;
+      }
+
+      const response: any = { success: true };
+      if (emailFailed) {
+        response.emailFailed = true;
+        response.fallbackCode = code;
+      }
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Account verification code for ${user.email}:`, code);
+      }
+      res.json(response);
+    } catch (error: any) {
+      serverError(res, error, "send-account-verification");
+    }
+  });
+
+  // Send password reset code (public — email must belong to an existing account)
+  app.post("/api/auth/forgot-password", sendLimiter, async (req: any, res: any) => {
+    try {
+      const { email } = z.object({ email: z.string().email().max(254) }).parse(req.body ?? {});
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Return success regardless to prevent email enumeration
+        return res.json({ success: true });
+      }
+
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+      await storage.createVerificationCode({ email: user.email, code, expiresAt });
+
+      let emailFailed = false;
+      try {
+        await sendVerificationEmail(user.email, code);
+      } catch (e: any) {
+        console.error("[EMAIL] forgot-password email failed:", e.message);
+        emailFailed = true;
+      }
+
+      const response: any = { success: true };
+      if (emailFailed) {
+        response.emailFailed = true;
+        response.fallbackCode = code;
+      }
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Password reset code for ${user.email}:`, code);
+      }
+      res.json(response);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reset password — verify code then update password
+  app.post("/api/auth/reset-password", authLimiter, async (req: any, res: any) => {
+    try {
+      const { email, code, newPassword } = z.object({
+        email: z.string().email().max(254),
+        code: z.string().min(6).max(10),
+        newPassword: z.string().min(8).max(1000),
+      }).parse(req.body ?? {});
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) return res.status(400).json({ error: "Invalid or expired code" });
+
+      const verificationCode = await storage.getValidVerificationCode(user.email, code);
+      if (!verificationCode) return res.status(400).json({ error: "Invalid or expired code" });
+
+      await storage.markCodeAsUsed(verificationCode.id);
+
+      const bcrypt = await import("bcrypt");
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(user.id, hashedPassword);
+
+      clearLoginFailures(user.email);
+      invalidateUserCache(user.id);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Submit user feedback (feedback, feature request, defect report, help request)
+  app.post("/api/feedback", authMiddleware, async (req: any, res: any) => {
+    try {
+      const { type, message } = z.object({
+        type: z.enum(["feedback", "feature", "defect", "help"]),
+        message: z.string().min(1).max(5000),
+      }).parse(req.body ?? {});
+
+      const entry = await storage.createFeedback({ userId: req.userId!, type, message });
+      res.json({ success: true, id: entry.id });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
   // Logout — invalidates all existing tokens for this user
   app.post("/api/auth/logout", authMiddleware, async (req, res) => {
     try {

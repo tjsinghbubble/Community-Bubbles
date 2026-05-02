@@ -744,3 +744,16 @@ export const apiLatencySamples = pgTable("api_latency_samples", {
 });
 
 export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;
+
+// User-submitted feedback (feedback, feature requests, defect reports, help requests)
+export const feedback = pgTable("feedback", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  type: text("type").notNull(), // 'feedback' | 'feature' | 'defect' | 'help'
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({ id: true, createdAt: true });
+export type Feedback = typeof feedback.$inferSelect;
+export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;

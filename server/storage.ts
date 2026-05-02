@@ -91,6 +91,9 @@ import {
   notificationPreferences,
   type NotificationPreferences,
   type InsertNotificationPreferences,
+  feedback,
+  type Feedback,
+  type InsertFeedback,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -347,6 +350,12 @@ export interface IStorage {
   getLatestLatencySamples(): Promise<ApiLatencySample[]>;
   purgeOldLatencySamples(olderThanDays?: number): Promise<void>;
   deleteAllLatencySamples(): Promise<void>;
+
+  // Feedback
+  createFeedback(data: InsertFeedback): Promise<Feedback>;
+
+  // Password reset
+  updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2723,6 +2732,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAllLatencySamples(): Promise<void> {
     await db.delete(apiLatencySamples);
+  }
+
+  async createFeedback(data: InsertFeedback): Promise<Feedback> {
+    const [row] = await db.insert(feedback).values(data).returning();
+    return row;
+  }
+
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
+    await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 }
 

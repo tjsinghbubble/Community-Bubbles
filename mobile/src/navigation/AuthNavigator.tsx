@@ -5,6 +5,8 @@ import WelcomeScreen from '../screens/auth/WelcomeScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import EmailVerificationScreen from '../screens/auth/EmailVerificationScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import InterestsScreen from '../screens/auth/InterestsScreen';
 import GuidelinesScreen from '../screens/auth/GuidelinesScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
@@ -15,6 +17,8 @@ export type AuthStackParamList = {
   Signup: undefined;
   Login: undefined;
   EmailVerification: { email: string; name: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string };
+  ForgotPassword: undefined;
+  ResetPassword: { email: string };
   Interests: { name: string; email: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string; activeTab?: number; scrollOffset?: number; selectedInterests?: string[] };
   Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[]; profilePhotoUri?: string };
   TermsOfService: undefined;
@@ -79,6 +83,22 @@ function TermsOfServiceScreenWithBoundary(props: React.ComponentProps<typeof Ter
   );
 }
 
+function ForgotPasswordScreenWithBoundary(props: React.ComponentProps<typeof ForgotPasswordScreen>) {
+  return (
+    <ScreenErrorBoundary context="ForgotPasswordScreen" message="Couldn't load forgot password — tap to retry">
+      <ForgotPasswordScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function ResetPasswordScreenWithBoundary(props: React.ComponentProps<typeof ResetPasswordScreen>) {
+  return (
+    <ScreenErrorBoundary context="ResetPasswordScreen" message="Couldn't load reset password — tap to retry">
+      <ResetPasswordScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function PrivacyPolicyScreenWithBoundary(props: React.ComponentProps<typeof PrivacyPolicyScreen>) {
   return (
     <ScreenErrorBoundary context="PrivacyPolicyScreen" message="Couldn't load Privacy Policy — tap to retry">
@@ -101,6 +121,8 @@ export default function AuthNavigator() {
       <Stack.Screen name="Signup" component={SignupScreenWithBoundary} />
       <Stack.Screen name="Login" component={LoginScreenWithBoundary} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreenWithBoundary} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenWithBoundary} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreenWithBoundary} />
       <Stack.Screen name="Interests" component={InterestsScreenWithBoundary} />
       <Stack.Screen name="Guidelines" component={GuidelinesScreenWithBoundary} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreenWithBoundary} />

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,24 @@ export default function DataConfirmAccountScreen() {
       })()
     : '';
 
+  useEffect(() => {
+    sendCode();
+  }, []);
+
+  const sendCode = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/send-account-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to send account verification code:', error);
+    }
+  };
+
   const handleCodeChange = (value: string, index: number) => {
     if (value.length > 1) {
       value = value.charAt(value.length - 1);
@@ -67,16 +85,18 @@ export default function DataConfirmAccountScreen() {
     }
   };
 
-  const VALID_CODE = '122333';
-
   const handleConfirm = async () => {
     if (!isCodeComplete) return;
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const enteredCode = code.join('');
-      if (enteredCode !== VALID_CODE) {
-        Alert.alert('Incorrect Code', 'The code you entered is incorrect. Please check your email and try again.');
+      const verifyResponse = await fetch(`${API_URL}/api/auth/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user?.email, code: code.join('') }),
+      });
+      const verifyData = await verifyResponse.json();
+      if (!verifyResponse.ok) {
+        Alert.alert('Incorrect Code', verifyData.error || 'The code you entered is incorrect. Please check your email and try again.');
         setCode(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
         return;
@@ -131,10 +151,25 @@ export default function DataConfirmAccountScreen() {
   const handleResend = async () => {
     setResending(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+      const response = await fetch(`${API_URL}/api/auth/send-account-verification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.emailFailed && data.fallbackCode) {
+        Alert.alert(
+          'Email Delivery Failed',
+          `We couldn't send the email, but your verification code is:\n\n${data.fallbackCode}\n\nPlease copy it before continuing.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to resend code.');
+      Alert.alert('Error', 'Failed to resend code. Please try again.');
     } finally {
       setResending(false);
     }
@@ -164,7 +199,7 @@ export default function DataConfirmAccountScreen() {
 
               <View style={styles.content}>
                 <Text style={styles.description}>
-                  To continue, you'll need to confirm your account through one of the following option
+                  To continue, enter the 6-digit verification code sent to your email.
                 </Text>
 
                 <TouchableOpacity
@@ -228,13 +263,6 @@ export default function DataConfirmAccountScreen() {
                     ) : (
                       <Text style={styles.linkText}>Didn't get an email? Send again</Text>
                     )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => Alert.alert('Coming Soon', 'Additional verification methods will be available in a future update.')}
-                    testID="button-try-another"
-                  >
-                    <Text style={styles.linkText}>Try another option</Text>
                   </TouchableOpacity>
                 </View>
               </View>

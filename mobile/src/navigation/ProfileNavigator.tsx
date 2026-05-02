@@ -18,6 +18,7 @@ import DataConfirmAccountScreen from '../screens/main/DataConfirmAccountScreen';
 import GetHelpScreen from '../screens/main/GetHelpScreen';
 import GiveFeedbackScreen from '../screens/main/GiveFeedbackScreen';
 import HelpCenterScreen from '../screens/main/HelpCenterScreen';
+import FeedbackFormScreen from '../screens/main/FeedbackFormScreen';
 import ReportConcernScreen from '../screens/main/ReportConcernScreen';
 import ManageRulesScreen from '../screens/main/ManageRulesScreen';
 import CategoryPlaceholdersScreen from '../screens/main/CategoryPlaceholdersScreen';
@@ -47,6 +48,15 @@ export type ProfileStackParamList = {
   GetHelp: undefined;
   GiveFeedback: undefined;
   HelpCenter: undefined;
+  FeedbackForm: {
+    type: 'feature' | 'defect' | 'help';
+    title: string;
+    subtitle: string;
+    placeholder: string;
+    successTitle: string;
+    successSubtitle: string;
+    buttonLabel: string;
+  };
   ReportConcern: undefined;
   ManageRules: undefined;
   CategoryPlaceholders: undefined;
@@ -195,6 +205,14 @@ function HelpCenterScreenWithBoundary(props: React.ComponentProps<typeof HelpCen
   );
 }
 
+function FeedbackFormScreenWithBoundary(props: React.ComponentProps<typeof FeedbackFormScreen>) {
+  return (
+    <ScreenErrorBoundary context="FeedbackFormScreen" message="Couldn't load the form — tap to retry">
+      <FeedbackFormScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function ReportConcernScreenWithBoundary(props: React.ComponentProps<typeof ReportConcernScreen>) {
   return (
     <ScreenErrorBoundary context="ReportConcernScreen" message="Couldn't load report concern — tap to retry">
@@ -287,6 +305,7 @@ export default function ProfileNavigator() {
       <Stack.Screen name="GetHelp" component={GetHelpScreenWithBoundary} />
       <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreenWithBoundary} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreenWithBoundary} />
+      <Stack.Screen name="FeedbackForm" component={FeedbackFormScreenWithBoundary} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreenWithBoundary} />
       <Stack.Screen name="ManageRules" component={ManageRulesScreenWithBoundary} options={{ gestureEnabled: false }} />
       <Stack.Screen name="CategoryPlaceholders" component={CategoryPlaceholdersScreenWithBoundary} />

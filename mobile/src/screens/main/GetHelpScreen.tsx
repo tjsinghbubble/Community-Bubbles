@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +14,39 @@ import { NavHeader } from '../../components/ScreenHeader';
 
 export default function GetHelpScreen() {
   const navigation = useNavigation<any>();
+
+  const navigateToForm = (type: 'feature' | 'defect' | 'help') => {
+    const configs = {
+      help: {
+        type: 'help' as const,
+        title: 'Get Help',
+        subtitle: "Describe what you need help with and we'll pass it to our support team.",
+        placeholder: "What do you need help with?",
+        successTitle: 'Request Received!',
+        successSubtitle: "We've received your help request and will look into it.",
+        buttonLabel: 'Submit Request',
+      },
+      feature: {
+        type: 'feature' as const,
+        title: 'Feature Request',
+        subtitle: "Have an idea that would make Bubble better? We'd love to hear it.",
+        placeholder: "Describe the feature you'd like to see...",
+        successTitle: 'Feature Request Sent!',
+        successSubtitle: "Thanks for sharing your idea. We review all feature requests.",
+        buttonLabel: 'Submit Request',
+      },
+      defect: {
+        type: 'defect' as const,
+        title: 'Report a Defect',
+        subtitle: "Found a bug or something not working right? Let us know so we can fix it.",
+        placeholder: "Describe the defect — what happened, and what you expected to happen...",
+        successTitle: 'Defect Reported!',
+        successSubtitle: "Thanks for the report. We'll investigate and work on a fix.",
+        buttonLabel: 'Submit Report',
+      },
+    };
+    navigation.navigate('FeedbackForm', configs[type]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -35,6 +66,9 @@ export default function GetHelpScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
+
+          <View style={styles.separator} />
+
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
@@ -44,6 +78,51 @@ export default function GetHelpScreen() {
             <View style={styles.menuItemLeft}>
               <Ionicons name="chatbubble-ellipses-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Give us Feedback</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <View style={styles.separator} />
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigateToForm('help')}
+            testID="button-get-help"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="help-circle-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Get Help</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <View style={styles.separator} />
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigateToForm('feature')}
+            testID="button-feature-request"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="bulb-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Feature Request</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <View style={styles.separator} />
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigateToForm('defect')}
+            testID="button-defect-report"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="bug-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Defect Report</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -67,7 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     ...CardShadow,
   },
   menuItem: {
@@ -84,5 +163,9 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: Typography.sizes.base,
     color: Colors.text.tertiary,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
   },
 });

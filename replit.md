@@ -64,6 +64,14 @@ The project is a monorepo containing distinct frontend and backend components.
 
 **Slow API Call Alerts**: Any API call exceeding 2s is persisted to the `slow_calls` database table (endpoint, method, durationMs, createdAt). A new admin screen at `/admin/slow-calls` displays the log, sortable by duration, endpoint, or timestamp, with a 30-day auto-purge. The "Performance Alerts" section in the Admin Monitor links to both this page and the in-memory Latency Dashboard.
 
+**Password Reset Flow**: Forgot password sends a 6-digit code via email (`POST /api/auth/forgot-password`); `POST /api/auth/reset-password` verifies the code and updates the password. Two new auth screens: `ForgotPasswordScreen` and `ResetPasswordScreen`.
+
+**Account Confirmation (Data Download/Delete)**: `DataConfirmAccountScreen` now sends a real verification code to the logged-in user's email on mount via `POST /api/auth/send-account-verification` (auth-required), and verifies via the existing `POST /api/auth/verify-code`. Removed hardcoded `122333` code.
+
+**Campus Email Verification**: `CampusVerifyScreen` resend flow no longer shows devCode in an alert — it uses the fallbackCode path only when email delivery fails.
+
+**User Feedback System**: `POST /api/feedback` (auth-required) stores typed submissions (`feedback` | `feature` | `defect` | `help`) to the `feedback` DB table. Four entry points in the app: Give Feedback, Get Help, Feature Request, and Defect Report — all accessible from the Profile > Get Help menu. A single `FeedbackFormScreen` handles the latter three via route params.
+
 **Crash Report Persistence**: Mobile crash reports submitted to `POST /api/crash-report` are now persisted to the `crash_reports` database table (message, stack, context, platform, appVersion, isFatal, userId, username, createdAt). An admin-only `GET /api/crash-reports` endpoint allows filtering by userId, isFatal, and date range (from/to), with pagination (limit/offset, max 500). Records are automatically pruned after a configurable retention window (default 90 days, overridable via `CRASH_REPORT_RETENTION_DAYS` env var). Indices exist on userId, createdAt, and isFatal for efficient lookups.
 
 **Multi-Image Upload**: Supports uploading up to 5 images for bubbles and events via presigned URLs to Google Cloud Storage.
