@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "jhMQWv9ci95o5s6gVnSjY"
+uri = "file://mobile/assets/icon.png"
+type = "image"
+title = "bubble app icon full bleed"
+
+[[generated]]
+id = "OiBEKWYGWIp-Hi-5bRTDL"
+uri = "file://mobile/assets/adaptive-icon.png"
+type = "image"
+title = "bubble adaptive white bubbles"
+
+[[generated]]
+id = "rrFMpl9tJyhXYuemrpFKz"
+uri = "file://mobile/assets/splash-icon.png"
+type = "image"
+title = "bubble splash icon"
