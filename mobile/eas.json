@@ -15,13 +15,15 @@
     "testflight-staging": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "testflight-staging"
+        "APP_ENV": "testflight-staging",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "APP_ENV": "production"
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io"
       }
     }
   },
