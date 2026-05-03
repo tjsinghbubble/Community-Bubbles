@@ -828,7 +828,7 @@ export async function registerRoutes(
       if (locationLng !== undefined) updateData.locationLng = truncateCoord(locationLng);
       if (radiusMiles !== undefined) updateData.radiusMiles = radiusMiles;
 
-      const updatedBubble = await storage.updateBubble(bubbleId, updateData);
+      const updatedBubble = await storage.updateBubble(bubbleId, updateData, req.userId!);
 
       const editorUser = await storage.getUser(req.userId!);
       notifyBubbleMembers(bubbleId, req.userId!, "bubble_edited",
@@ -870,7 +870,7 @@ export async function registerRoutes(
       }
 
       const updatedImages = [...currentImages, imageUrl];
-      const updatedBubble = await storage.updateBubble(bubbleId, { images: updatedImages });
+      const updatedBubble = await storage.updateBubble(bubbleId, { images: updatedImages }, req.userId!);
       res.json(updatedBubble);
     } catch (error: any) {
       serverError(res, error);
@@ -924,7 +924,7 @@ export async function registerRoutes(
         console.error('CometChat group cleanup on bubble delete:', e);
       }
 
-      await storage.deleteBubble(bubbleId);
+      await storage.deleteBubble(bubbleId, req.userId!);
       res.json({ success: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -952,7 +952,7 @@ export async function registerRoutes(
       if (!user?.isSuperAdmin) {
         return res.status(403).json({ error: "Super admin access required" });
       }
-      const bubble = await storage.approveBubble(req.params.id);
+      const bubble = await storage.approveBubble(req.params.id, req.userId!);
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
@@ -1016,7 +1016,7 @@ export async function registerRoutes(
       if (reason !== undefined && (typeof reason !== 'string' || reason.length > 500)) {
         return res.status(400).json({ error: "Reason must be 500 characters or fewer" });
       }
-      const bubble = await storage.rejectBubble(req.params.id, reason);
+      const bubble = await storage.rejectBubble(req.params.id, reason, req.userId!);
       if (!bubble) {
         return res.status(404).json({ error: "Bubble not found" });
       }
@@ -1875,7 +1875,7 @@ export async function registerRoutes(
         }
       }
       
-      await storage.updateMemberRole(userId, bubbleId, role);
+      await storage.updateMemberRole(userId, bubbleId, role, req.userId!);
       
       try {
         const bubble = await storage.getBubble(bubbleId);
@@ -1928,7 +1928,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Cannot relinquish admin rights - you are the only admin. Promote another member first." });
       }
       
-      await storage.updateMemberRole(req.userId!, bubbleId, 'member');
+      await storage.updateMemberRole(req.userId!, bubbleId, 'member', req.userId!);
       
       try {
         const bubble = await storage.getBubble(bubbleId);
@@ -2082,7 +2082,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: "Only admins can approve join requests" });
       }
 
-      const membership = await storage.approveMembership(userId, bubbleId);
+      const membership = await storage.approveMembership(userId, bubbleId, req.userId!);
       if (!membership) {
         return res.status(404).json({ error: "Join request not found" });
       }
@@ -2192,7 +2192,7 @@ export async function registerRoutes(
       if (!existingStatus || (existingStatus !== 'waitlisted' && existingStatus !== 'on_hold')) {
         return res.status(400).json({ error: "User is not on the waitlist" });
       }
-      const membership = await storage.approveMembership(userId, bubbleId);
+      const membership = await storage.approveMembership(userId, bubbleId, req.userId!);
       if (!membership) {
         return res.status(400).json({ error: "Failed to approve membership" });
       }

@@ -593,14 +593,17 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateBubble(id: string, data: Partial<InsertBubble>): Promise<Bubble | undefined> {
-    const result = await db.update(bubbles).set(data).where(eq(bubbles.id, id)).returning();
+  async updateBubble(id: string, data: Partial<InsertBubble>, updatedBy?: string): Promise<Bubble | undefined> {
+    const result = await db.update(bubbles)
+      .set({ ...data, ...(updatedBy ? { updatedBy } : {}) })
+      .where(eq(bubbles.id, id))
+      .returning();
     return result[0];
   }
 
-  async deleteBubble(id: string): Promise<void> {
+  async deleteBubble(id: string, updatedBy?: string): Promise<void> {
     await db.update(bubbles)
-      .set({ deletedAt: new Date() })
+      .set({ deletedAt: new Date(), ...(updatedBy ? { updatedBy } : {}) })
       .where(eq(bubbles.id, id));
   }
 
@@ -619,9 +622,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(bubbles.createdAt));
   }
 
-  async approveBubble(id: string): Promise<Bubble | undefined> {
+  async approveBubble(id: string, updatedBy?: string): Promise<Bubble | undefined> {
     const result = await db.update(bubbles)
-      .set({ status: 'approved', rejectionReason: null })
+      .set({ status: 'approved', rejectionReason: null, ...(updatedBy ? { updatedBy } : {}) })
       .where(eq(bubbles.id, id))
       .returning();
     
@@ -644,9 +647,9 @@ export class DatabaseStorage implements IStorage {
     return approvedBubble;
   }
 
-  async rejectBubble(id: string, reason?: string): Promise<Bubble | undefined> {
+  async rejectBubble(id: string, reason?: string, updatedBy?: string): Promise<Bubble | undefined> {
     const result = await db.update(bubbles)
-      .set({ status: 'rejected', rejectionReason: reason || null })
+      .set({ status: 'rejected', rejectionReason: reason || null, ...(updatedBy ? { updatedBy } : {}) })
       .where(eq(bubbles.id, id))
       .returning();
     return result[0];
@@ -728,9 +731,9 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async approveMembership(userId: string, bubbleId: string): Promise<Membership | undefined> {
+  async approveMembership(userId: string, bubbleId: string, updatedBy?: string): Promise<Membership | undefined> {
     const result = await db.update(memberships)
-      .set({ membershipStatus: 'approved' })
+      .set({ membershipStatus: 'approved', ...(updatedBy ? { updatedBy } : {}) })
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
       .returning();
     if (result[0]) {
@@ -803,9 +806,9 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.role || null;
   }
 
-  async updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void> {
+  async updateMemberRole(userId: string, bubbleId: string, role: string, updatedBy?: string): Promise<void> {
     await db.update(memberships)
-      .set({ role })
+      .set({ role, ...(updatedBy ? { updatedBy } : {}) })
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)));
   }
 

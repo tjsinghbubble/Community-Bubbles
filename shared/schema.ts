@@ -41,9 +41,9 @@ export const users = pgTable("users", {
   tokenVersion: integer("token_version").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  createdBy: varchar("created_by"),
+  createdBy: varchar("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedBy: varchar("updated_by"),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const userProfiles = pgTable("user_profiles", {

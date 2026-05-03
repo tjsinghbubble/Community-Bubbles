@@ -191,10 +191,10 @@ export async function seedData() {
       privacy: b.privacy,
       locationName: b.locationName,
       locationAddress: b.locationAddress,
-      creatorId: createdUsers[creatorIndex].id,
+      createdBy: createdUsers[creatorIndex].id,
       status: "approved",
       members: memberAssignments[i].adminIndices.length + memberAssignments[i].memberIndices.length,
-    }).returning({ id: bubbles.id, title: bubbles.title, creatorId: bubbles.creatorId });
+    }).returning({ id: bubbles.id, title: bubbles.title, createdBy: bubbles.createdBy });
     createdBubbles.push(created);
   }
   console.log(`[SEED] Created ${createdBubbles.length} bubbles`);
