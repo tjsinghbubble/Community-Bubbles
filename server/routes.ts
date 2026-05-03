@@ -3065,7 +3065,7 @@ export async function registerRoutes(
         userId: a.userId,
         eventId: a.eventId,
         status: a.status,
-        joinedAt: a.createdAt,
+        joinedAt: a.createdAt, // backward-compat alias: mobile reads this field as `joinedAt`
         user: {
           id: a.user.id,
           name: a.user.name,

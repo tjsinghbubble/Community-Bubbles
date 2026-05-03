@@ -986,9 +986,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateEvent(id: string, updates: Partial<InsertEvent>, updatedBy?: string): Promise<Event | undefined> {
-    const setData: Record<string, unknown> = { ...updates };
+    const setData: Partial<typeof events.$inferInsert> = { ...updates };
     if (updatedBy) setData.updatedBy = updatedBy;
-    const result = await db.update(events).set(setData as any).where(eq(events.id, id)).returning();
+    const result = await db.update(events).set(setData).where(eq(events.id, id)).returning();
     return result[0];
   }
 
