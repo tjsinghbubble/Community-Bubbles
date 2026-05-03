@@ -689,6 +689,29 @@ export async function autoMigrate(): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_reports_reported_user_id ON reports (reported_user_id);
     `);
 
+    // ================================================================
+    // BATCH 3 INDEXES: Audit actor query paths
+    // ================================================================
+    await db.execute(sql`
+      -- events.created_by: look up all events created by a specific user
+      CREATE INDEX IF NOT EXISTS idx_events_created_by ON events (created_by);
+
+      -- bubbles.created_by: look up all bubbles created by a specific user
+      CREATE INDEX IF NOT EXISTS idx_bubbles_created_by ON bubbles (created_by);
+
+      -- bulletin_posts.created_by: audit post creation by actor
+      CREATE INDEX IF NOT EXISTS idx_bulletin_posts_created_by ON bulletin_posts (created_by);
+
+      -- memberships.created_at: time-series membership activity
+      CREATE INDEX IF NOT EXISTS idx_memberships_created_at ON memberships (created_at);
+
+      -- event_attendees.created_at: time-series RSVP activity
+      CREATE INDEX IF NOT EXISTS idx_event_attendees_created_at ON event_attendees (created_at);
+
+      -- users.created_by: audit admin-created accounts
+      CREATE INDEX IF NOT EXISTS idx_users_created_by ON users (created_by);
+    `);
+
     console.log("[autoMigrate] Schema is up to date.");
   } catch (err) {
     console.error("[autoMigrate] Migration failed:", err);

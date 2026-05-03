@@ -51,6 +51,7 @@ export const users = pgTable("users", {
 }, (table) => [
   uniqueIndex("idx_users_email_lower").on(table.emailLower),
   index("idx_users_email").on(table.email),
+  index("idx_users_created_by").on(table.createdBy),
 ]);
 
 export const userProfiles = pgTable("user_profiles", {
@@ -101,7 +102,9 @@ export const bubbles = pgTable("bubbles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+}, (table) => [
+  index("idx_bubbles_created_by").on(table.createdBy),
+]);
 
 export const memberships = pgTable("memberships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -115,6 +118,7 @@ export const memberships = pgTable("memberships", {
   updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   uniqueIndex("idx_memberships_user_bubble").on(table.userId, table.bubbleId),
+  index("idx_memberships_created_at").on(table.createdAt),
 ]);
 
 export const verificationCodes = pgTable("verification_codes", {
@@ -226,6 +230,7 @@ export const events = pgTable("events", {
   index("idx_events_bubble_id").on(table.bubbleId),
   index("idx_events_bubble_start").on(table.bubbleId, table.startTime),
   index("idx_events_created_at").on(table.createdAt),
+  index("idx_events_created_by").on(table.createdBy),
 ]);
 
 // Event attendees join table
@@ -242,6 +247,7 @@ export const eventAttendees = pgTable("event_attendees", {
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 }, (table) => [
   uniqueIndex("idx_event_attendees_event_user").on(table.eventId, table.userId),
+  index("idx_event_attendees_created_at").on(table.createdAt),
 ]);
 
 export const insertEventSchema = createInsertSchema(events).omit({
@@ -556,6 +562,7 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   index("idx_bulletin_posts_board_id").on(table.boardId),
   index("idx_bulletin_posts_board_created").on(table.boardId, table.createdAt),
   index("idx_bulletin_posts_author_id").on(table.authorId),
+  index("idx_bulletin_posts_created_by").on(table.createdBy),
 ]);
 
 export const bulletinReplies = pgTable("bulletin_replies", {

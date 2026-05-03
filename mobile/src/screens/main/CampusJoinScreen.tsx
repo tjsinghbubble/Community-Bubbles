@@ -61,22 +61,6 @@ export default function CampusJoinScreen({ navigation }: Props) {
             },
           ]
         );
-      } else if (response.devCode) {
-        Alert.alert(
-          'Verification Code',
-          `Your verification code is: ${response.devCode}\n\nCampus: ${response.campusName}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.navigate('CampusVerify', {
-                  email: email.trim(),
-                  campusName: response.campusName,
-                });
-              },
-            },
-          ]
-        );
       } else {
         navigation.navigate('CampusVerify', {
           email: email.trim(),
