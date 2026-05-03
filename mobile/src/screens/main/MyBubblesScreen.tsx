@@ -37,7 +37,7 @@ type Bubble = {
   members: number;
   coverImage: string | null;
   distance: string | null;
-  creatorId?: string;
+  createdBy?: string;
   role?: string;
   status?: 'pending' | 'approved' | 'rejected';
   campusId?: number | null;

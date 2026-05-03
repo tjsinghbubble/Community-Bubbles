@@ -72,7 +72,7 @@ type Attendee = {
 type Bubble = {
   id: string;
   title: string;
-  creatorId: string;
+  createdBy: string;
   privacy?: string;
 };
 
@@ -299,7 +299,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   }
 
   const isEventCreator = event.creatorId === user?.id;
-  const isBubbleAdmin = bubble?.creatorId === user?.id;
+  const isBubbleAdmin = bubble?.createdBy === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;

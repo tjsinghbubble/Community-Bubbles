@@ -38,7 +38,7 @@ type Event = {
 
 type Bubble = {
   id: string;
-  creatorId: string;
+  createdBy: string;
 };
 
 export default function BubbleEventsScreen({ navigation, route }: Props) {

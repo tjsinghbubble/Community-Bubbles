@@ -405,7 +405,7 @@ export async function registerRoutes(
           category: m.bubble.category,
           role: m.role,
           status: m.membershipStatus,
-          joinedAt: m.joinedAt,
+          joinedAt: m.createdAt,
         })),
         bubblesCreated: createdBubbles.map((b) => ({
           id: b.id,
@@ -733,7 +733,7 @@ export async function registerRoutes(
 
   app.post("/api/bubbles", authMiddleware, async (req, res) => {
     try {
-      const body = { ...req.body, creatorId: req.userId };
+      const body = { ...req.body, createdBy: req.userId };
 
       const modResult = moderateText({
         title: body.title,
@@ -780,7 +780,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUser(req.userId!);
-      const isBubbleAdmin = bubble.creatorId === req.userId;
+      const isBubbleAdmin = bubble.createdBy === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
 
       if (!isBubbleAdmin && !isSuperAdmin) {
@@ -887,7 +887,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUser(req.userId!);
-      const isBubbleAdmin = bubble.creatorId === req.userId;
+      const isBubbleAdmin = bubble.createdBy === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
 
       if (!isBubbleAdmin && !isSuperAdmin) {
@@ -962,8 +962,8 @@ export async function registerRoutes(
         const groupType = bubble.privacy === 'Public' ? 'public' : 'private';
         const cometChatGroupId = String(bubble.id);
         await ensureCometChatGroup(cometChatGroupId, bubble.title || 'Bubble', groupType);
-        if (bubble.creatorId) {
-          const creator = await storage.getUser(bubble.creatorId);
+        if (bubble.createdBy) {
+          const creator = await storage.getUser(bubble.createdBy);
           if (creator) {
             await ensureCometChatUser(String(creator.id), creator.name || creator.email);
             await addMemberToGroup(cometChatGroupId, String(creator.id), 'admin');
@@ -977,12 +977,12 @@ export async function registerRoutes(
         console.error('CometChat group creation on bubble approve:', e);
       }
 
-      if (bubble.creatorId) {
-        const existingMembership = await storage.hasAnyMembership(bubble.creatorId, bubble.id);
+      if (bubble.createdBy) {
+        const existingMembership = await storage.hasAnyMembership(bubble.createdBy, bubble.id);
         if (!existingMembership) {
           try {
             await storage.createMembershipWithRole(
-              { userId: bubble.creatorId, bubbleId: bubble.id },
+              { userId: bubble.createdBy, bubbleId: bubble.id },
               'admin'
             );
           } catch (e) {
@@ -991,7 +991,7 @@ export async function registerRoutes(
         }
 
         sendNotification({
-          recipientId: bubble.creatorId,
+          recipientId: bubble.createdBy,
           type: "bubble_approved",
           title: "Bubble Approved!",
           body: `Your bubble "${bubble.title}" has been approved and is now live!`,
@@ -1022,9 +1022,9 @@ export async function registerRoutes(
       }
       auditLog("bubble_rejected", req.userId!, req.params.id, req.ip ?? "", { reason });
 
-      if (bubble.creatorId) {
+      if (bubble.createdBy) {
         sendNotification({
-          recipientId: bubble.creatorId,
+          recipientId: bubble.createdBy,
           type: "bubble_rejected",
           title: "Bubble Not Approved",
           body: `Your bubble "${bubble.title}" was not approved.${reason ? ` Reason: ${reason}` : ''}`,
@@ -1821,7 +1821,7 @@ export async function registerRoutes(
         userId: m.userId,
         bubbleId: m.bubbleId,
         role: m.role,
-        joinedAt: m.joinedAt,
+        joinedAt: m.createdAt,
         user: {
           id: m.user.id,
           name: m.user.name,
@@ -2061,7 +2061,7 @@ export async function registerRoutes(
         userId: r.userId,
         bubbleId: r.bubbleId,
         membershipStatus: r.membershipStatus,
-        joinedAt: r.joinedAt,
+        joinedAt: r.createdAt,
         user: {
           id: r.user.id,
           name: r.user.name,
@@ -2158,7 +2158,7 @@ export async function registerRoutes(
         userId: r.userId,
         bubbleId: r.bubbleId,
         membershipStatus: r.membershipStatus,
-        joinedAt: r.joinedAt,
+        joinedAt: r.createdAt,
         user: { id: r.user.id, name: r.user.name, profilePhoto: r.user.profilePhoto },
       });
       res.json({
@@ -2608,7 +2608,7 @@ export async function registerRoutes(
       const isEventCreator = event.creatorId === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
       const bubble = await storage.getBubble(event.bubbleId);
-      const isBubbleAdmin = bubble?.creatorId === req.userId;
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
 
       if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
         return res.status(403).json({ error: "Not authorized to edit this event" });
@@ -2696,7 +2696,7 @@ export async function registerRoutes(
       const isEventCreator = event.creatorId === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
       const bubble = await storage.getBubble(event.bubbleId);
-      const isBubbleAdmin = bubble?.creatorId === req.userId;
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
 
       if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
         return res.status(403).json({ error: "Not authorized to delete this event" });
@@ -2777,7 +2777,7 @@ export async function registerRoutes(
               bubbleId: m.bubbleId,
               bubbleTitle: bubble.title,
               membershipStatus: m.membershipStatus,
-              joinedAt: m.joinedAt,
+              joinedAt: m.createdAt,
               user: { id: m.user.id, name: m.user.name, profilePhoto: m.user.profilePhoto },
             });
           }
@@ -2794,7 +2794,7 @@ export async function registerRoutes(
               bubbleId: m.bubbleId,
               bubbleTitle: membership.bubble.title,
               membershipStatus: m.membershipStatus,
-              joinedAt: m.joinedAt,
+              joinedAt: m.createdAt,
               user: { id: m.user.id, name: m.user.name, profilePhoto: m.user.profilePhoto },
             });
           }

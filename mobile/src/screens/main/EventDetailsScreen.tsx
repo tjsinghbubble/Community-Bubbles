@@ -89,7 +89,7 @@ type Attendee = {
 type Bubble = {
   id: string;
   title: string;
-  creatorId: string;
+  createdBy: string;
   privacy?: string;
 };
 

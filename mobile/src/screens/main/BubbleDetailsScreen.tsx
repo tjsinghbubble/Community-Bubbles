@@ -368,7 +368,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const isCreator = bubbleDetails?.creatorId === user?.id;
+  const isCreator = bubbleDetails?.createdBy === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const isBubbleAdmin = myBubbleRole === 'admin';
   const canManage = bubbleDetails && (isCreator || isSuperAdmin || isBubbleAdmin);

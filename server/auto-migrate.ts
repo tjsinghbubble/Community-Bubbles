@@ -84,6 +84,206 @@ export async function autoMigrate(): Promise<void> {
       );
     `);
 
+    // ================================================================
+    // BATCH 1: Audit Trail Foundation
+    // ================================================================
+
+    // Step 1: Create the shared updated_at trigger function
+    await db.execute(sql`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
+    // Step 2: Rename creator_id → created_by on bubbles (idempotent)
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'bubbles' AND column_name = 'creator_id'
+        ) THEN
+          ALTER TABLE bubbles RENAME COLUMN creator_id TO created_by;
+        END IF;
+      END $$;
+    `);
+
+    // Step 3: Rename joined_at → created_at on memberships (idempotent)
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'memberships' AND column_name = 'joined_at'
+        ) THEN
+          ALTER TABLE memberships RENAME COLUMN joined_at TO created_at;
+        END IF;
+      END $$;
+    `);
+
+    // Step 4: Convert all TIMESTAMP columns to TIMESTAMPTZ across every table.
+    // The DO loop checks each column and only converts if still plain TIMESTAMP.
+    await db.execute(sql`
+      DO $$
+      DECLARE
+        r RECORD;
+      BEGIN
+        FOR r IN
+          SELECT tbl, col FROM (VALUES
+            ('campuses',                  'created_at'),
+            ('users',                     'created_at'),
+            ('users',                     'updated_at'),
+            ('bubbles',                   'created_at'),
+            ('bubbles',                   'deleted_at'),
+            ('memberships',               'created_at'),
+            ('verification_codes',        'expires_at'),
+            ('verification_codes',        'created_at'),
+            ('events',                    'created_at'),
+            ('event_attendees',           'joined_at'),
+            ('user_sessions',             'started_at'),
+            ('user_sessions',             'ended_at'),
+            ('bubble_visits',             'visited_at'),
+            ('reports',                   'created_at'),
+            ('bubble_chats',              'created_at'),
+            ('admin_member_chats',        'created_at'),
+            ('notifications',             'created_at'),
+            ('device_push_tokens',        'created_at'),
+            ('device_push_tokens',        'updated_at'),
+            ('notification_preferences',  'updated_at'),
+            ('bulletin_boards',           'created_at'),
+            ('bulletin_boards',           'updated_at'),
+            ('bulletin_post_types',       'created_at'),
+            ('bulletin_post_types',       'updated_at'),
+            ('bulletin_posts',            'created_at'),
+            ('bulletin_posts',            'updated_at'),
+            ('bulletin_replies',          'created_at'),
+            ('bulletin_replies',          'updated_at'),
+            ('bulletin_post_reactions',   'created_at'),
+            ('app_config',                'updated_at'),
+            ('rules',                     'created_at'),
+            ('audit_logs',                'created_at'),
+            ('event_signup_tasks',        'created_at'),
+            ('event_task_signups',        'created_at'),
+            ('crash_reports',             'created_at'),
+            ('latency_buckets',           'bucket_ts'),
+            ('slow_calls',                'created_at'),
+            ('api_latency_samples',       'recorded_at'),
+            ('feedback',                  'created_at')
+          ) AS t(tbl, col)
+        LOOP
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = r.tbl
+              AND column_name = r.col
+              AND data_type = 'timestamp without time zone'
+          ) THEN
+            EXECUTE format(
+              'ALTER TABLE %I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I AT TIME ZONE ''UTC''',
+              r.tbl, r.col, r.col
+            );
+          END IF;
+        END LOOP;
+      END $$;
+    `);
+
+    // Step 5: Add new audit columns to core tables (all idempotent)
+    await db.execute(sql`
+      -- users: created_by (nullable — users self-register)
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- user_profiles: full audit trail
+      ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- bubbles: updated_at, updated_by (created_by already present from rename)
+      ALTER TABLE bubbles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubbles ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- memberships: created_by, updated_at, updated_by
+      ALTER TABLE memberships ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE memberships ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE memberships ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- bubble_visits: created_by (nullable — visits can be anonymous)
+      ALTER TABLE bubble_visits ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+
+      -- bubble_chats: created_by, updated_at, updated_by
+      ALTER TABLE bubble_chats ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE bubble_chats ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubble_chats ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- bubble_rules: all four audit columns
+      ALTER TABLE bubble_rules ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubble_rules ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE bubble_rules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubble_rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- bubble_rule_overrides: all four audit columns
+      ALTER TABLE bubble_rule_overrides ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubble_rule_overrides ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE bubble_rule_overrides ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE bubble_rule_overrides ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+    `);
+
+    // Step 6: Backfill memberships.created_by from user_id, then add NOT NULL
+    await db.execute(sql`
+      UPDATE memberships SET created_by = user_id WHERE created_by IS NULL;
+    `);
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'memberships'
+            AND column_name = 'created_by'
+            AND is_nullable = 'YES'
+        ) THEN
+          ALTER TABLE memberships ALTER COLUMN created_by SET NOT NULL;
+        END IF;
+      END $$;
+    `);
+
+    // Step 7: Install BEFORE UPDATE triggers (idempotent via DROP IF EXISTS)
+    await db.execute(sql`
+      DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+      CREATE TRIGGER update_users_updated_at
+        BEFORE UPDATE ON users
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
+      CREATE TRIGGER update_user_profiles_updated_at
+        BEFORE UPDATE ON user_profiles
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bubbles_updated_at ON bubbles;
+      CREATE TRIGGER update_bubbles_updated_at
+        BEFORE UPDATE ON bubbles
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_memberships_updated_at ON memberships;
+      CREATE TRIGGER update_memberships_updated_at
+        BEFORE UPDATE ON memberships
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bubble_chats_updated_at ON bubble_chats;
+      CREATE TRIGGER update_bubble_chats_updated_at
+        BEFORE UPDATE ON bubble_chats
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bubble_rules_updated_at ON bubble_rules;
+      CREATE TRIGGER update_bubble_rules_updated_at
+        BEFORE UPDATE ON bubble_rules
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bubble_rule_overrides_updated_at ON bubble_rule_overrides;
+      CREATE TRIGGER update_bubble_rule_overrides_updated_at
+        BEFORE UPDATE ON bubble_rule_overrides
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    `);
+
     console.log("[autoMigrate] Schema is up to date.");
   } catch (err) {
     console.error("[autoMigrate] Migration failed:", err);

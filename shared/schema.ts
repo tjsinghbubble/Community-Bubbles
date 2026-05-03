@@ -21,7 +21,7 @@ export const campuses = pgTable("campuses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   domain: text("domain").notNull().unique(),
   title: text("title").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const users = pgTable("users", {
@@ -40,8 +40,9 @@ export const users = pgTable("users", {
   aboutMe: text("about_me"),
   tokenVersion: integer("token_version").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by"),
 });
 
@@ -56,6 +57,9 @@ export const userProfiles = pgTable("user_profiles", {
   profilePhoto: text("profile_photo"),
   aboutMe: text("about_me"),
   campusEmailHash: text("campus_email_hash"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export type UserProfile = typeof userProfiles.$inferSelect;
@@ -81,13 +85,15 @@ export const bubbles = pgTable("bubbles", {
   locationLat: text("location_lat"),
   locationLng: text("location_lng"),
   radiusMiles: integer("radius_miles").default(15),
-  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('pending'),
   rejectionReason: text("rejection_reason"),
   shortId: text("short_id").unique(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  deletedAt: timestamp("deleted_at"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
 });
 
 export const memberships = pgTable("memberships", {
@@ -96,7 +102,10 @@ export const memberships = pgTable("memberships", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   role: text("role").notNull().default('member'),
   membershipStatus: text("membership_status").notNull().default('approved'),
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const verificationCodes = pgTable("verification_codes", {
@@ -104,14 +113,15 @@ export const verificationCodes = pgTable("verification_codes", {
   email: text("email").notNull(),
   emailHash: text("email_hash"),
   code: text("code").notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   used: boolean("used").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
   updatedAt: true,
   updatedBy: true,
 }).extend({
@@ -127,6 +137,8 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
   members: true,
   shortId: true,
   createdAt: true,
+  updatedAt: true,
+  updatedBy: true,
   deletedAt: true,
 }).extend({
   title: z.string().min(1).max(150),
@@ -140,7 +152,10 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
 export const insertMembershipSchema = createInsertSchema(memberships).omit({
   id: true,
   role: true,
-  joinedAt: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -165,27 +180,27 @@ export type VerificationCode = typeof verificationCodes.$inferSelect;
 export const events = pgTable("events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
-  description: text("description"), // Optional
+  description: text("description"),
   coverImage: text("cover_image"),
   images: text("images").array().notNull().default(sql`'{}'::text[]`),
-  date: text("date").notNull(), // YYYY-MM-DD format (stored in UTC)
-  startTime: text("start_time").notNull(), // HH:MM format (stored in UTC)
-  endTime: text("end_time"), // HH:MM format (stored in UTC), optional
-  timezone: text("timezone").notNull().default('UTC'), // IANA timezone e.g. "America/Chicago"
-  locationName: text("location_name"), // Optional
+  date: text("date").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time"),
+  timezone: text("timezone").notNull().default('UTC'),
+  locationName: text("location_name"),
   locationAddress: text("location_address"),
   locationLat: text("location_lat"),
   locationLng: text("location_lng"),
   locationTbd: boolean("location_tbd").notNull().default(false),
-  visibility: text("visibility").notNull().default('public'), // public, request, private
+  visibility: text("visibility").notNull().default('public'),
   petFriendly: boolean("pet_friendly").notNull().default(false),
   smokeFree: boolean("smoke_free").notNull().default(false),
   wheelchairAccessible: boolean("wheelchair_accessible").notNull().default(false),
-  attendeeLimit: integer("attendee_limit"), // null means unlimited
-  rsvpDeadline: text("rsvp_deadline"), // ISO datetime string, null means no deadline
-  recurrenceType: text("recurrence_type").notNull().default('never'), // never, daily, weekly, biweekly, monthly, yearly, custom
-  recurrenceCustomFrequency: text("recurrence_custom_frequency"), // daily, weekly, monthly, yearly
-  recurrenceCustomInterval: integer("recurrence_custom_interval"), // 1-999
+  attendeeLimit: integer("attendee_limit"),
+  rsvpDeadline: text("rsvp_deadline"),
+  recurrenceType: text("recurrence_type").notNull().default('never'),
+  recurrenceCustomFrequency: text("recurrence_custom_frequency"),
+  recurrenceCustomInterval: integer("recurrence_custom_interval"),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   creatorId: varchar("creator_id").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
@@ -193,7 +208,7 @@ export const events = pgTable("events", {
   rejectionReason: text("rejection_reason"),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Event attendees join table
@@ -201,8 +216,8 @@ export const eventAttendees = pgTable("event_attendees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   eventId: varchar("event_id").notNull().references(() => events.id),
   userId: varchar("user_id").notNull().references(() => users.id),
-  status: text("status").notNull().default('going'), // going, interested, requested, waitlisted
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  status: text("status").notNull().default('going'),
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 });
@@ -245,8 +260,8 @@ export type Campus = typeof campuses.$inferSelect;
 export const userSessions = pgTable("user_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id),
-  startedAt: timestamp("started_at").notNull().defaultNow(),
-  endedAt: timestamp("ended_at"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  endedAt: timestamp("ended_at", { withTimezone: true }),
   durationSeconds: integer("duration_seconds"),
 });
 
@@ -264,12 +279,14 @@ export const bubbleVisits = pgTable("bubble_visits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   userId: varchar("user_id").references(() => users.id),
-  visitedAt: timestamp("visited_at").notNull().defaultNow(),
+  visitedAt: timestamp("visited_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
 });
 
 export const insertBubbleVisitSchema = createInsertSchema(bubbleVisits).omit({
   id: true,
   visitedAt: true,
+  createdBy: true,
 });
 
 export type InsertBubbleVisit = z.infer<typeof insertBubbleVisitSchema>;
@@ -311,7 +328,7 @@ export const reports = pgTable("reports", {
   eventId: varchar("event_id").references(() => events.id),
   visibleTo: text("visible_to").notNull().default("superadmin"),
   status: text("status").notNull().default("pending"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertReportSchema = createInsertSchema(reports).omit({
@@ -331,7 +348,10 @@ export const bubbleChats = pgTable("bubble_chats", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   cometChatGroupId: text("cometchat_group_id").notNull(),
   status: text("status").notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("bubble_chats_bubble_id_unique").on(table.bubbleId),
 ]);
@@ -339,6 +359,9 @@ export const bubbleChats = pgTable("bubble_chats", {
 export const insertBubbleChatSchema = createInsertSchema(bubbleChats).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export type InsertBubbleChat = z.infer<typeof insertBubbleChatSchema>;
@@ -352,7 +375,7 @@ export const adminMemberChats = pgTable("admin_member_chats", {
   isAdminDm: boolean("is_admin_dm").notNull().default(true),
   participantIds: text("participant_ids").array().notNull().default(sql`'{}'::text[]`),
   status: text("status").notNull().default("active"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   unique("admin_member_chats_bubble_member_unique").on(table.bubbleId, table.memberId),
 ]);
@@ -373,7 +396,7 @@ export const notifications = pgTable("notifications", {
   body: text("body").notNull(),
   metadata: text("metadata"),
   read: boolean("read").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
@@ -390,8 +413,8 @@ export const devicePushTokens = pgTable("device_push_tokens", {
   userId: varchar("user_id").notNull().references(() => users.id),
   token: text("token").notNull(),
   platform: text("platform").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   unique("device_push_tokens_user_token_unique").on(table.userId, table.token),
 ]);
@@ -414,7 +437,7 @@ export const notificationPreferences = pgTable("notification_preferences", {
   taskReminders: boolean("task_reminders").notNull().default(true),
   waitlistUpdates: boolean("waitlist_updates").notNull().default(true),
   announcements: boolean("announcements").notNull().default(true),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
@@ -427,9 +450,9 @@ export type NotificationPreferences = typeof notificationPreferences.$inferSelec
 export const bulletinBoards = pgTable("bulletin_boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("bulletin_boards_bubble_id_unique").on(table.bubbleId),
@@ -442,9 +465,9 @@ export const bulletinPostTypes = pgTable("bulletin_post_types", {
   color: text("color").notNull(),
   adminOnly: boolean("admin_only").notNull().default(false),
   displayOrder: integer("display_order").notNull().default(0),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
 });
 
@@ -457,9 +480,9 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   body: text("body").notNull(),
   imageUrl: text("image_url"),
   isPinned: boolean("is_pinned").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
 });
 
@@ -468,9 +491,9 @@ export const bulletinReplies = pgTable("bulletin_replies", {
   postId: varchar("post_id").notNull().references(() => bulletinPosts.id),
   authorId: varchar("author_id").notNull().references(() => users.id),
   body: text("body").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
 });
 
@@ -517,7 +540,7 @@ export const bulletinPostReactions = pgTable("bulletin_post_reactions", {
   postId: varchar("post_id").notNull().references(() => bulletinPosts.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   emoji: varchar("emoji", { length: 32 }).notNull().default('heart'),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type BulletinBoard = typeof bulletinBoards.$inferSelect;
@@ -550,7 +573,7 @@ export const patchUserSchema = z.object({
 export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertAppConfigSchema = createInsertSchema(appConfig);
@@ -562,7 +585,7 @@ export const rules = pgTable("rules", {
   text: text("text").notNull(),
   name: text("name").notNull(),
   description: text("description").notNull().default(''),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const appRules = pgTable("app_rules", {
@@ -583,6 +606,10 @@ export const bubbleRules = pgTable("bubble_rules", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id, { onDelete: "cascade" }),
   ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
   position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const bubbleRuleOverrides = pgTable("bubble_rule_overrides", {
@@ -590,6 +617,10 @@ export const bubbleRuleOverrides = pgTable("bubble_rule_overrides", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id, { onDelete: "cascade" }),
   ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
   hidden: boolean("hidden").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export type Rule = typeof rules.$inferSelect;
@@ -620,8 +651,8 @@ export const auditLogs = pgTable("audit_logs", {
   adminId: varchar("admin_id").notNull().references(() => users.id),
   targetId: text("target_id").notNull(),
   ip: text("ip"),
-  extra: text("extra"), // JSON string for additional context
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  extra: text("extra"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type AuditLog = typeof auditLogs.$inferSelect;
@@ -635,7 +666,7 @@ export const eventSignupTasks = pgTable("event_signup_tasks", {
   icon: text("icon").notNull().default('📋'),
   spotsNeeded: integer("spots_needed"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   position: integer("position").notNull().default(0),
 });
 
@@ -645,7 +676,7 @@ export const eventTaskSignups = pgTable("event_task_signups", {
   userId: varchar("user_id").notNull().references(() => users.id),
   reminderSent: boolean("reminder_sent").notNull().default(false),
   reminderSent1h: boolean("reminder_sent_1h").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   unique("event_task_signups_task_user_unique").on(table.taskId, table.userId),
 ]);
@@ -675,7 +706,7 @@ export const crashReports = pgTable("crash_reports", {
   isFatal: boolean("is_fatal").notNull().default(false),
   userId: text("user_id"),
   username: text("username"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertCrashReportSchema = createInsertSchema(crashReports).omit({
@@ -693,7 +724,7 @@ export const latencyBuckets = pgTable(
     id: serial("id").primaryKey(),
     method: text("method").notNull(),
     endpoint: text("endpoint").notNull(),
-    bucketTs: timestamp("bucket_ts").notNull(),
+    bucketTs: timestamp("bucket_ts", { withTimezone: true }).notNull(),
     p50Ms: integer("p50_ms").notNull(),
     p95Ms: integer("p95_ms").notNull(),
     p99Ms: integer("p99_ms").notNull(),
@@ -717,7 +748,7 @@ export const slowCalls = pgTable("slow_calls", {
   endpoint: text("endpoint").notNull(),
   method: text("method").notNull(),
   durationMs: integer("duration_ms").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertSlowCallSchema = createInsertSchema(slowCalls).omit({
@@ -740,18 +771,18 @@ export const apiLatencySamples = pgTable("api_latency_samples", {
   avgMs: integer("avg_ms").notNull(),
   maxMs: integer("max_ms").notNull(),
   errorRate: integer("error_rate").notNull(),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;
 
-// User-submitted feedback (feedback, feature requests, defect reports, help requests)
+// User-submitted feedback
 export const feedback = pgTable("feedback", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
-  type: text("type").notNull(), // 'feedback' | 'feature' | 'defect' | 'help'
+  type: text("type").notNull(),
   message: text("message").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({ id: true, createdAt: true });

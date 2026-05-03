@@ -482,7 +482,7 @@ export class DatabaseStorage implements IStorage {
 
     // 12. Delete bubbles created by user and all their dependents
     const userBubbleIds = (
-      await db.select({ id: bubbles.id }).from(bubbles).where(eq(bubbles.creatorId, id))
+      await db.select({ id: bubbles.id }).from(bubbles).where(eq(bubbles.createdBy, id))
     ).map((b) => b.id);
     if (userBubbleIds.length > 0) {
       // Delete bulletin content in those bubbles
@@ -628,14 +628,14 @@ export class DatabaseStorage implements IStorage {
     const approvedBubble = result[0];
     
     // When bubble is approved, make the creator an admin member
-    if (approvedBubble && approvedBubble.creatorId) {
+    if (approvedBubble && approvedBubble.createdBy) {
       // Check if membership already exists (shouldn't, but be safe)
-      const alreadyMember = await this.isMember(approvedBubble.creatorId, id);
+      const alreadyMember = await this.isMember(approvedBubble.createdBy, id);
       
       if (!alreadyMember) {
         // Use existing method to create membership with proper role and count update
         await this.createMembershipWithRole({
-          userId: approvedBubble.creatorId,
+          userId: approvedBubble.createdBy,
           bubbleId: id,
         }, 'admin');
       }
@@ -658,7 +658,7 @@ export class DatabaseStorage implements IStorage {
       .from(memberships)
       .innerJoin(bubbles, eq(memberships.bubbleId, bubbles.id))
       .where(and(eq(memberships.userId, userId), eq(memberships.membershipStatus, 'approved'), isNull(bubbles.deletedAt)))
-      .orderBy(desc(memberships.joinedAt));
+      .orderBy(desc(memberships.createdAt));
 
     return result.map((row) => ({
       ...row.memberships,
@@ -679,7 +679,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(users, eq(memberships.userId, users.id))
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved')))
-      .orderBy(desc(memberships.joinedAt));
+      .orderBy(desc(memberships.createdAt));
 
     return result.map((row) => {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
@@ -697,7 +697,7 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(users, eq(memberships.userId, users.id))
       .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
       .where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'pending')))
-      .orderBy(desc(memberships.joinedAt));
+      .orderBy(desc(memberships.createdAt));
 
     return result.map((row) => {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
@@ -709,19 +709,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMembership(insertMembership: InsertMembership): Promise<Membership> {
-    const result = await db.insert(memberships).values(insertMembership).returning();
+    const result = await db.insert(memberships).values({ ...insertMembership, createdBy: insertMembership.userId }).returning();
     await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
     return result[0];
   }
 
   async createMembershipWithRole(insertMembership: InsertMembership, role: string): Promise<Membership> {
-    const result = await db.insert(memberships).values({ ...insertMembership, role }).returning();
+    const result = await db.insert(memberships).values({ ...insertMembership, role, createdBy: insertMembership.userId }).returning();
     await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
     return result[0];
   }
 
   async createMembershipWithStatus(insertMembership: InsertMembership, status: string): Promise<Membership> {
-    const result = await db.insert(memberships).values({ ...insertMembership, membershipStatus: status }).returning();
+    const result = await db.insert(memberships).values({ ...insertMembership, membershipStatus: status, createdBy: insertMembership.userId }).returning();
     if (status === 'approved') {
       await this.updateBubbleMemberCount(insertMembership.bubbleId, 1);
     }
@@ -819,7 +819,7 @@ export class DatabaseStorage implements IStorage {
         eq(memberships.bubbleId, bubbleId),
         sql`${memberships.membershipStatus} IN ('waitlisted', 'on_hold')`
       ))
-      .orderBy(memberships.joinedAt);
+      .orderBy(memberships.createdAt);
     return result.map((row) => {
       const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
       return {
@@ -943,7 +943,7 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(events.creatorId, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
-    const eventMap = new Map<string, Event & { bubble: Bubble }>();
+    const eventMap   = new Map<string, Event & { bubble: Bubble }>();
     
     for (const row of attending) {
       eventMap.set(row.events.id, { ...row.events, bubble: row.bubbles });
@@ -973,7 +973,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(bubbles)
-      .where(and(eq(bubbles.creatorId, userId), isNull(bubbles.deletedAt)))
+      .where(and(eq(bubbles.createdBy, userId), isNull(bubbles.deletedAt)))
       .orderBy(desc(bubbles.createdAt));
   }
 
@@ -1002,7 +1002,7 @@ export class DatabaseStorage implements IStorage {
     // Get bubbles where user is admin/creator
     const userBubbles = await db.select({ id: bubbles.id })
       .from(bubbles)
-      .where(and(eq(bubbles.creatorId, userId), isNull(bubbles.deletedAt)));
+      .where(and(eq(bubbles.createdBy, userId), isNull(bubbles.deletedAt)));
     
     if (userBubbles.length === 0) return [];
 

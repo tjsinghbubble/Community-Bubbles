@@ -42,7 +42,7 @@ export type BubbleData = {
   locationLat?: string | null;
   locationLng?: string | null;
   radiusMiles?: number | null;
-  creatorId?: string;
+  createdBy?: string;
   status?: string;
   rules?: string[];
   deletedAt?: string | null;

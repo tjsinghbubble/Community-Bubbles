@@ -36,7 +36,7 @@ type PendingBubble = {
   title: string;
   tagline: string;
   category: string;
-  creatorId: string;
+  createdBy: string;
   createdAt: string;
 };
 

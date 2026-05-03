@@ -15,7 +15,7 @@ export type Bubble = {
   coverImage?: string;
   members: number;
   distance?: string;
-  creatorId: string;
+  createdBy: string;
   createdAt: string;
 };
 
