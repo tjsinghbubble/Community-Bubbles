@@ -178,7 +178,7 @@ export async function seedData() {
   }
   console.log(`[SEED] Created ${createdUsers.length} users`);
 
-  const createdBubbles: { id: string; title: string; creatorId: string }[] = [];
+  const createdBubbles: { id: string; title: string; createdBy: string }[] = [];
   for (let i = 0; i < seedBubbles.length; i++) {
     const b = seedBubbles[i];
     const creatorIndex = memberAssignments[i].adminIndices[0];
@@ -209,6 +209,7 @@ export async function seedData() {
         bubbleId: bubble.id,
         role: "admin",
         membershipStatus: "approved",
+        createdBy: createdUsers[adminIdx].id,
       });
     }
 
@@ -218,6 +219,7 @@ export async function seedData() {
         bubbleId: bubble.id,
         role: "member",
         membershipStatus: "approved",
+        createdBy: createdUsers[memberIdx].id,
       });
     }
   }
