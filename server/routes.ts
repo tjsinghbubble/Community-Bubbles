@@ -1529,8 +1529,8 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
       const { thresholdMs, retentionDays } = parsed.data;
       await Promise.all([
-        storage.setAppConfigValue("slow_call_threshold_ms", String(thresholdMs)),
-        storage.setAppConfigValue("slow_call_retention_days", String(retentionDays)),
+        storage.setAppConfigValue("slow_call_threshold_ms", String(thresholdMs), req.userId!),
+        storage.setAppConfigValue("slow_call_retention_days", String(retentionDays), req.userId!),
       ]);
       setSlowCallConfig(thresholdMs, retentionDays);
       res.json({ thresholdMs, retentionDays });
