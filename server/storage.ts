@@ -182,7 +182,7 @@ export interface IStorage {
   getCampuses(): Promise<Campus[]>;
   getCampus(id: string): Promise<Campus | undefined>;
   getCampusByDomain(domain: string): Promise<Campus | undefined>;
-  createCampus(campus: InsertCampus): Promise<Campus>;
+  createCampus(campus: InsertCampus, createdBy?: string): Promise<Campus>;
   updateUserProfile(userId: string, updates: { profilePhoto?: string; name?: string; aboutMe?: string; interests?: string[] }): Promise<User | undefined>;
   updateUserCampus(userId: string, campusId: string, campusEmail: string, verified: boolean): Promise<void>;
   dismissCampusPrompt(userId: string): Promise<void>;
@@ -234,7 +234,7 @@ export interface IStorage {
   updateBubbleChatStatus(bubbleId: string, status: string): Promise<void>;
 
   // Admin-Member Chats
-  createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[]): Promise<AdminMemberChat>;
+  createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[], createdBy?: string): Promise<AdminMemberChat>;
   getAdminMemberChat(bubbleId: string, memberId: string): Promise<AdminMemberChat | undefined>;
   getAdminMemberChatsForBubble(bubbleId: string): Promise<AdminMemberChat[]>;
   getActiveAdminMemberChatsForUser(userId: string, bubbleId: string): Promise<AdminMemberChat[]>;
@@ -290,15 +290,15 @@ export interface IStorage {
 
   getAppConfigValue(key: string): Promise<string | undefined>;
   getAllAppConfig(): Promise<AppConfig[]>;
-  setAppConfigValue(key: string, value: string): Promise<void>;
+  setAppConfigValue(key: string, value: string, updatedBy?: string): Promise<void>;
 
-  createRule(name: string, description: string): Promise<Rule>;
+  createRule(name: string, description: string, createdBy?: string): Promise<Rule>;
   getRule(id: number): Promise<Rule | undefined>;
-  updateRule(id: number, name: string, description: string): Promise<Rule | undefined>;
+  updateRule(id: number, name: string, description: string, updatedBy?: string): Promise<Rule | undefined>;
   deleteRule(id: number): Promise<void>;
 
   getAppRules(): Promise<(AppRule & { rule: Rule })[]>;
-  addAppRule(ruleId: number, position: number): Promise<AppRule>;
+  addAppRule(ruleId: number, position: number, createdBy?: string): Promise<AppRule>;
   removeAppRule(ruleId: number): Promise<void>;
   reorderAppRules(ruleIds: number[]): Promise<void>;
 
@@ -1314,10 +1314,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async createCampus(insertCampus: InsertCampus): Promise<Campus> {
+  async createCampus(insertCampus: InsertCampus, createdBy?: string): Promise<Campus> {
     const result = await db.insert(campuses).values({
       ...insertCampus,
       domain: insertCampus.domain.toLowerCase(),
+      ...(createdBy ? { createdBy } : {}),
     }).returning();
     return result[0];
   }
@@ -1884,8 +1885,11 @@ export class DatabaseStorage implements IStorage {
     await db.update(bubbleChats).set({ status }).where(eq(bubbleChats.bubbleId, bubbleId));
   }
 
-  async createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[]): Promise<AdminMemberChat> {
-    const result = await db.insert(adminMemberChats).values({ bubbleId, memberId, cometChatGroupId, isAdminDm: true, participantIds, status: 'active' }).returning();
+  async createAdminMemberChat(bubbleId: string, memberId: string, cometChatGroupId: string, participantIds: string[], createdBy?: string): Promise<AdminMemberChat> {
+    const result = await db.insert(adminMemberChats).values({
+      bubbleId, memberId, cometChatGroupId, isAdminDm: true, participantIds, status: 'active',
+      ...(createdBy ? { createdBy } : {}),
+    }).returning();
     return result[0];
   }
 
@@ -2299,16 +2303,21 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(appConfig);
   }
 
-  async setAppConfigValue(key: string, value: string): Promise<void> {
+  async setAppConfigValue(key: string, value: string, updatedBy?: string): Promise<void> {
+    const setData: Partial<typeof appConfig.$inferInsert> = { value, updatedAt: new Date() };
+    if (updatedBy) setData.updatedBy = updatedBy;
     await db
       .insert(appConfig)
-      .values({ key, value })
-      .onConflictDoUpdate({ target: appConfig.key, set: { value, updatedAt: new Date() } });
+      .values({ key, value, ...(updatedBy ? { createdBy: updatedBy, updatedBy } : {}) })
+      .onConflictDoUpdate({ target: appConfig.key, set: setData });
   }
 
-  async createRule(name: string, description: string): Promise<Rule> {
+  async createRule(name: string, description: string, createdBy?: string): Promise<Rule> {
     const text = description ? `${name}. ${description}` : name;
-    const [rule] = await db.insert(rules).values({ text, name, description }).returning();
+    const [rule] = await db.insert(rules).values({
+      text, name, description,
+      ...(createdBy ? { createdBy } : {}),
+    }).returning();
     return rule;
   }
 
@@ -2317,9 +2326,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateRule(id: number, name: string, description: string): Promise<Rule | undefined> {
+  async updateRule(id: number, name: string, description: string, updatedBy?: string): Promise<Rule | undefined> {
     const text = description ? `${name}. ${description}` : name;
-    const result = await db.update(rules).set({ text, name, description }).where(eq(rules.id, id)).returning();
+    const setData: Partial<typeof rules.$inferInsert> = { text, name, description };
+    if (updatedBy) setData.updatedBy = updatedBy;
+    const result = await db.update(rules).set(setData).where(eq(rules.id, id)).returning();
     return result[0];
   }
 
@@ -2336,8 +2347,11 @@ export class DatabaseStorage implements IStorage {
     return rows.map(r => ({ ...r.appRule, rule: r.rule }));
   }
 
-  async addAppRule(ruleId: number, position: number): Promise<AppRule> {
-    const [row] = await db.insert(appRules).values({ ruleId, position }).returning();
+  async addAppRule(ruleId: number, position: number, createdBy?: string): Promise<AppRule> {
+    const [row] = await db.insert(appRules).values({
+      ruleId, position,
+      ...(createdBy ? { createdBy } : {}),
+    }).returning();
     return row;
   }
 
@@ -2746,7 +2760,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createFeedback(data: InsertFeedback): Promise<Feedback> {
-    const [row] = await db.insert(feedback).values(data).returning();
+    const [row] = await db.insert(feedback).values({
+      ...data,
+      createdBy: data.userId ?? null,
+    }).returning();
     return row;
   }
 

@@ -2334,7 +2334,7 @@ export async function registerRoutes(
       if (chatRecord && chatRecord.status === 'active') {
         await storage.updateAdminMemberChatParticipants(chatRecord.id, participantIds);
       } else if (!chatRecord) {
-        chatRecord = await storage.createAdminMemberChat(bubbleId, userId, dmGuid, participantIds);
+        chatRecord = await storage.createAdminMemberChat(bubbleId, userId, dmGuid, participantIds, req.userId!);
       } else {
         await storage.updateAdminMemberChatStatus(bubbleId, userId, 'active');
         await storage.updateAdminMemberChatParticipants(chatRecord.id, participantIds);
@@ -4168,8 +4168,8 @@ export async function registerRoutes(
       if (!user?.isSuperAdmin) return res.status(403).json({ error: "Super admin required" });
       const { name, description, position } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const rule = await storage.createRule(name, description || '');
-      const appRule = await storage.addAppRule(rule.id, position || 0);
+      const rule = await storage.createRule(name, description || '', req.userId!);
+      const appRule = await storage.addAppRule(rule.id, position || 0, req.userId!);
       res.json({ ...appRule, rule });
     } catch (error: any) {
       serverError(res, error);
@@ -4196,7 +4196,7 @@ export async function registerRoutes(
       const ruleId = parseInt(req.params.ruleId);
       const { name, description } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const updated = await storage.updateRule(ruleId, name, description || '');
+      const updated = await storage.updateRule(ruleId, name, description || '', req.userId!);
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
@@ -4239,7 +4239,7 @@ export async function registerRoutes(
       const categoryId = parseInt(req.params.categoryId);
       const { name, description, position } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const rule = await storage.createRule(name, description || '');
+      const rule = await storage.createRule(name, description || '', req.userId!);
       const catRule = await storage.addCategoryRule(categoryId, rule.id, position || 0);
       res.json({ ...catRule, rule });
     } catch (error: any) {
@@ -4271,7 +4271,7 @@ export async function registerRoutes(
       if (!linked) return res.status(404).json({ error: "Rule not linked to this category" });
       const { name, description } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const updated = await storage.updateRule(ruleId, name, description || '');
+      const updated = await storage.updateRule(ruleId, name, description || '', req.userId!);
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {
@@ -4317,7 +4317,7 @@ export async function registerRoutes(
       if (!isAdmin) return res.status(403).json({ error: "Admin access required" });
       const { name, description, position } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const rule = await storage.createRule(name, description || '');
+      const rule = await storage.createRule(name, description || '', req.userId!);
       const bubbleRule = await storage.addBubbleRule(bubbleId, rule.id, position || 0);
       res.json({ ...bubbleRule, rule });
     } catch (error: any) {
@@ -4355,7 +4355,7 @@ export async function registerRoutes(
       if (!linked) return res.status(404).json({ error: "Rule not linked to this bubble" });
       const { name, description } = req.body;
       if (!name) return res.status(400).json({ error: "name is required" });
-      const updated = await storage.updateRule(ruleId, name, description || '');
+      const updated = await storage.updateRule(ruleId, name, description || '', req.userId!);
       if (!updated) return res.status(404).json({ error: "Rule not found" });
       res.json(updated);
     } catch (error: any) {

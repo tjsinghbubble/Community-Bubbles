@@ -22,6 +22,9 @@ export const campuses = pgTable("campuses", {
   domain: text("domain").notNull().unique(),
   title: text("title").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references((): AnyPgColumn => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references((): AnyPgColumn => users.id),
 });
 
 export const users = pgTable("users", {
@@ -261,6 +264,9 @@ export type EventAttendee = typeof eventAttendees.$inferSelect;
 export const insertCampusSchema = createInsertSchema(campuses).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export type InsertCampus = z.infer<typeof insertCampusSchema>;
@@ -273,12 +279,14 @@ export const userSessions = pgTable("user_sessions", {
   startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
   durationSeconds: integer("duration_seconds"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
   id: true,
   endedAt: true,
   durationSeconds: true,
+  createdAt: true,
 });
 
 export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
@@ -318,10 +326,14 @@ export const categoryPlaceholders = pgTable("category_placeholders", {
   fieldType: text("field_type").notNull(),
   value: text("value").notNull(),
   displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertCategoryPlaceholderSchema = createInsertSchema(categoryPlaceholders).omit({
   id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertCategoryPlaceholder = z.infer<typeof insertCategoryPlaceholderSchema>;
@@ -339,12 +351,16 @@ export const reports = pgTable("reports", {
   visibleTo: text("visible_to").notNull().default("superadmin"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
   status: true,
   createdAt: true,
+  updatedAt: true,
+  updatedBy: true,
 }).extend({
   reason: z.string().min(1).max(500),
   freeText: z.string().max(2000).optional().nullable(),
@@ -386,6 +402,9 @@ export const adminMemberChats = pgTable("admin_member_chats", {
   participantIds: text("participant_ids").array().notNull().default(sql`'{}'::text[]`),
   status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("admin_member_chats_bubble_member_unique").on(table.bubbleId, table.memberId),
 ]);
@@ -393,6 +412,9 @@ export const adminMemberChats = pgTable("admin_member_chats", {
 export const insertAdminMemberChatSchema = createInsertSchema(adminMemberChats).omit({
   id: true,
   createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
 });
 
 export type InsertAdminMemberChat = z.infer<typeof insertAdminMemberChatSchema>;
@@ -450,10 +472,16 @@ export const notificationPreferences = pgTable("notification_preferences", {
   waitlistUpdates: boolean("waitlist_updates").notNull().default(true),
   announcements: boolean("announcements").notNull().default(true),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  createdAt: true,
+  createdBy: true,
   updatedAt: true,
+  updatedBy: true,
 });
 
 export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
@@ -587,9 +615,17 @@ export const appConfig = pgTable("app_config", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
-export const insertAppConfigSchema = createInsertSchema(appConfig);
+export const insertAppConfigSchema = createInsertSchema(appConfig).omit({
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
+});
 export type AppConfig = typeof appConfig.$inferSelect;
 export type InsertAppConfig = z.infer<typeof insertAppConfigSchema>;
 
@@ -599,12 +635,19 @@ export const rules = pgTable("rules", {
   name: text("name").notNull(),
   description: text("description").notNull().default(''),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const appRules = pgTable("app_rules", {
   id: serial("id").primaryKey(),
   ruleId: integer("rule_id").notNull().references(() => rules.id, { onDelete: "cascade" }),
   position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 export const categoryRules = pgTable("category_rules", {
@@ -803,8 +846,17 @@ export const feedback = pgTable("feedback", {
   type: text("type").notNull(),
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
 });
 
-export const insertFeedbackSchema = createInsertSchema(feedback).omit({ id: true, createdAt: true });
+export const insertFeedbackSchema = createInsertSchema(feedback).omit({
+  id: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
+});
 export type Feedback = typeof feedback.$inferSelect;
 export type InsertFeedback = z.infer<typeof insertFeedbackSchema>;

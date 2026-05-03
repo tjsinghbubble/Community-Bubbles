@@ -42,6 +42,8 @@ The project is a monorepo containing distinct frontend and backend components.
 
 **Database Schema**: Core entities include `users`, `campuses`, `bubbles`, `memberships`, `events`, `categories`, and `app_config`.
 
+**Audit Trail System** (fully complete — Batches 1-3): Every mutable table now carries `created_at`, `created_by`, `updated_at`, and `updated_by` columns where appropriate, with `BEFORE UPDATE` triggers auto-maintaining `updated_at`. All audit columns are populated by storage methods and route handlers. Migration files `0009`–`0011` plus idempotent blocks in `server/auto-migrate.ts` keep dev and production in sync.
+
 **App Config**: Runtime-configurable key-value pairs stored in the `app_config` table, allowing dynamic updates without code redeployment.
 
 **Health Check API**: Three-tier public monitoring endpoints (`/ping`, `/status`, `/health`) for server and database health, with maintenance mode integration.
