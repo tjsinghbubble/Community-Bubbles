@@ -1,0 +1,97 @@
+
+
+Priority 1 (Critical - Add Today):
+Memberships:
+* idx_memberships_user_id
+* idx_memberships_bubble_id
+* idx_memberships_user_bubble (unique, composite)
+Events:
+* idx_events_bubble_id
+* idx_events_bubble_start (composite)
+* idx_events_created_at
+Event Attendees:
+* idx_event_attendees_event_id
+* idx_event_attendees_user_id
+* idx_event_attendees_event_user (unique, composite)
+Notifications:
+* idx_notifications_user_id
+* idx_notifications_user_created (composite)
+Bubble Visits:
+* idx_bubble_visits_user_id
+* idx_bubble_visits_bubble_id
+* idx_bubble_visits_user_bubble (composite)
+Users:
+* idx_users_email_lower_unique (unique)
+* idx_users_email_hash_unique (unique)
+* idx_users_email
+
+Priority 2
+User Sessions:
+* idx_user_sessions_user_id
+* idx_user_sessions_token (unique)
+* idx_user_sessions_expires_at
+Bulletin Posts:
+* idx_bulletin_posts_bubble_id
+* idx_bulletin_posts_bubble_created (composite)
+* idx_bulletin_posts_user_id
+Bulletin Replies:
+* idx_bulletin_replies_post_id
+* idx_bulletin_replies_post_created (composite)
+* idx_bulletin_replies_user_id
+Admin Member Chats:
+* idx_admin_chats_bubble_member (composite)
+* idx_admin_chats_created
+* idx_admin_chats_admin_id
+* idx_admin_chats_member_id
+Feedback:
+* idx_feedback_created_at
+* idx_feedback_user_id
+* idx_feedback_status
+Reports:
+* idx_reports_status
+* idx_reports_created_at
+* idx_reports_reporter_id
+* idx_reports_reported_user_id
+
+Priority 3 (
+Audit Trail:
+* idx_events_created_by
+* idx_bubbles_created_by
+* idx_bulletin_posts_created_by
+* idx_memberships_created_at
+* idx_event_attendees_created_at
+* idx_users_created_by
+
+Total Index Count
+Total indexes added: 75+
+Breakdown:
+* Priority 1: 15 indexes
+* Priority 2: 35 indexes
+* Priority 3: 10 indexes
+* Monitoring: 5 indexes (already existed)
+* Config/Auth: 10 indexes
+
+Generate & Run Migration
+Step 1: Generate Migration
+
+
+bash
+npx drizzle-kit generate:pg
+This creates a migration file like:
+
+
+drizzle/migrations/0004_add_all_indexes.sql
+
+Step 2: Review Generated SQL
+The migration will contain all CREATE INDEX statements. Review it to ensure it looks correct.
+
+Step 3: Run Migration
+
+
+bash
+# Development
+npm run migrate
+
+# Production
+NODE_ENV=production npm run migrate
+
