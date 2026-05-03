@@ -3013,7 +3013,7 @@ export async function registerRoutes(
         if (event?.attendeeLimit) {
           const firstWaitlisted = await storage.getFirstWaitlistedAttendee(req.params.id);
           if (firstWaitlisted) {
-            await storage.updateEventAttendeeStatus(firstWaitlisted.userId, req.params.id, 'going');
+            await storage.updateEventAttendeeStatus(firstWaitlisted.userId, req.params.id, 'going', req.userId!);
             promotedUserId = firstWaitlisted.userId;
 
             const promoBubble = await storage.getBubble(event.bubbleId);

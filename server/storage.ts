@@ -160,7 +160,7 @@ export interface IStorage {
   isEventAttendee(userId: string, eventId: string): Promise<boolean>;
   getEventAttendee(userId: string, eventId: string): Promise<EventAttendee | undefined>;
   createEventAttendee(attendee: InsertEventAttendee): Promise<EventAttendee>;
-  updateEventAttendeeStatus(userId: string, eventId: string, status: string): Promise<EventAttendee | undefined>;
+  updateEventAttendeeStatus(userId: string, eventId: string, status: string, updatedBy?: string): Promise<EventAttendee | undefined>;
   deleteEventAttendee(userId: string, eventId: string): Promise<void>;
   getFirstWaitlistedAttendee(eventId: string): Promise<EventAttendee | undefined>;
   getGoingCount(eventId: string): Promise<number>;
@@ -1087,9 +1087,11 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateEventAttendeeStatus(userId: string, eventId: string, status: string): Promise<EventAttendee | undefined> {
+  async updateEventAttendeeStatus(userId: string, eventId: string, status: string, updatedBy?: string): Promise<EventAttendee | undefined> {
+    const setData: Partial<typeof eventAttendees.$inferInsert> = { status };
+    if (updatedBy) setData.updatedBy = updatedBy;
     const result = await db.update(eventAttendees)
-      .set({ status })
+      .set(setData)
       .where(and(eq(eventAttendees.userId, userId), eq(eventAttendees.eventId, eventId)))
       .returning();
     return result[0];
@@ -2245,7 +2247,7 @@ export class DatabaseStorage implements IStorage {
       await db.delete(bulletinPostReactions).where(eq(bulletinPostReactions.id, existing[0].id));
       return { added: false, emoji };
     } else {
-      await db.insert(bulletinPostReactions).values({ postId, userId, emoji });
+      await db.insert(bulletinPostReactions).values({ postId, userId, emoji, createdBy: userId });
       return { added: true, emoji };
     }
   }
