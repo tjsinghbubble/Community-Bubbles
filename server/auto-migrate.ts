@@ -436,43 +436,43 @@ export async function autoMigrate(): Promise<void> {
     await db.execute(sql`
       -- notification_preferences: created_at, created_by, updated_by
       ALTER TABLE notification_preferences ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-      ALTER TABLE notification_preferences ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
-      ALTER TABLE notification_preferences ADD COLUMN IF NOT EXISTS updated_by  VARCHAR REFERENCES users(id);
+      ALTER TABLE notification_preferences ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE notification_preferences ADD COLUMN IF NOT EXISTS updated_by  VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- admin_member_chats: created_by, updated_at, updated_by
-      ALTER TABLE admin_member_chats ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE admin_member_chats ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE admin_member_chats ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE admin_member_chats ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE admin_member_chats ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- feedback: created_by, updated_at, updated_by
-      ALTER TABLE feedback ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE feedback ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE feedback ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE feedback ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE feedback ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- reports: updated_at, updated_by
       ALTER TABLE reports ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE reports ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE reports ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- app_config: created_at, created_by, updated_by
       ALTER TABLE app_config ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-      ALTER TABLE app_config ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
-      ALTER TABLE app_config ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE app_config ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE app_config ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- campuses: created_by, updated_at, updated_by
-      ALTER TABLE campuses ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE campuses ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE campuses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE campuses ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE campuses ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- rules: created_by, updated_at, updated_by
-      ALTER TABLE rules ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE rules ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE rules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- app_rules: all four audit columns
       ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
-      ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
-      ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+      ALTER TABLE app_rules ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id) ON DELETE SET NULL;
 
       -- category_placeholders: created_at, updated_at
       ALTER TABLE category_placeholders ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
