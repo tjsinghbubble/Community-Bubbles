@@ -294,7 +294,9 @@ export const userSessions = pgTable("user_sessions", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
   durationSeconds: integer("duration_seconds"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+}, (table) => [
+  index("idx_user_sessions_user_id").on(table.userId),
+]);
 
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
   id: true,
@@ -369,7 +371,12 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_reports_status").on(table.status),
+  index("idx_reports_created_at").on(table.createdAt),
+  index("idx_reports_reporter_id").on(table.reporterUserId),
+  index("idx_reports_reported_user_id").on(table.reportedUserId),
+]);
 
 export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
@@ -423,6 +430,9 @@ export const adminMemberChats = pgTable("admin_member_chats", {
   updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("admin_member_chats_bubble_member_unique").on(table.bubbleId, table.memberId),
+  index("idx_admin_chats_created").on(table.createdAt),
+  index("idx_admin_chats_created_by").on(table.createdBy),
+  index("idx_admin_chats_member_id").on(table.memberId),
 ]);
 
 export const insertAdminMemberChatSchema = createInsertSchema(adminMemberChats).omit({
@@ -542,7 +552,11 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   createdBy: varchar("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_bulletin_posts_board_id").on(table.boardId),
+  index("idx_bulletin_posts_board_created").on(table.boardId, table.createdAt),
+  index("idx_bulletin_posts_author_id").on(table.authorId),
+]);
 
 export const bulletinReplies = pgTable("bulletin_replies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -553,7 +567,11 @@ export const bulletinReplies = pgTable("bulletin_replies", {
   createdBy: varchar("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_bulletin_replies_post_id").on(table.postId),
+  index("idx_bulletin_replies_post_created").on(table.postId, table.createdAt),
+  index("idx_bulletin_replies_author_id").on(table.authorId),
+]);
 
 export const insertBulletinBoardSchema = createInsertSchema(bulletinBoards).omit({
   id: true,
@@ -867,7 +885,10 @@ export const feedback = pgTable("feedback", {
   createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id, { onDelete: "set null" }),
-});
+}, (table) => [
+  index("idx_feedback_created_at").on(table.createdAt),
+  index("idx_feedback_user_id").on(table.userId),
+]);
 
 export const insertFeedbackSchema = createInsertSchema(feedback).omit({
   id: true,

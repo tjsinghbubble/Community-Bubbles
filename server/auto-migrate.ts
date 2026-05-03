@@ -655,6 +655,40 @@ export async function autoMigrate(): Promise<void> {
         ON bubble_visits (user_id, bubble_id);
     `);
 
+    // ================================================================
+    // BATCH 2 INDEXES: Secondary query paths
+    // ================================================================
+    await db.execute(sql`
+      -- user_sessions: look up sessions by user
+      CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions (user_id);
+
+      -- bulletin_posts: board feed queries
+      CREATE INDEX IF NOT EXISTS idx_bulletin_posts_board_id     ON bulletin_posts (board_id);
+      CREATE INDEX IF NOT EXISTS idx_bulletin_posts_board_created ON bulletin_posts (board_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_bulletin_posts_author_id    ON bulletin_posts (author_id);
+
+      -- bulletin_replies: reply thread queries
+      CREATE INDEX IF NOT EXISTS idx_bulletin_replies_post_id      ON bulletin_replies (post_id);
+      CREATE INDEX IF NOT EXISTS idx_bulletin_replies_post_created  ON bulletin_replies (post_id, created_at);
+      CREATE INDEX IF NOT EXISTS idx_bulletin_replies_author_id    ON bulletin_replies (author_id);
+
+      -- admin_member_chats: admin messaging queries
+      -- Note: (bubble_id, member_id) unique constraint already backed by a DB index — skipped
+      CREATE INDEX IF NOT EXISTS idx_admin_chats_created    ON admin_member_chats (created_at);
+      CREATE INDEX IF NOT EXISTS idx_admin_chats_created_by ON admin_member_chats (created_by);
+      CREATE INDEX IF NOT EXISTS idx_admin_chats_member_id  ON admin_member_chats (member_id);
+
+      -- feedback: listing and filtering submissions
+      CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback (created_at);
+      CREATE INDEX IF NOT EXISTS idx_feedback_user_id    ON feedback (user_id);
+
+      -- reports: moderation queue queries
+      CREATE INDEX IF NOT EXISTS idx_reports_status           ON reports (status);
+      CREATE INDEX IF NOT EXISTS idx_reports_created_at       ON reports (created_at);
+      CREATE INDEX IF NOT EXISTS idx_reports_reporter_id      ON reports (reporter_user_id);
+      CREATE INDEX IF NOT EXISTS idx_reports_reported_user_id ON reports (reported_user_id);
+    `);
+
     console.log("[autoMigrate] Schema is up to date.");
   } catch (err) {
     console.error("[autoMigrate] Migration failed:", err);
