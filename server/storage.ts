@@ -133,7 +133,7 @@ export interface IStorage {
   getMemberRole(userId: string, bubbleId: string): Promise<string | null>;
   updateMemberRole(userId: string, bubbleId: string, role: string): Promise<void>;
   getWaitlistMembers(bubbleId: string): Promise<(Membership & { user: User })[]>;
-  holdMembership(userId: string, bubbleId: string): Promise<Membership | undefined>;
+  holdMembership(userId: string, bubbleId: string, updatedBy?: string): Promise<Membership | undefined>;
 
   createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
   getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
@@ -832,9 +832,9 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async holdMembership(userId: string, bubbleId: string): Promise<Membership | undefined> {
+  async holdMembership(userId: string, bubbleId: string, updatedBy?: string): Promise<Membership | undefined> {
     const result = await db.update(memberships)
-      .set({ membershipStatus: 'on_hold' })
+      .set({ membershipStatus: 'on_hold', ...(updatedBy ? { updatedBy } : {}) })
       .where(and(eq(memberships.userId, userId), eq(memberships.bubbleId, bubbleId)))
       .returning();
     return result[0];

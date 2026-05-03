@@ -2222,7 +2222,7 @@ export async function registerRoutes(
       if (!existingStatusHold || existingStatusHold !== 'waitlisted') {
         return res.status(400).json({ error: "User is not on the waitlist" });
       }
-      const membership = await storage.holdMembership(userId, bubbleId);
+      const membership = await storage.holdMembership(userId, bubbleId, req.userId);
       if (!membership) {
         return res.status(400).json({ error: "Failed to update membership" });
       }
