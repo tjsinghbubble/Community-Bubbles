@@ -550,6 +550,52 @@ export async function autoMigrate(): Promise<void> {
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     `);
 
+    // ================================================================
+    // BATCH 1 INDEXES: Critical query paths
+    // ================================================================
+    await db.execute(sql`
+      -- email_lower column on users (case-insensitive login uniqueness)
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_lower TEXT;
+
+      -- Backfill plaintext emails only (encrypted values begin with 'enc:')
+      UPDATE users
+        SET email_lower = lower(email)
+        WHERE email_lower IS NULL AND email NOT LIKE 'enc:%';
+
+      -- Unique partial index on email_lower; NULLs (encrypted rows) excluded
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
+        ON users (email_lower) WHERE email_lower IS NOT NULL;
+
+      -- Supporting index on email column for hash-fallback lookups
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+      -- One membership per user per bubble
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_memberships_user_bubble
+        ON memberships (user_id, bubble_id);
+
+      -- Events by bubble_id for listing a bubble's events
+      CREATE INDEX IF NOT EXISTS idx_events_bubble_id ON events (bubble_id);
+
+      -- Events by bubble_id + start_time for chronological listing
+      -- Note: start_time is TEXT; ordering is lexicographic until a future timestamptz migration
+      CREATE INDEX IF NOT EXISTS idx_events_bubble_start ON events (bubble_id, start_time DESC);
+
+      -- Events by created_at for admin / recent-activity feeds
+      CREATE INDEX IF NOT EXISTS idx_events_created_at ON events (created_at DESC);
+
+      -- One RSVP per user per event
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_event_attendees_event_user
+        ON event_attendees (event_id, user_id);
+
+      -- Notifications inbox queries
+      CREATE INDEX IF NOT EXISTS idx_notifications_recipient_created
+        ON notifications (recipient_id, created_at DESC);
+
+      -- Bubble visit history / deduplication
+      CREATE INDEX IF NOT EXISTS idx_bubble_visits_user_bubble
+        ON bubble_visits (user_id, bubble_id);
+    `);
+
     console.log("[autoMigrate] Schema is up to date.");
   } catch (err) {
     console.error("[autoMigrate] Migration failed:", err);

@@ -401,10 +401,11 @@ export class DatabaseStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const encryptedEmail = encryptField(insertUser.email);
     const emailHash = hashField(insertUser.email);
+    const emailLower = insertUser.email.toLowerCase();
 
     const result = await db
       .insert(users)
-      .values({ ...insertUser, email: encryptedEmail, emailHash })
+      .values({ ...insertUser, email: encryptedEmail, emailHash, emailLower })
       .returning();
     const authUser = result[0];
     await db

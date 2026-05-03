@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   emailHash: text("email_hash").unique(),
+  emailLower: text("email_lower"),
   password: text("password").notNull(),
   interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
   campusId: varchar("campus_id").references(() => campuses.id),
@@ -47,7 +48,10 @@ export const users = pgTable("users", {
   createdBy: varchar("created_by").references((): AnyPgColumn => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references((): AnyPgColumn => users.id),
-});
+}, (table) => [
+  uniqueIndex("idx_users_email_lower").on(table.emailLower),
+  index("idx_users_email").on(table.email),
+]);
 
 export const userProfiles = pgTable("user_profiles", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
@@ -109,7 +113,9 @@ export const memberships = pgTable("memberships", {
   createdBy: varchar("created_by").notNull().references(() => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  uniqueIndex("idx_memberships_user_bubble").on(table.userId, table.bubbleId),
+]);
 
 export const verificationCodes = pgTable("verification_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -123,6 +129,8 @@ export const verificationCodes = pgTable("verification_codes", {
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
+  emailLower: true,
+  emailHash: true,
   createdAt: true,
   createdBy: true,
   updatedAt: true,
@@ -214,7 +222,11 @@ export const events = pgTable("events", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_events_bubble_id").on(table.bubbleId),
+  index("idx_events_bubble_start").on(table.bubbleId, table.startTime),
+  index("idx_events_created_at").on(table.createdAt),
+]);
 
 // Event attendees join table
 export const eventAttendees = pgTable("event_attendees", {
@@ -228,7 +240,9 @@ export const eventAttendees = pgTable("event_attendees", {
   updatedBy: varchar("updated_by").references(() => users.id),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
-});
+}, (table) => [
+  uniqueIndex("idx_event_attendees_event_user").on(table.eventId, table.userId),
+]);
 
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
@@ -299,7 +313,9 @@ export const bubbleVisits = pgTable("bubble_visits", {
   userId: varchar("user_id").references(() => users.id),
   visitedAt: timestamp("visited_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: varchar("created_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_bubble_visits_user_bubble").on(table.userId, table.bubbleId),
+]);
 
 export const insertBubbleVisitSchema = createInsertSchema(bubbleVisits).omit({
   id: true,
@@ -430,7 +446,9 @@ export const notifications = pgTable("notifications", {
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_notifications_recipient_created").on(table.recipientId, table.createdAt),
+]);
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
