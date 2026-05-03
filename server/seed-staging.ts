@@ -447,7 +447,7 @@ export async function seedStaging(): Promise<void> {
             privacy: bc.privacy,
             locationName: bc.locationName,
             locationAddress: bc.locationAddress,
-            creatorId: sysAdminId,
+            createdBy: sysAdminId,
             status: "approved",
             members: 0,
           })
@@ -500,6 +500,7 @@ export async function seedStaging(): Promise<void> {
           bubbleId,
           role,
           membershipStatus: "approved",
+          createdBy: userId,
         });
         added++;
       } catch (e) {
