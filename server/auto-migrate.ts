@@ -553,45 +553,104 @@ export async function autoMigrate(): Promise<void> {
     // ================================================================
     // BATCH 1 INDEXES: Critical query paths
     // ================================================================
+
+    // Step 1: email_lower column + plaintext backfill
     await db.execute(sql`
-      -- email_lower column on users (case-insensitive login uniqueness)
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email_lower TEXT;
 
-      -- Backfill plaintext emails only (encrypted values begin with 'enc:')
+      -- Backfill plaintext emails; encrypted values (enc:...) kept as NULL.
+      -- PostgreSQL UNIQUE indexes treat NULLs as distinct, so no conflicts arise.
       UPDATE users
         SET email_lower = lower(email)
         WHERE email_lower IS NULL AND email NOT LIKE 'enc:%';
+    `);
 
-      -- Unique partial index on email_lower; NULLs (encrypted rows) excluded
-      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
-        ON users (email_lower) WHERE email_lower IS NOT NULL;
-
-      -- Supporting index on email column for hash-fallback lookups
+    // Step 2: Normalize idx_users_email_lower — drop the old partial (WHERE) variant
+    // if present, then ensure the plain unique index exists.
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE indexname = 'idx_users_email_lower'
+            AND indexdef LIKE '%WHERE%'
+        ) THEN
+          DROP INDEX idx_users_email_lower;
+        END IF;
+      END $$;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users (email_lower);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+    `);
 
-      -- One membership per user per bubble
+    // Step 3: Dedup memberships, then unique composite index
+    await db.execute(sql`
+      DELETE FROM memberships
+      WHERE id NOT IN (
+        SELECT DISTINCT ON (user_id, bubble_id) id
+        FROM memberships
+        ORDER BY user_id, bubble_id, created_at ASC
+      );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_memberships_user_bubble
         ON memberships (user_id, bubble_id);
+    `);
 
-      -- Events by bubble_id for listing a bubble's events
+    // Step 4: Events indexes — normalize any DESC variants to plain ascending
+    await db.execute(sql`
+      -- idx_events_bubble_start: drop DESC variant if it exists, recreate plain
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE indexname = 'idx_events_bubble_start'
+            AND indexdef LIKE '%DESC%'
+        ) THEN
+          DROP INDEX idx_events_bubble_start;
+        END IF;
+      END $$;
+      -- idx_events_created_at: drop DESC variant if it exists, recreate plain
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE indexname = 'idx_events_created_at'
+            AND indexdef LIKE '%DESC%'
+        ) THEN
+          DROP INDEX idx_events_created_at;
+        END IF;
+      END $$;
+
       CREATE INDEX IF NOT EXISTS idx_events_bubble_id ON events (bubble_id);
+      -- Note: start_time is TEXT; a future migration will convert it to TIMESTAMPTZ
+      CREATE INDEX IF NOT EXISTS idx_events_bubble_start ON events (bubble_id, start_time);
+      CREATE INDEX IF NOT EXISTS idx_events_created_at ON events (created_at);
+    `);
 
-      -- Events by bubble_id + start_time for chronological listing
-      -- Note: start_time is TEXT; ordering is lexicographic until a future timestamptz migration
-      CREATE INDEX IF NOT EXISTS idx_events_bubble_start ON events (bubble_id, start_time DESC);
-
-      -- Events by created_at for admin / recent-activity feeds
-      CREATE INDEX IF NOT EXISTS idx_events_created_at ON events (created_at DESC);
-
-      -- One RSVP per user per event
+    // Step 5: Dedup event_attendees, then unique composite index
+    await db.execute(sql`
+      DELETE FROM event_attendees
+      WHERE id NOT IN (
+        SELECT DISTINCT ON (event_id, user_id) id
+        FROM event_attendees
+        ORDER BY event_id, user_id, created_at ASC
+      );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_event_attendees_event_user
         ON event_attendees (event_id, user_id);
+    `);
 
-      -- Notifications inbox queries
+    // Step 6: Notifications inbox — normalize DESC variant if present
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE indexname = 'idx_notifications_recipient_created'
+            AND indexdef LIKE '%DESC%'
+        ) THEN
+          DROP INDEX idx_notifications_recipient_created;
+        END IF;
+      END $$;
       CREATE INDEX IF NOT EXISTS idx_notifications_recipient_created
-        ON notifications (recipient_id, created_at DESC);
+        ON notifications (recipient_id, created_at);
+    `);
 
-      -- Bubble visit history / deduplication
+    // Step 7: Bubble visits history index
+    await db.execute(sql`
       CREATE INDEX IF NOT EXISTS idx_bubble_visits_user_bubble
         ON bubble_visits (user_id, bubble_id);
     `);
