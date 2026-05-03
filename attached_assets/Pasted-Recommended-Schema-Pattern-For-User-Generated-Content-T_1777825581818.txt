@@ -1,0 +1,177 @@
+Recommended Schema Pattern
+For User-Generated Content Tables:
+sqlCREATE TABLE events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Your business columns
+  bubble_id UUID NOT NULL REFERENCES bubbles(id),
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  start_time TIMESTAMP NOT NULL,
+  -- ... etc
+  
+  -- Audit trail (ALWAYS include these 4):
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  created_by UUID NOT NULL REFERENCES users(id),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_by UUID REFERENCES users(id)  -- nullable (might not be updated yet)
+);
+
+For System/Monitoring Tables:
+sqlCREATE TABLE error_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Your business columns
+  error_message TEXT NOT NULL,
+  stack_trace TEXT,
+  user_id UUID REFERENCES users(id),  -- who experienced the error
+  -- ... etc
+  
+  -- Simplified audit (timestamps only):
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  -- NO created_by (system-generated)
+  -- NO updated_at (logs are immutable)
+);
+
+For Reference Data Tables:
+sqlCREATE TABLE categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
+  -- Your business columns
+  name VARCHAR(100) NOT NULL,
+  icon VARCHAR(50),
+  -- ... etc
+  
+  -- Minimal audit (timestamps only, created_by optional):
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  -- created_by optional (if you want to track which admin added it)
+);
+
+Implementation: Database Triggers for updated_at
+Auto-update updated_at on every row change:
+sql-- Create function once:
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply to each table:
+CREATE TRIGGER update_events_updated_at
+  BEFORE UPDATE ON events
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_bubbles_updated_at
+  BEFORE UPDATE ON bubbles
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- ... repeat for all tables with updated_at
+Now updated_at automatically updates on every UPDATE query.
+
+Implementation: Application-Level updated_by
+In your application code:
+javascript// When updating a record, always pass current user:
+async function updateEvent(eventId, updates, currentUserId) {
+  return await db.events.update(
+    { id: eventId },
+    { 
+      ...updates,
+      updated_by: currentUserId,  // always set this
+      updated_at: new Date()       // or let DB trigger handle it
+    }
+  );
+}
+
+// Usage:
+await updateEvent(eventId, { title: "New Title" }, req.user.id);
+
+Audit Trail Best Practices
+✅ DO:
+1. Use Timestamps for Everything
+sql-- Every table should have created_at minimum:
+created_at TIMESTAMP NOT NULL DEFAULT NOW()
+2. Store User IDs, Not Usernames
+sql-- Good:
+created_by UUID REFERENCES users(id)
+
+-- Bad:
+created_by VARCHAR(255)  -- usernames can change
+3. Make created_by NOT NULL for User Actions
+sql-- If a user MUST create it:
+created_by UUID NOT NULL REFERENCES users(id)
+
+-- If system can create it:
+created_by UUID REFERENCES users(id)  -- nullable
+4. Use UTC Timestamps
+sql-- PostgreSQL:
+created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+
+-- Or normalize to UTC in application:
+created_at TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+
+❌ DON'T:
+1. Don't Add Audit to Every Single Table Mindlessly
+sql-- Makes no sense:
+error_logs:
+  updated_by UUID  -- error logs are immutable, never updated
+2. Don't Store Redundant Data
+sql-- Bad:
+created_by_username VARCHAR(255)  -- redundant, join to users table
+created_by_email VARCHAR(255)     -- redundant, join to users table
+
+-- Good:
+created_by UUID  -- join to users for username/email
+3. Don't Forget Indexes
+sql-- If you query by created_at often:
+CREATE INDEX idx_events_created_at ON events(created_at);
+
+-- If you query by created_by often:
+CREATE INDEX idx_events_created_by ON events(created_by);
+
+Summary: What To Do
+Table Naming:
+❌ Don't add BUBBLE_ prefix
+✅ Keep current names (users, events, bubbles, etc.)
+
+Audit Trail:
+Add to ALL user-generated content tables:
+sqlcreated_at TIMESTAMP NOT NULL DEFAULT NOW()
+created_by UUID NOT NULL REFERENCES users(id)
+updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+updated_by UUID REFERENCES users(id)
+Add timestamps-only to system tables:
+sqlcreated_at TIMESTAMP NOT NULL DEFAULT NOW()
+Skip audit for pure metrics/monitoring:
+sql-- latency_buckets, api_latency_samples
+-- These are just numbers, no audit needed
+
+Recommended Schema Updates
+Tables that MUST have full audit:
+✅ users, user_profiles
+✅ bubbles, memberships, bubble_visits, bubble_chats
+✅ bubble_rules, bubble_rule_overrides
+✅ events, event_attendees
+✅ event_signup_tasks, event_task_signups
+✅ bulletin_posts, bulletin_replies, bulletin_post_reactions
+✅ notifications, notification_preferences
+✅ admin_member_chats
+✅ feedback, reports
+✅ app_config
+Tables that need timestamps only:
+⚠️ user_sessions (created_at only)
+⚠️ verification_codes (created_at only)
+⚠️ device_push_tokens (created_at + updated_at)
+⚠️ audit_logs (created_at only)
+⚠️ error_logs (created_at only)
+⚠️ crash_reports (created_at only)
+Tables where audit is optional:
+⚠️ categories, category_placeholders, category_rules
+⚠️ rules, app_rules
+⚠️ bulletin_post_types
+⚠️ campuses
+⚠️ slow_calls, latency_buckets, api_latency_samples
