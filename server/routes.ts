@@ -2513,7 +2513,7 @@ export async function registerRoutes(
         }
       }
       
-      const creator = await storage.getUser(event.creatorId);
+      const creator = await storage.getUser(event.createdBy);
       const baseUrl = getBaseUrl(req);
       const localEvent = absoluteMediaUrls(convertEventToLocal(event), baseUrl);
       res.json({
@@ -2555,7 +2555,7 @@ export async function registerRoutes(
       if (bodyToStore.locationLng != null) bodyToStore.locationLng = truncateCoord(bodyToStore.locationLng);
       const data = insertEventSchema.parse({
         ...bodyToStore,
-        creatorId: req.userId,
+        createdBy: req.userId,
       });
 
       const bubble = await storage.getBubble(data.bubbleId);
@@ -2605,7 +2605,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUser(req.userId!);
-      const isEventCreator = event.creatorId === req.userId;
+      const isEventCreator = event.createdBy === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
       const bubble = await storage.getBubble(event.bubbleId);
       const isBubbleAdmin = bubble?.createdBy === req.userId;
@@ -2645,7 +2645,7 @@ export async function registerRoutes(
       const originalDate = event.date;
       const originalStartTime = event.startTime;
 
-      const updated = await storage.updateEvent(req.params.id, updateBody);
+      const updated = await storage.updateEvent(req.params.id, updateBody, req.userId!);
 
       const newDate = updateBody.date ?? originalDate;
       const newStartTime = updateBody.startTime ?? originalStartTime;
@@ -2693,7 +2693,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.getUser(req.userId!);
-      const isEventCreator = event.creatorId === req.userId;
+      const isEventCreator = event.createdBy === req.userId;
       const isSuperAdmin = user?.isSuperAdmin === true;
       const bubble = await storage.getBubble(event.bubbleId);
       const isBubbleAdmin = bubble?.createdBy === req.userId;
@@ -2950,11 +2950,11 @@ export async function registerRoutes(
         status: finalStatus,
       });
 
-      if (finalStatus === "going" && event.creatorId !== req.userId) {
+      if (finalStatus === "going" && event.createdBy !== req.userId) {
         const rsvpUser = await storage.getUser(req.userId!);
         const rsvpBubble = await storage.getBubble(event.bubbleId);
         sendNotification({
-          recipientId: event.creatorId,
+          recipientId: event.createdBy,
           type: "event_rsvp",
           title: "New RSVP",
           body: `${rsvpUser?.name || 'Someone'} is going to "${event.title}"`,
@@ -2968,7 +2968,7 @@ export async function registerRoutes(
         if (goingAfterRsvp >= event.attendeeLimit) {
           const fullBubble = await storage.getBubble(event.bubbleId);
           sendNotification({
-            recipientId: event.creatorId,
+            recipientId: event.createdBy,
             type: "event_full",
             title: "Event Full!",
             body: `"${event.title}" has reached its capacity of ${event.attendeeLimit}`,
@@ -2993,11 +2993,11 @@ export async function registerRoutes(
 
       if (wasGoing) {
         const unrsvpEvent = await storage.getEvent(req.params.id);
-        if (unrsvpEvent && unrsvpEvent.creatorId !== req.userId) {
+        if (unrsvpEvent && unrsvpEvent.createdBy !== req.userId) {
           const unrsvpUser = await storage.getUser(req.userId!);
           const unrsvpBubble = await storage.getBubble(unrsvpEvent.bubbleId);
           sendNotification({
-            recipientId: unrsvpEvent.creatorId,
+            recipientId: unrsvpEvent.createdBy,
             type: "event_unrsvp",
             title: "RSVP Cancelled",
             body: `${unrsvpUser?.name || 'Someone'} is no longer going to "${unrsvpEvent.title}"`,
@@ -3065,7 +3065,7 @@ export async function registerRoutes(
         userId: a.userId,
         eventId: a.eventId,
         status: a.status,
-        joinedAt: a.joinedAt,
+        joinedAt: a.createdAt,
         user: {
           id: a.user.id,
           name: a.user.name,
@@ -3098,7 +3098,7 @@ export async function registerRoutes(
       if (!event) return res.status(404).json({ error: "Event not found" });
       const user = await storage.getUser(req.userId!);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      const isCreator = event.creatorId === req.userId;
+      const isCreator = event.createdBy === req.userId;
       const role = await storage.getMemberRole(req.userId!, event.bubbleId);
       const isAdmin = role === 'admin' || user.isSuperAdmin;
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can add sign-up tasks" });
@@ -3120,7 +3120,7 @@ export async function registerRoutes(
       if (!event) return res.status(404).json({ error: "Event not found" });
       const user = await storage.getUser(req.userId!);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      const isCreator = event.creatorId === req.userId;
+      const isCreator = event.createdBy === req.userId;
       const role = await storage.getMemberRole(req.userId!, event.bubbleId);
       const isAdmin = role === 'admin' || user.isSuperAdmin;
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can reorder sign-up tasks" });
@@ -3153,7 +3153,7 @@ export async function registerRoutes(
       if (!event) return res.status(404).json({ error: "Event not found" });
       const user = await storage.getUser(req.userId!);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      const isCreator = event.creatorId === req.userId;
+      const isCreator = event.createdBy === req.userId;
       const role = await storage.getMemberRole(req.userId!, event.bubbleId);
       const isAdmin = role === 'admin' || user.isSuperAdmin;
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can edit sign-up tasks" });
@@ -3181,7 +3181,7 @@ export async function registerRoutes(
       if (!event) return res.status(404).json({ error: "Event not found" });
       const user = await storage.getUser(req.userId!);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      const isCreator = event.creatorId === req.userId;
+      const isCreator = event.createdBy === req.userId;
       const role = await storage.getMemberRole(req.userId!, event.bubbleId);
       const isAdmin = role === 'admin' || user.isSuperAdmin;
       if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can delete sign-up tasks" });

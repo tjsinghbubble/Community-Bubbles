@@ -202,13 +202,15 @@ export const events = pgTable("events", {
   recurrenceCustomFrequency: text("recurrence_custom_frequency"),
   recurrenceCustomInterval: integer("recurrence_custom_interval"),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
-  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('approved'),
   rejectionReason: text("rejection_reason"),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 });
 
 // Event attendees join table
@@ -217,7 +219,10 @@ export const eventAttendees = pgTable("event_attendees", {
   eventId: varchar("event_id").notNull().references(() => events.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: text("status").notNull().default('going'),
-  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 });
@@ -225,6 +230,8 @@ export const eventAttendees = pgTable("event_attendees", {
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  updatedBy: true,
   reminder24hSent: true,
   reminder1hSent: true,
 }).extend({
@@ -236,7 +243,10 @@ export const insertEventSchema = createInsertSchema(events).omit({
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
   id: true,
-  joinedAt: true,
+  createdAt: true,
+  createdBy: true,
+  updatedAt: true,
+  updatedBy: true,
   reminder24hSent: true,
   reminder1hSent: true,
 });
@@ -397,12 +407,14 @@ export const notifications = pgTable("notifications", {
   metadata: text("metadata"),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   read: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
@@ -541,6 +553,7 @@ export const bulletinPostReactions = pgTable("bulletin_post_reactions", {
   userId: varchar("user_id").notNull().references(() => users.id),
   emoji: varchar("emoji", { length: 32 }).notNull().default('heart'),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
 });
 
 export type BulletinBoard = typeof bulletinBoards.$inferSelect;
@@ -667,6 +680,8 @@ export const eventSignupTasks = pgTable("event_signup_tasks", {
   spotsNeeded: integer("spots_needed"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
   position: integer("position").notNull().default(0),
 });
 
@@ -674,9 +689,12 @@ export const eventTaskSignups = pgTable("event_task_signups", {
   id: serial("id").primaryKey(),
   taskId: integer("task_id").notNull().references(() => eventSignupTasks.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id),
   reminderSent: boolean("reminder_sent").notNull().default(false),
   reminderSent1h: boolean("reminder_sent_1h").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: varchar("updated_by").references(() => users.id),
 }, (table) => [
   unique("event_task_signups_task_user_unique").on(table.taskId, table.userId),
 ]);
@@ -684,6 +702,8 @@ export const eventTaskSignups = pgTable("event_task_signups", {
 export const insertEventSignupTaskSchema = createInsertSchema(eventSignupTasks).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
+  updatedBy: true,
 }).extend({
   title: z.string().min(1).max(150),
   description: z.string().max(500).optional().nullable(),

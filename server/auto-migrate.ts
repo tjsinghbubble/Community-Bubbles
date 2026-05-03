@@ -284,6 +284,150 @@ export async function autoMigrate(): Promise<void> {
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     `);
 
+    // ================================================================
+    // BATCH 2: Audit Trail — Events + Bulletin
+    // ================================================================
+
+    // Step 1: Rename creator_id → created_by on events (idempotent)
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'events' AND column_name = 'creator_id'
+        ) THEN
+          ALTER TABLE events RENAME COLUMN creator_id TO created_by;
+        END IF;
+      END $$;
+    `);
+
+    // Step 2: Rename joined_at → created_at on event_attendees (idempotent)
+    await db.execute(sql`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_attendees' AND column_name = 'joined_at'
+        ) THEN
+          ALTER TABLE event_attendees RENAME COLUMN joined_at TO created_at;
+        END IF;
+      END $$;
+    `);
+
+    // Step 3: Also convert the newly renamed/added TIMESTAMP columns to TIMESTAMPTZ
+    await db.execute(sql`
+      DO $$
+      DECLARE
+        r RECORD;
+      BEGIN
+        FOR r IN
+          SELECT tbl, col FROM (VALUES
+            ('events',            'created_at'),
+            ('events',            'updated_at'),
+            ('event_attendees',   'created_at'),
+            ('event_attendees',   'updated_at'),
+            ('event_signup_tasks','created_at'),
+            ('event_signup_tasks','updated_at'),
+            ('event_task_signups','created_at'),
+            ('event_task_signups','updated_at'),
+            ('notifications',     'updated_at'),
+            ('bulletin_post_reactions', 'created_at')
+          ) AS t(tbl, col)
+        LOOP
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = r.tbl
+              AND column_name = r.col
+              AND data_type = 'timestamp without time zone'
+          ) THEN
+            EXECUTE format(
+              'ALTER TABLE %I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I AT TIME ZONE ''UTC''',
+              r.tbl, r.col, r.col
+            );
+          END IF;
+        END LOOP;
+      END $$;
+    `);
+
+    // Step 4: Add audit columns to events, event_attendees, event_signup_tasks,
+    //         event_task_signups, bulletin_post_reactions, notifications (all idempotent)
+    await db.execute(sql`
+      -- events: updated_at, updated_by (created_by already present from rename)
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- event_attendees: created_by, updated_at, updated_by
+      ALTER TABLE event_attendees ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE event_attendees ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE event_attendees ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- event_signup_tasks: updated_at, updated_by
+      ALTER TABLE event_signup_tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE event_signup_tasks ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- event_task_signups: created_by, updated_at, updated_by
+      ALTER TABLE event_task_signups ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+      ALTER TABLE event_task_signups ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      ALTER TABLE event_task_signups ADD COLUMN IF NOT EXISTS updated_by VARCHAR REFERENCES users(id);
+
+      -- bulletin_post_reactions: created_by
+      ALTER TABLE bulletin_post_reactions ADD COLUMN IF NOT EXISTS created_by VARCHAR REFERENCES users(id);
+
+      -- notifications: updated_at
+      ALTER TABLE notifications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    `);
+
+    // Step 5: Backfill event_attendees.created_by from user_id
+    await db.execute(sql`
+      UPDATE event_attendees SET created_by = user_id WHERE created_by IS NULL;
+    `);
+
+    // Step 6: Backfill event_task_signups.created_by from user_id
+    await db.execute(sql`
+      UPDATE event_task_signups SET created_by = user_id WHERE created_by IS NULL;
+    `);
+
+    // Step 7: Backfill bulletin_post_reactions.created_by from user_id
+    await db.execute(sql`
+      UPDATE bulletin_post_reactions SET created_by = user_id WHERE created_by IS NULL;
+    `);
+
+    // Step 8: Install BEFORE UPDATE triggers on Batch 2 tables (idempotent)
+    await db.execute(sql`
+      DROP TRIGGER IF EXISTS update_events_updated_at ON events;
+      CREATE TRIGGER update_events_updated_at
+        BEFORE UPDATE ON events
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_event_attendees_updated_at ON event_attendees;
+      CREATE TRIGGER update_event_attendees_updated_at
+        BEFORE UPDATE ON event_attendees
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_event_signup_tasks_updated_at ON event_signup_tasks;
+      CREATE TRIGGER update_event_signup_tasks_updated_at
+        BEFORE UPDATE ON event_signup_tasks
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_event_task_signups_updated_at ON event_task_signups;
+      CREATE TRIGGER update_event_task_signups_updated_at
+        BEFORE UPDATE ON event_task_signups
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bulletin_posts_updated_at ON bulletin_posts;
+      CREATE TRIGGER update_bulletin_posts_updated_at
+        BEFORE UPDATE ON bulletin_posts
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_bulletin_replies_updated_at ON bulletin_replies;
+      CREATE TRIGGER update_bulletin_replies_updated_at
+        BEFORE UPDATE ON bulletin_replies
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+      DROP TRIGGER IF EXISTS update_notifications_updated_at ON notifications;
+      CREATE TRIGGER update_notifications_updated_at
+        BEFORE UPDATE ON notifications
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    `);
+
     console.log("[autoMigrate] Schema is up to date.");
   } catch (err) {
     console.error("[autoMigrate] Migration failed:", err);

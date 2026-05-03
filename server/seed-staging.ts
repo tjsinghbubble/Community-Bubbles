@@ -555,7 +555,7 @@ export async function seedStaging(): Promise<void> {
             locationName: bc.locationName,
             locationAddress: bc.locationAddress,
             bubbleId,
-            creatorId: sysAdminId,
+            createdBy: sysAdminId,
             status: "approved",
             visibility: "public",
             timezone: "America/Los_Angeles",

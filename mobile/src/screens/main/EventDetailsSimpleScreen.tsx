@@ -53,7 +53,7 @@ type Event = {
   wheelchairAccessible: boolean;
   attendeeLimit: number | null;
   rsvpDeadline: string | null;
-  creatorId: string;
+  createdBy: string;
   bubbleId: string;
 };
 
@@ -235,7 +235,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       bubbleId: event?.bubbleId || '',
       bubbleTitle: bubbleDisplayTitle || bubble?.title || '',
       bubblePrivacy: bubble?.privacy || 'Public',
-      eventCreatorId: event?.creatorId || '',
+      eventCreatorId: event?.createdBy || '',
     });
   };
 
@@ -298,7 +298,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     );
   }
 
-  const isEventCreator = event.creatorId === user?.id;
+  const isEventCreator = event.createdBy === user?.id;
   const isBubbleAdmin = bubble?.createdBy === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
@@ -306,7 +306,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
+  const creatorAttendee = attendees.find(a => a.userId === event.createdBy);
   const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
   const creatorProfilePhoto = (event as any).creatorProfilePhoto || null;
 

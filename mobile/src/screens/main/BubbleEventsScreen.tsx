@@ -33,7 +33,7 @@ type Event = {
   endTime: string | null;
   locationName: string | null;
   attendeeLimit: number | null;
-  creatorId: string;
+  createdBy: string;
 };
 
 type Bubble = {

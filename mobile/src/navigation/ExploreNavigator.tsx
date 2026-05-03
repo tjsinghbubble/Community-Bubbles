@@ -60,7 +60,7 @@ export type EventData = {
   locationAddress?: string | null;
   visibility?: string;
   attendeeLimit?: number | null;
-  creatorId: string;
+  createdBy: string;
   bubbleId: string;
 };
 

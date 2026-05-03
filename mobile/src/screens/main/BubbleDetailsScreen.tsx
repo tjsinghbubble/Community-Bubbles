@@ -62,7 +62,7 @@ type Event = {
   endTime: string | null;
   locationName: string | null;
   attendeeLimit: number | null;
-  creatorId: string;
+  createdBy: string;
 };
 
 export default function BubbleDetailsScreen({ navigation, route }: Props) {

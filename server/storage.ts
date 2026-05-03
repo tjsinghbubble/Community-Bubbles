@@ -147,7 +147,7 @@ export interface IStorage {
   getUserCreatedEvents(userId: string): Promise<(Event & { bubble: Bubble })[]>;
   getUserCreatedBubbles(userId: string): Promise<Bubble[]>;
   createEvent(event: InsertEvent): Promise<Event>;
-  updateEvent(id: string, event: Partial<InsertEvent>): Promise<Event | undefined>;
+  updateEvent(id: string, event: Partial<InsertEvent>, updatedBy?: string): Promise<Event | undefined>;
   deleteEvent(id: string): Promise<void>;
   getPendingEventsForBubble(bubbleId: string): Promise<Event[]>;
   getPendingEventsForAdmin(userId: string): Promise<(Event & { bubble: Bubble })[]>;
@@ -473,7 +473,7 @@ export class DatabaseStorage implements IStorage {
 
     // 11. Delete events created by user (and their attendees first)
     const userEventIds = (
-      await db.select({ id: events.id }).from(events).where(eq(events.creatorId, id))
+      await db.select({ id: events.id }).from(events).where(eq(events.createdBy, id))
     ).map((e) => e.id);
     if (userEventIds.length > 0) {
       await db.delete(eventAttendees).where(inArray(eventAttendees.eventId, userEventIds));
@@ -943,7 +943,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(and(eq(events.creatorId, userId), isNull(bubbles.deletedAt)))
+      .where(and(eq(events.createdBy, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
     const eventMap   = new Map<string, Event & { bubble: Bubble }>();
@@ -966,7 +966,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(events)
       .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
-      .where(and(eq(events.creatorId, userId), isNull(bubbles.deletedAt)))
+      .where(and(eq(events.createdBy, userId), isNull(bubbles.deletedAt)))
       .orderBy(events.date, events.startTime);
 
     return result.map(row => ({ ...row.events, bubble: row.bubbles }));
@@ -985,8 +985,10 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateEvent(id: string, updates: Partial<InsertEvent>): Promise<Event | undefined> {
-    const result = await db.update(events).set(updates).where(eq(events.id, id)).returning();
+  async updateEvent(id: string, updates: Partial<InsertEvent>, updatedBy?: string): Promise<Event | undefined> {
+    const setData: Record<string, unknown> = { ...updates };
+    if (updatedBy) setData.updatedBy = updatedBy;
+    const result = await db.update(events).set(setData as any).where(eq(events.id, id)).returning();
     return result[0];
   }
 
@@ -1078,7 +1080,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEventAttendee(insertAttendee: InsertEventAttendee): Promise<EventAttendee> {
-    const result = await db.insert(eventAttendees).values(insertAttendee).returning();
+    const result = await db.insert(eventAttendees).values({
+      ...insertAttendee,
+      createdBy: insertAttendee.userId,
+    }).returning();
     return result[0];
   }
 
@@ -1101,7 +1106,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(eventAttendees)
       .where(and(eq(eventAttendees.eventId, eventId), eq(eventAttendees.status, 'waitlisted')))
-      .orderBy(eventAttendees.joinedAt)
+      .orderBy(eventAttendees.createdAt)
       .limit(1);
     return result[0];
   }
@@ -2613,7 +2618,7 @@ export class DatabaseStorage implements IStorage {
 
       await tx
         .insert(eventTaskSignups)
-        .values({ taskId, userId })
+        .values({ taskId, userId, createdBy: userId })
         .onConflictDoNothing();
 
       return { success: true };
