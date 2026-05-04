@@ -71,6 +71,7 @@ export default function RootNavigator() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [linkingConfig, setLinkingConfig] = useState(() => buildLinking());
   const pendingShortIdRef = useRef<string | null>(null);
+  const pendingEventShortIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     apiService.getShareBaseUrl()
@@ -203,6 +204,38 @@ export default function RootNavigator() {
     };
   }, [isAuthenticated]);
 
+  const navigateToEvent = async (shortId: string) => {
+    try {
+      const event = await apiService.getEventByShortId(shortId);
+      if (!event) {
+        Alert.alert('Event Not Found', 'This event no longer exists or may have been removed.');
+        return;
+      }
+      const nav = navigationRef.current;
+      if (nav) {
+        (nav as any).navigate('Main', {
+          screen: 'Explore',
+          params: {
+            screen: 'EventDetails',
+            params: {
+              eventId: event.id,
+              bubbleId: event.bubbleId,
+              bubbleTitle: event.bubble?.title || '',
+            },
+          },
+        });
+      }
+    } catch (error: any) {
+      if (error?.status === 404) {
+        Alert.alert('Event Not Found', 'This event no longer exists or may have been removed.');
+      } else {
+        const err = error instanceof Error ? error : new Error(String(error));
+        reportError(err, 'background.DeepLink.navigateToEvent');
+        Alert.alert('Error', 'Unable to open this event link. Please try again.');
+      }
+    }
+  };
+
   const navigateToBubble = async (shortId: string) => {
     try {
       const bubble = await apiService.getBubbleByShortId(shortId);
@@ -240,17 +273,24 @@ export default function RootNavigator() {
   useEffect(() => {
     const handleDeepLink = (url: string) =>
       withBackgroundTask('DeepLink.handleUrl', async () => {
-        const shortIdMatch = url.match(/\/b\/([a-zA-Z0-9]+)/);
-        if (!shortIdMatch) return;
+        const bubbleMatch = url.match(/\/b\/([a-zA-Z0-9]+)/);
+        const eventMatch = url.match(/\/e\/([a-zA-Z0-9]+)/);
 
-        const shortId = shortIdMatch[1];
-
-        if (!isAuthenticated) {
-          pendingShortIdRef.current = shortId;
-          return;
+        if (bubbleMatch) {
+          const shortId = bubbleMatch[1];
+          if (!isAuthenticated) {
+            pendingShortIdRef.current = shortId;
+            return;
+          }
+          await navigateToBubble(shortId);
+        } else if (eventMatch) {
+          const shortId = eventMatch[1];
+          if (!isAuthenticated) {
+            pendingEventShortIdRef.current = shortId;
+            return;
+          }
+          await navigateToEvent(shortId);
         }
-
-        await navigateToBubble(shortId);
       });
 
     const subscription = Linking.addEventListener('url', (event) => {
@@ -275,6 +315,13 @@ export default function RootNavigator() {
       pendingShortIdRef.current = null;
       setTimeout(() => {
         navigateToBubble(shortId);
+      }, 500);
+    }
+    if (isAuthenticated && pendingEventShortIdRef.current) {
+      const shortId = pendingEventShortIdRef.current;
+      pendingEventShortIdRef.current = null;
+      setTimeout(() => {
+        navigateToEvent(shortId);
       }, 500);
     }
   }, [isAuthenticated]);

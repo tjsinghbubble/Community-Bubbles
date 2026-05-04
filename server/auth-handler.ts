@@ -104,7 +104,7 @@ export function resetAllLoginFailures() {
 
 export interface SendVerificationStorage {
   getUserByEmail(email: string): Promise<any>;
-  createVerificationCode(data: { email: string; code: string; expiresAt: Date }): Promise<void>;
+  createVerificationCode(data: { email: string; code: string; expiresAt: Date }): Promise<unknown>;
 }
 
 export interface RegisterSendVerificationRouteOptions {

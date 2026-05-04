@@ -705,12 +705,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   const handleShare = async () => {
     try {
-      const configRes = await apiService.getShareBaseUrl();
-      const bubbleName = encodeURIComponent(bubble?.title || 'bubble');
-      const eventName = encodeURIComponent(event?.title || 'event');
-      const deepLink = `${configRes.baseUrl}/${bubbleName}/${eventName}/${eventId}`;
+      const [configRes] = await Promise.all([apiService.getShareBaseUrl()]);
+      const shortId = event?.shortId;
+      const deepLink = shortId
+        ? `${configRes.baseUrl}/e/${shortId}`
+        : configRes.baseUrl;
       await Share.share({
-        message: `Check out this event: ${event?.title}\n${deepLink}`,
+        message: `Check out "${event?.title}" on Bubble!\n${deepLink}`,
       });
     } catch (error) {
       console.error('Share error:', error);

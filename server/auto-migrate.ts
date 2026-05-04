@@ -73,6 +73,11 @@ export async function autoMigrate(): Promise<void> {
       ALTER TABLE event_attendees
         ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS reminder_1h_sent  BOOLEAN NOT NULL DEFAULT false;
+
+      -- event short IDs for share links
+      ALTER TABLE events
+        ADD COLUMN IF NOT EXISTS short_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS events_short_id_idx ON events(short_id);
     `);
 
     console.log("[autoMigrate] Schema is up to date.");

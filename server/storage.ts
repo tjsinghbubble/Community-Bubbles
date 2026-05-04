@@ -138,6 +138,8 @@ export interface IStorage {
 
   // Events
   getEvent(id: string): Promise<Event | undefined>;
+  getEventByShortId(shortId: string): Promise<(Event & { bubble: Bubble }) | undefined>;
+  backfillEventShortIds(): Promise<void>;
   getBubbleEvents(bubbleId: string): Promise<Event[]>;
   getAllPublicEvents(): Promise<(Event & { bubble: Bubble })[]>;
   getUserEvents(userId: string): Promise<(Event & { bubble: Bubble })[]>;
@@ -966,8 +968,45 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(bubbles.createdAt));
   }
 
+  async getEventByShortId(shortId: string): Promise<(Event & { bubble: Bubble }) | undefined> {
+    const result = await db
+      .select()
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .where(eq(events.shortId, shortId))
+      .limit(1);
+    if (!result[0]) return undefined;
+    return { ...result[0].events, bubble: result[0].bubbles };
+  }
+
+  async backfillEventShortIds(): Promise<void> {
+    const rows = await db.select({ id: events.id }).from(events).where(isNull(events.shortId));
+    for (const row of rows) {
+      let shortId: string;
+      let attempts = 0;
+      do {
+        shortId = generateShortId();
+        const existing = await db.select().from(events).where(eq(events.shortId, shortId)).limit(1);
+        if (existing.length === 0) break;
+        attempts++;
+      } while (attempts < 10);
+      await db.update(events).set({ shortId }).where(eq(events.id, row.id));
+    }
+    if (rows.length > 0) {
+      console.log(`Backfilled shortIds for ${rows.length} events`);
+    }
+  }
+
   async createEvent(insertEvent: InsertEvent): Promise<Event> {
-    const result = await db.insert(events).values(insertEvent).returning();
+    let shortId: string;
+    let attempts = 0;
+    do {
+      shortId = generateShortId();
+      const existing = await db.select().from(events).where(eq(events.shortId, shortId)).limit(1);
+      if (existing.length === 0) break;
+      attempts++;
+    } while (attempts < 10);
+    const result = await db.insert(events).values({ ...insertEvent, shortId }).returning();
     return result[0];
   }
 

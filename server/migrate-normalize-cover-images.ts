@@ -56,7 +56,7 @@ async function run(): Promise<void> {
 
   await normalizeTable("bubbles", allBubbles, async (id, path) => {
     const { eq } = await import("drizzle-orm");
-    await db.update(bubbles).set({ coverImage: path }).where(eq(bubbles.id, id as number));
+    await db.update(bubbles).set({ coverImage: path }).where(eq(bubbles.id, id as string));
   });
 
   const allEvents = await db
@@ -65,7 +65,7 @@ async function run(): Promise<void> {
 
   await normalizeTable("events", allEvents, async (id, path) => {
     const { eq } = await import("drizzle-orm");
-    await db.update(events).set({ coverImage: path }).where(eq(events.id, id as number));
+    await db.update(events).set({ coverImage: path }).where(eq(events.id, id as string));
   });
 
   console.log(`${LOG} Done`);

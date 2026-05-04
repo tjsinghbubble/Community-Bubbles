@@ -193,6 +193,7 @@ export const events = pgTable("events", {
   rejectionReason: text("rejection_reason"),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
+  shortId: text("short_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -209,6 +210,7 @@ export const eventAttendees = pgTable("event_attendees", {
 
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
+  shortId: true,
   createdAt: true,
   reminder24hSent: true,
   reminder1hSent: true,

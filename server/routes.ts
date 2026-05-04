@@ -3694,6 +3694,7 @@ export async function registerRoutes(
   seedAppConfig().catch(console.error);
   seedRules().catch(console.error);
   storage.backfillBubbleShortIds().catch(console.error);
+  storage.backfillEventShortIds().catch(console.error);
 
   // Bulletin Board - Post Types
   app.get("/api/bulletin/post-types", authMiddleware, async (_req, res) => {
@@ -4043,6 +4044,117 @@ export async function registerRoutes(
   </div>
   <script>
     var deepLink = "bubble://b/${shortId}";
+    function openApp() {
+      document.getElementById("status").textContent = "Opening Bubble…";
+      window.location = deepLink;
+      setTimeout(function() {
+        if (!document.hidden) {
+          document.getElementById("status").textContent = "App not installed — download Bubble below.";
+        }
+      }, 1800);
+    }
+  </script>
+</body>
+</html>`);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // JSON endpoint used by the mobile app for event deep-link resolution
+  app.get("/api/events/short/:shortId", async (req, res) => {
+    try {
+      const event = await storage.getEventByShortId(req.params.shortId);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      const baseUrl = getBaseUrl(req);
+      res.json(absoluteMediaUrls(event, baseUrl));
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // Smart landing page for events — tries to open the app, falls back to a web preview
+  app.get("/e/:shortId", async (req, res) => {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    try {
+      const event = await storage.getEventByShortId(req.params.shortId);
+      if (!event) {
+        return res.status(404).send(`<!DOCTYPE html><html><head><title>Event not found</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h2>Event not found</h2><p>This link may have expired or been removed.</p></body></html>`);
+      }
+      const baseUrl = getBaseUrl(req);
+      const title = esc(event.title || "");
+      const description = esc(event.description || event.bubble?.title || "");
+      const bubbleTitle = esc(event.bubble?.title || "");
+      const shortId = esc(req.params.shortId);
+      const rawCover = event.coverImage || event.bubble?.coverImage;
+      const coverUrl = rawCover ? absoluteMediaUrl(rawCover, baseUrl) : null;
+      const ogImage = coverUrl ? `<meta property="og:image" content="${esc(coverUrl)}" />` : "";
+      const coverStyle = coverUrl ? `background-image:url('${esc(coverUrl)}');background-size:cover;background-position:center;` : "background:#5B5FEF;";
+      const dateStr = esc(event.date || "");
+      const timeStr = esc(event.startTime || "");
+
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>${title} • Bubble</title>
+  <meta name="description" content="${description}" />
+  <meta property="og:title" content="${title} • Bubble" />
+  <meta property="og:description" content="${description}" />
+  <meta property="og:url" content="https://trybubble.io/e/${shortId}" />
+  <meta property="og:type" content="website" />
+  ${ogImage}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title} • Bubble" />
+  <meta name="twitter:description" content="${description}" />
+  ${ogImage}
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#F4F5F7;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+    .card{background:#fff;border-radius:24px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)}
+    .cover{height:180px;${coverStyle}display:flex;align-items:flex-end;padding:16px}
+    .badge{background:rgba(255,255,255,0.92);border-radius:20px;padding:4px 12px;font-size:13px;font-weight:600;color:#5B5FEF}
+    .body{padding:24px}
+    .title{font-size:22px;font-weight:700;color:#1A1A2E;margin-bottom:6px}
+    .meta-row{font-size:14px;color:#6B7280;margin-bottom:4px}
+    .bubble-name{font-size:13px;color:#9CA3AF;margin-bottom:16px}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+    .chip{background:#F0F1FF;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600;color:#5B5FEF}
+    .btn-open{display:block;background:#5B5FEF;color:#fff;text-align:center;padding:16px;border-radius:14px;font-size:17px;font-weight:700;text-decoration:none;margin-bottom:12px;cursor:pointer;border:none;width:100%}
+    .btn-open:active{background:#4A4DD4}
+    .store-row{display:flex;gap:10px}
+    .btn-store{flex:1;display:block;background:#F4F5F7;color:#1A1A2E;text-align:center;padding:12px;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none}
+    .hint{font-size:13px;color:#9CA3AF;text-align:center;margin-top:16px}
+    #status{font-size:13px;color:#9CA3AF;text-align:center;margin-top:10px;min-height:20px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="cover">
+      <span class="badge">Event</span>
+    </div>
+    <div class="body">
+      <div class="title">${title}</div>
+      ${dateStr ? `<div class="meta-row">&#128197; ${dateStr}${timeStr ? " &bull; " + timeStr : ""}</div>` : ""}
+      ${bubbleTitle ? `<div class="bubble-name">in ${bubbleTitle}</div>` : ""}
+      <div class="chips">
+        <span class="chip">&#128101; Bubble Event</span>
+      </div>
+      <button class="btn-open" onclick="openApp()">Open in Bubble App</button>
+      <div class="store-row">
+        <a class="btn-store" href="https://apps.apple.com/app/id6741453696" target="_blank">&#128241; App Store</a>
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.bubble.mobile" target="_blank">&#129302; Google Play</a>
+      </div>
+      <div id="status"></div>
+      <div class="hint">Don't have Bubble yet? Download it free above.</div>
+    </div>
+  </div>
+  <script>
+    var deepLink = "bubble://e/${shortId}";
     function openApp() {
       document.getElementById("status").textContent = "Opening Bubble…";
       window.location = deepLink;
