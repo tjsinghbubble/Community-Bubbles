@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, PageBody } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import BubbleButton from '../../components/BubbleButton';
 import { useAuth } from '../../context/AuthContext';
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-    paddingBottom: 40,
+    paddingBottom: PageBody.paddingBottom,
     gap: Spacing.lg,
   },
   heading: {

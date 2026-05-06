@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { useAuth } from '../../context/AuthContext';
-import { Colors, Spacing, Typography, CardShadow, Radius } from '../../styles/theme';
+import { Colors, Spacing, Typography, CardShadow, Radius, PageBody } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import { API_URL } from '../../config/api';
 
@@ -226,7 +226,7 @@ export default function CategoryPlaceholdersScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <NavHeader title="Category Placeholders" onBack={() => navigation.goBack()} />
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: PageBody.paddingBottom }}>
         <TouchableOpacity
           style={styles.categorySelector}
           onPress={() => setShowCategoryPicker(true)}
