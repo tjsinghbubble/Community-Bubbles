@@ -84,17 +84,8 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
     apiService.setToken(token);
 
     try {
-      const response = await apiService.sendCampusVerification(email);
-      
-      if (response.emailFailed && response.fallbackCode) {
-        Alert.alert(
-          'Email Delivery Failed',
-          `We couldn't send the email, but your verification code is:\n\n${response.fallbackCode}\n\nPlease copy it before continuing.`,
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert('Success', 'A new verification code has been sent to your email');
-      }
+      await apiService.sendCampusVerification(email);
+      Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to resend code');
     } finally {

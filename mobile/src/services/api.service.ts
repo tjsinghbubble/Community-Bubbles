@@ -453,9 +453,6 @@ class ApiService {
       message: string;
       campusId: string;
       campusName: string;
-      devCode?: string;
-      emailFailed?: boolean;
-      fallbackCode?: string;
     }>("/api/campus/send-verification", {
       method: "POST",
       body: JSON.stringify({ email }),
