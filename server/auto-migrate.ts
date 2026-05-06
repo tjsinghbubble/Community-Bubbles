@@ -78,6 +78,15 @@ export async function autoMigrate(): Promise<void> {
       ALTER TABLE events
         ADD COLUMN IF NOT EXISTS short_id TEXT;
       CREATE UNIQUE INDEX IF NOT EXISTS events_short_id_idx ON events(short_id);
+
+      -- feedback (user-submitted feedback, feature requests, and defect reports)
+      CREATE TABLE IF NOT EXISTS feedback (
+        id          VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        type        TEXT NOT NULL,
+        message     TEXT NOT NULL,
+        user_id     VARCHAR REFERENCES users(id),
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+      );
     `);
 
     console.log("[autoMigrate] Schema is up to date.");
