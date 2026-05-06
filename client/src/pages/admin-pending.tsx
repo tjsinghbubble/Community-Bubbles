@@ -371,7 +371,7 @@ function WaitlistTab() {
                 <div className="text-[13px] font-bold">{item.user?.name || "Unknown"}</div>
                 <div className="text-[12px] font-semibold text-[#35A8F7]">{item.bubbleTitle}</div>
                 <div className="text-[10px] text-muted-foreground">
-                  Requested {formatDate(item.joinedAt)}
+                  Requested {formatDate(item.createdAt)}
                 </div>
               </div>
               <div className="flex gap-1.5">

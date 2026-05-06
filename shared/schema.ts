@@ -81,7 +81,7 @@ export const bubbles = pgTable("bubbles", {
   locationLat: text("location_lat"),
   locationLng: text("location_lng"),
   radiusMiles: integer("radius_miles").default(15),
-  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('pending'),
   rejectionReason: text("rejection_reason"),
@@ -96,7 +96,7 @@ export const memberships = pgTable("memberships", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   role: text("role").notNull().default('member'),
   membershipStatus: text("membership_status").notNull().default('approved'),
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const verificationCodes = pgTable("verification_codes", {
@@ -140,7 +140,7 @@ export const insertBubbleSchema = createInsertSchema(bubbles).omit({
 export const insertMembershipSchema = createInsertSchema(memberships).omit({
   id: true,
   role: true,
-  joinedAt: true,
+  createdAt: true,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -187,7 +187,7 @@ export const events = pgTable("events", {
   recurrenceCustomFrequency: text("recurrence_custom_frequency"), // daily, weekly, monthly, yearly
   recurrenceCustomInterval: integer("recurrence_custom_interval"), // 1-999
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
-  creatorId: varchar("creator_id").notNull().references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   campusId: varchar("campus_id").references(() => campuses.id),
   status: text("status").notNull().default('approved'),
   rejectionReason: text("rejection_reason"),
@@ -203,7 +203,7 @@ export const eventAttendees = pgTable("event_attendees", {
   eventId: varchar("event_id").notNull().references(() => events.id),
   userId: varchar("user_id").notNull().references(() => users.id),
   status: text("status").notNull().default('going'), // going, interested, requested, waitlisted
-  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
 });
@@ -223,7 +223,7 @@ export const insertEventSchema = createInsertSchema(events).omit({
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
   id: true,
-  joinedAt: true,
+  createdAt: true,
   reminder24hSent: true,
   reminder1hSent: true,
 });
@@ -744,3 +744,15 @@ export const apiLatencySamples = pgTable("api_latency_samples", {
 });
 
 export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;
+
+// User-submitted feedback, feature requests, and defect reports
+export const feedback = pgTable("feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(), // 'feedback', 'feature_request', 'defect_report'
+  message: text("message").notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Feedback = typeof feedback.$inferSelect;
+export type InsertFeedback = typeof feedback.$inferInsert;

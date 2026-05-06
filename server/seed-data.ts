@@ -178,7 +178,7 @@ export async function seedData() {
   }
   console.log(`[SEED] Created ${createdUsers.length} users`);
 
-  const createdBubbles: { id: string; title: string; creatorId: string }[] = [];
+  const createdBubbles: { id: string; title: string; createdBy: string }[] = [];
   for (let i = 0; i < seedBubbles.length; i++) {
     const b = seedBubbles[i];
     const creatorIndex = memberAssignments[i].adminIndices[0];
@@ -191,10 +191,10 @@ export async function seedData() {
       privacy: b.privacy,
       locationName: b.locationName,
       locationAddress: b.locationAddress,
-      creatorId: createdUsers[creatorIndex].id,
+      createdBy: createdUsers[creatorIndex].id,
       status: "approved",
       members: memberAssignments[i].adminIndices.length + memberAssignments[i].memberIndices.length,
-    }).returning({ id: bubbles.id, title: bubbles.title, creatorId: bubbles.creatorId });
+    }).returning({ id: bubbles.id, title: bubbles.title, createdBy: bubbles.createdBy });
     createdBubbles.push(created);
   }
   console.log(`[SEED] Created ${createdBubbles.length} bubbles`);

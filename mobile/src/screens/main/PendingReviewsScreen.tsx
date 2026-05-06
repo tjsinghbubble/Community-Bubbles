@@ -363,7 +363,7 @@ export default function PendingReviewsScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitle}>{item.user.name}</Text>
             <Text style={styles.cardSubtitle}>
-              Joined waitlist {formatDate(item.joinedAt)}
+              Joined waitlist {formatDate(item.createdAt)}
               {item.membershipStatus === 'on_hold' ? '  •  On Hold' : ''}
             </Text>
           </View>

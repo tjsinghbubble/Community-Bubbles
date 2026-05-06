@@ -17,7 +17,7 @@ import BubbleButton from '../../components/BubbleButton';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 
-export default function GiveFeedbackScreen() {
+export default function DefectReportScreen() {
   const navigation = useNavigation<any>();
   const { token } = useAuth();
   const [message, setMessage] = useState('');
@@ -35,13 +35,13 @@ export default function GiveFeedbackScreen() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ type: 'feedback', message: trimmed }),
+        body: JSON.stringify({ type: 'defect_report', message: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
       Alert.alert(
-        'Feedback Sent',
-        'Thanks for sharing your thoughts! We can\'t respond individually, but it goes straight to the team.',
+        'Report Received',
+        'Thanks for reporting this issue. We\'ll look into it and work to get it fixed.',
         [{ text: 'Done', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
@@ -53,7 +53,7 @@ export default function GiveFeedbackScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Give us Feedback" onBack={() => navigation.goBack()} />
+      <NavHeader title="Report a Bug" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -63,10 +63,9 @@ export default function GiveFeedbackScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>Share your feedback</Text>
-
+          <Text style={styles.heading}>Found a bug?</Text>
           <Text style={styles.body}>
-            Thanks for sending us your ideas, issues, or appreciations. We can't respond individually, but we'll pass it on to the teams who are working to make Bubble better for everyone.
+            Describe what happened and how to reproduce it. Include any details that might help us track it down faster — what screen you were on, what you tapped, what you expected to see.
           </Text>
 
           <View style={styles.inputWrapper}>
@@ -75,21 +74,21 @@ export default function GiveFeedbackScreen() {
               value={message}
               onChangeText={setMessage}
               multiline
-              placeholder="What's on your mind?"
+              placeholder="Describe the bug and steps to reproduce it..."
               placeholderTextColor={Colors.neutral.coolMist}
               textAlignVertical="top"
               maxLength={2000}
-              testID="input-feedback-message"
+              testID="input-defect-message"
             />
             <Text style={styles.charCount}>{message.length}/2000</Text>
           </View>
 
           <BubbleButton
-            title="Send Feedback"
+            title="Submit Report"
             onPress={handleSubmit}
             disabled={!message.trim() || isSubmitting}
             loading={isSubmitting}
-            testID="button-submit-feedback"
+            testID="button-submit-defect"
           />
         </ScrollView>
       </KeyboardAvoidingView>

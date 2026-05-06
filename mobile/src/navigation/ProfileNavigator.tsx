@@ -17,6 +17,8 @@ import DataRequestReasonScreen from '../screens/main/DataRequestReasonScreen';
 import DataConfirmAccountScreen from '../screens/main/DataConfirmAccountScreen';
 import GetHelpScreen from '../screens/main/GetHelpScreen';
 import GiveFeedbackScreen from '../screens/main/GiveFeedbackScreen';
+import FeatureRequestScreen from '../screens/main/FeatureRequestScreen';
+import DefectReportScreen from '../screens/main/DefectReportScreen';
 import HelpCenterScreen from '../screens/main/HelpCenterScreen';
 import ReportConcernScreen from '../screens/main/ReportConcernScreen';
 import ManageRulesScreen from '../screens/main/ManageRulesScreen';
@@ -46,6 +48,8 @@ export type ProfileStackParamList = {
   DataConfirmAccount: { flow: 'request' | 'delete'; reason: string };
   GetHelp: undefined;
   GiveFeedback: undefined;
+  FeatureRequest: undefined;
+  DefectReport: undefined;
   HelpCenter: undefined;
   ReportConcern: undefined;
   ManageRules: undefined;
@@ -187,6 +191,22 @@ function GiveFeedbackScreenWithBoundary(props: React.ComponentProps<typeof GiveF
   );
 }
 
+function FeatureRequestScreenWithBoundary(props: React.ComponentProps<typeof FeatureRequestScreen>) {
+  return (
+    <ScreenErrorBoundary context="FeatureRequestScreen" message="Couldn't load feature request — tap to retry">
+      <FeatureRequestScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
+function DefectReportScreenWithBoundary(props: React.ComponentProps<typeof DefectReportScreen>) {
+  return (
+    <ScreenErrorBoundary context="DefectReportScreen" message="Couldn't load bug report — tap to retry">
+      <DefectReportScreen {...props} />
+    </ScreenErrorBoundary>
+  );
+}
+
 function HelpCenterScreenWithBoundary(props: React.ComponentProps<typeof HelpCenterScreen>) {
   return (
     <ScreenErrorBoundary context="HelpCenterScreen" message="Couldn't load the help center — tap to retry">
@@ -286,6 +306,8 @@ export default function ProfileNavigator() {
       <Stack.Screen name="DataConfirmAccount" component={DataConfirmAccountScreenWithBoundary} options={{ presentation: 'transparentModal', animation: 'fade' }} />
       <Stack.Screen name="GetHelp" component={GetHelpScreenWithBoundary} />
       <Stack.Screen name="GiveFeedback" component={GiveFeedbackScreenWithBoundary} />
+      <Stack.Screen name="FeatureRequest" component={FeatureRequestScreenWithBoundary} />
+      <Stack.Screen name="DefectReport" component={DefectReportScreenWithBoundary} />
       <Stack.Screen name="HelpCenter" component={HelpCenterScreenWithBoundary} />
       <Stack.Screen name="ReportConcern" component={ReportConcernScreenWithBoundary} />
       <Stack.Screen name="ManageRules" component={ManageRulesScreenWithBoundary} options={{ gestureEnabled: false }} />

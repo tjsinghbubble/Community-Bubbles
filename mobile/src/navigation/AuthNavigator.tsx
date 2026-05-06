@@ -8,6 +8,8 @@ import InterestsScreen from '../screens/auth/InterestsScreen';
 import GuidelinesScreen from '../screens/auth/GuidelinesScreen';
 import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 
 export type AuthStackParamList = {
   Welcome: undefined;
@@ -18,6 +20,8 @@ export type AuthStackParamList = {
   Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[]; profilePhotoUri?: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { email: string };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -40,6 +44,8 @@ export default function AuthNavigator() {
       <Stack.Screen name="Guidelines" component={GuidelinesScreen} />
       <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
   );
 }

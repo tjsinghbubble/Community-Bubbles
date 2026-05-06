@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,24 @@ export default function DataConfirmAccountScreen() {
       })()
     : '';
 
+  useEffect(() => {
+    sendCode();
+  }, []);
+
+  const sendCode = async () => {
+    try {
+      await fetch(`${API_URL}/api/auth/send-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch (error) {
+      console.warn('[DataConfirm] Failed to send confirmation code:', error);
+    }
+  };
+
   const handleCodeChange = (value: string, index: number) => {
     if (value.length > 1) {
       value = value.charAt(value.length - 1);
@@ -67,16 +85,20 @@ export default function DataConfirmAccountScreen() {
     }
   };
 
-  const VALID_CODE = '122333';
-
   const handleConfirm = async () => {
     if (!isCodeComplete) return;
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
       const enteredCode = code.join('');
-      if (enteredCode !== VALID_CODE) {
-        Alert.alert('Incorrect Code', 'The code you entered is incorrect. Please check your email and try again.');
+
+      const verifyRes = await fetch(`${API_URL}/api/auth/verify-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user?.email, code: enteredCode }),
+      });
+      const verifyData = await verifyRes.json();
+      if (!verifyRes.ok) {
+        Alert.alert('Incorrect Code', verifyData.error || 'The code you entered is incorrect. Please check your email and try again.');
         setCode(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
         return;
@@ -131,10 +153,18 @@ export default function DataConfirmAccountScreen() {
   const handleResend = async () => {
     setResending(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const res = await fetch(`${API_URL}/api/auth/send-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to resend code');
       Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to resend code.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to resend code.');
     } finally {
       setResending(false);
     }

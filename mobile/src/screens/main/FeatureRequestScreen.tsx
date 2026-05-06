@@ -17,7 +17,7 @@ import BubbleButton from '../../components/BubbleButton';
 import { useAuth } from '../../context/AuthContext';
 import { API_URL } from '../../config/api';
 
-export default function GiveFeedbackScreen() {
+export default function FeatureRequestScreen() {
   const navigation = useNavigation<any>();
   const { token } = useAuth();
   const [message, setMessage] = useState('');
@@ -35,13 +35,13 @@ export default function GiveFeedbackScreen() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ type: 'feedback', message: trimmed }),
+        body: JSON.stringify({ type: 'feature_request', message: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Submission failed');
       Alert.alert(
-        'Feedback Sent',
-        'Thanks for sharing your thoughts! We can\'t respond individually, but it goes straight to the team.',
+        'Thank you!',
+        'Your feature request has been submitted. We appreciate your input!',
         [{ text: 'Done', onPress: () => navigation.goBack() }]
       );
     } catch (error: any) {
@@ -53,7 +53,7 @@ export default function GiveFeedbackScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <NavHeader title="Give us Feedback" onBack={() => navigation.goBack()} />
+      <NavHeader title="Feature Request" onBack={() => navigation.goBack()} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -63,10 +63,9 @@ export default function GiveFeedbackScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.heading}>Share your feedback</Text>
-
+          <Text style={styles.heading}>What feature would you like?</Text>
           <Text style={styles.body}>
-            Thanks for sending us your ideas, issues, or appreciations. We can't respond individually, but we'll pass it on to the teams who are working to make Bubble better for everyone.
+            Tell us about a feature you'd love to see in Bubble. The more detail you share, the better we can understand your needs.
           </Text>
 
           <View style={styles.inputWrapper}>
@@ -75,21 +74,21 @@ export default function GiveFeedbackScreen() {
               value={message}
               onChangeText={setMessage}
               multiline
-              placeholder="What's on your mind?"
+              placeholder="Describe the feature you'd like to see..."
               placeholderTextColor={Colors.neutral.coolMist}
               textAlignVertical="top"
               maxLength={2000}
-              testID="input-feedback-message"
+              testID="input-feature-message"
             />
             <Text style={styles.charCount}>{message.length}/2000</Text>
           </View>
 
           <BubbleButton
-            title="Send Feedback"
+            title="Submit Request"
             onPress={handleSubmit}
             disabled={!message.trim() || isSubmitting}
             loading={isSubmitting}
-            testID="button-submit-feedback"
+            testID="button-submit-feature"
           />
         </ScrollView>
       </KeyboardAvoidingView>

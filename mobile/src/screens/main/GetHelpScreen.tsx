@@ -3,8 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -35,6 +33,9 @@ export default function GetHelpScreen() {
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
+
+          <View style={styles.divider} />
+
           <AnimatedPressable
             style={styles.menuItem}
             scaleValue={0.97}
@@ -44,6 +45,36 @@ export default function GetHelpScreen() {
             <View style={styles.menuItemLeft}>
               <Ionicons name="chatbubble-ellipses-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Give us Feedback</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <View style={styles.divider} />
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('FeatureRequest')}
+            testID="button-feature-request"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="bulb-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Request a Feature</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <View style={styles.divider} />
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => navigation.navigate('DefectReport')}
+            testID="button-defect-report"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="bug-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Report a Bug</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
@@ -69,6 +100,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     ...CardShadow,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.border.light,
+    marginLeft: 40,
   },
   menuItem: {
     flexDirection: 'row',

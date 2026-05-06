@@ -190,7 +190,7 @@ function EventCard({ event, userId }: { event: any; userId?: string }) {
   const { short, full } = formatEventDate(event.date);
   const coverImage = event.coverImage || event.bubble?.coverImage || null;
   const isSpecialDate = full === "Today" || full === "Tomorrow";
-  const isOrganizer = event.creatorId === userId || event.bubble?.adminIds?.includes(userId);
+  const isOrganizer = event.createdBy === userId || event.bubble?.adminIds?.includes(userId);
 
   return (
     <div className="relative w-full" data-testid={`card-event-${event.id}`}>
