@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: Spacing.sm,
-    paddingBottom: 40,
+    paddingBottom: Spacing.sm,
   },
   sectionHeader: {
     fontSize: Typography.sizes.base,
