@@ -579,11 +579,21 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const renderHeader = () => (
     <View>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+          testID="button-back"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{bubble.title}</Text>
-        <TouchableOpacity onPress={() => setShowKebabMenu(true)} style={styles.headerButton}>
+        <TouchableOpacity
+          onPress={() => setShowKebabMenu(true)}
+          style={styles.headerButton}
+          testID="button-kebab-menu"
+          accessibilityLabel="More options"
+        >
           <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
         </TouchableOpacity>
       </View>
@@ -606,36 +616,67 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         <View style={styles.kebabDropdown}>
           {((bubbleDetails?.privacy || bubble.privacy) === 'Public' || isMember) && (
             <>
-              <TouchableOpacity style={styles.kebabItem} onPress={handleShareBubble}>
+              <TouchableOpacity
+                style={styles.kebabItem}
+                onPress={handleShareBubble}
+                testID="button-share-bubble"
+                accessibilityLabel="Share Bubble"
+              >
                 <Ionicons name="share-outline" size={20} color={Colors.text.primary} />
                 <Text style={styles.kebabItemText}>Share Bubble</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.kebabItem} onPress={handleShowQRCode} data-testid="button-qr-code">
+              <TouchableOpacity
+                style={styles.kebabItem}
+                onPress={handleShowQRCode}
+                testID="button-qr-code"
+                accessibilityLabel="QR Code"
+                data-testid="button-qr-code"
+              >
                 <Ionicons name="qr-code-outline" size={20} color={Colors.text.primary} />
                 <Text style={styles.kebabItemText}>QR Code</Text>
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity style={styles.kebabItem} onPress={handleBubbleChat}>
+          <TouchableOpacity
+            style={styles.kebabItem}
+            onPress={handleBubbleChat}
+            testID="button-bubble-chat"
+            accessibilityLabel="Bubble Chat"
+          >
             <Ionicons name="chatbubble-outline" size={20} color={Colors.text.primary} />
             <Text style={styles.kebabItemText}>Bubble Chat</Text>
           </TouchableOpacity>
           {canManage && (
             <>
               <View style={styles.kebabSeparatorLight} />
-              <TouchableOpacity style={styles.kebabItem} onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}>
+              <TouchableOpacity
+                style={styles.kebabItem}
+                onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
+                testID="button-manage-bubble"
+                accessibilityLabel="Manage Bubble"
+              >
                 <CrownIcon size={20} color={Colors.brand.primary} />
                 <Text style={[styles.kebabItemText, { color: Colors.brand.primary }]}>Manage Bubble</Text>
               </TouchableOpacity>
             </>
           )}
           <View style={styles.kebabSeparatorMedium} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleReportConcern}>
+          <TouchableOpacity
+            style={styles.kebabItem}
+            onPress={handleReportConcern}
+            testID="button-report-concern"
+            accessibilityLabel="Report a Concern"
+          >
             <FlagIcon size={20} color={Colors.status.error} />
             <Text style={styles.kebabItemText}>Report a Concern</Text>
           </TouchableOpacity>
           <View style={styles.kebabSeparatorLight} />
-          <TouchableOpacity style={styles.kebabItem} onPress={handleReportBubble}>
+          <TouchableOpacity
+            style={styles.kebabItem}
+            onPress={handleReportBubble}
+            testID="button-report-bubble"
+            accessibilityLabel="Report this Bubble"
+          >
             <FlagIcon size={20} color={Colors.status.error} />
             <Text style={[styles.kebabItemText, { color: Colors.status.error }]}>Report this Bubble</Text>
           </TouchableOpacity>
@@ -650,12 +691,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={[styles.tab, activeTab === 'Details' && styles.tabActive]}
           onPress={() => setActiveTab('Details')}
+          testID="tab-details"
+          accessibilityLabel="Details"
         >
           <Text style={[styles.tabText, activeTab === 'Details' && styles.tabTextActive]}>Details</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'Events' && styles.tabActive]}
           onPress={() => setActiveTab('Events')}
+          testID="tab-events"
+          accessibilityLabel="Events"
         >
           <Text style={[styles.tabText, activeTab === 'Events' && styles.tabTextActive]}>Events</Text>
         </TouchableOpacity>
@@ -857,7 +902,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.membersCount}>{memberCount}</Text>
           <Text style={styles.membersLabel}>Members</Text>
         </View>
-        <TouchableOpacity onPress={handleViewMembers} accessibilityLabel="View all members">
+        <TouchableOpacity
+          onPress={handleViewMembers}
+          testID="button-view-members"
+          accessibilityLabel="View all members"
+        >
           <Ionicons name="chevron-forward" size={18} color={Colors.neutral.coolMist} />
         </TouchableOpacity>
       </View>
@@ -993,6 +1042,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         key={event.id}
         style={styles.eventCard}
         onPress={() => handleEventPress(event)}
+        testID={`card-event-${event.id}`}
+        accessibilityLabel={event.title}
         data-testid={`card-event-${event.id}`}
       >
         <Image
@@ -1010,6 +1061,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           {openTasks > 0 && (
             <TouchableOpacity
               style={styles.eventTasksBadge}
+              testID={`badge-tasks-${event.id}`}
               data-testid={`badge-tasks-${event.id}`}
               activeOpacity={0.7}
               onPress={(e) => {
@@ -1073,6 +1125,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         style={styles.adminDashboardCard}
         onPress={() => navigation.navigate('AdminDashboard', { bubbleId: bubble.id, bubbleTitle: bubble.title, bubble })}
         activeOpacity={0.85}
+        testID="button-admin-dashboard"
+        accessibilityLabel="Admin Dashboard"
       >
         <Text style={styles.adminDashboardText}>Admin Dashboard</Text>
         <Ionicons name="chevron-forward" size={22} color={Colors.brand.primary} />
@@ -1107,6 +1161,8 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
           style={styles.createFab}
           onPress={() => navigation.navigate('CreateEvent', { bubbleId: bubble.id, bubbleTitle: bubble.title })}
           activeOpacity={0.8}
+          testID="button-create-event-fab"
+          accessibilityLabel="Create Event"
         >
           <CreateBubbleEventIcon size={56} />
         </TouchableOpacity>

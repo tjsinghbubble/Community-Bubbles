@@ -247,9 +247,11 @@ export default function ExploreScreen() {
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
       {isCampusVerified && (
-        <TouchableOpacity 
-          style={[styles.campusHatButton, showCampusContent && styles.campusHatButtonActive]} 
+        <TouchableOpacity
+          style={[styles.campusHatButton, showCampusContent && styles.campusHatButtonActive]}
           onPress={handleCampusToggle}
+          testID="button-campus-toggle"
+          accessibilityLabel="Toggle campus content"
         >
           <Ionicons name="school-outline" size={22} color={showCampusContent ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
         </TouchableOpacity>
@@ -262,15 +264,26 @@ export default function ExploreScreen() {
           placeholderTextColor={Colors.neutral.coolMist}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          testID="input-search"
+          accessibilityLabel="Search bubbles and events"
         />
         {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
+          <TouchableOpacity
+            onPress={() => setSearchQuery('')}
+            testID="button-clear-search"
+            accessibilityLabel="Clear search"
+          >
             <Ionicons name="close-circle" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         )}
       </View>
-      
-      <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
+
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={handleNotificationPress}
+        testID="button-notifications"
+        accessibilityLabel="Notifications"
+      >
         <View>
           <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
           {unreadNotifCount > 0 && (
@@ -307,7 +320,12 @@ export default function ExploreScreen() {
             <Text style={styles.joinCampusBtnText}>Join a campus</Text>
           </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.notStudentButton} onPress={handleDismissPrompt}>
+        <TouchableOpacity
+          style={styles.notStudentButton}
+          onPress={handleDismissPrompt}
+          testID="button-dismiss-campus-prompt"
+          accessibilityLabel="I'm not a student"
+        >
           <Text style={styles.notStudentButtonText}>I'm not a student</Text>
         </TouchableOpacity>
       </View>
@@ -319,6 +337,8 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('bubbles')}
+        testID="tab-bubbles"
+        accessibilityLabel="Bubbles tab"
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <BubblesIcon 
@@ -344,6 +364,8 @@ export default function ExploreScreen() {
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('events')}
+        testID="tab-events"
+        accessibilityLabel="Events tab"
       >
         <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
           <Ionicons 
@@ -375,10 +397,12 @@ export default function ExploreScreen() {
 
   const renderBubbleCard = (bubble: BubbleData) => (
     <AnimatedPressable
-      key={bubble.id} 
+      key={bubble.id}
       style={styles.card}
       scaleValue={0.95}
       onPress={() => handleBubblePress(bubble)}
+      testID={`card-bubble-${bubble.id}`}
+      accessibilityLabel={bubble.title}
     >
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
@@ -403,10 +427,12 @@ export default function ExploreScreen() {
 
   const renderEventCard = (event: EventData) => (
     <AnimatedPressable
-      key={event.id} 
+      key={event.id}
       style={styles.card}
       scaleValue={0.95}
       onPress={() => handleEventPress(event)}
+      testID={`card-event-${event.id}`}
+      accessibilityLabel={event.title}
     >
       <View style={styles.imageShadowWrapper}>
         <View style={styles.imageContainer}>
@@ -537,6 +563,8 @@ export default function ExploreScreen() {
         style={styles.createFab}
         onPress={() => setShowCreateSheet(true)}
         activeOpacity={0.8}
+        testID="button-create-fab"
+        accessibilityLabel="Create new bubble or event"
       >
         <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
@@ -557,6 +585,8 @@ export default function ExploreScreen() {
                 setShowCreateSheet(false);
                 navigation.navigate('CreateBubble');
               }}
+              testID="button-create-bubble"
+              accessibilityLabel="Create a Bubble"
             >
               <Text style={styles.sheetOptionText}>Bubble</Text>
             </TouchableOpacity>
@@ -567,6 +597,8 @@ export default function ExploreScreen() {
                 setShowCreateSheet(false);
                 navigation.navigate('CreateEvent', {});
               }}
+              testID="button-create-event"
+              accessibilityLabel="Create an Event"
             >
               <Text style={styles.sheetOptionText}>Event</Text>
             </TouchableOpacity>
