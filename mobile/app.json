@@ -38,8 +38,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-image-picker",
-      "@react-native-community/datetimepicker"
+      "expo-image-picker"
     ]
   }
 }
