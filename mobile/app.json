@@ -39,10 +39,11 @@
     },
     "plugins": [
       "expo-image-picker"
-    ]
-  }
-  "extra": {
-  "eas": {
-    "projectId": "87aa84ba-0626-4ec1-b569-7276843813d9"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "87aa84ba-0626-4ec1-b569-7276843813d9"
+      }
+    }
   }
 }
