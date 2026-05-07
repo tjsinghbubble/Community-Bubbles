@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.bubble.mobile",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
-        "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events."
+        "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,8 +31,9 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "READ_MEDIA_IMAGES",
-        "CAMERA"
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
