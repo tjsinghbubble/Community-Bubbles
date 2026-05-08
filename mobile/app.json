@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.bubble.app",
+      "associatedDomains": ["applinks:trybubble.io"],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
         "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events.",
@@ -28,6 +29,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.bubble.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "trybubble.io", "pathPrefix": "/b/" },
+            { "scheme": "https", "host": "trybubble.io", "pathPrefix": "/e/" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
