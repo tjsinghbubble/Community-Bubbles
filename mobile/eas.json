@@ -1,7 +1,7 @@
 {
   "cli": {
-    "version": ">= 16.0.0",
-    "requireCommit": true
+    "version": ">= 16.28.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -9,13 +9,10 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "prebuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && RELEASE_SLUG=\"${EAS_BUILD_BUILD_NUMBER:+${APP_VERSION}+${EAS_BUILD_BUILD_NUMBER}}\" && RELEASE_SLUG=\"${RELEASE_SLUG:-${APP_VERSION}}\" && npx sentry-cli releases new \"$RELEASE_SLUG\" && (npx sentry-cli releases set-commits \"$RELEASE_SLUG\" --auto || true)",
-      "postbuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && RELEASE_SLUG=\"${EAS_BUILD_BUILD_NUMBER:+${APP_VERSION}+${EAS_BUILD_BUILD_NUMBER}}\" && RELEASE_SLUG=\"${RELEASE_SLUG:-${APP_VERSION}}\" && npx sentry-cli releases finalize \"$RELEASE_SLUG\" && npx sentry-cli releases deploys \"$RELEASE_SLUG\" new -e preview"
+      "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "prebuildCommand": "APP_VERSION=$(node -p \"require('./app.json').expo.version\") && RELEASE_SLUG=\"${EAS_BUILD_BUILD_NUMBER:+${APP_VERSION}+${EAS_BUILD_BUILD_NUMBER}}\" && RELEASE_SLUG=\"${RELEASE_SLUG:-${APP_VERSION}}\" && npx sentry-cli releases new \"$RELEASE_SLUG\" && (npx sentry-cli releases set-commits \"$RELEASE_SLUG\" --auto || true)"
+      "autoIncrement": true
     }
   },
   "submit": {
