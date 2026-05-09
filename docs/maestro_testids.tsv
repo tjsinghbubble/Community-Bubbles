@@ -1,0 +1,371 @@
+Filename	Element Type	data-testid	accessibilityLabel	testID	Container ID	File Path
+AccountSettingsScreen.tsx	View/updateBanner			banner-update-available		mobile/src/screens/main/AccountSettingsScreen.tsx
+AccountSettingsScreen.tsx	AnimatedPressable/menuItem			button-login-security		mobile/src/screens/main/AccountSettingsScreen.tsx
+AccountSettingsScreen.tsx	AnimatedPressable/menuItem			button-notification-preferences		mobile/src/screens/main/AccountSettingsScreen.tsx
+AccountSettingsScreen.tsx	AnimatedPressable/menuItem			button-personal-info		mobile/src/screens/main/AccountSettingsScreen.tsx
+AccountSettingsScreen.tsx	AnimatedPressable/menuItem			button-privacy		mobile/src/screens/main/AccountSettingsScreen.tsx
+AccountSettingsScreen.tsx	Text/versionText			text-version		mobile/src/screens/main/AccountSettingsScreen.tsx
+BubbleButton.tsx	Pressable/wrapper					mobile/src/components/BubbleButton.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity		Manage waitlist			mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity		View all bulletin board posts			mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/eventTasksBadge	badge-tasks-${event.id}		badge-tasks-${event.id}		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/cameraButton			button-add-photo		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/adminDashboardCard		Admin Dashboard	button-admin-dashboard		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/headerButton		Go back	button-back		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem		Bubble Chat	button-bubble-chat		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/createFab		Create Event	button-create-event-fab		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	BubbleButton			button-join-leave		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/headerButton		More options	button-kebab-menu		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem		Manage Bubble	button-manage-bubble		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem	button-qr-code	QR Code	button-qr-code		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem		Report this Bubble	button-report-bubble		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem		Report a Concern	button-report-concern		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/kebabItem		Share Bubble	button-share-bubble		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity		View all members	button-view-members		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/waitlistModalBtn			button-waitlist-close		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/eventCard	card-event-${event.id}		card-event-${event.id}		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/tab/tabActive		Details	tab-details		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleDetailsScreen.tsx	TouchableOpacity/tab/tabActive		Events	tab-events		mobile/src/screens/main/BubbleDetailsScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/menuItem		Remove as admin	button-member-demote		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/menuItem		Direct Message	button-member-dm		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/menuItem		Make admin	button-member-make-admin		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/kebabButton		More options for ${item.user.name}	button-member-options-${item.userId}		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/memberTappable			button-member-profile-${item.userId}		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/menuItem		Remove from Bubble	button-member-remove		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/menuItem		Report a concern	button-member-report		mobile/src/screens/main/BubbleMembersScreen.tsx
+BubbleMembersScreen.tsx	TouchableOpacity/relinquishButton		Step down as admin	button-relinquish-admin		mobile/src/screens/main/BubbleMembersScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			button-create-post-empty		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			button-new-post-header	button-new-post-header	mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity		Post options	button-post-kebab-${item.id}		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			filter-tab-${pt.id}		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity		All posts	filter-tab-all		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TextInput			overlay-body-input		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			overlay-cancel-button		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			overlay-category-selector		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TouchableOpacity			overlay-post-button		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	TextInput			overlay-title-input		mobile/src/screens/main/BulletinBoardScreen.tsx
+BulletinBoardScreen.tsx	AnimatedPressable/postCard			post-card-${item.id}		mobile/src/screens/main/BulletinBoardScreen.tsx
+CampusJoinScreen.tsx	TouchableOpacity/verifyButton			button-verify-edu-email		mobile/src/screens/main/CampusJoinScreen.tsx
+CampusVerifyScreen.tsx	BubbleButton/verifyButton			button-verify-campus-code		mobile/src/screens/main/CampusVerifyScreen.tsx
+ChatScreen.tsx	TouchableOpacity		View ${sender.name}'s profile	button-chat-avatar-${sender.uid}		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	TouchableOpacity/participantRow			button-participant-profile-${p.uid}		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	TouchableOpacity			button-participants		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	TouchableOpacity		View ${peerDisplayName ?? 'peer'}'s profile	button-peer-avatar		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	TouchableOpacity		View ${message.sender.name}'s profile	button-sender-name-${message.sender.uid}		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	View/headerAvatarOnlineDot			status-header-avatar-online		mobile/src/screens/main/ChatScreen.tsx
+ChatScreen.tsx	View/peerStatusRow			status-peer-online	status-peer-online	mobile/src/screens/main/ChatScreen.tsx
+CreateBubbleScreen.tsx	BubbleButton					mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TouchableOpacity		Cancel	button-cancel	button-cancel	mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	BubbleButton			button-cancel-rule		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TouchableOpacity/categoryImageCard			button-category-${sub.id}		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	BubbleButton			button-finish		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TouchableOpacity/locationTappableField		Select location	button-location-picker		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	BubbleButton			button-save-rule		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TextInput/fieldInput/textArea		Bubble Description	input-description		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TextInput/fieldInput		Member Limit	input-member-limit		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TextInput/fieldInput		Bubble Tagline	input-tagline		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TextInput/fieldInput		Bubble Title	input-title		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	TouchableOpacity			radio-privacy-${opt.value.toLowerCase().replace(/ /g, '-')}		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateBubbleScreen.tsx	Switch		Campus Only	switch-campus-only		mobile/src/screens/main/CreateBubbleScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/bubbleRow			button-bubble-${bubble.id}		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity		Cancel	button-cancel		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/fieldInput		Select location	button-location-picker		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	BubbleButton			button-next		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/fieldInput		Select Bubble	button-select-bubble		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/fieldInput		Select Date	button-select-date		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/fieldInput		Select End Time	button-select-end-time		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/fieldInput		Select Start Time	button-select-start-time		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	BubbleButton			button-view-event		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TextInput/fieldInput		Attendee Limit	input-attendee-limit		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TextInput/fieldTextArea		Event Description	input-event-description		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TextInput/fieldInput		Event Title	input-event-title		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	TouchableOpacity/radioRow			radio-visibility-${option.value}		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	Switch		Location TBD	switch-location-tbd		mobile/src/screens/main/CreateEventScreen.tsx
+CreateEventScreen.tsx	Switch		Recurring Event	switch-recurring-event		mobile/src/screens/main/CreateEventScreen.tsx
+CreatePostScreen.tsx	TouchableOpacity			button-post	button-post	mobile/src/screens/main/CreatePostScreen.tsx
+DataConfirmAccountScreen.tsx	TouchableOpacity/closeButton			button-close		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataConfirmAccountScreen.tsx	TouchableOpacity/confirmButton/confirmButtonDisabled			button-confirm		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataConfirmAccountScreen.tsx	TouchableOpacity/methodDropdown			button-method-dropdown		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataConfirmAccountScreen.tsx	TouchableOpacity			button-resend		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataConfirmAccountScreen.tsx	TouchableOpacity			button-try-another		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataConfirmAccountScreen.tsx	TextInput/codeInput/codeInputFilled			input-code-${index}		mobile/src/screens/main/DataConfirmAccountScreen.tsx
+DataRequestReasonScreen.tsx	TouchableOpacity/continueButton			button-continue		mobile/src/screens/main/DataRequestReasonScreen.tsx
+DataRequestReasonScreen.tsx	TouchableOpacity/radioRow			radio-${reason.toLowerCase().replace(/[^a-z]/g, '-')}		mobile/src/screens/main/DataRequestReasonScreen.tsx
+DeactivateConfirmScreen.tsx	TouchableOpacity/goBackButton			button-no-go-back		mobile/src/screens/main/DeactivateConfirmScreen.tsx
+DeactivateConfirmScreen.tsx	TouchableOpacity/deactivateButton			button-yes-deactivate		mobile/src/screens/main/DeactivateConfirmScreen.tsx
+DeactivateReasonScreen.tsx	TouchableOpacity/deactivateButton/deactivateButtonDisabled			button-deactivate		mobile/src/screens/main/DeactivateReasonScreen.tsx
+DeactivateReasonScreen.tsx	TouchableOpacity/radioRow			radio-${reason.toLowerCase().replace(/[^a-z]/g, '-')}		mobile/src/screens/main/DeactivateReasonScreen.tsx
+EditBubbleScreen.tsx	BubbleButton					mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TouchableOpacity		Cancel	button-cancel	button-cancel	mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	BubbleButton			button-cancel-rule		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TouchableOpacity/locationTappableField		Select location	button-location-picker		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	BubbleButton			button-save-rule		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TextInput/fieldInput/textArea		Bubble Description	input-description		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TextInput/fieldInput		Member Limit	input-member-limit		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TextInput/fieldInput		Bubble Tagline	input-tagline		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TextInput/fieldInput		Bubble Title	input-title		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	TouchableOpacity			radio-privacy-${opt.value.toLowerCase().replace(/ /g, '-')}		mobile/src/screens/main/EditBubbleScreen.tsx
+EditBubbleScreen.tsx	Switch		Campus Only	switch-campus-only		mobile/src/screens/main/EditBubbleScreen.tsx
+EditEventScreen.tsx	BubbleButton			button-save-event		mobile/src/screens/main/EditEventScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity/addIntroBtn			button-add-intro		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity/doneBtn			button-done		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity/avatarWrapper			button-edit-photo		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity			button-toggle-about		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity			button-toggle-interests		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TouchableOpacity/interestChip/interestChipSelected			chip-interest-${interest.id}		mobile/src/screens/main/EditProfileScreen.tsx
+EditProfileScreen.tsx	TextInput/aboutInput			input-about-me		mobile/src/screens/main/EditProfileScreen.tsx
+EmailVerificationScreen.tsx	TouchableOpacity/resendButton		Send new code	button-resend-code		mobile/src/screens/auth/EmailVerificationScreen.tsx
+EmailVerificationScreen.tsx	TouchableOpacity/verifyButton/buttonDisabled		Verify code	button-verify		mobile/src/screens/auth/EmailVerificationScreen.tsx
+EmailVerificationScreen.tsx	TextInput/codeInput/codeInputFilled		Verification code digit ${index + 1}	input-otp-${index}		mobile/src/screens/auth/EmailVerificationScreen.tsx
+ErrorBoundary.tsx	ScrollView/debugBox			error-boundary-debug		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	TouchableOpacity/button			error-boundary-retry-button		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	View/container			error-boundary-screen		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	Text/subtitle			error-boundary-subtitle		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	Text/title			error-boundary-title		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	View			screen-error-boundary-${this.props.context}		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	ScrollView			screen-error-debug-${this.props.context}		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	Text			screen-error-message-${this.props.context}		mobile/src/components/ErrorBoundary.tsx
+ErrorBoundary.tsx	TouchableOpacity			screen-error-retry-${this.props.context}		mobile/src/components/ErrorBoundary.tsx
+ErrorLogScreen.tsx	View/fetchErrorBanner			banner-fetch-error		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	TouchableOpacity			button-clear-errors	button-clear-errors	mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	TouchableOpacity/card			error-log-item-${index}		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	Text/cardMessage			error-message-${index}		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	Text/cardPlatform			error-platform-${index}		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	Text/cardTime			error-timestamp-${index}		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	Text/summaryText			text-error-count		mobile/src/screens/main/ErrorLogScreen.tsx
+ErrorLogScreen.tsx	Text/emptyText			text-no-errors		mobile/src/screens/main/ErrorLogScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/addButtonInline	button-add-task	Add Task	button-add-task		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/navBackButton		Go back	button-back		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/directionsButton		Get Directions	button-get-directions		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/navShareButton		More options	button-kebab-menu		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/kebabMenuItem		Manage Event	button-manage-event		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/kebabMenuItem		Report a Concern	button-report-concern		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/kebabMenuItem		Report this Event	button-report-event		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/rsvpDropdownButton/rsvpDropdownGoing/rsvpDropdownNotGoing/rsvpDropdownWaitlisted/rsvpDropdownDefault/rsvpDropdownHighlighted		RSVP	button-rsvp		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/rsvpDropdownItem		Going	button-rsvp-going		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/rsvpDropdownItem		Not Going	button-rsvp-not-going		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/kebabMenuItem		Share Event	button-share-event		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/viewLink		View participants	button-view-participants		mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	View/taskCard/taskCardSigned/taskCardDragging	card-task-${task.id}				mobile/src/screens/main/EventDetailsScreen.tsx
+EventDetailsScreen.tsx	TouchableOpacity/taskCard/taskCardSigned/taskCardHighlighted	card-task-${task.id}				mobile/src/screens/main/EventDetailsScreen.tsx
+EventParticipantsScreen.tsx	TouchableOpacity/attendeeTappable			button-attendee-profile-${attendee.userId}		mobile/src/screens/main/EventParticipantsScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/campusHatButton/campusHatButtonActive		Toggle campus content	button-campus-toggle		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity		Clear search	button-clear-search		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/sheetOption		Create a Bubble	button-create-bubble		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/sheetOption		Create an Event	button-create-event		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/createFab		Create new bubble or event	button-create-fab		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/notStudentButton		I'm not a student	button-dismiss-campus-prompt		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/joinCampusButton			button-join-campus		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/iconButton		Notifications	button-notifications		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	AnimatedPressable/card			card-bubble-${bubble.id}		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	AnimatedPressable/card			card-event-${event.id}		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TextInput/searchInput		Search bubbles and events	input-search		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/tab		Bubbles tab	tab-bubbles		mobile/src/screens/main/ExploreScreen.tsx
+ExploreScreen.tsx	TouchableOpacity/tab		Events tab	tab-events		mobile/src/screens/main/ExploreScreen.tsx
+GetHelpScreen.tsx	AnimatedPressable/menuItem			button-give-feedback		mobile/src/screens/main/GetHelpScreen.tsx
+GetHelpScreen.tsx	AnimatedPressable/menuItem			button-report-concern		mobile/src/screens/main/GetHelpScreen.tsx
+GuidelinesScreen.tsx	BubbleButton			button-agree		mobile/src/screens/auth/GuidelinesScreen.tsx
+GuidelinesScreen.tsx	View/card	card-guideline-${guideline.id}		card-guideline-${guideline.id}		mobile/src/screens/auth/GuidelinesScreen.tsx
+GuidelinesScreen.tsx	View/warningCard	card-warning		card-warning		mobile/src/screens/auth/GuidelinesScreen.tsx
+GuidelinesScreen.tsx	Text/sectionTitle	text-section-title		text-section-title		mobile/src/screens/auth/GuidelinesScreen.tsx
+GuidelinesScreen.tsx	Text/title	text-title		text-title		mobile/src/screens/auth/GuidelinesScreen.tsx
+HelpCenterScreen.tsx	AnimatedPressable/issueRow			button-issue-${issue.id}		mobile/src/screens/main/HelpCenterScreen.tsx
+HelpCenterScreen.tsx	AnimatedPressable/reportButton			button-report-new-issue		mobile/src/screens/main/HelpCenterScreen.tsx
+HelpCenterScreen.tsx	AnimatedPressable/openIssuesLink			link-open-issues		mobile/src/screens/main/HelpCenterScreen.tsx
+InterestsScreen.tsx	BubbleButton			button-continue		mobile/src/screens/auth/InterestsScreen.tsx
+InterestsScreen.tsx	TouchableOpacity/card/cardSelected			button-interest-${interest.id}		mobile/src/screens/auth/InterestsScreen.tsx
+InterestsScreen.tsx	Text/cardLabel/cardLabelSelected			text-interest-${interest.id}		mobile/src/screens/auth/InterestsScreen.tsx
+JoinBubbleScreen.tsx	TouchableOpacity/tasksBadge	badge-tasks-${item.id}				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	TouchableOpacity/aboutHeader	button-about-toggle				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	TouchableOpacity/backButton	button-back				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	TouchableOpacity/backButton	button-back				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	BubbleButton			button-contact		mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	BubbleButton			button-join-bubble		mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	TouchableOpacity/waitlistDoneBtn			button-waitlist-close		mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	View/eventCard	card-event-${item.id}			card-event-${item.id}	mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	View/memberInfoRow	member-info				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/aboutText	text-about-description				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/headerTitle	text-header-title				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/headerTitle	text-header-title				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/pendingMessage	text-pending-message				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/tagline	text-tagline				mobile/src/screens/main/JoinBubbleScreen.tsx
+JoinBubbleScreen.tsx	Text/sectionTitle	text-upcoming-events				mobile/src/screens/main/JoinBubbleScreen.tsx
+LoginScreen.tsx	TouchableOpacity		Forgot your password	button-forgot-password		mobile/src/screens/auth/LoginScreen.tsx
+LoginScreen.tsx	TouchableOpacity		Sign Up	button-go-to-signup		mobile/src/screens/auth/LoginScreen.tsx
+LoginScreen.tsx	BubbleButton			button-log-in		mobile/src/screens/auth/LoginScreen.tsx
+LoginScreen.tsx	TouchableOpacity/eyeIcon		Toggle password visibility	button-toggle-password		mobile/src/screens/auth/LoginScreen.tsx
+LoginScreen.tsx	TextInput/input		Email	input-email		mobile/src/screens/auth/LoginScreen.tsx
+LoginScreen.tsx	TextInput/input/passwordInput		Password	input-password		mobile/src/screens/auth/LoginScreen.tsx
+LoginSecurityScreen.tsx	AnimatedPressable/menuItem			button-deactivate-account		mobile/src/screens/main/LoginSecurityScreen.tsx
+LoginSecurityScreen.tsx	AnimatedPressable/menuItem			button-delete-data		mobile/src/screens/main/LoginSecurityScreen.tsx
+LoginSecurityScreen.tsx	AnimatedPressable/menuItem			button-download-data		mobile/src/screens/main/LoginSecurityScreen.tsx
+LoginSecurityScreen.tsx	TouchableOpacity			button-edit-password		mobile/src/screens/main/LoginSecurityScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/fab	button-add-rule				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/modalCancel	button-cancel-add				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/modalCancel	button-cancel-edit				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/actionButton	button-delete-${item.ruleId}				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/actionButton	button-edit-${item.ruleId}				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/actionButton/actionDisabled	button-move-down-${item.ruleId}				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/actionButton/actionDisabled	button-move-up-${item.ruleId}				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/modalSave	button-save-rule				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/modalSave	button-update-rule				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/categoryChip/categoryChipActive	chip-category-${item.id}			chip-category-${item.id}	mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TextInput/modalInput	input-edit-rule-description				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TextInput/modalInput	input-edit-rule-name				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TextInput/modalInput	input-rule-description				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TextInput/modalInput	input-rule-name				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	View/ruleCard	rule-card-${item.ruleId}				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/tab/tabActive	tab-app-rules				mobile/src/screens/main/ManageRulesScreen.tsx
+ManageRulesScreen.tsx	TouchableOpacity/tab/tabActive	tab-category-rules				mobile/src/screens/main/ManageRulesScreen.tsx
+MemberProfileScreen.tsx	TouchableOpacity/messageButton/messageButtonDisabled			button-message-member		mobile/src/screens/main/MemberProfileScreen.tsx
+MemberProfileScreen.tsx	TouchableOpacity/bubbleRow			row-shared-bubble-${bubble.id}		mobile/src/screens/main/MemberProfileScreen.tsx
+MemberProfileScreen.tsx	View/interestTag			tag-interest-${interest}		mobile/src/screens/main/MemberProfileScreen.tsx
+MemberProfileScreen.tsx	Text/bubbleTitle			text-bubble-title-${bubble.id}		mobile/src/screens/main/MemberProfileScreen.tsx
+MemberProfileScreen.tsx	Text/aboutMe/aboutMePlaceholder			text-member-about		mobile/src/screens/main/MemberProfileScreen.tsx
+MemberProfileScreen.tsx	Text/userName			text-member-name		mobile/src/screens/main/MemberProfileScreen.tsx
+MessagesScreen.tsx	View/unreadBadge			badge-unread-${conversation.conversationId}		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	TouchableOpacity/hamburgerButton		Filter conversations	button-filter-menu		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	TouchableOpacity/bellButton		Notifications	button-notifications		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	AnimatedPressable/conversationItem/conversationItemUnread			conversation-${conversation.conversationId}		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	TouchableOpacity/filterItem			filter-option-${option.key}		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	View/onlineStatusDot			status-online-${guid}		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	View/onlineStatusDot			status-online-${guid}		mobile/src/screens/main/MessagesScreen.tsx
+MessagesScreen.tsx	Text/groupName/groupNameUnread			text-conversation-name-${conversation.conversationId}		mobile/src/screens/main/MessagesScreen.tsx
+MyBubblesScreen.tsx	TouchableOpacity/campusHatButton/campusHatButtonActive		Toggle campus bubbles	button-campus-toggle		mobile/src/screens/main/MyBubblesScreen.tsx
+MyBubblesScreen.tsx	TouchableOpacity/createFirstButton			button-create-bubble-empty		mobile/src/screens/main/MyBubblesScreen.tsx
+MyBubblesScreen.tsx	TouchableOpacity/fab		Create a Bubble	button-create-bubble-fab		mobile/src/screens/main/MyBubblesScreen.tsx
+MyBubblesScreen.tsx	TouchableOpacity/bellButton		Notifications	button-notifications		mobile/src/screens/main/MyBubblesScreen.tsx
+MyBubblesScreen.tsx	AnimatedPressable/gridCard			card-bubble-${bubble.id}		mobile/src/screens/main/MyBubblesScreen.tsx
+NotificationPreferencesScreen.tsx	View/cacheBanner			banner-cached-prefs		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	TouchableOpacity/retryButton			button-retry-notif-prefs		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	View/errorContainer			notif-prefs-error		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	ScrollView/scrollView			notif-prefs-skeleton		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	View/masterCard			row-notif-master-toggle		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	View/toggleRow/toggleRowBorder			row-notif-pref-${item.key}		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	Switch			switch-notif-master-toggle		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationPreferencesScreen.tsx	Switch			switch-notif-pref-${item.key}		mobile/src/screens/main/NotificationPreferencesScreen.tsx
+NotificationsScreen.tsx	TouchableOpacity			button-mark-all-read	button-mark-all-read	mobile/src/screens/main/NotificationsScreen.tsx
+NotificationsScreen.tsx	AnimatedPressable/notifRow/notifRowUnread			notification-item-${item.id}		mobile/src/screens/main/NotificationsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity			button-approve-bubble-${bubble.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity			button-approve-event-${event.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity/inlineBtn/inlineBtnGhost			button-dismiss-report-${report.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity/inlineBtn/inlineBtnDestructive			button-reject-bubble-${bubble.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity/inlineBtn/inlineBtnDestructive			button-reject-event-${event.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PendingReviewsScreen.tsx	TouchableOpacity/inlineBtn/inlineBtnResolve			button-resolve-report-${report.id}		mobile/src/screens/main/PendingReviewsScreen.tsx
+PersonalInformationScreen.tsx	TouchableOpacity			button-edit-${field.label.toLowerCase().replace(/\s+/g, '-')}		mobile/src/screens/main/PersonalInformationScreen.tsx
+PrivacyScreen.tsx	AnimatedPressable/menuItem			button-deactivate-account		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	AnimatedPressable/menuItem			button-delete-data		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	AnimatedPressable/menuItem			button-request-data		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	Switch			switch-show-bio		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	Switch			switch-show-bubbles		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	Switch			switch-show-interests		mobile/src/screens/main/PrivacyScreen.tsx
+PrivacyScreen.tsx	Switch			switch-show-past-events		mobile/src/screens/main/PrivacyScreen.tsx
+ProfileScreen.tsx	View/badge/errorBadge			badge-error-log-count		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	TouchableOpacity/editButton			button-edit-profile		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem		Log Out	button-logout		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	TouchableOpacity/bellButton		Notifications	button-notifications		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/halfCard			card-bubbles		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	View/halfCard			card-interests		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	View/profileCard			card-profile		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-error-log		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-get-help		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-manage-rules		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem		Needs Attention	link-needs-attention		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-privacy		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-privacy-policy		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-settings		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-slow-call-trends		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-span-health		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-terms-of-service		mobile/src/screens/main/ProfileScreen.tsx
+ProfileScreen.tsx	AnimatedPressable/menuItem			link-view-profile		mobile/src/screens/main/ProfileScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity/dayCell/dayCellSelected					mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity/calendarClose			button-calendar-close		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity			button-calendar-next		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity			button-calendar-prev		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity			button-date-picker		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	AnimatedPressable/nextButton/nextButtonDisabled			button-next		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity			button-step-back		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	AnimatedPressable/submitButton/submitButtonDisabled			button-submit		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TextInput/textArea			input-description		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TextInput			input-email		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TextInput			input-full-name		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TextInput			input-name		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity/optionPill/optionPillSelected			option-feedback-${opt.toLowerCase()}		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity/optionPill/optionPillSelected			option-link-no		mobile/src/screens/main/ReportConcernScreen.tsx
+ReportConcernScreen.tsx	TouchableOpacity/optionPill/optionPillSelected			option-link-yes		mobile/src/screens/main/ReportConcernScreen.tsx
+ScreenHeader.tsx	TouchableOpacity/backButton			button-back		mobile/src/components/ScreenHeader.tsx
+ScreenHeader.tsx	TouchableOpacity/titleGroup			button-header-title		mobile/src/components/ScreenHeader.tsx
+ScreenHeader.tsx	TouchableOpacity/titleTouchable			button-header-title		mobile/src/components/ScreenHeader.tsx
+ShareQRCodeModal.tsx	TouchableOpacity/closeButton	button-close-qr-modal				mobile/src/components/ShareQRCodeModal.tsx
+ShareQRCodeModal.tsx	TouchableOpacity/shareButton	button-share-from-qr				mobile/src/components/ShareQRCodeModal.tsx
+ShareQRCodeModal.tsx	View/qrContainer	qr-code-container				mobile/src/components/ShareQRCodeModal.tsx
+ShareQRCodeModal.tsx	Text/bubbleName	text-qr-bubble-name				mobile/src/components/ShareQRCodeModal.tsx
+ShareQRCodeModal.tsx	Text/title	text-qr-title				mobile/src/components/ShareQRCodeModal.tsx
+ShareQRCodeModal.tsx	Text/urlText	text-share-url				mobile/src/components/ShareQRCodeModal.tsx
+SignupScreen.tsx	TouchableOpacity/calBackBtn		Close date picker	button-close-date-picker		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity		Close gender picker	button-close-gender-picker		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	BubbleButton			button-confirm-date		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	BubbleButton			button-continue		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/calCell		${MONTH_NAMES[cell.date.month]} ${cell.date.day} ${cell.date.year}	button-day-${cell.date.year}-${cell.date.month + 1}-${cell.date.day}		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/calNavBtn/calNavBtnDisabled		Next month	button-next-month		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/photoPickerContainer			button-pick-photo		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/calNavBtn/calNavBtnDisabled		Previous month	button-prev-month		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/selectInput		Select date of birth	button-select-dob		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/selectInput		Select gender	button-select-gender		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/eyeIcon		Toggle password visibility	button-toggle-password		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity			checkbox-terms		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TextInput/input/emailInputError		Email	input-email		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TextInput/input		Full name	input-name		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TextInput/input/passwordInput/passwordInputError		Password	input-password		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	Text/termsLink			link-privacy-policy		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	Text/termsLink			link-terms-of-service		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	TouchableOpacity/modalOption			option-gender-${option.toLowerCase().replace(/\s+/g, '-')}		mobile/src/screens/auth/SignupScreen.tsx
+SignupScreen.tsx	Text/helperText/passwordHint/passwordHintError/passwordHintMet			text-password-hint		mobile/src/screens/auth/SignupScreen.tsx
+SlowCallTrendsScreen.tsx	View/fetchErrorBanner			banner-fetch-error		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Rect			bar-total-${day.date}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/endpointCard			card-endpoint-${i}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/chartCard			chart-daily-totals		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/chartCard			chart-per-endpoint		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/emptyContainer			container-empty		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/legend			legend-endpoints		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/legendLabel			legend-label-${si}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Polyline			line-endpoint-${si}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	ActivityIndicator/loader			loader-slow-calls		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	View/summaryBar			slow-calls-summary-bar		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/statValue			text-endpoint-avg-${i}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/statValue			text-endpoint-count-${i}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/endpointKey			text-endpoint-key-${i}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/statValue			text-endpoint-max-${i}		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/generatedAt			text-generated-at		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/emptyText			text-no-slow-calls		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SlowCallTrendsScreen.tsx	Text/summaryText			text-slow-call-summary		mobile/src/screens/main/SlowCallTrendsScreen.tsx
+SpanHealthScreen.tsx	TouchableOpacity/clearButton			button-clear-span-events	button-clear-span-events	mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	View/eventCard			card-span-event-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	View/emptyContainer			container-empty		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	View/legendRow			legend-phases		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	View/sessionBoundary			session-boundary-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	View/summaryBar			span-health-summary-bar		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text/emptyText			text-no-events		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text			text-phase-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text/screenName			text-screen-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text/sessionTag			text-session-tag-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text/summaryText			text-span-health-summary		mobile/src/screens/main/SpanHealthScreen.tsx
+SpanHealthScreen.tsx	Text/timeText			text-time-${index}		mobile/src/screens/main/SpanHealthScreen.tsx
+UpcomingScreen.tsx	TouchableOpacity/campusHatButton/campusHatButtonActive		Toggle campus events	button-campus-toggle		mobile/src/screens/main/UpcomingScreen.tsx
+UpcomingScreen.tsx	TouchableOpacity/campusHatButton/campusHatButtonActive		Toggle campus events	button-campus-toggle		mobile/src/screens/main/UpcomingScreen.tsx
+UpcomingScreen.tsx	TouchableOpacity/bellButton		Notifications	button-notifications		mobile/src/screens/main/UpcomingScreen.tsx
+UpcomingScreen.tsx	TouchableOpacity/bellButton		Notifications	button-notifications		mobile/src/screens/main/UpcomingScreen.tsx
+UpcomingScreen.tsx	AnimatedPressable/eventCard			card-event-${event.id}		mobile/src/screens/main/UpcomingScreen.tsx
+ViewProfileScreen.tsx	TouchableOpacity			button-edit-bio		mobile/src/screens/main/ViewProfileScreen.tsx
+ViewProfileScreen.tsx	TouchableOpacity			button-edit-header	button-edit-header	mobile/src/screens/main/ViewProfileScreen.tsx
+ViewProfileScreen.tsx	TouchableOpacity/getStartedBtn			button-get-started		mobile/src/screens/main/ViewProfileScreen.tsx
+ViewProfileScreen.tsx	TouchableOpacity/bubblesCard			card-my-bubbles		mobile/src/screens/main/ViewProfileScreen.tsx
+ViewProfileScreen.tsx	View/completeSection			section-complete-profile		mobile/src/screens/main/ViewProfileScreen.tsx
+ViewProfileScreen.tsx	Text/aboutMe/aboutMePlaceholder			text-my-about		mobile/src/screens/main/ViewProfileScreen.tsx
+WelcomeBubbleModal.tsx	TouchableOpacity/closeButton	button-close-welcome				mobile/src/components/WelcomeBubbleModal.tsx
+WelcomeBubbleModal.tsx	BubbleButton			button-lets-go		mobile/src/components/WelcomeBubbleModal.tsx
+WelcomeBubbleModal.tsx	TouchableOpacity/ruleRow	button-rule-${index}				mobile/src/components/WelcomeBubbleModal.tsx
+WelcomeBubbleModal.tsx	Text/category	text-welcome-category				mobile/src/components/WelcomeBubbleModal.tsx
+WelcomeBubbleModal.tsx	Text/title	text-welcome-title				mobile/src/components/WelcomeBubbleModal.tsx
+WelcomeScreen.tsx	BubbleButton			button-log-in		mobile/src/screens/auth/WelcomeScreen.tsx
+WelcomeScreen.tsx	BubbleButton			button-sign-up		mobile/src/screens/auth/WelcomeScreen.tsx
