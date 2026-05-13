@@ -92,7 +92,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd mobile && pkill -f 'expo start' 2>/dev/null; pkill -f metro 2>/dev/null; sleep 1; npm install 2>&1; REACT_NATIVE_PACKAGER_HOSTNAME=163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev npx expo start --port 8080 --clear"
+args = "cd mobile && pkill -f 'expo start' 2>/dev/null; pkill -f metro 2>/dev/null; sleep 1; npm install 2>&1; npx expo start --port 8080 --tunnel --clear"
 waitForPort = 8080
 
 [[workflows.workflow]]
