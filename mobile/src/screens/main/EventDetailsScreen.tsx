@@ -109,7 +109,7 @@ type SignupTask = {
 const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -810,6 +810,14 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
+  const handleBackPress = () => {
+    if (source === 'upcoming') {
+      navigation.navigate('Upcoming' as any);
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const eventImages = event.images?.length > 0
     ? event.images
     : event.coverImage
@@ -828,7 +836,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navBackButton}>
+        <TouchableOpacity testID="back-button" onPress={handleBackPress} style={styles.navBackButton}>
           <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
