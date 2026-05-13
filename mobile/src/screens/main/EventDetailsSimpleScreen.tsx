@@ -505,7 +505,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Created by <Text style={styles.creatorName}>{creatorName}</Text>
             </Text>
             <Text style={styles.creatorCity}>
-              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+              {bubbleDisplayTitle || 'Bubble'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
