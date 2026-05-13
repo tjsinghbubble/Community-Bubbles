@@ -8,6 +8,7 @@ module.exports = {
   ...baseConfig.expo,
   plugins: [
     ...baseConfig.expo.plugins.filter((p) => p !== '@sentry/react-native'),
+    './plugins/withCxx20',
   ],
   extra: {
     sentryDsn: process.env.SENTRY_DSN ?? '',
