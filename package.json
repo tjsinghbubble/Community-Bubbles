@@ -11,7 +11,12 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "prepare": "husky",
-    "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)"
+    "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:prod": "playwright test --grep @prod-safe"
   },
   "dependencies": {
     "@cometchat/chat-sdk-javascript": "^4.1.9",
@@ -127,6 +132,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@replit/vite-plugin-cartographer": "^0.4.4",
     "@replit/vite-plugin-dev-banner": "^0.1.1",
     "@replit/vite-plugin-runtime-error-modal": "^0.0.4",

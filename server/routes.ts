@@ -267,6 +267,46 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express,
 ): Promise<Server> {
+  // ---------------------------------------------------------------------------
+  // Universal Links (iOS) — Apple fetches this on app install to verify that
+  // trybubble.io is allowed to open the app directly (skipping the browser).
+  //
+  // TODO: replace APPLE_TEAM_ID with the 10-character Team ID from
+  //       developer.apple.com → Account → Membership Details → Team ID
+  //       e.g. "ABC123DEF4"  →  appID becomes "ABC123DEF4.io.bubble.app"
+  // ---------------------------------------------------------------------------
+  app.get("/.well-known/apple-app-site-association", (_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.json({
+      applinks: {
+        apps: [],
+        details: [{
+          appID: "APPLE_TEAM_ID.io.bubble.app",
+          paths: ["/b/*", "/e/*"],
+        }],
+      },
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // App Links (Android) — Google fetches this to verify domain ownership.
+  //
+  // TODO: replace ANDROID_SHA256_FINGERPRINT with the SHA-256 cert fingerprint.
+  //       Get it by running:  eas credentials  (select Android → Production)
+  //       or from Google Play Console → App Integrity → App signing key cert.
+  //       Format: "AA:BB:CC:DD:..." (colon-separated hex pairs)
+  // ---------------------------------------------------------------------------
+  app.get("/.well-known/assetlinks.json", (_req, res) => {
+    res.json([{
+      relation: ["delegate_permission/common.handle_all_urls"],
+      target: {
+        namespace: "android_app",
+        package_name: "com.bubble.mobile",
+        sha256_cert_fingerprints: ["ANDROID_SHA256_FINGERPRINT"],
+      },
+    }]);
+  });
+
   // Register object storage routes for image uploads with auth middleware
   registerObjectStorageRoutes(app, authMiddleware);
 

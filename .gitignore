@@ -11,3 +11,7 @@ vite.config.ts.*
 *.tsbuildinfo
 .tsbuildinfo
 mobile/.tsbuildinfo
+# Playwright
+playwright-report/
+test-results/
+server/__tests__/e2e/.test-context.json

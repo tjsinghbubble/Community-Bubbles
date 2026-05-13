@@ -74,6 +74,11 @@ export async function autoMigrate(): Promise<void> {
         ADD COLUMN IF NOT EXISTS reminder_24h_sent BOOLEAN NOT NULL DEFAULT false,
         ADD COLUMN IF NOT EXISTS reminder_1h_sent  BOOLEAN NOT NULL DEFAULT false;
 
+      -- bubble short IDs for share links
+      ALTER TABLE bubbles
+        ADD COLUMN IF NOT EXISTS short_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS bubbles_short_id_idx ON bubbles(short_id);
+
       -- event short IDs for share links
       ALTER TABLE events
         ADD COLUMN IF NOT EXISTS short_id TEXT;

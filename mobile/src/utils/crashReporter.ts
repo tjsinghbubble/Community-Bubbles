@@ -333,19 +333,27 @@ export function logAppWarn(
 export function setSentryUser(id: string, username: string, isSuperAdmin?: boolean): void {
   _currentUserId = id;
   _currentUsername = username;
-  Sentry.setUser({ id, username });
-  Sentry.configureScope((scope) => {
-    scope.setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
-  });
+  try {
+    Sentry.setUser({ id, username });
+    if (typeof Sentry.configureScope === 'function') {
+      Sentry.configureScope((scope) => {
+        scope.setTag('isSuperAdmin', isSuperAdmin === true ? 'true' : 'false');
+      });
+    }
+  } catch { /* Sentry not initialized */ }
 }
 
 export function clearSentryUser(): void {
   _currentUserId = undefined;
   _currentUsername = undefined;
-  Sentry.setUser(null);
-  Sentry.configureScope((scope) => {
-    scope.setTag('isSuperAdmin', 'false');
-  });
+  try {
+    Sentry.setUser(null);
+    if (typeof Sentry.configureScope === 'function') {
+      Sentry.configureScope((scope) => {
+        scope.setTag('isSuperAdmin', 'false');
+      });
+    }
+  } catch { /* Sentry not initialized */ }
 }
 
 /**

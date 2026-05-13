@@ -600,12 +600,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBubbleMemberCount(id: string, delta: number): Promise<void> {
-    const bubble = await this.getBubble(id);
-    if (bubble) {
-      await db.update(bubbles)
-        .set({ members: bubble.members + delta })
-        .where(eq(bubbles.id, id));
-    }
+    await db.update(bubbles)
+      .set({ members: sql`members + ${delta}` })
+      .where(eq(bubbles.id, id));
   }
 
   async getPendingBubbles(): Promise<Bubble[]> {

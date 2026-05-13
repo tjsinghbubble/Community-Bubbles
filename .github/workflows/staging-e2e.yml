@@ -1,0 +1,61 @@
+name: Staging E2E
+
+# Runs after every merge to staging — validates the live staging server
+# before anyone tests on devices.
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  staging-e2e:
+    name: API E2E tests against staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Playwright E2E tests against staging server
+        run: npx playwright test
+        env:
+          # Point tests at the live staging server — no local server is started
+          E2E_BASE_URL: ${{ secrets.STAGING_URL }}
+          # Pre-created test accounts that exist permanently on staging
+          # Add these via: GitHub → Settings → Secrets → STAGING_ADMIN_TOKEN
+          # They are the tokens for george@seinfeld.com and e2e-user@staging.test
+          # created once and rotated when credentials change.
+          # NOTE: The global-setup.ts handles account creation automatically,
+          # so these are only needed if you want to skip setup and use fixed accounts.
+
+      - name: Post result as commit status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const state = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+            const description = state === 'success'
+              ? 'All E2E tests passed on staging'
+              : 'E2E tests failed on staging — do not release';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state,
+              description,
+              context: 'staging-e2e',
+            });
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7
