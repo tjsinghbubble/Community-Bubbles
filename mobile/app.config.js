@@ -3,6 +3,7 @@ const baseConfig = require('./app.json');
 const appVersion = baseConfig.expo.version;
 const buildNumber = process.env.EAS_BUILD_BUILD_NUMBER ?? '';
 const releaseSlug = buildNumber ? `${appVersion}+${buildNumber}` : appVersion;
+const isEasBuild = Boolean(buildNumber);
 
 module.exports = {
   ...baseConfig.expo,
@@ -14,7 +15,7 @@ module.exports = {
         organization: process.env.SENTRY_ORG ?? '',
         project: process.env.SENTRY_PROJECT ?? '',
         url: 'https://sentry.io/',
-        authToken: process.env.SENTRY_AUTH_TOKEN ?? '',
+        ...(isEasBuild ? {} : { uploadSourceMaps: false }),
         release: releaseSlug,
         dist: buildNumber,
       },
