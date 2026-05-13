@@ -45,13 +45,12 @@ export default function AccountSettingsScreen() {
   useEffect(() => {
     apiService.getAppVersion()
       .then((res) => {
-        setAppVersion(res.version);
         if (LOCAL_VERSION && isNewerVersion(res.version, LOCAL_VERSION)) {
           setUpdateAvailable(true);
         }
       })
       .catch(() => {
-        // Server unreachable — keep the locally bundled version already in state
+        // Server unreachable — no update banner shown
       });
   }, []);
 
