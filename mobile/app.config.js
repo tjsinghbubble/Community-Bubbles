@@ -16,5 +16,9 @@ module.exports = {
     eas: {
       projectId: '87aa84ba-0626-4ec1-b569-7276843813d9',
     },
+    appEnv: process.env.APP_ENV ?? process.env.EAS_BUILD_PROFILE ?? 'development',
+    expoSdkVersion: '55',
+    cometChatVersion: '4.0.10',
+    buildNumber: buildNumber || null,
   },
 };

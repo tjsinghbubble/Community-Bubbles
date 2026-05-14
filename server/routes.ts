@@ -1157,6 +1157,7 @@ export async function registerRoutes(
 
       // Environment
       const environment = process.env.NODE_ENV ?? "development";
+      const appVersion = process.env.npm_package_version ?? "1.0.0";
 
       // CometChat health check
       const cometChatAppId = process.env.COMETCHAT_APP_ID ?? "";
@@ -1181,6 +1182,7 @@ export async function registerRoutes(
           uptimeSeconds: Math.floor(process.uptime()),
           nodeVersion: process.version,
           environment,
+          version: appVersion,
           memory: {
             heapUsedMb: memMb(mem.heapUsed),
             heapTotalMb: memMb(mem.heapTotal),

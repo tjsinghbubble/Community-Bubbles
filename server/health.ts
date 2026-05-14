@@ -148,6 +148,7 @@ export function registerHealthRoutes(app: Express): void {
     const body: Record<string, unknown> = {
       status: overallStatus,
       version: APP_VERSION,
+      env: process.env.NODE_ENV ?? "development",
       uptime,
       timestamp,
       services: {

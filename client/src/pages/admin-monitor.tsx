@@ -52,6 +52,7 @@ interface AdminStats {
     uptimeSeconds: number;
     nodeVersion: string;
     environment: string;
+    version: string;
     memory: { heapUsedMb: number; heapTotalMb: number; rssMb: number };
   };
   integrations: { cometChat: PingResult; objectStorage: PingResult };
@@ -673,7 +674,9 @@ export default function AdminMonitor() {
                   </div>
                   <div className="flex-1">
                     <div className="text-[13px] font-bold">Server</div>
-                    <div className="text-[11px] text-muted-foreground">Node {stats?.server?.nodeVersion}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono">
+                      {stats?.server?.version ? `v${stats.server.version}` : '—'} · Node {stats?.server?.nodeVersion ?? '—'}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-700">
                     <Activity className="h-3.5 w-3.5" />
@@ -720,6 +723,28 @@ export default function AdminMonitor() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* ── SDK Versions ── */}
+            <div>
+              <SectionLabel>SDK Versions</SectionLabel>
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8 divide-y divide-black/5">
+                <InfoRow
+                  label="Server app"
+                  value={<span className="font-mono text-[11px]">{stats?.server?.version ? `v${stats.server.version}` : '—'}</span>}
+                  icon={Server}
+                />
+                <InfoRow
+                  label="CometChat JS SDK"
+                  value={<span className="font-mono text-[11px]">v4.1.9</span>}
+                  icon={MessageSquare}
+                />
+                <InfoRow
+                  label="Node.js"
+                  value={<span className="font-mono text-[11px]">{stats?.server?.nodeVersion ?? '—'}</span>}
+                  icon={Cpu}
+                />
               </div>
             </div>
 
