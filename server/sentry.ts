@@ -9,10 +9,17 @@ let initialised = false;
 
 export function initialiseSentry(): void {
   const dsn = process.env.SENTRY_DSN;
+  const sentryUsage = process.env.BUBBLE_SENTRY_USAGE;
+  const isLocal = sentryUsage === "local";
+  const isProd = process.env.NODE_ENV === "production";
+
   if (!dsn) {
-    console.warn("[Sentry] SENTRY_DSN not set – server-side Sentry disabled");
+    if (isProd || isLocal) {
+      console.warn("[Sentry] SENTRY_DSN not set – server-side Sentry disabled");
+    }
     return;
   }
+  if (!isProd && !isLocal) return;
   if (initialised) return;
   Sentry.init({ dsn, tracesSampleRate: 0 });
   initialised = true;

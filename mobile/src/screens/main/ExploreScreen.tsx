@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Platform,
   StatusBar,
@@ -13,8 +12,14 @@ import {
   Alert,
   Modal,
   Pressable,
-  Animated,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -70,7 +75,7 @@ export default function ExploreScreen() {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useSharedValue(0);
   const isMountedRef = useRef(true);
   const isFirstFocusRef = useRef(true);
 
@@ -217,32 +222,24 @@ export default function ExploreScreen() {
     );
   });
 
-  const iconOpacity = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
   });
 
-  const iconHeight = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [32, 0],
-    extrapolate: 'clamp',
-  });
+  const iconAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_THRESHOLD], [1, 0], Extrapolation.CLAMP),
+    height: interpolate(scrollY.value, [0, SCROLL_THRESHOLD], [32, 0], Extrapolation.CLAMP),
+  }));
 
-  const underlineOpacity = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
+  const underlineAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SCROLL_THRESHOLD], [0, 1], Extrapolation.CLAMP),
+  }));
 
-  const tabPaddingVertical = scrollY.interpolate({
-    inputRange: [0, SCROLL_THRESHOLD],
-    outputRange: [10, 4],
-    extrapolate: 'clamp',
-  });
+  const tabsAnimStyle = useAnimatedStyle(() => ({
+    paddingVertical: interpolate(scrollY.value, [0, SCROLL_THRESHOLD], [10, 4], Extrapolation.CLAMP),
+  }));
 
   const HEADER_EXPANDED = 89 + 60;
-  const HEADER_COLLAPSED = 89 + 32;
 
   const renderSearchHeader = () => (
     <View style={styles.searchContainer}>
@@ -333,17 +330,17 @@ export default function ExploreScreen() {
   };
 
   const renderTabs = () => (
-    <Animated.View style={[styles.tabsContainer, { paddingVertical: tabPaddingVertical }]}>
+    <Animated.View style={[styles.tabsContainer, tabsAnimStyle]}>
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('bubbles')}
         testID="tab-bubbles"
         accessibilityLabel="Bubbles tab"
       >
-        <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
-          <BubblesIcon 
-            size={28} 
-            color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
+        <Animated.View style={[styles.tabIconContainer, iconAnimStyle]}>
+          <BubblesIcon
+            size={28}
+            color={activeTab === 'bubbles' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist}
           />
         </Animated.View>
         <Text style={[
@@ -354,24 +351,22 @@ export default function ExploreScreen() {
         </Text>
         <Animated.View style={[
           styles.tabUnderline,
-          {
-            opacity: underlineOpacity,
-            backgroundColor: activeTab === 'bubbles' ? Colors.brand.bubbleBlue : 'transparent',
-          },
+          underlineAnimStyle,
+          { backgroundColor: activeTab === 'bubbles' ? Colors.brand.bubbleBlue : 'transparent' },
         ]} />
       </TouchableOpacity>
-      
+
       <TouchableOpacity
         style={[styles.tab]}
         onPress={() => setActiveTab('events')}
         testID="tab-events"
         accessibilityLabel="Events tab"
       >
-        <Animated.View style={[styles.tabIconContainer, { opacity: iconOpacity, height: iconHeight, overflow: 'hidden' }]}>
-          <Ionicons 
-            name="calendar-outline" 
-            size={28} 
-            color={activeTab === 'events' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist} 
+        <Animated.View style={[styles.tabIconContainer, iconAnimStyle]}>
+          <Ionicons
+            name="calendar-outline"
+            size={28}
+            color={activeTab === 'events' ? Colors.brand.bubbleBlue : Colors.neutral.coolMist}
           />
         </Animated.View>
         <Text style={[
@@ -382,10 +377,8 @@ export default function ExploreScreen() {
         </Text>
         <Animated.View style={[
           styles.tabUnderline,
-          {
-            opacity: underlineOpacity,
-            backgroundColor: activeTab === 'events' ? Colors.brand.bubbleBlue : 'transparent',
-          },
+          underlineAnimStyle,
+          { backgroundColor: activeTab === 'events' ? Colors.brand.bubbleBlue : 'transparent' },
         ]} />
       </TouchableOpacity>
     </Animated.View>
@@ -512,10 +505,7 @@ export default function ExploreScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
           {showCampusContent && campusInfo && (
@@ -534,15 +524,12 @@ export default function ExploreScreen() {
           <Text style={styles.emptySubtitle}>{getEmptyMessage().subtitle}</Text>
         </Animated.ScrollView>
       ) : (
-        <Animated.ScrollView 
+        <Animated.ScrollView
           contentContainerStyle={[styles.grid, { paddingTop: HEADER_EXPANDED }]}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={scrollHandler}
           scrollEventThrottle={16}
         >
           {showCampusContent && campusInfo && (
@@ -675,6 +662,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   tabText: {
     fontSize: 14,
