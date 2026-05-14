@@ -4,7 +4,8 @@ const path = require('path');
 
 const MARKER = '# withCxx20-applied';
 
-const INJECTION = `    ${MARKER}
+const RUBY_CODE = `
+    # withCxx20-applied
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |build_config|
         build_config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
@@ -20,7 +21,7 @@ const INJECTION = `    ${MARKER}
       unless File.exist?(coroutine_h)
         FileUtils.mkdir_p(dir)
         File.write(coroutine_h, "#pragma once\\n#if __has_include(<coroutine>)\\n#include <coroutine>\\n#elif __has_include(<experimental/coroutine>)\\n#include <experimental/coroutine>\\n#endif\\n")
-        puts "[withCxx20] Created stub: \#{coroutine_h}"
+        puts "[withCxx20] Created Coroutine.h stub at \#{coroutine_h}"
       end
     end`;
 
@@ -36,15 +37,19 @@ module.exports = function withCxx20(config) {
         return config;
       }
 
-      // Match post_install with any leading whitespace
-      const postInstallRegex = /^(\s*post_install do \|installer\|)/m;
-      if (postInstallRegex.test(podfile)) {
-        podfile = podfile.replace(postInstallRegex, `$1\n${INJECTION}\n`);
+      // Find first occurrence of 'post_install do' anywhere in the file
+      const searchStr = 'post_install do';
+      const idx = podfile.indexOf(searchStr);
+
+      if (idx !== -1) {
+        // Find the end of that line
+        const lineEnd = podfile.indexOf('\n', idx);
+        podfile = podfile.slice(0, lineEnd + 1) + RUBY_CODE + '\n' + podfile.slice(lineEnd + 1);
         fs.writeFileSync(podfilePath, podfile);
-        console.log('[withCxx20] Injected Coroutine.h stub + gnu++20 into existing post_install block.');
+        console.log('[withCxx20] Injected C++20 fix inside existing post_install block.');
       } else {
-        // Fallback: no post_install found at all
-        const block = `\npost_install do |installer|\n${INJECTION}\nend\n`;
+        // No post_install found at all — append a new one
+        const block = `\npost_install do |installer|${RUBY_CODE}\nend\n`;
         fs.writeFileSync(podfilePath, podfile + block);
         console.log('[withCxx20] Appended new post_install block.');
       }
