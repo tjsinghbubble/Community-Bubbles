@@ -14,6 +14,10 @@
     "preview": {
       "distribution": "internal"
     },
+    "beta": {
+      "autoIncrement": true,
+      "distribution": "store"
+    },
     "production": {
       "autoIncrement": true
     }

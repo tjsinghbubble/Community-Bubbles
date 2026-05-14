@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "test": "node ../node_modules/.bin/jest --config jest.config.js",
     "version:bump": "node scripts/bump-version.js",
+    "build:beta": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for beta build' && eas build --profile beta",
     "build:production": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for production build' && eas build --profile production",
     "eas-build-on-success": "bash scripts/sentry-post-build.sh"
   },
