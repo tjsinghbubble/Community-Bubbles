@@ -13,5 +13,8 @@ module.exports = {
   extra: {
     sentryDsn: process.env.SENTRY_DSN ?? '',
     crashReporterUrl: process.env.CRASH_REPORTER_URL ?? '',
+    eas: {
+      projectId: '87aa84ba-0626-4ec1-b569-7276843813d9',
+    },
   },
 };
