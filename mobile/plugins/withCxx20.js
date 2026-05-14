@@ -4,17 +4,7 @@ const path = require('path');
 
 const MARKER = '# withCxx20-applied';
 
-module.exports = function withCxx20(config) {
-  return withDangerousMod(config, [
-    'ios',
-    async (config) => {
-      const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
-      let podfile = fs.readFileSync(podfilePath, 'utf8');
-
-      if (!podfile.includes(MARKER)) {
-        const block = `
-${MARKER}
-post_install do |installer|
+const INJECTION = `  ${MARKER}
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |build_config|
       build_config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'gnu++20'
@@ -27,11 +17,29 @@ post_install do |installer|
       content = content.gsub(/CLANG_CXX_LANGUAGE_STANDARD = [^\\n]+/, 'CLANG_CXX_LANGUAGE_STANDARD = gnu++20')
       File.write(xcconfig_path, content)
     end
-  end
-end
-`;
+  end`;
+
+module.exports = function withCxx20(config) {
+  return withDangerousMod(config, [
+    'ios',
+    async (config) => {
+      const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
+      let podfile = fs.readFileSync(podfilePath, 'utf8');
+
+      if (podfile.includes(MARKER)) {
+        console.log('[withCxx20] Already patched, skipping.');
+        return config;
+      }
+
+      const postInstallRegex = /^(post_install do \|installer\|)/m;
+      if (postInstallRegex.test(podfile)) {
+        podfile = podfile.replace(postInstallRegex, `$1\n${INJECTION}\n`);
+        fs.writeFileSync(podfilePath, podfile);
+        console.log('[withCxx20] Injected gnu++20 into existing post_install block.');
+      } else {
+        console.warn('[withCxx20] No post_install block found — appending one.');
+        const block = `\n${MARKER}\npost_install do |installer|\n${INJECTION}\nend\n`;
         fs.writeFileSync(podfilePath, podfile + block);
-        console.log('[withCxx20] Patched Podfile with gnu++20 (build settings + xcconfigs)');
       }
 
       return config;
