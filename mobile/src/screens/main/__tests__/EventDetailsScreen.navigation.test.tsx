@@ -53,15 +53,15 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // ─── Internal component mocks ────────────────────────────────────────────────
-jest.mock('../../components/SuccessModal', () => () => null);
-jest.mock('../../components/ImageCarousel', () => () => null);
+jest.mock('../../../components/SuccessModal', () => () => null);
+jest.mock('../../../components/ImageCarousel', () => () => null);
 
-jest.mock('../../components/SkeletonLoader', () => ({
+jest.mock('../../../components/SkeletonLoader', () => ({
   EventDetailsSkeleton: () => null,
   UpcomingScreenSkeleton: () => null,
 }));
 
-jest.mock('../../components/icons', () => ({
+jest.mock('../../../components/icons', () => ({
   CalendarIcon: () => null,
   LocationPinIcon: () => null,
   ChevronDownIcon: () => null,
@@ -72,12 +72,12 @@ jest.mock('../../components/icons', () => ({
   CrownIcon: () => null,
 }));
 
-jest.mock('../../utils/crashReporter', () => ({
+jest.mock('../../../utils/crashReporter', () => ({
   logAppEvent: jest.fn(),
   logAppWarn: jest.fn(),
 }));
 
-jest.mock('../../styles/theme', () => ({
+jest.mock('../../../styles/theme', () => ({
   Colors: {
     text: { primary: '#000', secondary: '#666', tertiary: '#999' },
     background: { primary: '#fff', secondary: '#f5f5f5' },
@@ -92,12 +92,12 @@ jest.mock('../../styles/theme', () => ({
   NotificationBadge: {},
 }));
 
-jest.mock('../../config/api', () => ({
+jest.mock('../../../config/api', () => ({
   API_URL: 'http://localhost:5000',
   GOOGLE_PLACES_API_KEY: '',
 }));
 
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1', campusVerified: false } }),
 }));
 
@@ -108,7 +108,7 @@ const mockCheckMembership = jest.fn();
 const mockGetEventAttendees = jest.fn();
 const mockGetEventSignupTasks = jest.fn();
 
-jest.mock('../../services/api.service', () => ({
+jest.mock('../../../services/api.service', () => ({
   __esModule: true,
   default: {
     getEvent: (...args: any[]) => mockGetEvent(...args),
@@ -183,7 +183,7 @@ beforeEach(() => {
 
 describe('EventDetailsScreen — back navigation', () => {
   it('navigates to Upcoming tab when source is "upcoming" and back is pressed', async () => {
-    const EventDetailsScreen = (await import('../EventDetailsScreen')).default;
+    const EventDetailsScreen = require('../EventDetailsScreen').default;
     const navigation = makeNavigation();
 
     let rendered: any;
@@ -212,7 +212,7 @@ describe('EventDetailsScreen — back navigation', () => {
   });
 
   it('calls navigation.goBack() when source param is absent', async () => {
-    const EventDetailsScreen = (await import('../EventDetailsScreen')).default;
+    const EventDetailsScreen = require('../EventDetailsScreen').default;
     const navigation = makeNavigation();
 
     let rendered: any;

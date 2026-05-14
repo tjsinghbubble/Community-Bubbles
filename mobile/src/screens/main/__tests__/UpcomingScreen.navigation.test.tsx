@@ -21,28 +21,25 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('expo-image', () => ({ Image: 'Image' }));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: 'Ionicons' }));
 
-jest.mock('../../components/AnimatedPressable', () => {
-  const { TouchableOpacity } = require('react-native');
-  return ({ children, onPress, testID }: any) => (
-    <TouchableOpacity onPress={onPress} testID={testID}>
-      {children}
-    </TouchableOpacity>
-  );
+jest.mock('../../../components/AnimatedPressable', () => {
+  const React = require('react');
+  return ({ children, onPress, testID }: any) =>
+    React.createElement('View', { onPress, testID }, children);
 });
 
-jest.mock('../../components/SkeletonLoader', () => ({
+jest.mock('../../../components/SkeletonLoader', () => ({
   UpcomingScreenSkeleton: () => null,
 }));
 
-jest.mock('../../utils/mediaUrl', () => ({
+jest.mock('../../../utils/mediaUrl', () => ({
   resolveMediaUrl: () => null,
 }));
 
-jest.mock('../../utils/categoryImages', () => ({
+jest.mock('../../../utils/categoryImages', () => ({
   getFallbackImage: () => null,
 }));
 
-jest.mock('../../styles/theme', () => ({
+jest.mock('../../../styles/theme', () => ({
   Colors: { text: { primary: '#000', secondary: '#666', tertiary: '#999' }, background: { primary: '#fff' }, brand: { primary: '#6200ee' } },
   Spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 20 },
   Radius: { sm: 4, md: 8, lg: 12, xl: 16 },
@@ -51,11 +48,11 @@ jest.mock('../../styles/theme', () => ({
   CardShadow: {},
 }));
 
-jest.mock('../../styles/design-tokens', () => ({
+jest.mock('../../../styles/design-tokens', () => ({
   EventCardTokens: {},
 }));
 
-jest.mock('../../context/AuthContext', () => ({
+jest.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1', campusVerified: false } }),
 }));
 
@@ -63,7 +60,7 @@ jest.mock('../../context/AuthContext', () => ({
 const mockGetUpcomingEvents = jest.fn();
 const mockGetUnreadNotificationCount = jest.fn();
 
-jest.mock('../../services/api.service', () => ({
+jest.mock('../../../services/api.service', () => ({
   __esModule: true,
   default: {
     getUpcomingEvents: (...args: any[]) => mockGetUpcomingEvents(...args),
@@ -94,7 +91,7 @@ beforeEach(() => {
 
 describe('UpcomingScreen — navigation to EventDetails', () => {
   it('passes source:"upcoming" in navigate params when an event is pressed', async () => {
-    const UpcomingScreen = (await import('../UpcomingScreen')).default;
+    const UpcomingScreen = require('../UpcomingScreen').default;
 
     let rendered: any;
     await act(async () => {
@@ -128,7 +125,7 @@ describe('UpcomingScreen — navigation to EventDetails', () => {
   it('does not navigate to EventDetails without the source param before the fix', async () => {
     // Snapshot of the broken behaviour — navigate is called but source is missing.
     // Once fixed, this test should be removed and replaced by the one above.
-    const UpcomingScreen = (await import('../UpcomingScreen')).default;
+    const UpcomingScreen = require('../UpcomingScreen').default;
 
     let rendered: any;
     await act(async () => {
