@@ -32,6 +32,9 @@ jobs:
         env:
           DATABASE_URL: postgresql://localhost/dummy-never-connects
 
+      - name: Install mobile dependencies
+        run: cd mobile && npm ci
+
       - name: Mobile unit tests (Jest)
         run: cd mobile && npm test -- --ci --passWithNoTests
 
