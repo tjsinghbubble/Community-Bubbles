@@ -14,10 +14,12 @@
 1. When `develop` is stable and ready to release, open a PR from `develop` → `main`
 2. Get it reviewed and merged
 3. In Replit: Git panel → switch branch to `main` → Sync changes
-4. Verify everything works on production
-5. Switch back to `develop` → Sync changes to resume development
+   - Replit's post-merge hook runs automatically: installs dependencies and pushes DB schema
+4. Click the **Deploy** button in Replit — it builds and starts the production server (`npm run build` → `node dist/index.cjs`)
+5. Verify everything works
+6. Switch back to `develop` → Sync changes to resume development
 
-> Replit normally stays on `develop`. Only switch to `main` during a deliberate release, then switch back immediately after.
+> Replit normally stays on `develop` and uses the **Run** button (development mode, no build). Only switch to `main` and use **Deploy** during a deliberate release, then switch back to `develop` immediately after.
 
 ## Local setup
 
