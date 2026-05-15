@@ -29,6 +29,8 @@ jobs:
 
       - name: Server unit tests (Vitest)
         run: npx vitest run
+        env:
+          DATABASE_URL: postgresql://localhost/dummy-never-connects
 
       - name: Mobile unit tests (Jest)
         run: cd mobile && npm test -- --ci --passWithNoTests
