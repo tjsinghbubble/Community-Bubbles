@@ -17,7 +17,18 @@
    - Replit's post-merge hook runs automatically: installs dependencies and pushes DB schema
 4. Click the **Deploy** button in Replit — it builds and starts the production server (`npm run build` → `node dist/index.cjs`)
 5. Verify everything works
-6. Switch back to `develop` → Sync changes to resume development
+6. Tag the release in the Replit Shell:
+   ```bash
+   git tag -a v1.2.0 -m "Release v1.2.0"
+   git push origin v1.2.0
+   ```
+   Tags appear in GitHub under **Releases → Tags** as a permanent record of what was deployed.
+7. Switch back to `develop` → Sync changes to resume development
+
+**Versioning** — use semantic versioning (`MAJOR.MINOR.PATCH`):
+- `v1.0.1` — bug fix
+- `v1.1.0` — new feature
+- `v2.0.0` — breaking change
 
 > Replit normally stays on `develop` and uses the **Run** button (development mode, no build). Only switch to `main` and use **Deploy** during a deliberate release, then switch back to `develop` immediately after.
 
