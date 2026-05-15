@@ -4,7 +4,7 @@ name: Staging E2E
 # before anyone tests on devices.
 on:
   push:
-    branches: [staging]
+    branches: [develop]
 
 jobs:
   staging-e2e:
