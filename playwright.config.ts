@@ -36,6 +36,9 @@ export default defineConfig({
             COMETCHAT_API_KEY: "test",
             // 32-byte hex key required by the encryption module
             ENCRYPTION_KEY: "a".repeat(64),
+            // Relax rate limits so test suites don't hit the IP cap
+            RATE_LIMIT_SEND_MAX: "200",
+            RATE_LIMIT_AUTH_MAX: "200",
           },
           timeout: 40_000,
         },
