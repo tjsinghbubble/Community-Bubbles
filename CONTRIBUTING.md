@@ -21,6 +21,17 @@
 
 > Replit normally stays on `develop` and uses the **Run** button (development mode, no build). Only switch to `main` and use **Deploy** during a deliberate release, then switch back to `develop` immediately after.
 
+## Replit first-time setup
+
+When you first open the Replit project, it may only show `main`. To switch to `develop`, open the Replit **Shell** and run:
+
+```bash
+git fetch origin
+git checkout develop
+```
+
+After that, `develop` will appear in the Git panel and you can switch branches from there going forward.
+
 ## Local setup
 
 ```bash
