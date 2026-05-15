@@ -11,3 +11,6 @@ vite.config.ts.*
 *.tsbuildinfo
 .tsbuildinfo
 mobile/.tsbuildinfo
+
+# Local developer notes — not for version control
+LOCAL_DEV.md
