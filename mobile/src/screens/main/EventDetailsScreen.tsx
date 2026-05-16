@@ -836,13 +836,24 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
-        <TouchableOpacity testID="back-button" onPress={handleBackPress} style={styles.navBackButton}>
-          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
+        <TouchableOpacity
+          onPress={handleBackPress}
+          style={styles.navBackButton}
+          testID="button-back"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} 
+                    size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.navRightActions}>
           <View style={{ position: 'relative', zIndex: 200 }}>
-            <TouchableOpacity onPress={() => setShowKebabMenu(!showKebabMenu)} style={styles.navShareButton}>
+            <TouchableOpacity
+              onPress={() => setShowKebabMenu(!showKebabMenu)}
+              style={styles.navShareButton}
+              testID="button-kebab-menu"
+              accessibilityLabel="More options"
+            >
               <Ionicons name="ellipsis-horizontal" size={22} color={Colors.text.primary} />
             </TouchableOpacity>
             {showKebabMenu && (
@@ -850,6 +861,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleShare(); }}
+                  testID="button-share-event"
+                  accessibilityLabel="Share Event"
                 >
                   <Ionicons name="paper-plane-outline" size={18} color={Colors.text.primary} />
                   <Text style={styles.kebabMenuText}>Share Event</Text>
@@ -858,6 +871,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   <TouchableOpacity
                     style={styles.kebabMenuItem}
                     onPress={() => { setShowKebabMenu(false); showAdminOptions(); }}
+                    testID="button-manage-event"
+                    accessibilityLabel="Manage Event"
                   >
                     <CrownIcon size={18} color={Colors.brand.primary} />
                     <Text style={[styles.kebabMenuText, { color: Colors.brand.primary }]}>Manage Event</Text>
@@ -867,6 +882,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportConcern(); }}
+                  testID="button-report-concern"
+                  accessibilityLabel="Report a Concern"
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={styles.kebabMenuText}>Report a Concern</Text>
@@ -875,6 +892,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={styles.kebabMenuItem}
                   onPress={() => { setShowKebabMenu(false); handleReportEvent(); }}
+                  testID="button-report-event"
+                  accessibilityLabel="Report this Event"
                 >
                   <FlagIcon size={18} color={Colors.status.error} />
                   <Text style={[styles.kebabMenuText, { color: Colors.status.error }]}>Report this Event</Text>
@@ -957,6 +976,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                   ]}
                   onPress={() => setShowRsvpDropdown(!showRsvpDropdown)}
                   disabled={isRsvping}
+                  testID="button-rsvp"
+                  accessibilityLabel="RSVP"
                 >
                   {isRsvping ? (
                     <ActivityIndicator color="#FFFFFF" size="small" />
@@ -979,6 +1000,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                       <TouchableOpacity
                         style={styles.rsvpDropdownItem}
                         onPress={() => handleRsvpSelect('going')}
+                        testID="button-rsvp-going"
+                        accessibilityLabel="Going"
                       >
                         <View style={[styles.rsvpStatusDot, { backgroundColor: '#34C759' }]} />
                         <Text style={styles.rsvpDropdownItemText}>Going</Text>
@@ -990,6 +1013,8 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                     <TouchableOpacity
                       style={styles.rsvpDropdownItem}
                       onPress={() => handleRsvpSelect('not_going')}
+                      testID="button-rsvp-not-going"
+                      accessibilityLabel="Not Going"
                     >
                       <View style={[styles.rsvpStatusDot, { backgroundColor: '#FF3B30' }]} />
                       <Text style={styles.rsvpDropdownItemText}>Not Going</Text>
@@ -1006,7 +1031,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             <Text style={styles.infoText}>
               {event.attendeeLimit ? `${goingCount} of ${event.attendeeLimit} spots filled` : `${goingCount} going`}
             </Text>
-            <TouchableOpacity onPress={handleViewParticipants} style={styles.viewLink}>
+            <TouchableOpacity
+              onPress={handleViewParticipants}
+              style={styles.viewLink}
+              testID="button-view-participants"
+              accessibilityLabel="View participants"
+            >
               <Text style={styles.viewLinkText}>view {'>'}</Text>
             </TouchableOpacity>
           </View>
@@ -1075,7 +1105,12 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 </View>
               )}
             </View>
-            <TouchableOpacity style={styles.directionsButton} onPress={openDirections}>
+            <TouchableOpacity
+              style={styles.directionsButton}
+              onPress={openDirections}
+              testID="button-get-directions"
+              accessibilityLabel="Get Directions"
+            >
               <Image source={directionsIcon} style={{ width: 24, height: 24 }} resizeMode="contain" />
               <Text style={styles.directionsText}>Get Directions</Text>
             </TouchableOpacity>
@@ -1089,7 +1124,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Sign-Up and Help {creatorName}
             </Text>
             {canManage && (
-              <TouchableOpacity style={styles.addButtonInline} onPress={openCreateTask} data-testid="button-add-task">
+              <TouchableOpacity
+                style={styles.addButtonInline}
+                onPress={openCreateTask}
+                testID="button-add-task"
+                data-testid="button-add-task"
+                accessibilityLabel="Add Task"
+              >
                 <Text style={styles.addButtonInlineText}>+ Add Task</Text>
               </TouchableOpacity>
             )}

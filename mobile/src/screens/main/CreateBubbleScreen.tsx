@@ -544,6 +544,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                   setSelectedCategoryItem(selected ? null : sub);
                 }}
                 activeOpacity={0.8}
+                testID={`button-category-${sub.id}`}
+                accessibilityLabel={label}
               >
                 <View style={[styles.categoryImageWrapper, selected && styles.categoryImageWrapperSelected]}>
                   {sub.image ? (
@@ -592,6 +594,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           value={title}
           onChangeText={(t) => setTitle(t.slice(0, 60))}
           maxLength={60}
+          testID="input-title"
+          accessibilityLabel="Bubble Title"
         />
       </View>
 
@@ -604,6 +608,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           value={tagline}
           onChangeText={(t) => setTagline(t.slice(0, 100))}
           maxLength={100}
+          testID="input-tagline"
+          accessibilityLabel="Bubble Tagline"
         />
       </View>
 
@@ -619,6 +625,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           numberOfLines={6}
           textAlignVertical="top"
           maxLength={500}
+          testID="input-description"
+          accessibilityLabel="Bubble Description"
         />
       </View>
 
@@ -628,6 +636,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           style={styles.locationTappableField}
           onPress={() => setShowLocationPicker(true)}
           activeOpacity={0.7}
+          testID="button-location-picker"
+          accessibilityLabel="Select location"
         >
           <LocationPinIcon size={20} color={locationName ? Colors.brand.primary : Colors.text.tertiary} />
           <View style={styles.locationTappableContent}>
@@ -714,6 +724,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
               onValueChange={setCampusOnly}
               trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
               thumbColor={campusOnly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+              testID="switch-campus-only"
+              accessibilityLabel="Campus Only"
             />
           </View>
         </View>
@@ -823,6 +835,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
                 key={opt.value}
                 style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
                 onPress={() => setPrivacy(opt.value)}
+                testID={`radio-privacy-${opt.value.toLowerCase().replace(/ /g, '-')}`}
+                accessibilityLabel={opt.label}
               >
                 <RadioIcon size={20} selected={selected} active={true} />
                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
@@ -845,6 +859,8 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           onChangeText={(t) => setMemberLimit(t.replace(/[^0-9]/g, '').slice(0, 5))}
           keyboardType="number-pad"
           maxLength={5}
+          testID="input-member-limit"
+          accessibilityLabel="Member Limit"
         />
         <Text style={styles.helperText}>Leave empty for unlimited</Text>
       </View>
@@ -945,7 +961,11 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         title={step === 4 ? title ?? STEP_TITLES[step] : STEP_TITLES[step]}
         onBack={goBack}
         rightElement={
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            testID="button-cancel"
+            accessibilityLabel="Cancel"
+          >
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
         }

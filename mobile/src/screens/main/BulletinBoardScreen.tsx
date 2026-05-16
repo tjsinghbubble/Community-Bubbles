@@ -641,6 +641,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
           selectedTypeId === null && [BulletinPillStyles.chipActive, { backgroundColor: BulletinPillColors.all }],
         ]}
         onPress={() => handleFilterChange(null)}
+        testID="filter-tab-all"
+        accessibilityLabel="All posts"
       >
         <Text style={[BulletinPillStyles.chipText, selectedTypeId === null && BulletinPillStyles.chipTextActive]}>All</Text>
       </TouchableOpacity>
@@ -652,6 +654,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
             selectedTypeId === pt.id && [BulletinPillStyles.chipActive, { backgroundColor: pt.color }],
           ]}
           onPress={() => handleFilterChange(pt.id)}
+          testID={`filter-tab-${pt.id}`}
+          accessibilityLabel={pt.displayName}
         >
           <Text style={[BulletinPillStyles.chipText, selectedTypeId === pt.id && BulletinPillStyles.chipTextActive]}>{pt.displayName}</Text>
         </TouchableOpacity>
@@ -673,6 +677,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
         ]}
         scaleValue={0.97}
         onPress={() => navigation.navigate('PostDetail', { postId: item.id, bubbleId })}
+        testID={`post-card-${item.id}`}
+        accessibilityLabel={item.title}
       >
         <View style={styles.postTypeRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
@@ -688,6 +694,8 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 onPress={(e) => { e.stopPropagation(); openKebab(item.id); }}
+                testID={`button-post-kebab-${item.id}`}
+                accessibilityLabel="Post options"
               >
                 <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.tertiary} />
               </TouchableOpacity>
