@@ -114,21 +114,32 @@ app.use((req, res, next) => {
   registerHealthRoutes(app);
   await registerRoutes(httpServer, app);
 
-  // One-time: ensure george@seinfeld.com super admin exists
-  (async () => {
-    try {
-      const existing = await storage.getUserByEmail("george@seinfeld.com");
-      if (existing) {
-        if (!existing.isSuperAdmin) {
-          await db.update(users).set({ isSuperAdmin: true }).where(eq(users.id, existing.id));
-          console.log("[startup] george@seinfeld.com promoted to super admin");
+  // Ensure all team super admins exist on staging and production.
+  // If the account already exists it is promoted; if not, it is created.
+  if (process.env.NODE_ENV !== "development") (async () => {
+    const superAdmins = [
+      { name: "George Costanza",  email: "george@seinfeld.com" },
+      { name: "M Mand",           email: "mmand@trybubble.io" },
+      { name: "Renuka DSouza",    email: "rdsouza@trybubble.io" },
+      { name: "TJ Singh",         email: "tjsingh@trybubble.io" },
+      { name: "Travis Winfrey",   email: "twinfrey@trybubble.io" },
+      { name: "Neet Randhawa",    email: "neet.randhawa@trybubble.io" },
+    ];
+    const hashed = await bcrypt.hash("Bubble123!", 10);
+    for (const admin of superAdmins) {
+      try {
+        const existing = await storage.getUserByEmail(admin.email);
+        if (existing) {
+          if (!existing.isSuperAdmin) {
+            await db.update(users).set({ isSuperAdmin: true }).where(eq(users.id, existing.id));
+            console.log(`[startup] ${admin.email} promoted to super admin`);
+          }
+        } else {
+          await storage.createUser({ name: admin.name, email: admin.email, password: hashed, interests: [], isSuperAdmin: true } as any);
+          console.log(`[startup] ${admin.email} super admin created`);
         }
-      } else {
-        const hashed = await bcrypt.hash("Bubble123!", 10);
-        await storage.createUser({ name: "George Costanza", email: "george@seinfeld.com", password: hashed, interests: [], isSuperAdmin: true } as any);
-        console.log("[startup] george@seinfeld.com super admin created");
-      }
-    } catch (e) { console.error("[startup] george seed failed:", e); }
+      } catch (e) { console.error(`[startup] super admin seed failed for ${admin.email}:`, e); }
+    }
   })();
 
   // One-time: seed staging with Seinfeld test data (production only)

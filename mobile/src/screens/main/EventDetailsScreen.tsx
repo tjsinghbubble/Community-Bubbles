@@ -109,7 +109,7 @@ type SignupTask = {
 const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
-  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
+  const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
   const [bubble, setBubble] = useState<Bubble | null>(null);
@@ -725,7 +725,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       bubbleId: event?.bubbleId || '',
       bubbleTitle: bubbleDisplayTitle || bubble?.title || '',
       bubblePrivacy: bubble?.privacy || 'Public',
-      eventCreatorId: event?.creatorId || '',
+      eventCreatorId: event?.createdBy || '',
     });
   };
 
@@ -790,7 +790,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     );
   }
 
-  const isEventCreator = event.creatorId === user?.id;
+  const isEventCreator = event.createdBy === user?.id;
   const isBubbleAdmin = myBubbleRole === 'admin';
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
@@ -804,11 +804,19 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
+  const creatorAttendee = attendees.find(a => a.userId === event.createdBy);
   const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
   const creatorProfilePhoto = (event as any).creatorProfilePhoto || null;
 
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
+
+  const handleBackPress = () => {
+    if (source === 'upcoming') {
+      navigation.navigate('Upcoming' as any);
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const eventImages = event.images?.length > 0
     ? event.images
@@ -829,12 +837,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.navHeader}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
           style={styles.navBackButton}
           testID="button-back"
           accessibilityLabel="Go back"
         >
-          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} size={24} color={Colors.text.primary} />
+          <Ionicons name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} 
+                    size={24} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.navTitle} numberOfLines={1}>{event.title}</Text>
         <View style={styles.navRightActions}>
@@ -1061,7 +1070,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Created by <Text style={styles.creatorName}>{creatorName}</Text>
             </Text>
             <Text style={styles.creatorCity}>
-              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+              {bubbleDisplayTitle || 'Bubble'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
@@ -1905,7 +1914,6 @@ const styles = StyleSheet.create({
   },
   bulletinSection: {
     marginBottom: Spacing.lg,
-    paddingTop: 30,
   },
   rsvpButtonLegacy: {
     display: 'none',

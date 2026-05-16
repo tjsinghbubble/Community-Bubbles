@@ -145,7 +145,7 @@ export default function UpcomingScreen() {
   const handleEventPress = (event: UpcomingEvent) => {
     navigation.navigate('Explore', {
       screen: 'EventDetails',
-      params: { eventId: event.id, event },
+      params: { eventId: event.id, event, source: 'upcoming' },
     });
   };
 
@@ -251,6 +251,7 @@ export default function UpcomingScreen() {
               {group.events.map((event) => (
                 <AnimatedPressable
                   key={event.id}
+                  testID="event-card"
                   style={styles.eventCard}
                   scaleValue={0.97}
                   onPress={() => handleEventPress(event)}

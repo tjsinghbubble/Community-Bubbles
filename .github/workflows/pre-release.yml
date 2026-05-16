@@ -1,0 +1,42 @@
+name: Pre-release check
+
+# Manually triggered before tagging a release.
+# Runs read-only health checks against production — no writes to prod DB.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "yes" to confirm you want to run checks against production'
+        required: true
+
+jobs:
+  pre-release:
+    name: Read-only production health check
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'yes'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run health + share-link checks against production
+        run: npx playwright test --grep "@prod-safe"
+        env:
+          E2E_BASE_URL: ${{ secrets.PRODUCTION_URL }}
+
+      - name: Post summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Production health check passed — safe to tag release"
+          else
+            echo "❌ Production health check FAILED — do not tag release until fixed"
+            exit 1
+          fi

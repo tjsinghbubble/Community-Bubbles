@@ -4,6 +4,11 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
+# WIP
+LOCAL_DEV.md
+# PyCharm 
+.idea/workspace.xml
+*.tmp
 *.tar.gz
 .cache
 .local
@@ -11,6 +16,7 @@ vite.config.ts.*
 *.tsbuildinfo
 .tsbuildinfo
 mobile/.tsbuildinfo
-
-# Local developer notes — not for version control
-LOCAL_DEV.md
+# Playwright
+playwright-report/
+test-results/
+server/__tests__/e2e/.test-context.json

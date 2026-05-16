@@ -90,9 +90,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [profilePhotoUri, setProfilePhotoUri] = useState<string | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [tosViewed, setTosViewed] = useState(false);
-  const [privacyViewed, setPrivacyViewed] = useState(false);
-  const canCheckBox = tosViewed && privacyViewed;
+  const canCheckBox = !!(name.trim() && gender && dateOfBirth && EMAIL_REGEX.test(email) && password.length >= PASSWORD_MIN_LENGTH);
   const [passwordBlurred, setPasswordBlurred] = useState(false);
   const passwordError = passwordBlurred && password.length > 0 && password.length < PASSWORD_MIN_LENGTH;
   const [emailBlurred, setEmailBlurred] = useState(false);
@@ -369,11 +367,7 @@ export default function SignupScreen({ navigation }: Props) {
                 </Text>
               </Text>
             </View>
-            {!canCheckBox && (
-              <Text style={styles.termsHint}>
-                Read both links above to enable the checkbox
-              </Text>
-            )}
+
 
             <BubbleButton
               title="Agree & Continue"

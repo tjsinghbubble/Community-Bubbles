@@ -236,7 +236,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
       bubbleId: event?.bubbleId || '',
       bubbleTitle: bubbleDisplayTitle || bubble?.title || '',
       bubblePrivacy: bubble?.privacy || 'Public',
-      eventCreatorId: event?.creatorId || '',
+      eventCreatorId: event?.createdBy || '',
     });
   };
 
@@ -299,15 +299,15 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     );
   }
 
-  const isEventCreator = event.creatorId === user?.id;
-  const isBubbleAdmin = bubble?.creatorId === user?.id;
+  const isEventCreator = event.createdBy === user?.id;
+  const isBubbleAdmin = bubble?.createdBy === user?.id;
   const isSuperAdmin = user?.isSuperAdmin === true;
   const canManage = isEventCreator || isBubbleAdmin || isSuperAdmin;
   const goingCount = attendees.filter(a => a.status === 'going').length;
   const spotsLeft = event.attendeeLimit ? event.attendeeLimit - goingCount : null;
   const isFull = event.attendeeLimit ? goingCount >= event.attendeeLimit : false;
 
-  const creatorAttendee = attendees.find(a => a.userId === event.creatorId);
+  const creatorAttendee = attendees.find(a => a.userId === event.createdBy);
   const creatorName = creatorAttendee?.user?.name || (event as any).creatorName || 'Event Creator';
   const creatorProfilePhoto = (event as any).creatorProfilePhoto || null;
 
@@ -505,7 +505,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
               Created by <Text style={styles.creatorName}>{creatorName}</Text>
             </Text>
             <Text style={styles.creatorCity}>
-              {event.locationName ? event.locationName.split(',')[0] : 'Local'}
+              {bubbleDisplayTitle || 'Bubble'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />

@@ -1,0 +1,93 @@
+ your app.config.js or app.json:
+
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "87aa84ba-0626-4ec1-b569-7276843813d9"
+      }
+    }
+  }
+}
+
+✖ Linking local project to EAS project 87aa84ba-0626-4ec1-b569-7276843813d9
+Cannot automatically write to dynamic config at: app.config.js
+    Error: build command failed.
+navneetrandhawa@Navneets-MacBook-Pro mobile % git add app.json
+
+navneetrandhawa@Navneets-MacBook-Pro mobile % git commit -m "fix: add EAS project ID to app.json"
+→ lint-staged could not find any staged files matching configured tasks.
+[main c9df6a5] fix: add EAS project ID to app.json
+ 1 file changed, 4 insertions(+)
+navneetrandhawa@Navneets-MacBook-Pro mobile % git push
+eas build --profile development --platform ios
+Enumerating objects: 7, done.
+Counting objects: 100% (7/7), done.
+Delta compression using up to 12 threads
+Compressing objects: 100% (4/4), done.
+Writing objects: 100% (4/4), 454 bytes | 454.00 KiB/s, done.
+Total 4 (delta 3), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (3/3), completed with 3 local objects.
+To https://github.com/tjsinghbubble/Community-Bubbles.git
+   d047458..c9df6a5  main -> main
+Failed to read the app config from the project using "npx expo config" command: npx expo config --json exited with non-zero code: 1.
+Falling back to the version of "@expo/config" shipped with the EAS CLI.
+Error parsing JSON: {
+  "expo": {
+    "name": "Bubble",
+    "slug": "bubble-mobile",
+    "version": "1.0.0",
+    "scheme": "bubble",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bubble.mobile",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
+        "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.bubble.mobile",
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-image-picker"
+    ]
+  }
+  "extra": {
+  "eas": {
+    "projectId": "87aa84ba-0626-4ec1-b569-7276843813d9"
+  }
+}
+
+├─ File: /Users/navneetrandhawa/Community-Bubbles/mobile/app.json
+└─ Cause: SyntaxError: JSON5: invalid character '\"' at 44:3
+  42 |     ]
+  43 |   }
+> 44 |   "extra": {
+     |   ^
+  45 |   "eas": {
+  46 |     "projectId": "87aa84ba-0626-4ec1-b569-7276843813d9"
+  47 |   }
+    Error: build command failed.

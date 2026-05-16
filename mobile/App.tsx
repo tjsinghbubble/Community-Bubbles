@@ -1,3 +1,4 @@
+import './global.css';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -8,7 +9,6 @@ import { ToastProvider } from './src/components/Toast';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { initSentry, installGlobalHandlers, hydrateSpanExpiryEvents, initOfflineRetry } from './src/utils/crashReporter';
 import Constants from 'expo-constants';
-import * as Sentry from '@sentry/react-native';
 
 initSentry();
 installGlobalHandlers();
@@ -19,9 +19,6 @@ hydrateSpanExpiryEvents();
 // returns (via NetInfo) or the app foregrounds (via AppState).
 const _crashServerUrl = Constants.expoConfig?.extra?.crashReporterUrl as string | undefined ?? null;
 initOfflineRetry(_crashServerUrl);
-
-// TEMPORARY: remove once Sentry is confirmed working
-Sentry.captureMessage('Bubble app started — Sentry connectivity test', 'info');
 
 const queryClient = new QueryClient();
 

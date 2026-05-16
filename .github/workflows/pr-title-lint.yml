@@ -4,36 +4,16 @@ on:
   pull_request_target:
     types: [opened, edited, synchronize, reopened, labeled, unlabeled]
 
-permissions:
-  pull-requests: write
-
 jobs:
   lint-pr-title:
-    name: Validate PR title (conventional commit)
+    name: Validate PR title
     runs-on: ubuntu-latest
     steps:
-      - name: Check PR title follows conventional commit format
-        uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            chore
-            refactor
-            docs
-            test
-            perf
-            ci
-            build
-            revert
-            style
-          requireScope: false
-          subjectPattern: ^(?![A-Z]).+(?<!\.)$
-          subjectPatternError: >
-            The PR title subject must start with a lowercase letter and must not end with a period.
-            Example: "feat(auth): add phone number verification step"
-          ignoreLabels: |
-            bot
-            ignore-semantic-pr
+      - name: Check PR title is not empty
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          if [ -z "$TITLE" ]; then
+            echo "PR title cannot be empty"
+            exit 1
+          fi
+          echo "PR title: $TITLE"

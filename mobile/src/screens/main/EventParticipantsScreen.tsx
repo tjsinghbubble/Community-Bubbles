@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import cometChatService from '../../services/cometchat.service';
-import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow, PageBody } from '../../styles/theme';
 import { NavHeader } from '../../components/ScreenHeader';
 import { FlagIcon } from '../../components/icons';
 
@@ -399,7 +399,7 @@ export default function EventParticipantsScreen({ navigation, route }: Props) {
               )}
             </>
           }
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: PageBody.paddingBottom }}
         />
       )}
 

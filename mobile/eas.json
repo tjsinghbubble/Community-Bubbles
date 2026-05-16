@@ -6,16 +6,36 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_USE_PRECOMPILED_MODULES": "0"
+      }
     },
     "preview": {
       "distribution": "internal"
     },
+    "testflight-staging": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "env": {
+        "APP_ENV": "testflight-staging",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io"
+      }
+    },
+    "beta": {
+      "autoIncrement": true,
+      "distribution": "store"
+    },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io"
+      }
     }
   },
   "submit": {
+    "testflight-staging": {},
     "production": {}
   }
 }

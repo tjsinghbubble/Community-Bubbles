@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Unit + integration tests (no DB required) ──────────────────────────────
+  unit:
+    name: Type check + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Server unit tests (Vitest)
+        run: npx vitest run
+        env:
+          DATABASE_URL: postgresql://localhost/dummy-never-connects
+
+      - name: Install mobile dependencies
+        run: cd mobile && npm ci
+
+      - name: Mobile unit tests (Jest)
+        run: cd mobile && npm test -- --ci --passWithNoTests
+
+  # ── API E2E tests (real Express server + fresh Postgres DB) ────────────────
+  e2e:
+    name: API E2E tests (Playwright)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: bubble_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push database schema
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bubble_test
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        run: npx playwright test
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bubble_test
+          JWT_SECRET: e2e-ci-jwt-secret-not-for-production
+          NODE_ENV: test
+          RESEND_API_KEY: test-no-emails-sent
+          SHARE_BASE_URL: http://localhost:5000
+          COMETCHAT_APP_ID: test
+          COMETCHAT_API_KEY: test
+          ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: playwright-report/
+          retention-days: 7

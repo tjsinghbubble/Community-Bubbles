@@ -50,31 +50,24 @@ export function registerCampusSendVerificationRoute(
 
       await storage.createVerificationCode({ email: emailLower, code, expiresAt });
 
-      let emailFailed = false;
       if (options.sendEmail) {
         try {
           await options.sendEmail(emailLower, code);
         } catch (emailError: any) {
           console.error(`[EMAIL] Delivery failed for ${emailLower}:`, emailError.message);
-          emailFailed = true;
         }
       }
 
-      const response: any = {
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
+      }
+
+      res.json({
         success: true,
         message: "Verification code sent to your email",
         campusId: campus.id,
         campusName: campus.title,
-      };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
-        response.devCode = code;
-      }
-      res.json(response);
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
