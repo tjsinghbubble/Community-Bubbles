@@ -9,6 +9,8 @@ LOCAL_DEV.md
 # PyCharm 
 .idea/workspace.xml
 *.tmp
+# Replit AI agent artifacts, created when shared from chat
+attached_assets/
 *.tar.gz
 .cache
 .local
@@ -16,6 +18,9 @@ LOCAL_DEV.md
 *.tsbuildinfo
 .tsbuildinfo
 mobile/.tsbuildinfo
+# Replit AI agent artifacts
+attached_assets/
+
 # Playwright
 playwright-report/
 test-results/
