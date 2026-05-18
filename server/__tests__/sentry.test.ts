@@ -33,6 +33,7 @@ describe("initialiseSentry", () => {
     __resetForTesting();
     vi.clearAllMocks();
     delete process.env.SENTRY_DSN;
+    delete process.env.BUBBLE_SENTRY_USAGE;
   });
 
   it("no-ops gracefully when SENTRY_DSN is absent", () => {
@@ -44,6 +45,7 @@ describe("initialiseSentry", () => {
 
   it("calls Sentry.init when SENTRY_DSN is set", () => {
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     initialiseSentry();
     expect(Sentry.init).toHaveBeenCalledWith(
@@ -54,6 +56,7 @@ describe("initialiseSentry", () => {
 
   it("does not call Sentry.init a second time when called twice", () => {
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     initialiseSentry();
     initialiseSentry();
@@ -67,6 +70,7 @@ describe("reportSlowResponse — threshold", () => {
     __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     initialiseSentry();
@@ -94,6 +98,7 @@ describe("reportSlowResponse — Sentry scope values", () => {
     __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     initialiseSentry();
@@ -150,6 +155,7 @@ describe("reportSlowResponse — occurrence counter", () => {
     __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     initialiseSentry();
@@ -209,6 +215,7 @@ describe("reportSlowResponse — not initialised", () => {
     __resetForTesting();
     vi.clearAllMocks();
     delete process.env.SENTRY_DSN;
+    delete process.env.BUBBLE_SENTRY_USAGE;
 
     reportSlowResponse("GET", "/api/slow", 5000);
 
