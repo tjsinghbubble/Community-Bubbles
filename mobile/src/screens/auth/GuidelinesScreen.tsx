@@ -134,20 +134,35 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
         <View style={styles.progressFill} />
       </View>
 
-      <Text style={styles.title} data-testid="text-title">Our Community Guidelines</Text>
+      <Text
+        style={styles.title}
+        testID="text-title"
+        data-testid="text-title"
+      >
+        Our Community Guidelines
+      </Text>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle} data-testid="text-section-title">
+        <Text
+          style={styles.sectionTitle}
+          testID="text-section-title"
+          data-testid="text-section-title"
+        >
           Let's Keep This Space Safe
         </Text>
 
         <View style={styles.cardsContainer}>
           {GUIDELINES.map((guideline) => (
-            <View key={guideline.id} style={styles.card} data-testid={`card-guideline-${guideline.id}`}>
+            <View
+              key={guideline.id}
+              style={styles.card}
+              testID={`card-guideline-${guideline.id}`}
+              data-testid={`card-guideline-${guideline.id}`}
+            >
               <Text style={styles.cardTitle}>{guideline.title}</Text>
               {guideline.description ? (
                 <Text style={styles.cardDescription}>{guideline.description}</Text>
@@ -165,7 +180,11 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
             </View>
           ))}
 
-          <View style={styles.warningCard} data-testid="card-warning">
+          <View
+            style={styles.warningCard}
+            testID="card-warning"
+            data-testid="card-warning"
+          >
             <Text style={styles.cardTitle}>{WARNING.title}</Text>
             <Text style={styles.cardDescription}>{WARNING.description}</Text>
           </View>

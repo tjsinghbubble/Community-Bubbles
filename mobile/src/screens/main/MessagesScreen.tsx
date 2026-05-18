@@ -466,7 +466,12 @@ export default function MessagesScreen({ navigation, route }: Props) {
   };
 
   const bellIcon = (
-    <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+    <TouchableOpacity
+      style={styles.bellButton}
+      onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}
+      testID="button-notifications"
+      accessibilityLabel="Notifications"
+    >
       <View>
         <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
         {unreadNotifCount > 0 && (
@@ -489,6 +494,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
       style={styles.hamburgerButton}
       onPress={() => setShowFilterMenu(true)}
       activeOpacity={0.7}
+      testID="button-filter-menu"
+      accessibilityLabel="Filter conversations"
     >
       <Ionicons name="menu-outline" size={24} color={Colors.text.primary} />
     </TouchableOpacity>
@@ -517,6 +524,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
                   setShowFilterMenu(false);
                 }}
                 activeOpacity={0.7}
+                testID={`filter-option-${option.key}`}
+                accessibilityLabel={option.label}
               >
                 <Text
                   style={[
@@ -648,6 +657,8 @@ export default function MessagesScreen({ navigation, route }: Props) {
             ]}
             scaleValue={0.97}
             onPress={() => handleConversationPress(conversation)}
+            testID={`conversation-${conversation.conversationId}`}
+            accessibilityLabel={conversation.conversationWith.name}
           >
             {renderAvatar(conversation)}
 

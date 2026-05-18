@@ -75,6 +75,8 @@ export default function LoginScreen({ navigation }: Props) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
+                testID="input-email"
+                accessibilityLabel="Email"
               />
             </View>
 
@@ -89,18 +91,26 @@ export default function LoginScreen({ navigation }: Props) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   textContentType="password"
+                  testID="input-password"
+                  accessibilityLabel="Password"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={togglePassword}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  testID="button-toggle-password"
+                  accessibilityLabel="Toggle password visibility"
                 >
                   {showPassword
                     ? <EyeIcon size={24} color="#969696" />
                     : <EyeOffIcon size={24} color="#969696" />}
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                testID="button-forgot-password"
+                accessibilityLabel="Forgot your password"
+              >
                 <Text style={styles.forgotPassword}>Forgot your password?</Text>
               </TouchableOpacity>
             </View>
@@ -116,7 +126,11 @@ export default function LoginScreen({ navigation }: Props) {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={goToSignup}>
+            <TouchableOpacity
+              onPress={goToSignup}
+              testID="button-go-to-signup"
+              accessibilityLabel="Sign Up"
+            >
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>

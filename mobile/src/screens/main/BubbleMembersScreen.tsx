@@ -388,7 +388,12 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
         </TouchableOpacity>
 
         {!isMe && (
-          <TouchableOpacity style={styles.kebabButton} onPress={() => handleKebabPress(item)}>
+          <TouchableOpacity
+            style={styles.kebabButton}
+            onPress={() => handleKebabPress(item)}
+            testID={`button-member-options-${item.userId}`}
+            accessibilityLabel={`More options for ${item.user.name}`}
+          >
             <Ionicons name="ellipsis-horizontal" size={20} color={Colors.neutral.coolMist} />
           </TouchableOpacity>
         )}
@@ -412,7 +417,12 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
       />
 
       {isAdmin && (
-        <TouchableOpacity style={styles.relinquishButton} onPress={handleRelinquishAdmin}>
+        <TouchableOpacity
+          style={styles.relinquishButton}
+          onPress={handleRelinquishAdmin}
+          testID="button-relinquish-admin"
+          accessibilityLabel="Step down as admin"
+        >
           <Ionicons name="exit-outline" size={18} color="#dc2626" />
           <Text style={styles.relinquishText}>Step down as admin</Text>
         </TouchableOpacity>
@@ -457,30 +467,55 @@ export default function BubbleMembersScreen({ navigation, route }: Props) {
           <View style={styles.menuContainer}>
             {isAdmin && (
               <>
-                <TouchableOpacity style={styles.menuItem} onPress={handleDirectMessage}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleDirectMessage}
+                  testID="button-member-dm"
+                  accessibilityLabel="Direct Message"
+                >
                   <Ionicons name="chatbubble-outline" size={18} color={Colors.neutral.charcoal} />
                   <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Direct Message</Text>
                 </TouchableOpacity>
                 {selectedMember?.role === 'admin' ? (
-                  <TouchableOpacity style={styles.menuItem} onPress={handleDemoteFromMenu}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleDemoteFromMenu}
+                    testID="button-member-demote"
+                    accessibilityLabel="Remove as admin"
+                  >
                     <Ionicons name="arrow-down" size={18} color={Colors.brand.bubbleBlue} />
                     <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Remove as admin</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity style={styles.menuItem} onPress={handleMakeAdmin}>
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleMakeAdmin}
+                    testID="button-member-make-admin"
+                    accessibilityLabel="Make admin"
+                  >
                     <Ionicons name="star-outline" size={18} color={Colors.brand.bubbleBlue} />
                     <Text style={[styles.menuItemText, { color: Colors.brand.bubbleBlue }]}>Make admin</Text>
                   </TouchableOpacity>
                 )}
                 <View style={styles.menuDividerHeavy} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleRemoveFromGroup}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleRemoveFromGroup}
+                  testID="button-member-remove"
+                  accessibilityLabel="Remove from Bubble"
+                >
                   <Ionicons name="person-remove-outline" size={18} color={Colors.status.error} />
                   <Text style={[styles.menuItemText, { color: Colors.status.error }]}>Remove from Bubble</Text>
                 </TouchableOpacity>
                 <View style={styles.menuDividerLight} />
               </>
             )}
-            <TouchableOpacity style={styles.menuItem} onPress={handleReportConcern}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReportConcern}
+              testID="button-member-report"
+              accessibilityLabel="Report a concern"
+            >
               <FlagIcon size={18} color={Colors.neutral.charcoal} />
               <Text style={[styles.menuItemText, { color: Colors.neutral.charcoal }]}>Report a concern</Text>
             </TouchableOpacity>

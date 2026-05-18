@@ -142,6 +142,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
               keyboardType="number-pad"
               maxLength={1}
               selectTextOnFocus
+              testID={`input-otp-${index}`}
+              accessibilityLabel={`Verification code digit ${index + 1}`}
             />
           ))}
         </View>
@@ -153,6 +155,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           ]}
           onPress={handleVerify}
           disabled={!isCodeComplete || loading}
+          testID="button-verify"
+          accessibilityLabel="Verify code"
         >
           {loading ? (
             <ActivityIndicator color={Colors.brand.skyWhite} />
@@ -165,6 +169,8 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
           style={styles.resendButton}
           onPress={handleResend}
           disabled={resending}
+          testID="button-resend-code"
+          accessibilityLabel="Send new code"
         >
           {resending ? (
             <ActivityIndicator color={Colors.brand.bubbleBlue} />
