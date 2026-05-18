@@ -7,6 +7,11 @@ const MAX_SLOW_COUNT_KEYS = 500;
 
 let initialised = false;
 
+export function __resetForTesting(): void {
+  initialised = false;
+  slowCounts.clear();
+}
+
 export function initialiseSentry(): void {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn) {
