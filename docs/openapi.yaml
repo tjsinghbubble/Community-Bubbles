@@ -1,0 +1,4741 @@
+openapi: "3.0.3"
+
+info:
+  title: Bubble API
+  version: "1.9.2"
+  description: |
+    REST API for the Bubble community platform. Serves both the React web client
+    and the React Native mobile app.
+
+    **Authentication** — most endpoints require a JWT supplied as
+    `Authorization: Bearer <token>`. Tokens are issued by `/api/auth/login` and
+    `/api/auth/signup`, expire after 7 days, and are invalidated on logout or
+    password reset.
+
+    **Rate limits** — auth endpoints are rate-limited (see individual operations).
+    Exceeding a limit returns `429 Too Many Requests`.
+
+servers:
+  - url: http://api_host:3000
+    description: Local development (api_host resolves to 127.0.0.1 via /etc/hosts)
+  - url: https://community-bubbles.replit.app
+    description: Staging / Replit
+
+security:
+  - BearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reusable components
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── Common response bodies ──────────────────────────────────────────────────
+  responses:
+    Success:
+      description: Operation succeeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SuccessResponse'
+    BadRequest:
+      description: Validation error or malformed request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but insufficient privileges
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Schemas ─────────────────────────────────────────────────────────────────
+  schemas:
+
+    # Utility
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: "Unauthorized"
+
+    # ── Core entities ──────────────────────────────────────────────────────────
+
+    User:
+      type: object
+      description: Authenticated user's own profile
+      required: [id, name, email, interests, campusVerified, dismissedCampusPrompt, isSuperAdmin, isActive, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+        interests:
+          type: array
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 20
+        campusId:
+          type: string
+          format: uuid
+          nullable: true
+        campusEmail:
+          type: string
+          nullable: true
+        campusVerified:
+          type: boolean
+        dismissedCampusPrompt:
+          type: boolean
+        isSuperAdmin:
+          type: boolean
+        profilePhoto:
+          type: string
+          nullable: true
+        aboutMe:
+          type: string
+          maxLength: 500
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserPublicProfile:
+      type: object
+      description: Public profile visible to other users
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        profilePhoto:
+          type: string
+          nullable: true
+        aboutMe:
+          type: string
+          nullable: true
+        interests:
+          type: array
+          items:
+            type: string
+        sharedBubbles:
+          type: array
+          items:
+            $ref: '#/components/schemas/BubbleSummary'
+
+    Campus:
+      type: object
+      required: [id, domain, title, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        domain:
+          type: string
+          example: "state.edu"
+        title:
+          type: string
+          example: "State University"
+        createdAt:
+          type: string
+          format: date-time
+
+    Category:
+      type: object
+      required: [id, name, displayOrder]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          maxLength: 100
+        displayName:
+          type: string
+          nullable: true
+        header:
+          type: string
+          nullable: true
+        icon:
+          type: string
+          nullable: true
+        image:
+          type: string
+          nullable: true
+        parentId:
+          type: integer
+          nullable: true
+        displayOrder:
+          type: integer
+        placeholderName:
+          type: string
+          nullable: true
+        placeholderTagline:
+          type: string
+          nullable: true
+        placeholderDescription:
+          type: string
+          nullable: true
+
+    CategoryPlaceholder:
+      type: object
+      required: [id, categoryId, fieldType, value, displayOrder]
+      properties:
+        id:
+          type: integer
+        categoryId:
+          type: integer
+        fieldType:
+          type: string
+        value:
+          type: string
+        displayOrder:
+          type: integer
+
+    BubbleSummary:
+      type: object
+      required: [id, title, tagline, privacy, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        tagline:
+          type: string
+        coverImage:
+          type: string
+          nullable: true
+        privacy:
+          type: string
+          enum: [Public, Private, Request]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        members:
+          type: integer
+
+    Bubble:
+      type: object
+      required: [id, title, tagline, category, description, privacy, members, status, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 150
+        tagline:
+          type: string
+          maxLength: 150
+        category:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+          maxLength: 2000
+        rules:
+          type: array
+          items:
+            type: string
+            maxLength: 300
+          maxItems: 20
+        privacy:
+          type: string
+          enum: [Public, Private, Request]
+        coverImage:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+        attachments:
+          type: array
+          items:
+            type: string
+        members:
+          type: integer
+        memberLimit:
+          type: integer
+          nullable: true
+        distance:
+          type: string
+          nullable: true
+        locationName:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationAddress:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationLat:
+          type: string
+          nullable: true
+        locationLng:
+          type: string
+          nullable: true
+        radiusMiles:
+          type: integer
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        campusId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        rejectionReason:
+          type: string
+          nullable: true
+        shortId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    InsertBubble:
+      type: object
+      required: [title, tagline, category, description, privacy, createdBy]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        tagline:
+          type: string
+          minLength: 1
+          maxLength: 150
+        category:
+          type: string
+        categoryId:
+          type: integer
+          nullable: true
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        rules:
+          type: array
+          items:
+            type: string
+            maxLength: 300
+          maxItems: 20
+          default: []
+        privacy:
+          type: string
+          enum: [Public, Private, Request]
+          default: Public
+        coverImage:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+          default: []
+        memberLimit:
+          type: integer
+          nullable: true
+        locationName:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationAddress:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationLat:
+          type: string
+          nullable: true
+        locationLng:
+          type: string
+          nullable: true
+        radiusMiles:
+          type: integer
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        campusId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved]
+          default: pending
+
+    Membership:
+      type: object
+      required: [id, userId, bubbleId, role, membershipStatus, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        bubbleId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [member, admin]
+        membershipStatus:
+          type: string
+          enum: [approved, pending, waitlisted, on_hold]
+        createdAt:
+          type: string
+          format: date-time
+
+    Event:
+      type: object
+      required: [id, title, date, startTime, timezone, visibility, bubbleId, createdBy, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        coverImage:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+        date:
+          type: string
+          format: date
+          description: YYYY-MM-DD in UTC
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          description: HH:MM in UTC
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          nullable: true
+        timezone:
+          type: string
+          example: "America/Chicago"
+          description: IANA timezone identifier
+        locationName:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationAddress:
+          type: string
+          nullable: true
+        locationLat:
+          type: string
+          nullable: true
+        locationLng:
+          type: string
+          nullable: true
+        locationTbd:
+          type: boolean
+        visibility:
+          type: string
+          enum: [public, request, private]
+        petFriendly:
+          type: boolean
+        smokeFree:
+          type: boolean
+        wheelchairAccessible:
+          type: boolean
+        attendeeLimit:
+          type: integer
+          nullable: true
+        rsvpDeadline:
+          type: string
+          nullable: true
+        recurrenceType:
+          type: string
+          enum: [never, daily, weekly, biweekly, monthly, yearly, custom]
+        recurrenceCustomFrequency:
+          type: string
+          nullable: true
+        recurrenceCustomInterval:
+          type: integer
+          nullable: true
+        bubbleId:
+          type: string
+          format: uuid
+        createdBy:
+          type: string
+          format: uuid
+        campusId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        rejectionReason:
+          type: string
+          nullable: true
+        shortId:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    InsertEvent:
+      type: object
+      required: [title, date, startTime, timezone, visibility, bubbleId, createdBy]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+          nullable: true
+        coverImage:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+          default: []
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          nullable: true
+        timezone:
+          type: string
+          example: "America/Chicago"
+        locationName:
+          type: string
+          maxLength: 300
+          nullable: true
+        locationAddress:
+          type: string
+          nullable: true
+        locationLat:
+          type: string
+          nullable: true
+        locationLng:
+          type: string
+          nullable: true
+        locationTbd:
+          type: boolean
+          default: false
+        visibility:
+          type: string
+          enum: [public, request, private]
+          default: public
+        petFriendly:
+          type: boolean
+          default: false
+        smokeFree:
+          type: boolean
+          default: false
+        wheelchairAccessible:
+          type: boolean
+          default: false
+        attendeeLimit:
+          type: integer
+          nullable: true
+        rsvpDeadline:
+          type: string
+          nullable: true
+        recurrenceType:
+          type: string
+          enum: [never, daily, weekly, biweekly, monthly, yearly, custom]
+          default: never
+        recurrenceCustomFrequency:
+          type: string
+          nullable: true
+        recurrenceCustomInterval:
+          type: integer
+          nullable: true
+        bubbleId:
+          type: string
+          format: uuid
+        createdBy:
+          type: string
+          format: uuid
+        campusId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [pending, approved]
+          default: approved
+
+    EventAttendee:
+      type: object
+      required: [id, eventId, userId, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [going, interested, requested, waitlisted]
+        createdAt:
+          type: string
+          format: date-time
+
+    EventSignupTask:
+      type: object
+      required: [id, eventId, title, icon, createdBy, createdAt, position]
+      properties:
+        id:
+          type: integer
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+        icon:
+          type: string
+          default: "📋"
+        spotsNeeded:
+          type: integer
+          minimum: 1
+          maximum: 999
+          nullable: true
+        createdBy:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        position:
+          type: integer
+
+    Notification:
+      type: object
+      required: [id, recipientId, type, title, body, read, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        recipientId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        metadata:
+          type: string
+          description: JSON string with additional context
+          nullable: true
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationPreferences:
+      type: object
+      required: [userId, pushPaused, bubbleActivity, eventActivity, eventReminders, taskReminders, waitlistUpdates, announcements]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        pushPaused:
+          type: boolean
+        bubbleActivity:
+          type: boolean
+        eventActivity:
+          type: boolean
+        eventReminders:
+          type: boolean
+        taskReminders:
+          type: boolean
+        waitlistUpdates:
+          type: boolean
+        announcements:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+
+    Report:
+      type: object
+      required: [id, reportType, reason, reporterUserId, bubbleId, visibleTo, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reportType:
+          type: string
+        reason:
+          type: string
+          maxLength: 500
+        freeText:
+          type: string
+          maxLength: 2000
+          nullable: true
+        reporterUserId:
+          type: string
+          format: uuid
+        reportedUserId:
+          type: string
+          format: uuid
+          nullable: true
+        bubbleId:
+          type: string
+          format: uuid
+        eventId:
+          type: string
+          format: uuid
+          nullable: true
+        visibleTo:
+          type: string
+          enum: [superadmin, bubble_admin]
+        status:
+          type: string
+          enum: [pending, reviewed, resolved, dismissed]
+        createdAt:
+          type: string
+          format: date-time
+
+    BulletinPostType:
+      type: object
+      required: [id, name, displayName, color, adminOnly, displayOrder]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        displayName:
+          type: string
+        color:
+          type: string
+        adminOnly:
+          type: boolean
+        displayOrder:
+          type: integer
+
+    BulletinPost:
+      type: object
+      required: [id, boardId, postTypeId, authorId, title, body, isPinned, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        boardId:
+          type: string
+          format: uuid
+        postTypeId:
+          type: integer
+        authorId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 150
+        body:
+          type: string
+          maxLength: 5000
+        imageUrl:
+          type: string
+          nullable: true
+        isPinned:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BulletinReply:
+      type: object
+      required: [id, postId, authorId, body, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        postId:
+          type: string
+          format: uuid
+        authorId:
+          type: string
+          format: uuid
+        body:
+          type: string
+          maxLength: 2000
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Rule:
+      type: object
+      required: [id, text, name, description, createdAt]
+      properties:
+        id:
+          type: integer
+        text:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        position:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CrashReport:
+      type: object
+      required: [id, message, isFatal, createdAt]
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        stack:
+          type: string
+          nullable: true
+        context:
+          type: string
+          nullable: true
+        platform:
+          type: string
+          nullable: true
+        appVersion:
+          type: string
+          nullable: true
+        isFatal:
+          type: boolean
+        userId:
+          type: string
+          nullable: true
+        username:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditLog:
+      type: object
+      required: [id, action, adminId, targetId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        action:
+          type: string
+        adminId:
+          type: string
+          format: uuid
+        targetId:
+          type: string
+        ip:
+          type: string
+          nullable: true
+        extra:
+          type: string
+          description: JSON string with additional context
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ErrorLog:
+      type: object
+      required: [id, message, timestamp, platform, level]
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        platform:
+          type: string
+        level:
+          type: string
+
+    UserSession:
+      type: object
+      required: [id, userId, startedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+        durationSeconds:
+          type: integer
+          nullable: true
+
+    SlowCall:
+      type: object
+      required: [id, endpoint, method, durationMs, createdAt]
+      properties:
+        id:
+          type: integer
+        endpoint:
+          type: string
+        method:
+          type: string
+        durationMs:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    LatencyMetric:
+      type: object
+      required: [method, endpoint, count, p50Ms, p95Ms, p99Ms, avgMs, maxMs]
+      properties:
+        method:
+          type: string
+        endpoint:
+          type: string
+        count:
+          type: integer
+        p50Ms:
+          type: integer
+        p95Ms:
+          type: integer
+        p99Ms:
+          type: integer
+        avgMs:
+          type: integer
+        maxMs:
+          type: integer
+        errorRate:
+          type: integer
+
+    AuthTokenResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: JWT bearer token, valid for 7 days
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── Health ──────────────────────────────────────────────────────────────────
+
+  /api/v1/ping:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: pong
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: pong
+
+  /api/v1/version:
+    get:
+      tags: [Health]
+      summary: Application version
+      security: []
+      responses:
+        '200':
+          description: Current semver
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version]
+                properties:
+                  version:
+                    type: string
+                    example: "1.9.2"
+
+  /api/v1/status:
+    get:
+      tags: [Health]
+      summary: Operational status
+      security: []
+      responses:
+        '200':
+          description: Service status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, version, uptime, timestamp]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, maintenance]
+                  version:
+                    type: string
+                  uptime:
+                    type: number
+                    description: Process uptime in seconds
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Deep health check (DB + third-party services)
+      security: []
+      responses:
+        '200':
+          description: All services healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded]
+                  services:
+                    type: object
+                    properties:
+                      db:
+                        type: string
+                        enum: [ok, error]
+                      storage:
+                        type: string
+                        enum: [ok, error]
+                      third-party-auth:
+                        type: string
+                        enum: [ok, error]
+
+  # ── Authentication ─────────────────────────────────────────────────────────
+
+  /api/auth/send-verification:
+    post:
+      tags: [Auth]
+      summary: Send email verification code
+      description: Rate-limited to 5 requests per 60 minutes per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Code sent (or fallback provided in dev)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  emailFailed:
+                    type: boolean
+                  fallbackCode:
+                    type: string
+                    description: Only present when email delivery failed
+                  devCode:
+                    type: string
+                    description: Only present in development environment
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/auth/verify-code:
+    post:
+      tags: [Auth]
+      summary: Verify email verification code
+      description: Rate-limited to 10 requests per 15 minutes per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Code verified
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, verified]
+                properties:
+                  success:
+                    type: boolean
+                  verified:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create a new account
+      description: Rate-limited to 5 requests per 60 minutes per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 1000
+                interests:
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 50
+                  maxItems: 20
+                  default: []
+                aboutMe:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate and receive JWT
+      description: |
+        Rate-limited to 10 attempts per 15 minutes per IP.
+        Account is locked after 5 consecutive failures.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Invalidate all tokens for the current user
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the authenticated user's profile
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Request a password-reset code by email
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset email sent (response is always success to avoid enumeration)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using a verification code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, newPassword]
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                newPassword:
+                  type: string
+                  minLength: 8
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/auth/send-confirmation:
+    post:
+      tags: [Auth]
+      summary: Re-send email confirmation for the current user
+      responses:
+        '200':
+          description: Confirmation sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  emailFailed:
+                    type: boolean
+                  fallbackCode:
+                    type: string
+                  devCode:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/delete-account:
+    delete:
+      tags: [Auth]
+      summary: Permanently delete the authenticated user's account
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/cometchat/auth-token:
+    post:
+      tags: [Auth]
+      summary: Obtain a CometChat auth token for the current user
+      responses:
+        '200':
+          description: CometChat credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authToken, uid]
+                properties:
+                  authToken:
+                    type: string
+                  uid:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Users ──────────────────────────────────────────────────────────────────
+
+  /api/users/me:
+    patch:
+      tags: [Users]
+      summary: Update the current user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                aboutMe:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                interests:
+                  type: array
+                  items:
+                    type: string
+                    maxLength: 50
+                  maxItems: 20
+                profilePhoto:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/me/export:
+    get:
+      tags: [Users]
+      summary: Export all data for the current user (GDPR-style)
+      responses:
+        '200':
+          description: Complete user data export
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Profile, memberships, events, notifications, and related data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/{userId}/profile:
+    get:
+      tags: [Users]
+      summary: Get a public profile for another user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublicProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── Campuses ────────────────────────────────────────────────────────────────
+
+  /api/campuses:
+    get:
+      tags: [Campuses]
+      summary: List all campuses
+      security: []
+      responses:
+        '200':
+          description: Campus list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Campus'
+
+  /api/campus/send-verification:
+    post:
+      tags: [Campuses]
+      summary: Send a campus email verification code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [campusEmail]
+              properties:
+                campusEmail:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/campus/verify-code:
+    post:
+      tags: [Campuses]
+      summary: Verify a campus email code and associate with the user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [campusEmail, code]
+              properties:
+                campusEmail:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/campus/dismiss-prompt:
+    post:
+      tags: [Campuses]
+      summary: Dismiss the campus verification prompt for the current user
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/campus/my-campus:
+    get:
+      tags: [Campuses]
+      summary: Get the current user's campus, if any
+      responses:
+        '200':
+          description: Campus or null
+          content:
+            application/json:
+              schema:
+                nullable: true
+                oneOf:
+                  - $ref: '#/components/schemas/Campus'
+                  - type: 'null'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/campus/bubbles:
+    get:
+      tags: [Campuses]
+      summary: List bubbles for the user's campus (requires campus verification)
+      responses:
+        '200':
+          description: Campus bubbles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/campus/events:
+    get:
+      tags: [Campuses]
+      summary: List events for the user's campus (requires campus verification)
+      responses:
+        '200':
+          description: Campus events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Categories ──────────────────────────────────────────────────────────────
+
+  /api/categories:
+    get:
+      tags: [Categories]
+      summary: List categories (nested; campus categories first for verified users)
+      security: []
+      responses:
+        '200':
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+    post:
+      tags: [Categories]
+      summary: Create a category (super admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                displayName:
+                  type: string
+                  maxLength: 100
+                  nullable: true
+                header:
+                  type: string
+                  nullable: true
+                icon:
+                  type: string
+                  nullable: true
+                image:
+                  type: string
+                  nullable: true
+                parentId:
+                  type: integer
+                  nullable: true
+                displayOrder:
+                  type: integer
+                  default: 0
+      responses:
+        '201':
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/categories/flat:
+    get:
+      tags: [Categories]
+      summary: List all categories as a flat array
+      security: []
+      responses:
+        '200':
+          description: Flat category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  /api/categories/{id}:
+    put:
+      tags: [Categories]
+      summary: Update a category (super admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+      responses:
+        '200':
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Categories]
+      summary: Delete a category (super admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/categories/{id}/placeholders:
+    get:
+      tags: [Categories]
+      summary: Get a random set of placeholder text for a category
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Placeholder values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  tagline:
+                    type: string
+                  description:
+                    type: string
+    post:
+      tags: [Categories]
+      summary: Add a placeholder to a category (super admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fieldType, value]
+              properties:
+                fieldType:
+                  type: string
+                value:
+                  type: string
+                displayOrder:
+                  type: integer
+      responses:
+        '201':
+          description: Created placeholder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryPlaceholder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/category-placeholders:
+    get:
+      tags: [Categories]
+      summary: List all category placeholders (super admin only)
+      responses:
+        '200':
+          description: All placeholders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryPlaceholder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/category-placeholders/{placeholderId}:
+    put:
+      tags: [Categories]
+      summary: Update a placeholder (super admin only)
+      parameters:
+        - name: placeholderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldType:
+                  type: string
+                value:
+                  type: string
+                displayOrder:
+                  type: integer
+      responses:
+        '200':
+          description: Updated placeholder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryPlaceholder'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Categories]
+      summary: Delete a placeholder (super admin only)
+      parameters:
+        - name: placeholderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Bubbles ─────────────────────────────────────────────────────────────────
+
+  /api/bubbles:
+    get:
+      tags: [Bubbles]
+      summary: List all public approved bubbles
+      security: []
+      responses:
+        '200':
+          description: Bubble list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bubble'
+    post:
+      tags: [Bubbles]
+      summary: Create a bubble
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertBubble'
+      responses:
+        '201':
+          description: Created bubble
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bubble'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/my:
+    get:
+      tags: [Bubbles]
+      summary: List bubbles the current user has joined
+      responses:
+        '200':
+          description: User's bubbles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/created/my:
+    get:
+      tags: [Bubbles]
+      summary: List bubbles created by the current user
+      responses:
+        '200':
+          description: Created bubbles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/short/{shortId}:
+    get:
+      tags: [Bubbles]
+      summary: Look up a bubble by short ID (deep-link resolution)
+      security: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bubble
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bubble'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/bubbles/{id}:
+    get:
+      tags: [Bubbles]
+      summary: Get a single bubble
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bubble
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bubble'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Bubbles]
+      summary: Update a bubble (bubble admin or super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertBubble'
+      responses:
+        '200':
+          description: Updated bubble
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Bubbles]
+      summary: Delete a bubble (bubble admin or super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{id}/photos:
+    post:
+      tags: [Bubbles]
+      summary: Add a photo to a bubble (member)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [imageUrl]
+              properties:
+                imageUrl:
+                  type: string
+      responses:
+        '200':
+          description: Updated bubble
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{id}/visit:
+    post:
+      tags: [Bubbles]
+      summary: Record a bubble view (analytics)
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # ── Bubble membership ────────────────────────────────────────────────────────
+
+  /api/bubbles/{id}/join:
+    post:
+      tags: [Bubble Membership]
+      summary: Join a bubble
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Join result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, status]
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                    enum: [approved, pending, waitlisted]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{id}/leave:
+    post:
+      tags: [Bubble Membership]
+      summary: Leave a bubble
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{id}/members:
+    get:
+      tags: [Bubble Membership]
+      summary: List members of a bubble
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Member list (email omitted unless requester is admin)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/UserPublicProfile'
+                    - type: object
+                      properties:
+                        role:
+                          type: string
+                          enum: [member, admin]
+                        membershipStatus:
+                          type: string
+
+  /api/bubbles/{id}/membership:
+    get:
+      tags: [Bubble Membership]
+      summary: Get the current user's membership status in a bubble
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Membership status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [isMember]
+                properties:
+                  isMember:
+                    type: boolean
+                  role:
+                    type: string
+                    enum: [member, admin]
+                    nullable: true
+                  membershipStatus:
+                    type: string
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{bubbleId}/members/{userId}:
+    delete:
+      tags: [Bubble Membership]
+      summary: Remove a member from a bubble (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/members/{userId}/role:
+    put:
+      tags: [Bubble Membership]
+      summary: Update a member's role (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [member, admin]
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/members/me/relinquish-admin:
+    put:
+      tags: [Bubble Membership]
+      summary: Demote yourself from admin to member
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/join-requests:
+    get:
+      tags: [Bubble Membership]
+      summary: List pending join requests (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Pending requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/join-requests/{userId}/approve:
+    post:
+      tags: [Bubble Membership]
+      summary: Approve a join request (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/join-requests/{userId}/reject:
+    post:
+      tags: [Bubble Membership]
+      summary: Reject a join request (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/waitlist:
+    get:
+      tags: [Bubble Membership]
+      summary: List waitlisted and on-hold members (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Waitlist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  waitlisted:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Membership'
+                  on_hold:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/waitlist/{userId}/approve:
+    post:
+      tags: [Bubble Membership]
+      summary: Approve a waitlisted user (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/waitlist/{userId}/hold:
+    post:
+      tags: [Bubble Membership]
+      summary: Place a waitlisted user on hold (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/waitlist/{userId}/reject:
+    post:
+      tags: [Bubble Membership]
+      summary: Reject a waitlisted user (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/sync-chat-members:
+    post:
+      tags: [Bubble Membership]
+      summary: Sync bubble membership with CometChat group (member)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  synced:
+                    type: integer
+                  members:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/admin-dm/{userId}:
+    post:
+      tags: [Bubble Membership]
+      summary: Open a direct message from an admin to a member
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: DM group info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupId:
+                    type: string
+                  groupName:
+                    type: string
+                  memberName:
+                    type: string
+                  participantIds:
+                    type: array
+                    items:
+                      type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/users/{userId}/peer-dm:
+    post:
+      tags: [Users]
+      summary: Open a peer-to-peer DM with another user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: DM group info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  groupId:
+                    type: string
+                  groupName:
+                    type: string
+                  requester:
+                    type: string
+                  targetUser:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Events ──────────────────────────────────────────────────────────────────
+
+  /api/events:
+    get:
+      tags: [Events]
+      summary: List all public approved events
+      security: []
+      responses:
+        '200':
+          description: Event list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+    post:
+      tags: [Events]
+      summary: Create an event (bubble member or admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertEvent'
+      responses:
+        '201':
+          description: Created event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/events/upcoming:
+    get:
+      tags: [Events]
+      summary: List upcoming events
+      security: []
+      responses:
+        '200':
+          description: Upcoming events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+  /api/events/my:
+    get:
+      tags: [Events]
+      summary: List events the current user has RSVPd to
+      responses:
+        '200':
+          description: User's events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/events/created:
+    get:
+      tags: [Events]
+      summary: List events created by the current user
+      responses:
+        '200':
+          description: Created events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/events/short/{shortId}:
+    get:
+      tags: [Events]
+      summary: Look up an event by short ID (deep-link resolution)
+      security: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/events/{id}:
+    get:
+      tags: [Events]
+      summary: Get a single event
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Event with creator info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Events]
+      summary: Update an event (creator, bubble admin, or super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsertEvent'
+      responses:
+        '200':
+          description: Updated event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Events]
+      summary: Delete an event (creator, bubble admin, or super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/events/{id}/attendees:
+    get:
+      tags: [Events]
+      summary: List attendees of an event
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Attendee list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/UserPublicProfile'
+                    - type: object
+                      properties:
+                        status:
+                          type: string
+                          enum: [going, interested, requested, waitlisted]
+
+  /api/events/{id}/rsvp:
+    post:
+      tags: [Events]
+      summary: RSVP to an event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [going, interested, requested]
+      responses:
+        '200':
+          description: RSVP result (may be waitlisted if event is at capacity)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, status]
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: string
+                    enum: [going, interested, requested, waitlisted]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Events]
+      summary: Cancel an RSVP
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cancellation result (may include promoted user from waitlist)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  promotedUserId:
+                    type: string
+                    format: uuid
+                    nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{bubbleId}/events:
+    get:
+      tags: [Events]
+      summary: List events for a specific bubble
+      security: []
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bubble events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Event Sign-up Tasks ──────────────────────────────────────────────────────
+
+  /api/events/{id}/signup-tasks:
+    get:
+      tags: [Event Sign-up Tasks]
+      summary: List sign-up tasks for an event
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tasks with signup counts and current user's signup status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventSignupTask'
+    post:
+      tags: [Event Sign-up Tasks]
+      summary: Create a sign-up task (event creator or bubble admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, createdBy]
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 150
+                description:
+                  type: string
+                  maxLength: 500
+                  nullable: true
+                icon:
+                  type: string
+                  default: "📋"
+                spotsNeeded:
+                  type: integer
+                  minimum: 1
+                  maximum: 999
+                  nullable: true
+                createdBy:
+                  type: string
+                  format: uuid
+                position:
+                  type: integer
+      responses:
+        '201':
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSignupTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/events/{id}/signup-tasks/reorder:
+    patch:
+      tags: [Event Sign-up Tasks]
+      summary: Reorder sign-up tasks (event creator or bubble admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [taskIds]
+              properties:
+                taskIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/events/{id}/signup-tasks/{taskId}:
+    patch:
+      tags: [Event Sign-up Tasks]
+      summary: Update a sign-up task (event creator or bubble admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventSignupTask'
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventSignupTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Event Sign-up Tasks]
+      summary: Delete a sign-up task (event creator or bubble admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/events/signup-tasks/{taskId}/join:
+    post:
+      tags: [Event Sign-up Tasks]
+      summary: Sign up for a task (bubble member)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Event Sign-up Tasks]
+      summary: Cancel a task sign-up (bubble member)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Bulletin Board ───────────────────────────────────────────────────────────
+
+  /api/bulletin/post-types:
+    get:
+      tags: [Bulletin Board]
+      summary: List all bulletin post types
+      responses:
+        '200':
+          description: Post types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulletinPostType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{bubbleId}/bulletin:
+    get:
+      tags: [Bulletin Board]
+      summary: Get the bulletin board for a bubble
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Board with post count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  board:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      bubbleId:
+                        type: string
+                        format: uuid
+                  postCount:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bubbles/{bubbleId}/bulletin/posts:
+    get:
+      tags: [Bulletin Board]
+      summary: List posts on a bubble's bulletin board
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: postTypeId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Posts with reaction summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulletinPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Bulletin Board]
+      summary: Create a bulletin post (bubble member)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [postTypeId, authorId, title, body, boardId]
+              properties:
+                boardId:
+                  type: string
+                  format: uuid
+                postTypeId:
+                  type: integer
+                authorId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 150
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+                imageUrl:
+                  type: string
+                  nullable: true
+      responses:
+        '201':
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulletinPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bulletin/posts/{postId}:
+    get:
+      tags: [Bulletin Board]
+      summary: Get a single bulletin post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulletinPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Bulletin Board]
+      summary: Update a bulletin post (author only)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulletinPost'
+      responses:
+        '200':
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulletinPost'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Bulletin Board]
+      summary: Delete a bulletin post (author or bubble admin)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bulletin/posts/{postId}/pin:
+    patch:
+      tags: [Bulletin Board]
+      summary: Toggle pin status of a post (bubble admin)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bulletin/posts/{postId}/reactions:
+    post:
+      tags: [Bulletin Board]
+      summary: Toggle an emoji reaction on a post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emoji]
+              properties:
+                emoji:
+                  type: string
+                  maxLength: 32
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/bulletin/posts/{postId}/replies:
+    get:
+      tags: [Bulletin Board]
+      summary: List replies to a bulletin post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Replies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulletinReply'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Bulletin Board]
+      summary: Reply to a bulletin post (approved bubble member)
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [authorId, body]
+              properties:
+                authorId:
+                  type: string
+                  format: uuid
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Created reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulletinReply'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Rules ────────────────────────────────────────────────────────────────────
+
+  /api/rules/app:
+    get:
+      tags: [Rules]
+      summary: List app-level rules
+      responses:
+        '200':
+          description: App rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Rules]
+      summary: Create an app rule (super admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                position:
+                  type: integer
+      responses:
+        '201':
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/rules/app/reorder:
+    put:
+      tags: [Rules]
+      summary: Reorder app rules (super admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ruleIds]
+              properties:
+                ruleIds:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/rules/app/{ruleId}:
+    put:
+      tags: [Rules]
+      summary: Update an app rule (super admin)
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Rules]
+      summary: Delete an app rule (super admin)
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/rules/effective/{bubbleId}:
+    get:
+      tags: [Rules]
+      summary: Get the merged effective rules for a bubble (app + category + bubble)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Effective rule set
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/rules/bubble/{bubbleId}:
+    get:
+      tags: [Rules]
+      summary: List rules specific to a bubble
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Bubble rules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Rules]
+      summary: Add a rule to a bubble (bubble admin or super admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                position:
+                  type: integer
+      responses:
+        '201':
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/rules/bubble/{bubbleId}/override:
+    post:
+      tags: [Rules]
+      summary: Hide or show an inherited rule for a bubble (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ruleId, hidden]
+              properties:
+                ruleId:
+                  type: integer
+                hidden:
+                  type: boolean
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Reports ──────────────────────────────────────────────────────────────────
+
+  /api/reports:
+    post:
+      tags: [Reports]
+      summary: Submit a report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reportType, reason, reporterUserId, bubbleId]
+              properties:
+                reportType:
+                  type: string
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                freeText:
+                  type: string
+                  maxLength: 2000
+                  nullable: true
+                reporterUserId:
+                  type: string
+                  format: uuid
+                reportedUserId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                bubbleId:
+                  type: string
+                  format: uuid
+                eventId:
+                  type: string
+                  format: uuid
+                  nullable: true
+                visibleTo:
+                  type: string
+                  enum: [superadmin, bubble_admin]
+                  default: superadmin
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/reports/{id}/status:
+    patch:
+      tags: [Reports]
+      summary: Update report status (bubble admin or super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [pending, reviewed, resolved, dismissed]
+      responses:
+        '200':
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/bubbles/{bubbleId}/reports:
+    get:
+      tags: [Reports]
+      summary: List reports for a bubble (bubble admin)
+      parameters:
+        - name: bubbleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/crash-report:
+    post:
+      tags: [Reports]
+      summary: Submit a client crash report
+      description: Rate-limited to 20 per 60 seconds per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message, isFatal]
+              properties:
+                message:
+                  type: string
+                stack:
+                  type: string
+                  nullable: true
+                context:
+                  type: string
+                  nullable: true
+                platform:
+                  type: string
+                  nullable: true
+                appVersion:
+                  type: string
+                  nullable: true
+                isFatal:
+                  type: boolean
+                userId:
+                  type: string
+                  nullable: true
+                username:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          description: Received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ── Notifications ───────────────────────────────────────────────────────────
+
+  /api/notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications for the current user (paginated)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Paginated notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/unread-count:
+    get:
+      tags: [Notifications]
+      summary: Get the count of unread notifications
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notifications/{id}:
+    delete:
+      tags: [Notifications]
+      summary: Delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/notification-preferences:
+    get:
+      tags: [Notifications]
+      summary: Get the current user's notification preferences
+      responses:
+        '200':
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Notifications]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pushPaused:
+                  type: boolean
+                bubbleActivity:
+                  type: boolean
+                eventActivity:
+                  type: boolean
+                eventReminders:
+                  type: boolean
+                taskReminders:
+                  type: boolean
+                waitlistUpdates:
+                  type: boolean
+                announcements:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/device-push-tokens:
+    post:
+      tags: [Notifications]
+      summary: Register a device push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [ios, android]
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      tags: [Notifications]
+      summary: Unregister a device push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Sessions & Analytics ─────────────────────────────────────────────────────
+
+  /api/sessions/start:
+    post:
+      tags: [Analytics]
+      summary: Start a user session (analytics tracking)
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/sessions/{sessionId}/end:
+    post:
+      tags: [Analytics]
+      summary: End a user session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ended session with duration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/telemetry/latency:
+    post:
+      tags: [Analytics]
+      summary: Submit client-side latency samples
+      description: Rate-limited to 300 per 60 seconds per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  description: Single sample
+                - type: array
+                  description: Batch of samples
+      responses:
+        '204':
+          description: Accepted
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/feedback:
+    post:
+      tags: [Analytics]
+      summary: Submit user feedback or a feature/defect report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, message]
+              properties:
+                type:
+                  type: string
+                  enum: [feedback, feature_request, defect_report]
+                message:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── Admin ────────────────────────────────────────────────────────────────────
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: System-wide statistics (super admin)
+      responses:
+        '200':
+          description: Aggregate counts across all entities
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Counts of users, bubbles, events, memberships, campuses, pending items
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/pending-count:
+    get:
+      tags: [Admin]
+      summary: Count of items pending review (super admin or bubble admin)
+      responses:
+        '200':
+          description: Pending count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/pending-bubbles:
+    get:
+      tags: [Admin]
+      summary: List bubbles awaiting approval (super admin)
+      responses:
+        '200':
+          description: Pending bubbles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bubble'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/bubbles/{id}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a pending bubble (super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/bubbles/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a pending bubble (super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/pending-events:
+    get:
+      tags: [Admin]
+      summary: List events awaiting approval (super admin or bubble admin)
+      responses:
+        '200':
+          description: Pending events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/events/{id}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve a pending event (super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/events/{id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject a pending event (super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/reports:
+    get:
+      tags: [Admin]
+      summary: List all reports (super admin)
+      responses:
+        '200':
+          description: All reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/waitlist:
+    get:
+      tags: [Admin]
+      summary: All waitlist items for the admin's bubbles (super admin or bubble admin)
+      responses:
+        '200':
+          description: Waitlist entries oldest-first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Membership'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List audit logs (super admin)
+      responses:
+        '200':
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/error-logs:
+    get:
+      tags: [Admin]
+      summary: List server error logs (super admin)
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Error log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErrorLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Admin]
+      summary: Clear the in-memory error buffer (super admin)
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/error-logs/count:
+    get:
+      tags: [Admin]
+      summary: Count error logs since a timestamp (super admin)
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/maintenance-mode:
+    get:
+      tags: [Admin]
+      summary: Get maintenance mode status (super admin)
+      responses:
+        '200':
+          description: Maintenance mode flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maintenance_mode:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags: [Admin]
+      summary: Enable or disable maintenance mode (super admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Updated maintenance mode
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maintenance_mode:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/latency:
+    get:
+      tags: [Admin]
+      summary: Get in-memory latency metrics sorted by p95 (super admin)
+      responses:
+        '200':
+          description: Latency metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LatencyMetric'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Admin]
+      summary: Reset latency metrics (super admin)
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/latency/trends:
+    get:
+      tags: [Admin]
+      summary: Time-series latency trends (super admin)
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['1h', '6h', '24h']
+      responses:
+        '200':
+          description: Trend buckets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/slow-calls:
+    get:
+      tags: [Admin]
+      summary: List slow API calls (super admin)
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+        - name: sortDir
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: Slow calls
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SlowCall'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      tags: [Admin]
+      summary: Clear slow call records (super admin)
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/slow-call-config:
+    get:
+      tags: [Admin]
+      summary: Get slow-call threshold config (super admin)
+      responses:
+        '200':
+          description: Config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  thresholdMs:
+                    type: integer
+                  retentionDays:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    patch:
+      tags: [Admin]
+      summary: Update slow-call threshold config (super admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                thresholdMs:
+                  type: integer
+                retentionDays:
+                  type: integer
+      responses:
+        '200':
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  thresholdMs:
+                    type: integer
+                  retentionDays:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/push-tokens/cleanup:
+    post:
+      tags: [Admin]
+      summary: Remove stale device push tokens (super admin)
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 90
+      responses:
+        '200':
+          description: Cleanup result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  removed:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/crash-reports:
+    get:
+      tags: [Admin]
+      summary: List crash reports with filtering (super admin)
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: string
+        - name: isFatal
+          in: query
+          schema:
+            type: boolean
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Crash reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CrashReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{id}/unlock:
+    post:
+      tags: [Admin]
+      summary: Unlock a user account locked by failed login attempts (super admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/analytics/metrics:
+    get:
+      tags: [Admin]
+      summary: Aggregate analytics metrics (super admin)
+      responses:
+        '200':
+          description: Retention, DAU/MAU, session length, and bubble visit metrics
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Config & Misc ────────────────────────────────────────────────────────────
+
+  /api/config/share-base-url:
+    get:
+      tags: [Config]
+      summary: Get the base URL used for share links
+      security: []
+      responses:
+        '200':
+          description: Base URL
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [baseUrl]
+                properties:
+                  baseUrl:
+                    type: string
+                    format: uri
+
+  /api/config/app:
+    get:
+      tags: [Config]
+      summary: Get app config key(s)
+      security: []
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Single config value or full config map
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: string
+                  - type: object
+
+  /api/static-map:
+    get:
+      tags: [Config]
+      summary: Proxy a static map tile image
+      security: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+        - name: zoom
+          in: query
+          schema:
+            type: integer
+            default: 14
+      responses:
+        '200':
+          description: PNG map image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+
+  # ── Deep Link HTML pages ─────────────────────────────────────────────────────
+
+  /b/{shortId}:
+    get:
+      tags: [Deep Links]
+      summary: HTML landing page for a bubble (with Open Graph tags and deep link button)
+      security: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /e/{shortId}:
+    get:
+      tags: [Deep Links]
+      summary: HTML landing page for an event (with Open Graph tags and deep link button)
+      security: []
+      parameters:
+        - name: shortId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: HTML page
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /.well-known/apple-app-site-association:
+    get:
+      tags: [Deep Links]
+      summary: Apple universal links verification file
+      security: []
+      responses:
+        '200':
+          description: Apple app site association JSON
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /.well-known/assetlinks.json:
+    get:
+      tags: [Deep Links]
+      summary: Android app links verification file
+      security: []
+      responses:
+        '200':
+          description: Asset links JSON
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object

@@ -40,6 +40,12 @@
       ],
       "@pages/*": [
         "./client/src/pages/*"
+      ],
+      "embla-carousel-react": [
+        "./node_modules/embla-carousel-react/index"
+      ],
+      "react-resizable-panels": [
+        "./node_modules/react-resizable-panels/dist/declarations/src/index"
       ]
     }
   },
