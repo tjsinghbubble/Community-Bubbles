@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Modal,
@@ -99,6 +98,8 @@ export default function SignupScreen({ navigation }: Props) {
   const [calYear, setCalYear] = useState(MAX_DOB_DATE.getFullYear() - 2);
   const [calMonth, setCalMonth] = useState(MAX_DOB_DATE.getMonth());
   const [selectedCal, setSelectedCal] = useState<CalDate | null>(null);
+  const [tosViewed, setTosViewed] = useState(false);
+  const [privacyViewed, setPrivacyViewed] = useState(false);
 
   const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 
@@ -197,16 +198,15 @@ export default function SignupScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <NavHeader title="Sign up" onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+        keyboardDismissMode="interactive"
+        style={styles.scrollView}
       >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.form}>
+        <View style={styles.form}>
             <TouchableOpacity style={styles.photoPickerContainer} onPress={handlePickPhoto} testID="button-pick-photo">
               {profilePhotoUri ? (
                 <Image source={{ uri: profilePhotoUri }} style={styles.profilePhoto} />
@@ -376,9 +376,8 @@ export default function SignupScreen({ navigation }: Props) {
               loading={loading}
               testID="button-continue"
             />
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+      </ScrollView>
 
       {/* Gender Picker */}
       <Modal visible={showGenderPicker} transparent animationType="slide" onRequestClose={() => setShowGenderPicker(false)}>
@@ -511,7 +510,7 @@ export default function SignupScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background.secondary },
-  keyboardView: { flex: 1 },
+  scrollView: { flex: 1 },
   content: { padding: 24, paddingBottom: 40 },
   form: { gap: 24 },
   photoPickerContainer: { alignSelf: 'center', width: 100, height: 100, marginBottom: 8 },

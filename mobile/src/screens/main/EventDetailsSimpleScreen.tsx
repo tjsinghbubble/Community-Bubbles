@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -14,6 +13,7 @@ import {
   Share,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -293,7 +293,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   if (isLoading || !event) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <EventDetailsSkeleton />
       </SafeAreaView>
     );
@@ -344,7 +344,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {fromBubble ? (
         <View style={styles.navHeader}>
           <TouchableOpacity onPress={handleBackPress} style={styles.navBackButton}>

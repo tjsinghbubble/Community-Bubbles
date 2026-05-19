@@ -3,11 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Image,
-  Platform,
-  StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors, Radius } from '../../styles/theme';
@@ -32,7 +30,7 @@ const GRID_IMAGES = [
 
 export default function WelcomeScreen({ navigation }: Props) {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.content}>
         <View style={styles.photoGrid}>
           {GRID_IMAGES.map((img, index) => (
@@ -82,7 +80,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.brand.skyWhite,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
     flex: 1,
