@@ -6,7 +6,10 @@
   "scripts": {
     "dev:client": "vite dev --port 5000",
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "api_server": "node scripts/qr.mjs & NODE_ENV=development tsx --env-file=.env server/index.ts",
+    "api_server": "node scripts/check-port.mjs && (node scripts/qr.mjs & NODE_ENV=development tsx --env-file=.env server/index.ts)",
+    "check:port": "node scripts/check-port.mjs",
+    "check:db": "tsx --env-file=.env scripts/check-db-schema.ts",
+    "generate:db-snapshot": "tsx scripts/generate-db-snapshot.ts",
     "build": "tsx scripts/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
