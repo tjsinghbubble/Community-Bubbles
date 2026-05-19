@@ -153,13 +153,6 @@ export const PageHeader = {
  *                     (SafeAreaView handles the home-indicator inset separately)
  * sectionGap        : vertical gap between named sections on a screen
  */
-export const PageBody = {
-  paddingHorizontal: Spacing.md,  // 12
-  paddingTop: Spacing.sm,         // 8
-  paddingBottom: Spacing.sm,      // 8
-  sectionGap: Spacing.lg,         // 16
-};
-
 export const Spacing = {
   xxs: 2,
   xs: 4,
@@ -181,6 +174,13 @@ export const Radius = {
   xl: 24,
   full: 100,
   round: 9999,
+};
+
+export const PageBody = {
+  paddingHorizontal: Spacing.md,  // 12
+  paddingTop: Spacing.sm,         // 8
+  paddingBottom: Spacing.sm,      // 8
+  sectionGap: Spacing.lg,         // 16
 };
 
 export const IconColors = {
