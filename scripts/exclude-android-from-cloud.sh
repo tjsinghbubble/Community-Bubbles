@@ -40,8 +40,8 @@ for dir in "${DIRS[@]}"; do
     echo "  iCloud  FAILED:   $dir"
   fi
 
-  # Time Machine: permanent path exclusion (survives reboots)
-  if tmutil addexclusion -p "$dir" 2>/dev/null; then
+  # Time Machine: item-level exclusion via xattr (no sudo required)
+  if tmutil addexclusion "$dir" 2>/dev/null; then
     echo "  TM      excluded: $dir"
   else
     echo "  TM      FAILED:   $dir"
