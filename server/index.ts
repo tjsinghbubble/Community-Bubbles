@@ -15,6 +15,7 @@ import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { seedStaging } from "./seed-staging";
 import { autoMigrate } from "./auto-migrate";
+import { assertEncryptionKey } from "./encryption";
 
 initialiseSentry();
 
@@ -108,6 +109,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Validate ENCRYPTION_KEY before anything else.
+  // In production this throws (refusing to start); in dev it warns and pads.
+  try {
+    assertEncryptionKey();
+  } catch (err: any) {
+    console.error("[startup] ENCRYPTION_KEY validation failed:\n" + err.message);
+    process.exit(1);
+  }
+
   await autoMigrate();
   initErrorBuffer(storage);
   await loadSlowCallConfigFromDb((key) => storage.getAppConfigValue(key));
