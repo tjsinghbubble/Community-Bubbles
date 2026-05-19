@@ -140,7 +140,12 @@ export default function ProfileScreen() {
           <EditIcon size={22} color={Colors.neutral.charcoal} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => navigation.navigate('Notifications')}>
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => navigation.navigate('Notifications')}
+          testID="button-notifications"
+          accessibilityLabel="Notifications"
+        >
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.neutral.charcoal} />
             {unreadNotifCount > 0 && (
@@ -239,10 +244,12 @@ export default function ProfileScreen() {
                 <Text style={styles.adminBadgeText}>{isSuperAdmin ? 'Super Admin' : 'Admin'}</Text>
               </View>
             </View>
-            <AnimatedPressable 
+            <AnimatedPressable
               style={styles.menuItem}
               scaleValue={0.97}
               onPress={() => navigation.navigate('PendingReviews')}
+              testID="link-needs-attention"
+              accessibilityLabel="Needs Attention"
             >
               <View style={styles.menuItemLeft}>
                 <ClockIcon size={24} color={Colors.text.secondary} />
@@ -403,7 +410,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <AnimatedPressable style={styles.menuItem} scaleValue={0.97} onPress={handleLogout}>
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={handleLogout}
+            testID="button-logout"
+            accessibilityLabel="Log Out"
+          >
             <View style={styles.menuItemLeft}>
               <Ionicons name="log-out-outline" size={24} color={Colors.text.secondary} />
               <Text style={styles.menuItemText}>Log Out</Text>

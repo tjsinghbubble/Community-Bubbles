@@ -230,6 +230,8 @@ export default function SignupScreen({ navigation }: Props) {
                 onChangeText={setName}
                 autoCapitalize="words"
                 textContentType="name"
+                testID="input-name"
+                accessibilityLabel="Full name"
               />
               <Text style={styles.helperText}>
                 Make sure this matches the name on your government ID.
@@ -238,7 +240,12 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Gender</Text>
-              <TouchableOpacity style={styles.selectInput} onPress={() => setShowGenderPicker(true)}>
+              <TouchableOpacity
+                style={styles.selectInput}
+                onPress={() => setShowGenderPicker(true)}
+                testID="button-select-gender"
+                accessibilityLabel="Select gender"
+              >
                 <Text style={gender ? styles.selectText : styles.selectPlaceholder}>
                   {gender || 'Please select one'}
                 </Text>
@@ -248,7 +255,12 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Date of birth</Text>
-              <TouchableOpacity style={styles.selectInput} onPress={openDatePicker}>
+              <TouchableOpacity
+                style={styles.selectInput}
+                onPress={openDatePicker}
+                testID="button-select-dob"
+                accessibilityLabel="Select date of birth"
+              >
                 <Text style={dateOfBirth ? styles.selectText : styles.selectPlaceholder}>
                   {dateOfBirth || 'Birthdate'}
                 </Text>
@@ -272,6 +284,8 @@ export default function SignupScreen({ navigation }: Props) {
                 autoCapitalize="none"
                 autoCorrect={false}
                 textContentType="emailAddress"
+                testID="input-email"
+                accessibilityLabel="Email"
               />
               <Text style={[styles.helperText, emailError && styles.emailHelperError]}>
                 {emailError ? 'Please enter a valid email address.' : 'We\'ll email you with occasional updates on your communities.'}
@@ -290,11 +304,15 @@ export default function SignupScreen({ navigation }: Props) {
                   onBlur={() => setPasswordBlurred(true)}
                   secureTextEntry={!showPassword}
                   textContentType="newPassword"
+                  testID="input-password"
+                  accessibilityLabel="Password"
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
                   onPress={() => setShowPassword(v => !v)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  testID="button-toggle-password"
+                  accessibilityLabel="Toggle password visibility"
                 >
                   {showPassword
                     ? <EyeIcon size={22} color="#969696" />
@@ -332,15 +350,24 @@ export default function SignupScreen({ navigation }: Props) {
               </TouchableOpacity>
               <Text style={styles.termsText}>
                 I agree to the{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsOfService')}>
+                <Text
+                  style={styles.termsLink}
+                  testID="link-terms-of-service"
+                  onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
+                >
                   Terms of Service
                 </Text>
                 {' '}and acknowledge the{' '}
-                <Text style={styles.termsLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                <Text
+                  style={styles.termsLink}
+                  testID="link-privacy-policy"
+                  onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
+                >
                   Privacy Policy
                 </Text>
               </Text>
             </View>
+
 
             <BubbleButton
               title="Agree & Continue"
@@ -359,7 +386,11 @@ export default function SignupScreen({ navigation }: Props) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Gender</Text>
-              <TouchableOpacity onPress={() => setShowGenderPicker(false)}>
+              <TouchableOpacity
+                onPress={() => setShowGenderPicker(false)}
+                testID="button-close-gender-picker"
+                accessibilityLabel="Close gender picker"
+              >
                 <Ionicons name="close" size={24} color={Colors.brand.midnight} />
               </TouchableOpacity>
             </View>
@@ -368,6 +399,8 @@ export default function SignupScreen({ navigation }: Props) {
                 key={option}
                 style={styles.modalOption}
                 onPress={() => { setGender(option); setShowGenderPicker(false); }}
+                testID={`option-gender-${option.toLowerCase().replace(/\s+/g, '-')}`}
+                accessibilityLabel={option}
               >
                 <Text style={[styles.modalOptionText, gender === option && styles.modalOptionSelected]}>
                   {option}
@@ -385,7 +418,13 @@ export default function SignupScreen({ navigation }: Props) {
           <TouchableOpacity style={StyleSheet.absoluteFillObject} activeOpacity={1} onPress={() => setShowDatePicker(false)} />
           <View style={styles.calModal}>
             <View style={styles.calModalHeader}>
-              <TouchableOpacity onPress={() => setShowDatePicker(false)} style={styles.calBackBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(false)}
+                style={styles.calBackBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                testID="button-close-date-picker"
+                accessibilityLabel="Close date picker"
+              >
                 <Ionicons name="arrow-back" size={22} color={Colors.brand.midnight} />
               </TouchableOpacity>
               <Text style={styles.calModalTitle}>Date of Birth</Text>
@@ -398,6 +437,8 @@ export default function SignupScreen({ navigation }: Props) {
                 disabled={!canNavPrev}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={[styles.calNavBtn, !canNavPrev && styles.calNavBtnDisabled]}
+                testID="button-prev-month"
+                accessibilityLabel="Previous month"
               >
                 <Ionicons name="chevron-back" size={20} color={canNavPrev ? Colors.brand.midnight : Colors.neutral.coolMist} />
               </TouchableOpacity>
@@ -407,6 +448,8 @@ export default function SignupScreen({ navigation }: Props) {
                 disabled={!canNavNext}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 style={[styles.calNavBtn, !canNavNext && styles.calNavBtnDisabled]}
+                testID="button-next-month"
+                accessibilityLabel="Next month"
               >
                 <Ionicons name="chevron-forward" size={20} color={canNavNext ? Colors.brand.midnight : Colors.neutral.coolMist} />
               </TouchableOpacity>
@@ -433,6 +476,8 @@ export default function SignupScreen({ navigation }: Props) {
                     onPress={() => cell.inMonth && !disabled && handleDayPress(cell.date)}
                     disabled={!cell.inMonth || disabled}
                     activeOpacity={0.7}
+                    testID={`button-day-${cell.date.year}-${cell.date.month + 1}-${cell.date.day}`}
+                    accessibilityLabel={`${MONTH_NAMES[cell.date.month]} ${cell.date.day} ${cell.date.year}`}
                   >
                     <View style={[styles.calDayCircle, isSelected && styles.calDayCircleSelected]}>
                       <Text style={[
@@ -454,6 +499,7 @@ export default function SignupScreen({ navigation }: Props) {
                 title="Confirm"
                 onPress={handleConfirmDate}
                 disabled={!selectedCal}
+                testID="button-confirm-date"
               />
             </View>
           </View>

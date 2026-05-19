@@ -159,9 +159,11 @@ export default function UpcomingScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           {isCampusVerified ? (
-            <TouchableOpacity 
-              style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+            <TouchableOpacity
+              style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]}
               onPress={() => setShowCampusOnly(!showCampusOnly)}
+              testID="button-campus-toggle"
+              accessibilityLabel="Toggle campus events"
             >
               <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
             </TouchableOpacity>
@@ -169,7 +171,12 @@ export default function UpcomingScreen() {
             <View style={styles.headerSpacer} />
           )}
           <Text style={styles.headerTitle}>Upcoming Events</Text>
-          <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+          <TouchableOpacity
+            style={styles.bellButton}
+            onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}
+            testID="button-notifications"
+            accessibilityLabel="Notifications"
+          >
             <View>
               <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
             </View>
@@ -184,9 +191,11 @@ export default function UpcomingScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         {isCampusVerified ? (
-          <TouchableOpacity 
-            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+          <TouchableOpacity
+            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]}
             onPress={() => setShowCampusOnly(!showCampusOnly)}
+            testID="button-campus-toggle"
+            accessibilityLabel="Toggle campus events"
           >
             <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
           </TouchableOpacity>
@@ -194,7 +203,12 @@ export default function UpcomingScreen() {
           <View style={styles.headerSpacer} />
         )}
         <Text style={styles.headerTitle}>Upcoming Events</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}>
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}
+          testID="button-notifications"
+          accessibilityLabel="Notifications"
+        >
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
             {unreadNotifCount > 0 && (
@@ -241,6 +255,8 @@ export default function UpcomingScreen() {
                   style={styles.eventCard}
                   scaleValue={0.97}
                   onPress={() => handleEventPress(event)}
+                  testID={`card-event-${event.id}`}
+                  accessibilityLabel={event.title}
                 >
                   {event.bubble && (
                     <Text style={styles.bubbleName}>{event.bubble.title}</Text>

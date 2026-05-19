@@ -4,6 +4,11 @@ dist
 .DS_Store
 server/public
 vite.config.ts.*
+# WIP
+LOCAL_DEV.md
+# PyCharm 
+.idea/workspace.xml
+*.tmp
 *.tar.gz
 .cache
 .local

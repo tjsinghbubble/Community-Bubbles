@@ -142,9 +142,11 @@ export default function MyBubblesScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         {isCampusVerified ? (
-          <TouchableOpacity 
-            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]} 
+          <TouchableOpacity
+            style={[styles.campusHatButton, showCampusOnly && styles.campusHatButtonActive]}
             onPress={() => setShowCampusOnly(!showCampusOnly)}
+            testID="button-campus-toggle"
+            accessibilityLabel="Toggle campus bubbles"
           >
             <Ionicons name="school-outline" size={22} color={showCampusOnly ? Colors.brand.bubbleBlue : Colors.neutral.charcoal} />
           </TouchableOpacity>
@@ -152,7 +154,12 @@ export default function MyBubblesScreen() {
           <View style={styles.headerSpacer} />
         )}
         <Text style={styles.headerTitle}>My Bubbles</Text>
-        <TouchableOpacity style={styles.bellButton} onPress={() => (navigation as any).navigate('Notifications')}>
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => (navigation as any).navigate('Notifications')}
+          testID="button-notifications"
+          accessibilityLabel="Notifications"
+        >
           <View>
             <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
             {unreadNotifCount > 0 && (
@@ -204,6 +211,8 @@ export default function MyBubblesScreen() {
                 style={styles.gridCard}
                 scaleValue={0.95}
                 onPress={() => handleBubblePress(bubble)}
+                testID={`card-bubble-${bubble.id}`}
+                accessibilityLabel={bubble.title}
               >
                 <View style={styles.gridImageShadowWrapper}>
                   <View style={styles.gridImageContainer}>
@@ -238,7 +247,13 @@ export default function MyBubblesScreen() {
         </ScrollView>
       )}
 
-      <TouchableOpacity onPress={handleCreateBubble} style={styles.fab} activeOpacity={0.8}>
+      <TouchableOpacity
+        onPress={handleCreateBubble}
+        style={styles.fab}
+        activeOpacity={0.8}
+        testID="button-create-bubble-fab"
+        accessibilityLabel="Create a Bubble"
+      >
         <CreateBubbleEventIcon size={56} />
       </TouchableOpacity>
     </SafeAreaView>
