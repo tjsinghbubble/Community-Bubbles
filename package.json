@@ -176,6 +176,7 @@
     "bufferutil": "^4.0.8"
   },
   "overrides": {
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "debug": "4.3.7"
   }
 }
