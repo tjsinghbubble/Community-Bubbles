@@ -1,22 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@sentry/node", () => {
-  const withScope = vi.fn((cb: (scope: unknown) => void) => {
-    cb(scopeMock);
-  });
-  const captureMessage = vi.fn();
-  const init = vi.fn();
   const scopeMock = {
     setLevel: vi.fn(),
     setTag: vi.fn(),
     setExtra: vi.fn(),
     setFingerprint: vi.fn(),
   };
+  const withScope = vi.fn((cb: (scope: unknown) => void) => {
+    cb(scopeMock);
+  });
+  const captureMessage = vi.fn();
+  const init = vi.fn();
 
   return { withScope, captureMessage, init, __scopeMock: scopeMock };
 });
 
 import * as Sentry from "@sentry/node";
+import { initialiseSentry, reportSlowResponse, __resetForTesting } from "../sentry.js";
 
 const sentryMod = Sentry as typeof Sentry & {
   __scopeMock: {
@@ -29,61 +30,49 @@ const sentryMod = Sentry as typeof Sentry & {
 
 describe("initialiseSentry", () => {
   beforeEach(() => {
-    vi.resetModules();
+    __resetForTesting();
     vi.clearAllMocks();
     delete process.env.SENTRY_DSN;
+    delete process.env.BUBBLE_SENTRY_USAGE;
   });
 
-  it("no-ops gracefully when SENTRY_DSN is absent", async () => {
+  it("no-ops gracefully when SENTRY_DSN is absent", () => {
     const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const { initialiseSentry } = await import("../sentry.js");
-
     initialiseSentry();
-
     expect(Sentry.init).not.toHaveBeenCalled();
     consoleWarnSpy.mockRestore();
   });
 
-  it("calls Sentry.init when SENTRY_DSN is set", async () => {
+  it("calls Sentry.init when SENTRY_DSN is set", () => {
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const { initialiseSentry } = await import("../sentry.js");
-
     initialiseSentry();
-
     expect(Sentry.init).toHaveBeenCalledWith(
       expect.objectContaining({ dsn: "https://fake@sentry.io/123" }),
     );
     consoleLogSpy.mockRestore();
   });
 
-  it("does not call Sentry.init a second time when called twice", async () => {
+  it("does not call Sentry.init a second time when called twice", () => {
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const { initialiseSentry } = await import("../sentry.js");
-
     initialiseSentry();
     initialiseSentry();
-
     expect(Sentry.init).toHaveBeenCalledTimes(1);
     consoleLogSpy.mockRestore();
   });
 });
 
 describe("reportSlowResponse — threshold", () => {
-  let reportSlowResponse: (method: string, path: string, durationMs: number) => void;
-  let initialiseSentry: () => void;
-
-  beforeEach(async () => {
-    vi.resetModules();
+  beforeEach(() => {
+    __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const mod = await import("../sentry.js");
-    initialiseSentry = mod.initialiseSentry;
-    reportSlowResponse = mod.reportSlowResponse;
     initialiseSentry();
   });
 
@@ -105,19 +94,13 @@ describe("reportSlowResponse — threshold", () => {
 });
 
 describe("reportSlowResponse — Sentry scope values", () => {
-  let reportSlowResponse: (method: string, path: string, durationMs: number) => void;
-  let initialiseSentry: () => void;
-
-  beforeEach(async () => {
-    vi.resetModules();
+  beforeEach(() => {
+    __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const mod = await import("../sentry.js");
-    initialiseSentry = mod.initialiseSentry;
-    reportSlowResponse = mod.reportSlowResponse;
     initialiseSentry();
   });
 
@@ -168,19 +151,13 @@ describe("reportSlowResponse — Sentry scope values", () => {
 });
 
 describe("reportSlowResponse — occurrence counter", () => {
-  let reportSlowResponse: (method: string, path: string, durationMs: number) => void;
-  let initialiseSentry: () => void;
-
-  beforeEach(async () => {
-    vi.resetModules();
+  beforeEach(() => {
+    __resetForTesting();
     vi.clearAllMocks();
     process.env.SENTRY_DSN = "https://fake@sentry.io/123";
+    process.env.BUBBLE_SENTRY_USAGE = "local";
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const mod = await import("../sentry.js");
-    initialiseSentry = mod.initialiseSentry;
-    reportSlowResponse = mod.reportSlowResponse;
     initialiseSentry();
   });
 
@@ -234,13 +211,11 @@ describe("reportSlowResponse — occurrence counter", () => {
 });
 
 describe("reportSlowResponse — not initialised", () => {
-  it("does not call Sentry when initialiseSentry was not called", async () => {
-    vi.resetModules();
+  it("does not call Sentry when initialiseSentry was not called", () => {
+    __resetForTesting();
     vi.clearAllMocks();
     delete process.env.SENTRY_DSN;
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const { reportSlowResponse } = await import("../sentry.js");
+    delete process.env.BUBBLE_SENTRY_USAGE;
 
     reportSlowResponse("GET", "/api/slow", 5000);
 

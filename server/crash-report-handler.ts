@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { Express } from "express";
 import rateLimit from "express-rate-limit";
-import { storage } from "./storage";
 
 export const CRASH_REPORT_MAX_MESSAGE_CHARS = 1024;
 export const CRASH_REPORT_MAX_STACK_CHARS = 4096;
@@ -43,7 +42,26 @@ const crashReportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-export function registerCrashReportRoute(app: Express) {
+export interface CrashReportStorage {
+  insertCrashReport(data: {
+    message: string;
+    stack: string | null;
+    context: string | null;
+    platform: string | null;
+    appVersion: string | null;
+    isFatal: boolean;
+    userId: string | null;
+    username: string | null;
+  }): Promise<unknown>;
+}
+
+export function registerCrashReportRoute(app: Express, storage?: CrashReportStorage) {
+  const getStorage = (): CrashReportStorage => {
+    if (storage) return storage;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("./storage").storage as CrashReportStorage;
+  };
+
   app.post("/api/crash-report", crashReportLimiter, async (req: any, res: any) => {
     try {
       const parsed = crashReportSchema.safeParse(req.body ?? {});
@@ -60,7 +78,7 @@ export function registerCrashReportRoute(app: Express) {
       );
 
       try {
-        await storage.insertCrashReport({
+        await getStorage().insertCrashReport({
           message,
           stack: stack ?? null,
           context: context ?? null,

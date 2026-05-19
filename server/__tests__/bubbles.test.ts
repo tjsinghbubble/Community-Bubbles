@@ -124,6 +124,40 @@ describe("GET /api/bubbles/:id", () => {
   });
 });
 
+describe("GET /api/bubbles/:id — additional edge cases", () => {
+  it("calls enrichBubble option and returns its result", async () => {
+    const enrichBubble = vi.fn().mockResolvedValue({ ...PUBLIC_BUBBLE, enriched: true });
+    const storage = makeStorage();
+    const app = express();
+    app.use(express.json());
+    registerBubblesRoutes(app, storage, JWT_SECRET, { enrichBubble });
+    const res = await request(app).get("/api/bubbles/bubble-1");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("enriched", true);
+    expect(enrichBubble).toHaveBeenCalledOnce();
+  });
+
+  it("returns 403 when campus bubble token is expired or invalid", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getBubble).mockResolvedValue({ ...PUBLIC_BUBBLE, campusId: "campus-1" });
+    const app = buildApp(storage);
+    const res = await request(app)
+      .get("/api/bubbles/bubble-1")
+      .set("Authorization", "Bearer this.is.not.valid");
+    expect(res.status).toBe(403);
+    expect(res.body).toHaveProperty("error", "Campus verification required");
+  });
+
+  it("returns 500 when storage throws", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getBubble).mockRejectedValue(new Error("DB down"));
+    const app = buildApp(storage);
+    const res = await request(app).get("/api/bubbles/bubble-1");
+    expect(res.status).toBe(500);
+    expect(res.body).toHaveProperty("error", "DB down");
+  });
+});
+
 describe("POST /api/bubbles", () => {
   const VALID_BODY = {
     title: "Book Club",
@@ -205,5 +239,40 @@ describe("POST /api/bubbles", () => {
       .set("Authorization", `Bearer ${makeToken("user-1")}`)
       .send(VALID_BODY);
     expect(res.status).toBe(200);
+  });
+
+  it("calls enrichBubble on the created bubble", async () => {
+    const enrichBubble = vi.fn().mockResolvedValue({ ...PUBLIC_BUBBLE, id: "bubble-new", enriched: true });
+    const storage = makeStorage();
+    const app = express();
+    app.use(express.json());
+    registerBubblesRoutes(app, storage, JWT_SECRET, { enrichBubble });
+    const res = await request(app)
+      .post("/api/bubbles")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send(VALID_BODY);
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("enriched", true);
+    expect(enrichBubble).toHaveBeenCalledOnce();
+  });
+
+  it("returns 400 when description contains profanity", async () => {
+    const app = buildApp(makeStorage());
+    const res = await request(app)
+      .post("/api/bubbles")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ ...VALID_BODY, description: "shit content here" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/inappropriate language/i);
+  });
+
+  it("returns 400 when tagline contains profanity", async () => {
+    const app = buildApp(makeStorage());
+    const res = await request(app)
+      .post("/api/bubbles")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ ...VALID_BODY, tagline: "shit tagline" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/inappropriate language/i);
   });
 });

@@ -12,6 +12,7 @@ import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBull
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
+import { registerCrashReportRoute } from "./crash-report-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -3594,6 +3595,7 @@ export async function registerRoutes(
     notifyBubbleAdmins,
     sendNotificationToMany,
   });
+  registerCrashReportRoute(app, storage);
 
   app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
     try {

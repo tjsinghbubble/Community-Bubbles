@@ -20,7 +20,7 @@
     "mobile:android": "npm --prefix mobile run start -- --android",
     "mobile:build:ios-sim": "npm --prefix mobile run ios",
     "mobile:build:android-emu": "npm --prefix mobile run android",
-    "test:e2e": "maestro test -e APP_ID=com.bubble.mobile -e METRO_HOST=metro_host .maestro/native/",
+    "test:e2e:maestro": "maestro test -e APP_ID=com.bubble.mobile -e METRO_HOST=metro_host .maestro/native/",
     "test:e2e:expo": "maestro test -e APP_ID=host.exp.Exponent .maestro/",
     "test:e2e:web": "maestro test --platform web -e APP_ID=http://metro_host:8081 -e METRO_HOST=metro_host .maestro/web/",
     "test:e2e:web-mobile": "maestro test -e APP_ID=com.apple.mobilesafari -e METRO_HOST=metro_host .maestro/web/",
@@ -173,5 +173,8 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "overrides": {
+    "yaml": "^2.9.0"
   }
 }
