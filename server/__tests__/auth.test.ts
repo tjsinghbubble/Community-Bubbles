@@ -319,10 +319,8 @@ describe("POST /api/auth/signup", () => {
   });
 
   it("returns 400 when email is already registered", async () => {
-    vi.mocked(mockStorage.getUserByEmail).mockResolvedValue({
-      id: "existing-user",
-      email: "carol@example.com",
-    });
+    const duplicateErr = Object.assign(new Error("duplicate key value"), { code: "23505" });
+    vi.mocked(mockStorage.createUser).mockRejectedValue(duplicateErr);
 
     const res = await request(app)
       .post("/api/auth/signup")

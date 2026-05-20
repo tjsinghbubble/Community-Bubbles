@@ -20,6 +20,7 @@ export interface EventsStorage {
   getGoingCount(eventId: string): Promise<number>;
   getFirstWaitlistedAttendee(eventId: string): Promise<any>;
   updateEventAttendeeStatus(userId: string, eventId: string, status: string): Promise<any>;
+  rsvpEventWithCapacityCheck(data: { eventId: string; userId: string }, limit: number): Promise<string>;
 }
 
 export interface EventsHandlerOptions {
@@ -218,14 +219,17 @@ export function registerEventsRoutes(
       if (existingAttendee) return res.status(400).json({ error: "Already RSVP'd" });
 
       const requestedStatus = req.body.status || "going";
-      let finalStatus = requestedStatus;
+      let finalStatus: string;
 
       if (requestedStatus === "going" && event.attendeeLimit) {
-        const goingCount = await storage.getGoingCount(req.params.id);
-        if (goingCount >= event.attendeeLimit) finalStatus = "waitlisted";
+        finalStatus = await storage.rsvpEventWithCapacityCheck(
+          { eventId: req.params.id, userId: req.userId },
+          event.attendeeLimit,
+        );
+      } else {
+        finalStatus = requestedStatus;
+        await storage.createEventAttendee({ eventId: req.params.id, userId: req.userId, status: finalStatus });
       }
-
-      await storage.createEventAttendee({ eventId: req.params.id, userId: req.userId, status: finalStatus });
 
       if (finalStatus === "going" && event.createdBy !== req.userId) {
         const rsvpUser = await storage.getUser(req.userId);

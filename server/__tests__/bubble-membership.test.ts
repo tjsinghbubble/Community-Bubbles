@@ -45,6 +45,7 @@ function makeStorage(overrides: Partial<BubbleMembershipStorage> = {}): BubbleMe
     getRealMemberCount: vi.fn().mockResolvedValue(5),
     createMembershipWithStatus: vi.fn().mockResolvedValue({ id: "mem-1" }),
     createMembership: vi.fn().mockResolvedValue({ id: "mem-1" }),
+    joinBubbleWithCapacityCheck: vi.fn().mockResolvedValue("approved"),
     isMember: vi.fn().mockResolvedValue(true),
     getMemberRole: vi.fn().mockResolvedValue("admin"),
     getBubbleMembersWithUsers: vi.fn().mockResolvedValue([
@@ -119,14 +120,14 @@ describe("POST /api/bubbles/:id/join", () => {
   it("waitlists user when bubble is at member limit", async () => {
     const storage = makeStorage();
     vi.mocked(storage.getBubble).mockResolvedValue(CAPPED_BUBBLE);
-    vi.mocked(storage.getRealMemberCount).mockResolvedValue(10);
+    vi.mocked(storage.joinBubbleWithCapacityCheck).mockResolvedValue("waitlisted");
     const res = await request(buildApp(storage))
       .post("/api/bubbles/bubble-4/join")
       .set("Authorization", `Bearer ${makeToken("user-1")}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true, status: "waitlisted" });
-    expect(storage.createMembershipWithStatus).toHaveBeenCalledWith(
-      { userId: "user-1", bubbleId: "bubble-4" }, "waitlisted",
+    expect(storage.joinBubbleWithCapacityCheck).toHaveBeenCalledWith(
+      { userId: "user-1", bubbleId: "bubble-4" }, 10, "approved",
     );
   });
 

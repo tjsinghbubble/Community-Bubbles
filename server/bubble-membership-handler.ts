@@ -10,6 +10,7 @@ export interface BubbleMembershipStorage {
   getRealMemberCount(bubbleId: string): Promise<number>;
   createMembershipWithStatus(data: { userId: string; bubbleId: string }, status: string): Promise<any>;
   createMembership(data: { userId: string; bubbleId: string }): Promise<any>;
+  joinBubbleWithCapacityCheck(data: { userId: string; bubbleId: string }, limit: number, desiredStatus: string): Promise<string>;
   isMember(userId: string, bubbleId: string): Promise<boolean>;
   getMemberRole(userId: string, bubbleId: string): Promise<string | null>;
   getBubbleMembersWithUsers(bubbleId: string): Promise<any[]>;
@@ -75,16 +76,29 @@ export function registerBubbleMembershipRoutes(
         if (status === "on_hold") return res.status(400).json({ error: "Your waitlist spot is on hold" });
       }
 
+      const isPrivate = bubble.privacy === "Request to Join" || bubble.privacy === "Request" || bubble.privacy === "Private";
+
+      let finalStatus: string;
       if (bubble.memberLimit != null) {
-        const currentCount = await storage.getRealMemberCount(bubbleId);
-        if (currentCount >= bubble.memberLimit) {
-          await storage.createMembershipWithStatus({ userId: req.userId, bubbleId }, "waitlisted");
-          return res.json({ success: true, status: "waitlisted" });
-        }
+        const desiredStatus = isPrivate ? "pending" : "approved";
+        finalStatus = await storage.joinBubbleWithCapacityCheck(
+          { userId: req.userId, bubbleId },
+          bubble.memberLimit,
+          desiredStatus,
+        );
+      } else if (isPrivate) {
+        await storage.createMembershipWithStatus({ userId: req.userId, bubbleId }, "pending");
+        finalStatus = "pending";
+      } else {
+        await storage.createMembership({ userId: req.userId, bubbleId });
+        finalStatus = "approved";
       }
 
-      if (bubble.privacy === "Request to Join" || bubble.privacy === "Request" || bubble.privacy === "Private") {
-        await storage.createMembershipWithStatus({ userId: req.userId, bubbleId }, "pending");
+      if (finalStatus === "waitlisted") {
+        return res.json({ success: true, status: "waitlisted" });
+      }
+
+      if (finalStatus === "pending") {
         const requester = await storage.getUser(req.userId);
         notifyAdmins(
           bubbleId, req.userId, "membership_request",
@@ -95,7 +109,7 @@ export function registerBubbleMembershipRoutes(
         return res.json({ success: true, status: "pending" });
       }
 
-      await storage.createMembership({ userId: req.userId, bubbleId });
+      // finalStatus === "approved" — wire up CometChat and notify admins below
 
       try {
         const joiner = await storage.getUser(req.userId);
