@@ -137,6 +137,10 @@ export interface IStorage {
   createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
   getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
   markCodeAsUsed(id: string): Promise<void>;
+  markCodeAsUsedAtomic(id: string): Promise<boolean>;
+
+  joinBubbleWithCapacityCheck(data: { userId: string; bubbleId: string }, limit: number, desiredStatus: string): Promise<string>;
+  rsvpEventWithCapacityCheck(data: { eventId: string; userId: string }, limit: number): Promise<string>;
 
   // Events
   getEvent(id: string): Promise<Event | undefined>;
@@ -880,6 +884,49 @@ export class DatabaseStorage implements IStorage {
 
   async markCodeAsUsed(id: string): Promise<void> {
     await db.update(verificationCodes).set({ used: true }).where(eq(verificationCodes.id, id));
+  }
+
+  async markCodeAsUsedAtomic(id: string): Promise<boolean> {
+    const result = await db
+      .update(verificationCodes)
+      .set({ used: true })
+      .where(and(eq(verificationCodes.id, id), eq(verificationCodes.used, false)))
+      .returning({ id: verificationCodes.id });
+    return result.length > 0;
+  }
+
+  async joinBubbleWithCapacityCheck(
+    data: { userId: string; bubbleId: string },
+    limit: number,
+    desiredStatus: string,
+  ): Promise<string> {
+    return db.transaction(async (tx) => {
+      // Serialise all join attempts for the same bubble; released when transaction commits/rolls back.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${data.bubbleId}))`);
+      const [row] = await tx
+        .select({ cnt: count() })
+        .from(memberships)
+        .where(and(eq(memberships.bubbleId, data.bubbleId), eq(memberships.membershipStatus, 'approved')));
+      const finalStatus = (row?.cnt ?? 0) >= limit ? 'waitlisted' : desiredStatus;
+      await tx.insert(memberships).values({ userId: data.userId, bubbleId: data.bubbleId, membershipStatus: finalStatus });
+      return finalStatus;
+    });
+  }
+
+  async rsvpEventWithCapacityCheck(
+    data: { eventId: string; userId: string },
+    limit: number,
+  ): Promise<string> {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${data.eventId}))`);
+      const [row] = await tx
+        .select({ cnt: count() })
+        .from(eventAttendees)
+        .where(and(eq(eventAttendees.eventId, data.eventId), eq(eventAttendees.status, 'going')));
+      const finalStatus = (row?.cnt ?? 0) >= limit ? 'waitlisted' : 'going';
+      await tx.insert(eventAttendees).values({ eventId: data.eventId, userId: data.userId, status: finalStatus });
+      return finalStatus;
+    });
   }
 
   // Events

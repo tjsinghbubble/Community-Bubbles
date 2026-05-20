@@ -77,7 +77,7 @@ export function registerCampusSendVerificationRoute(
 export interface CampusVerifyCodeStorage {
   getValidVerificationCode(email: string, code: string): Promise<{ id: string } | null | undefined>;
   getCampusByDomain(domain: string): Promise<{ id: string; title: string; domain: string } | null | undefined>;
-  markCodeAsUsed(id: string): Promise<void>;
+  markCodeAsUsedAtomic(id: string): Promise<boolean>;
   updateUserCampus(userId: string, campusId: string, campusEmail: string, campusVerified: boolean): Promise<void>;
   getUser(id: string): Promise<{ id: string; name: string; email: string; campusId: string | null; campusEmail: string | null; campusVerified: boolean | null } | null | undefined>;
 }
@@ -120,7 +120,10 @@ export function registerCampusVerifyCodeRoute(
         return res.status(400).json({ error: "Campus not found" });
       }
 
-      await storage.markCodeAsUsed(validCode.id);
+      const claimed = await storage.markCodeAsUsedAtomic(validCode.id);
+      if (!claimed) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
       await storage.updateUserCampus(req.userId, campus.id, emailLower, true);
 
       const user = await storage.getUser(req.userId);

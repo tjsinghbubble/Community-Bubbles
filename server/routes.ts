@@ -394,7 +394,10 @@ export async function registerRoutes(
       }
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await storage.updateUserPassword(user.id, hashedPassword);
-      await storage.markCodeAsUsed(verificationCode.id);
+      const claimed = await storage.markCodeAsUsedAtomic(verificationCode.id);
+      if (!claimed) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
       await storage.incrementTokenVersion(user.id);
       res.json({ success: true });
     } catch (error: any) {
@@ -1617,52 +1620,55 @@ export async function registerRoutes(
         }
       }
 
+      const isPrivate = bubble.privacy === 'Request to Join' || bubble.privacy === 'Request' || bubble.privacy === 'Private';
+
+      let joinStatus: string;
       if (bubble.memberLimit != null) {
-        const currentCount = await storage.getRealMemberCount(bubbleId);
-        if (currentCount >= bubble.memberLimit) {
-          await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'waitlisted');
-          return res.json({ success: true, status: 'waitlisted' });
-        }
+        const desiredStatus = isPrivate ? 'pending' : 'approved';
+        joinStatus = await storage.joinBubbleWithCapacityCheck(
+          { userId: req.userId!, bubbleId },
+          bubble.memberLimit,
+          desiredStatus,
+        );
+      } else if (isPrivate) {
+        await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'pending');
+        joinStatus = 'pending';
+      } else {
+        await storage.createMembership({ userId: req.userId!, bubbleId });
+        joinStatus = 'approved';
       }
 
-      if (bubble.privacy === 'Request to Join' || bubble.privacy === 'Request' || bubble.privacy === 'Private') {
-        await storage.createMembershipWithStatus({
-          userId: req.userId!,
-          bubbleId,
-        }, 'pending');
+      if (joinStatus === 'waitlisted') {
+        return res.json({ success: true, status: 'waitlisted' });
+      }
 
+      if (joinStatus === 'pending') {
         const requester = await storage.getUser(req.userId!);
         notifyBubbleAdmins(bubbleId, req.userId!, "membership_request",
           "Join Request", `${requester?.name || 'Someone'} wants to join ${bubble.title}`,
           { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: requester?.name },
           true);
-
-        res.json({ success: true, status: 'pending' });
-      } else {
-        await storage.createMembership({
-          userId: req.userId!,
-          bubbleId,
-        });
-        
-        try {
-          const joiner = await storage.getUser(req.userId!);
-          if (joiner) {
-            await ensureCometChatUser(String(joiner.id), joiner.name || joiner.email);
-            await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
-            await addMemberToGroup(bubbleId, String(joiner.id));
-          }
-        } catch (e) {
-          console.error('CometChat add member on join:', e);
-        }
-
-        const joinerUser = await storage.getUser(req.userId!);
-        notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
-          "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
-          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name },
-          true);
-        
-        res.json({ success: true, status: 'approved' });
+        return res.json({ success: true, status: 'pending' });
       }
+
+      try {
+        const joiner = await storage.getUser(req.userId!);
+        if (joiner) {
+          await ensureCometChatUser(String(joiner.id), joiner.name || joiner.email);
+          await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
+          await addMemberToGroup(bubbleId, String(joiner.id));
+        }
+      } catch (e) {
+        console.error('CometChat add member on join:', e);
+      }
+
+      const joinerUser = await storage.getUser(req.userId!);
+      notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
+        "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
+        { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name },
+        true);
+
+      res.json({ success: true, status: 'approved' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
