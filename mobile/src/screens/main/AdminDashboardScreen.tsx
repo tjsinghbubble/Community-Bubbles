@@ -12,7 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { ExploreStackParamList } from '../../navigation/ExploreNavigator';
-import { Colors, Spacing, Typography } from '../../styles/theme';
+import { Colors, Spacing, Typography, Layout } from '../../styles/theme';
 import { FlowHeader } from '../../components/ScreenHeader';
 import apiService from '../../services/api.service';
 
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.gridScreenPadding,
     paddingTop: Spacing.xl,
     paddingBottom: Spacing.xxxl,
   },
