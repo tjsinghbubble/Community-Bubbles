@@ -6,6 +6,14 @@ const releaseSlug = buildNumber ? `${appVersion}+${buildNumber}` : appVersion;
 
 module.exports = {
   ...baseConfig.expo,
+
+updates: {
+  url: 'https://u.expo.dev/87aa84ba-0626-4ec1-b569-7276843813d9',
+},
+runtimeVersion: {
+  policy: 'appVersion',
+},
+  
   plugins: [
     ...baseConfig.expo.plugins.filter((p) => p !== '@sentry/react-native'),
     './plugins/withCxx20',
