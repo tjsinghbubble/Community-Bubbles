@@ -13,6 +13,7 @@ import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, regist
 import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
 import { registerCrashReportRoute } from "./crash-report-handler";
+import { registerDeleteAccountRoute } from "./delete-account-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -450,21 +451,8 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/auth/delete-account", authMiddleware, async (req, res) => {
-    try {
-      const user = await storage.getUser(req.userId!);
-      if (user?.profilePhoto) {
-        try {
-          await objectStorageService.deleteObjectEntity(user.profilePhoto);
-        } catch (e) {
-          console.error("Failed to delete profile photo from storage:", e);
-        }
-      }
-      await storage.deleteUser(req.userId!);
-      res.json({ success: true, message: "Account deleted successfully" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerDeleteAccountRoute(app, storage, JWT_SECRET, {
+    deleteProfilePhoto: (key) => objectStorageService.deleteObjectEntity(key),
   });
 
   app.get("/api/users/:userId/profile", authMiddleware, async (req, res) => {

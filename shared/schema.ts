@@ -46,6 +46,28 @@ export const users = pgTable("users", {
   updatedBy: varchar("updated_by"),
 });
 
+export const deletedUsers = pgTable("deleted_users", {
+  id: varchar("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  emailHash: text("email_hash"),
+  password: text("password").notNull(),
+  interests: text("interests").array().notNull().default(sql`'{}'::text[]`),
+  campusId: varchar("campus_id"),
+  campusEmail: text("campus_email"),
+  campusVerified: boolean("campus_verified").notNull().default(false),
+  dismissedCampusPrompt: boolean("dismissed_campus_prompt").notNull().default(false),
+  isSuperAdmin: boolean("is_super_admin").notNull().default(false),
+  profilePhoto: text("profile_photo"),
+  aboutMe: text("about_me"),
+  tokenVersion: integer("token_version").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  deletedAt: timestamp("deleted_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  updatedBy: varchar("updated_by"),
+});
+
 export const userProfiles = pgTable("user_profiles", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),

@@ -93,6 +93,7 @@ import {
   type InsertNotificationPreferences,
   feedback,
   type Feedback,
+  deletedUsers,
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
@@ -525,17 +526,17 @@ export class DatabaseStorage implements IStorage {
     // 14. Delete user profile row
     await db.delete(userProfiles).where(eq(userProfiles.userId, id));
 
-    // 15. Soft-delete: anonymize email fields so the address is free for
-    //     re-registration, mark inactive, and record deletion timestamp
-    await db.update(users)
-      .set({
-        email: `deleted-${id}`,
-        emailHash: `deleted-${id}`,
+    // 15. Archive user row to deleted_users, then hard-delete from users
+    const [userRow] = await db.select().from(users).where(eq(users.id, id));
+    if (userRow) {
+      const { updatedBy: _ub, ...archiveFields } = userRow as any;
+      await db.insert(deletedUsers).values({
+        ...archiveFields,
         isActive: false,
         deletedAt: new Date(),
-        tokenVersion: sql`token_version + 1`,
-      })
-      .where(eq(users.id, id));
+      });
+    }
+    await db.delete(users).where(eq(users.id, id));
   }
 
   async incrementTokenVersion(id: string): Promise<void> {
