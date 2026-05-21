@@ -368,7 +368,6 @@ const styles = StyleSheet.create({
     ...CardShadow,
   },
   notifRowUnread: {
-    backgroundColor: Colors.background.brandTint,
     borderWidth: 1.5,
     borderColor: Colors.brand.primary,
   },
