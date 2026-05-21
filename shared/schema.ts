@@ -96,6 +96,7 @@ export const memberships = pgTable("memberships", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   role: text("role").notNull().default('member'),
   membershipStatus: text("membership_status").notNull().default('approved'),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
