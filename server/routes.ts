@@ -14,6 +14,7 @@ import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } fr
 import { registerReportsRoute } from "./reports-handler";
 import { registerCrashReportRoute } from "./crash-report-handler";
 import { registerDeleteAccountRoute } from "./delete-account-handler";
+import { registerPasswordResetRoutes } from "./password-reset-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -352,58 +353,9 @@ export async function registerRoutes(
 
   registerVerifyCodeRoute(app, storage, { rateLimiter: authLimiter });
 
-  app.post("/api/auth/forgot-password", async (req: any, res: any) => {
-    try {
-      const { email } = req.body ?? {};
-      if (!email || typeof email !== "string") {
-        return res.status(400).json({ error: "Email is required" });
-      }
-      const emailLower = email.toLowerCase().trim();
-      const user = await storage.getUserByEmail(emailLower);
-      if (user) {
-        const code = generateVerificationCode();
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-        await storage.createVerificationCode({ email: emailLower, code, expiresAt });
-        try {
-          await sendVerificationEmail(emailLower, code);
-        } catch (e) {
-          console.error("[forgot-password] Email delivery failed:", e);
-        }
-      }
-      res.json({ success: true, message: "If an account with that email exists, a reset code has been sent." });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/auth/reset-password", async (req: any, res: any) => {
-    try {
-      const { email, code, newPassword } = req.body ?? {};
-      if (!email || !code || !newPassword) {
-        return res.status(400).json({ error: "Email, code, and new password are required" });
-      }
-      if (typeof newPassword !== "string" || newPassword.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
-      }
-      const verificationCode = await storage.getValidVerificationCode(email, code);
-      if (!verificationCode) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-      const user = await storage.getUserByEmail(email.toLowerCase().trim());
-      if (!user) {
-        return res.status(400).json({ error: "User not found" });
-      }
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await storage.updateUserPassword(user.id, hashedPassword);
-      const claimed = await storage.markCodeAsUsedAtomic(verificationCode.id);
-      if (!claimed) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-      await storage.incrementTokenVersion(user.id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerPasswordResetRoutes(app, storage, {
+    generateCode: generateVerificationCode,
+    sendEmail: sendVerificationEmail,
   });
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {
