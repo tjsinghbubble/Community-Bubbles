@@ -38,6 +38,47 @@ jobs:
       - name: Mobile unit tests (Jest)
         run: cd mobile && npm test -- --ci --passWithNoTests
 
+  # ── Integration tests (Vitest against a real Postgres DB) ─────────────────
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: bubble_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push database schema
+        run: npx drizzle-kit push --force
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bubble_test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bubble_test
+
   # ── API E2E tests (real Express server + fresh Postgres DB) ────────────────
   e2e:
     name: API E2E tests (Playwright)
