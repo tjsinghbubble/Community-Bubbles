@@ -40,6 +40,7 @@ export const users = pgTable("users", {
   aboutMe: text("about_me"),
   tokenVersion: integer("token_version").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by"),

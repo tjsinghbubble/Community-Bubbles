@@ -522,9 +522,19 @@ export class DatabaseStorage implements IStorage {
     // 13. Delete remaining memberships for user (in other bubbles)
     await db.delete(memberships).where(eq(memberships.userId, id));
 
-    // 14. Set user as inactive (soft delete) instead of deleting the row
+    // 14. Delete user profile row
+    await db.delete(userProfiles).where(eq(userProfiles.userId, id));
+
+    // 15. Soft-delete: anonymize email fields so the address is free for
+    //     re-registration, mark inactive, and record deletion timestamp
     await db.update(users)
-      .set({ isActive: false, tokenVersion: sql`token_version + 1` })
+      .set({
+        email: `deleted-${id}`,
+        emailHash: `deleted-${id}`,
+        isActive: false,
+        deletedAt: new Date(),
+        tokenVersion: sql`token_version + 1`,
+      })
       .where(eq(users.id, id));
   }
 
