@@ -355,6 +355,8 @@ export async function registerRoutes(
   registerPasswordResetRoutes(app, storage, {
     generateCode: generateVerificationCode,
     sendEmail: sendVerificationEmail,
+    forgotPasswordRateLimiter: authLimiter,
+    resetPasswordRateLimiter: authLimiter,
   });
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import express from "express";
+import express, { type RequestHandler } from "express";
 import request from "supertest";
 import {
   registerPasswordResetRoutes,
@@ -17,10 +17,22 @@ function makeStorage(): PasswordResetStorage {
   };
 }
 
-function buildApp(storage: PasswordResetStorage) {
+function makeLimiter(maxRequests: number): RequestHandler {
+  let count = 0;
+  return (_req, res, next) => {
+    count += 1;
+    if (count > maxRequests) return res.status(429).json({ error: "Too many requests" });
+    return next();
+  };
+}
+
+function buildApp(
+  storage: PasswordResetStorage,
+  opts: { forgotPasswordRateLimiter?: RequestHandler; resetPasswordRateLimiter?: RequestHandler } = {},
+) {
   const app = express();
   app.use(express.json());
-  registerPasswordResetRoutes(app, storage);
+  registerPasswordResetRoutes(app, storage, opts);
   return app;
 }
 
@@ -277,5 +289,34 @@ describe("POST /api/auth/reset-password", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "DB connection lost");
+  });
+
+  it("returns 429 when the reset-password rate limiter is exceeded", async () => {
+    const storage = makeStorage();
+    const app = buildApp(storage, { resetPasswordRateLimiter: makeLimiter(1) });
+
+    await request(app)
+      .post("/api/auth/reset-password")
+      .send({ email: "alice@example.com", code: "123456", newPassword: "newpass123" });
+
+    const res = await request(app)
+      .post("/api/auth/reset-password")
+      .send({ email: "alice@example.com", code: "123456", newPassword: "newpass123" });
+
+    expect(res.status).toBe(429);
+  });
+});
+
+describe("rate limiting", () => {
+  it("returns 429 when the forgot-password rate limiter is exceeded", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getUserByEmail).mockResolvedValue(null);
+    const app = buildApp(storage, { forgotPasswordRateLimiter: makeLimiter(1) });
+
+    await request(app).post("/api/auth/forgot-password").send({ email: "alice@example.com" });
+
+    const res = await request(app).post("/api/auth/forgot-password").send({ email: "alice@example.com" });
+
+    expect(res.status).toBe(429);
   });
 });
