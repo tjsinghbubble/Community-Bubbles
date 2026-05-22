@@ -500,6 +500,7 @@ export async function seedStaging(): Promise<void> {
           bubbleId,
           role,
           membershipStatus: "approved",
+          createdBy: userId,
         });
         added++;
       } catch (e) {

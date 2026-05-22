@@ -65,6 +65,7 @@ function makeStorage(overrides: Partial<EventsStorage> = {}): EventsStorage {
     getGoingCount: vi.fn().mockResolvedValue(0),
     getFirstWaitlistedAttendee: vi.fn().mockResolvedValue(null),
     updateEventAttendeeStatus: vi.fn().mockResolvedValue(undefined),
+    rsvpEventWithCapacityCheck: vi.fn().mockResolvedValue("going"),
     ...overrides,
   };
 }
@@ -395,15 +396,15 @@ describe("POST /api/events/:id/rsvp", () => {
   it("RSVPs as waitlisted when at or above attendee limit", async () => {
     const storage = makeStorage();
     vi.mocked(storage.getEvent).mockResolvedValue({ ...SAMPLE_EVENT, attendeeLimit: 10, createdBy: "other" });
-    vi.mocked(storage.getGoingCount).mockResolvedValue(10);
+    vi.mocked(storage.rsvpEventWithCapacityCheck).mockResolvedValue("waitlisted");
     const res = await request(buildApp(storage))
       .post("/api/events/event-1/rsvp")
       .set("Authorization", `Bearer ${makeToken("user-2")}`)
       .send({});
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true, status: "waitlisted" });
-    expect(storage.createEventAttendee).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "waitlisted" }),
+    expect(storage.rsvpEventWithCapacityCheck).toHaveBeenCalledWith(
+      { eventId: "event-1", userId: "user-2" }, 10,
     );
   });
 
@@ -456,9 +457,7 @@ describe("POST /api/events/:id/rsvp", () => {
       attendeeLimit: 5,
       createdBy: "creator-1",
     });
-    vi.mocked(storage.getGoingCount)
-      .mockResolvedValueOnce(4)  // before RSVP — under limit
-      .mockResolvedValueOnce(5); // after RSVP — at limit
+    vi.mocked(storage.getGoingCount).mockResolvedValue(5); // after RSVP — at limit
     await request(buildApp(storage, { sendNotification }))
       .post("/api/events/event-1/rsvp")
       .set("Authorization", `Bearer ${makeToken("user-2")}`)

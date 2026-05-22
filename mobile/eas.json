@@ -19,7 +19,7 @@
       "distribution": "store",
       "env": {
         "APP_ENV": "testflight-staging",
-        "EXPO_PUBLIC_API_URL": "https://trybubble.io"
+        "EXPO_PUBLIC_API_URL": "https://community-bubbles.replit.app"
       }
     },
     "beta": {

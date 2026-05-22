@@ -209,6 +209,7 @@ export async function seedData() {
         bubbleId: bubble.id,
         role: "admin",
         membershipStatus: "approved",
+        createdBy: createdUsers[adminIdx].id,
       });
     }
 
@@ -218,6 +219,7 @@ export async function seedData() {
         bubbleId: bubble.id,
         role: "member",
         membershipStatus: "approved",
+        createdBy: createdUsers[memberIdx].id,
       });
     }
   }

@@ -206,6 +206,57 @@ describe("PUT /api/events/:id", () => {
   });
 });
 
+// ─── PUT /api/events/:id — additional edge cases ─────────────────────────────
+
+describe("PUT /api/events/:id — schema and timezone", () => {
+  it("returns 400 when schema validation fails (empty title)", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getEvent).mockResolvedValue({ ...SAMPLE_EVENT, createdBy: "user-1" });
+    const res = await request(buildApp(storage))
+      .put("/api/events/event-1")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ title: "" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error");
+  });
+
+  it("resets reminder flags when only startTime changes", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getEvent).mockResolvedValue({ ...SAMPLE_EVENT, date: "2026-06-01", startTime: "18:00" });
+    vi.mocked(storage.updateEvent).mockResolvedValue({ ...SAMPLE_EVENT, startTime: "19:00" });
+    await request(buildApp(storage))
+      .put("/api/events/event-1")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ startTime: "19:00" });
+    expect(storage.resetEventReminderFlags).toHaveBeenCalledWith("event-1");
+  });
+
+  it("converts date and startTime from local to UTC when timezone is set", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getEvent).mockResolvedValue({ ...SAMPLE_EVENT, createdBy: "user-1", timezone: "America/New_York" });
+    const res = await request(buildApp(storage))
+      .put("/api/events/event-1")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ date: "2026-06-01", startTime: "18:00", timezone: "America/New_York" });
+    expect(res.status).toBe(200);
+    const updateArg = vi.mocked(storage.updateEvent).mock.calls[0][1];
+    // UTC time should be ahead of Eastern time (offset applied)
+    expect(updateArg.startTime).not.toBe("18:00");
+  });
+
+  it("returns 400 when storage.updateEvent throws", async () => {
+    const storage = makeStorage();
+    vi.mocked(storage.getEvent).mockResolvedValue({ ...SAMPLE_EVENT, createdBy: "user-1" });
+    vi.mocked(storage.updateEvent).mockRejectedValue(new Error("DB failure"));
+    const res = await request(buildApp(storage))
+      .put("/api/events/event-1")
+      .set("Authorization", `Bearer ${makeToken("user-1")}`)
+      .send({ title: "New Title" });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "DB failure");
+  });
+});
+
 // ─── GET /api/events/:id/signup-tasks ─────────────────────────────────────────
 
 describe("GET /api/events/:id/signup-tasks", () => {

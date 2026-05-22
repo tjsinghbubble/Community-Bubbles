@@ -112,7 +112,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
-  const [bubble, setBubble] = useState<Bubble | null>(null);
+  const [bubble, setBubble] = useState<Bubble | null>((routeEvent as any)?.bubble ?? null);
   const [isLoading, setIsLoading] = useState(!routeEvent);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isRsvpd, setIsRsvpd] = useState(false);
@@ -1076,6 +1076,29 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.bubbleRow}
+          activeOpacity={0.7}
+          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubbleId: bubble.id })}
+        >
+          <View style={styles.bubbleIconContainer}>
+            {bubble?.coverImage ? (
+              <Image source={{ uri: bubble.coverImage }} style={styles.bubbleIconImage} />
+            ) : (
+              <View style={styles.bubbleIconPlaceholder}>
+                <Ionicons name="people" size={20} color={Colors.brand.primary} />
+              </View>
+            )}
+          </View>
+          <View style={styles.bubbleInfo}>
+            <Text style={styles.bubbleName}>{bubbleDisplayTitle || 'Bubble'}</Text>
+            {bubble?.tagline ? (
+              <Text style={styles.bubbleTagline} numberOfLines={1}>{bubble.tagline}</Text>
+            ) : null}
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.locationRow} activeOpacity={0.7} onPress={() => event.locationName && setLocationExpanded(!locationExpanded)}>
           <View style={styles.locationIconContainer}>
             <LocationPinIcon size={20} color={Colors.brand.primary} />
@@ -1838,6 +1861,45 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semiBold,
   },
   creatorCity: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.regular,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  bubbleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  bubbleIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  bubbleIconImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  bubbleIconPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.background.brandTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bubbleInfo: {
+    flex: 1,
+  },
+  bubbleName: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  bubbleTagline: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.regular,
     color: Colors.text.secondary,

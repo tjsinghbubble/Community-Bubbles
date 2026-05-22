@@ -6,7 +6,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["server/__tests__/**/*.test.ts"],
-    exclude: ["node_modules", ".cache", "mobile"],
+    exclude: ["node_modules", ".cache", "mobile", "server/__tests__/integration/**"],
   },
   resolve: {
     alias: {

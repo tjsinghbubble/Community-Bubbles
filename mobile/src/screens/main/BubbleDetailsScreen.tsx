@@ -42,10 +42,10 @@ import { showToast } from '../../components/Toast';
 import { logAppEvent, logAppWarn } from '../../utils/crashReporter';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
-import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, CardShadow, Layout } from '../../styles/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Spacing.xl * 2;
+const COVER_IMAGE_WIDTH = SCREEN_WIDTH - Layout.detailScreenPadding * 2;
 const COVER_IMAGE_HEIGHT = Math.round(COVER_IMAGE_WIDTH * 3 / 4);
 
 type Props = {
@@ -1385,7 +1385,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
-    marginHorizontal: Spacing.xl,
+    marginHorizontal: Layout.detailScreenPadding,
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
@@ -1403,7 +1403,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     height: 65,
-    marginHorizontal: Spacing.xl,
+    marginHorizontal: Layout.detailScreenPadding,
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.lg,
     shadowColor: 'rgba(0, 0, 0, 0.25)',
@@ -1451,7 +1451,7 @@ const styles = StyleSheet.create({
   },
   coverPhotoContainer: {
     position: 'relative',
-    marginHorizontal: Spacing.xl,
+    marginHorizontal: Layout.detailScreenPadding,
     borderRadius: Radius.md,
     overflow: 'hidden',
   },
@@ -1497,11 +1497,11 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: Colors.border.default,
-    marginHorizontal: Spacing.xl,
+    marginHorizontal: Layout.detailScreenPadding,
     marginVertical: Spacing.xl,
   },
   section: {
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Layout.detailScreenPadding,
   },
   sectionHeaderRow: {
     flexDirection: 'row',

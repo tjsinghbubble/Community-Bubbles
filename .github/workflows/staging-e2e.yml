@@ -1,15 +1,36 @@
 name: Staging E2E
 
-# Runs after every merge to staging — validates the live staging server
+# Runs after every merge to develop — validates the live staging server
 # before anyone tests on devices.
 on:
   push:
     branches: [develop]
 
 jobs:
+  # Guard job: only proceed if STAGING_URL secret is configured.
+  check:
+    name: Check staging config
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.STAGING_URL }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "STAGING_URL secret is not set — skipping staging E2E run."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
   staging-e2e:
     name: API E2E tests against staging
+    needs: check
+    if: needs.check.outputs.enabled == 'true'
     runs-on: ubuntu-latest
+
+    permissions:
+      statuses: write
 
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +46,7 @@ jobs:
       - name: Run Playwright E2E tests against staging server
         run: npx playwright test
         env:
-          # Point tests at the live staging server — no local server is started
           E2E_BASE_URL: ${{ secrets.STAGING_URL }}
-          # Pre-created test accounts that exist permanently on staging
-          # Add these via: GitHub → Settings → Secrets → STAGING_ADMIN_TOKEN
-          # They are the tokens for george@seinfeld.com and e2e-user@staging.test
-          # created once and rotated when credentials change.
-          # NOTE: The global-setup.ts handles account creation automatically,
-          # so these are only needed if you want to skip setup and use fixed accounts.
 
       - name: Post result as commit status
         if: always()

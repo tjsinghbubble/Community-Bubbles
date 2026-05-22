@@ -3,6 +3,7 @@ import express from "express";
 import request from "supertest";
 import {
   registerCrashReportRoute,
+  type CrashReportStorage,
   CRASH_REPORT_MAX_MESSAGE_CHARS,
   CRASH_REPORT_MAX_STACK_CHARS,
   CRASH_REPORT_MAX_CONTEXT_CHARS,
@@ -10,10 +11,17 @@ import {
   CRASH_REPORT_MAX_USERNAME_CHARS,
 } from "../crash-report-handler";
 
-function buildApp() {
+function makeStorage(overrides: Partial<CrashReportStorage> = {}): CrashReportStorage {
+  return {
+    insertCrashReport: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+function buildApp(storage?: CrashReportStorage) {
   const app = express();
   app.use(express.json());
-  registerCrashReportRoute(app);
+  registerCrashReportRoute(app, storage ?? makeStorage());
   return app;
 }
 
@@ -228,5 +236,31 @@ describe("POST /api/crash-report — user identity surfacing", () => {
     expect(consoleSpy).toHaveBeenCalled();
     const logLine: string = consoleSpy.mock.calls[0][0];
     expect(logLine).not.toContain("user=");
+  });
+});
+
+describe("POST /api/crash-report — storage side effects", () => {
+  it("persists the crash report to storage", async () => {
+    const storage = makeStorage();
+    const app = buildApp(storage);
+    await request(app)
+      .post("/api/crash-report")
+      .send({ message: "Storage test", platform: "ios", isFatal: true, appVersion: "2.0.0" });
+    expect(storage.insertCrashReport).toHaveBeenCalledOnce();
+    expect(storage.insertCrashReport).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Storage test", isFatal: true }),
+    );
+  });
+
+  it("still returns 200 when storage throws", async () => {
+    const storage = makeStorage({
+      insertCrashReport: vi.fn().mockRejectedValue(new Error("DB down")),
+    });
+    const app = buildApp(storage);
+    const res = await request(app)
+      .post("/api/crash-report")
+      .send({ message: "Storage failure" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ received: true });
   });
 });

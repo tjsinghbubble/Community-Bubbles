@@ -11,6 +11,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Clipboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -324,6 +325,28 @@ export default function ProfileScreen() {
                   <Text style={styles.menuItemText}>Span Health</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </AnimatedPressable>
+            )}
+            {isSuperAdmin && (
+              <AnimatedPressable
+                style={styles.menuItem}
+                scaleValue={0.97}
+                onPress={async () => {
+                  const token = await AsyncStorage.getItem('authToken');
+                  if (token) {
+                    Clipboard.setString(token);
+                    Alert.alert('Copied', 'JWT token copied to clipboard.');
+                  } else {
+                    Alert.alert('Not found', 'No auth token in storage.');
+                  }
+                }}
+                testID="button-copy-jwt-token"
+              >
+                <View style={styles.menuItemLeft}>
+                  <Ionicons name="key-outline" size={24} color={Colors.text.secondary} />
+                  <Text style={styles.menuItemText}>Copy JWT Token</Text>
+                </View>
+                <Ionicons name="copy-outline" size={20} color={Colors.text.tertiary} />
               </AnimatedPressable>
             )}
           </View>

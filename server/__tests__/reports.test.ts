@@ -5,6 +5,8 @@ import jwt from "jsonwebtoken";
 import {
   registerReportsRoute,
   type ReportsStorage,
+  BUBBLE_REPORT_VISIBILITY,
+  EVENT_REPORT_VISIBILITY,
 } from "../reports-handler";
 
 const JWT_SECRET = "test-jwt-secret";
@@ -45,6 +47,8 @@ describe("POST /api/reports", () => {
       getUser: vi.fn(),
       getMemberRole: vi.fn(),
       createReport: vi.fn(),
+      getBubble: vi.fn().mockResolvedValue({ id: "bubble-1", title: "Test Bubble" }),
+      getSuperAdmins: vi.fn().mockResolvedValue([{ id: "super-1" }, { id: "super-2" }]),
     };
 
     vi.mocked(mockStorage.getUser).mockResolvedValue(ACTIVE_USER);
@@ -212,5 +216,210 @@ describe("POST /api/reports", () => {
 
     expect(res.status).toBe(403);
     expect(res.body).toHaveProperty("error", "This account has been deactivated.");
+  });
+});
+
+describe("POST /api/reports — bubble reportType visibility", () => {
+  let mockStorage: ReportsStorage;
+  let token: string;
+
+  beforeEach(() => {
+    mockStorage = {
+      getUser: vi.fn().mockResolvedValue(ACTIVE_USER),
+      getMemberRole: vi.fn().mockResolvedValue("member"),
+      createReport: vi.fn().mockResolvedValue({ id: "report-1" }),
+      getBubble: vi.fn().mockResolvedValue({ id: "bubble-1", title: "Test Bubble" }),
+      getSuperAdmins: vi.fn().mockResolvedValue([]),
+    };
+    token = makeToken(ACTIVE_USER.id, 0);
+  });
+
+  it.each(Object.entries(BUBBLE_REPORT_VISIBILITY))(
+    "sets visibleTo=%s for bubble reportType with reason %s",
+    async (reason, expectedVisibility) => {
+      const app = buildApp(mockStorage);
+      await request(app)
+        .post("/api/reports")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reportType: "bubble", reason, bubbleId: "bubble-1" });
+      const call = vi.mocked(mockStorage.createReport).mock.calls[0][0];
+      expect(call.visibleTo).toBe(expectedVisibility);
+      vi.mocked(mockStorage.createReport).mockClear();
+    },
+  );
+
+  it("falls back to superadmin for unrecognised bubble reason", async () => {
+    const app = buildApp(mockStorage);
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "bubble", reason: "unknown reason", bubbleId: "bubble-1" });
+    const call = vi.mocked(mockStorage.createReport).mock.calls[0][0];
+    expect(call.visibleTo).toBe("superadmin");
+  });
+});
+
+describe("POST /api/reports — event reportType visibility", () => {
+  let mockStorage: ReportsStorage;
+  let token: string;
+
+  beforeEach(() => {
+    mockStorage = {
+      getUser: vi.fn().mockResolvedValue(ACTIVE_USER),
+      getMemberRole: vi.fn().mockResolvedValue("member"),
+      createReport: vi.fn().mockResolvedValue({ id: "report-1" }),
+      getBubble: vi.fn().mockResolvedValue({ id: "bubble-1", title: "Test Bubble" }),
+      getSuperAdmins: vi.fn().mockResolvedValue([]),
+    };
+    token = makeToken(ACTIVE_USER.id, 0);
+  });
+
+  it.each(Object.entries(EVENT_REPORT_VISIBILITY))(
+    "sets visibleTo=%s for event reportType with reason %s",
+    async (reason, expectedVisibility) => {
+      const app = buildApp(mockStorage);
+      await request(app)
+        .post("/api/reports")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reportType: "event", reason, bubbleId: "bubble-1", eventId: "event-1" });
+      const call = vi.mocked(mockStorage.createReport).mock.calls[0][0];
+      expect(call.visibleTo).toBe(expectedVisibility);
+      vi.mocked(mockStorage.createReport).mockClear();
+    },
+  );
+
+  it("falls back to both for unrecognised event reason", async () => {
+    const app = buildApp(mockStorage);
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "event", reason: "unknown reason", bubbleId: "bubble-1", eventId: "event-1" });
+    const call = vi.mocked(mockStorage.createReport).mock.calls[0][0];
+    expect(call.visibleTo).toBe("both");
+  });
+});
+
+describe("POST /api/reports — individual reportType edge cases", () => {
+  let mockStorage: ReportsStorage;
+  let token: string;
+
+  beforeEach(() => {
+    mockStorage = {
+      getUser: vi.fn().mockResolvedValue(ACTIVE_USER),
+      getMemberRole: vi.fn().mockResolvedValue("member"),
+      createReport: vi.fn().mockResolvedValue({ id: "report-1" }),
+      getBubble: vi.fn().mockResolvedValue({ id: "bubble-1", title: "Test Bubble" }),
+      getSuperAdmins: vi.fn().mockResolvedValue([]),
+    };
+    token = makeToken(ACTIVE_USER.id, 0);
+  });
+
+  it("sets visibleTo=bubble_admin when reportedUserId is not provided", async () => {
+    const app = buildApp(mockStorage);
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "individual", reason: "harassment", bubbleId: "bubble-1" });
+    const call = vi.mocked(mockStorage.createReport).mock.calls[0][0];
+    expect(call.visibleTo).toBe("bubble_admin");
+  });
+});
+
+describe("POST /api/reports — notification side effects", () => {
+  let mockStorage: ReportsStorage;
+  let token: string;
+
+  beforeEach(() => {
+    mockStorage = {
+      getUser: vi.fn().mockResolvedValue(ACTIVE_USER),
+      getMemberRole: vi.fn().mockResolvedValue("member"),
+      createReport: vi.fn().mockResolvedValue({ id: "report-1" }),
+      getBubble: vi.fn().mockResolvedValue({ id: "bubble-1", title: "Test Bubble" }),
+      getSuperAdmins: vi.fn().mockResolvedValue([{ id: "super-1" }, { id: "super-2" }]),
+    };
+    token = makeToken(ACTIVE_USER.id, 0);
+  });
+
+  it("calls notifyBubbleAdmins when visibleTo is bubble_admin", async () => {
+    const notifyBubbleAdmins = vi.fn();
+    const app = express();
+    app.use(express.json());
+    registerReportsRoute(app, mockStorage, JWT_SECRET, { notifyBubbleAdmins });
+    vi.mocked(mockStorage.getMemberRole).mockResolvedValue("member");
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "individual", reason: "harassment", bubbleId: "bubble-1", reportedUserId: "other-user" });
+    expect(notifyBubbleAdmins).toHaveBeenCalledWith(
+      "bubble-1",
+      ACTIVE_USER.id,
+      "report_submitted",
+      "New Report",
+      expect.stringContaining("Alice"),
+      expect.any(Object),
+    );
+  });
+
+  it("calls sendNotificationToMany with super admin IDs when visibleTo is superadmin", async () => {
+    const sendNotificationToMany = vi.fn();
+    const app = express();
+    app.use(express.json());
+    registerReportsRoute(app, mockStorage, JWT_SECRET, { sendNotificationToMany });
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "admin", reason: "rule_violation", bubbleId: "bubble-1" });
+    expect(sendNotificationToMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "report_submitted",
+        recipientIds: expect.arrayContaining(["super-1", "super-2"]),
+      }),
+    );
+  });
+
+  it("calls both notifyBubbleAdmins and sendNotificationToMany when visibleTo is both", async () => {
+    const notifyBubbleAdmins = vi.fn();
+    const sendNotificationToMany = vi.fn();
+    const app = express();
+    app.use(express.json());
+    registerReportsRoute(app, mockStorage, JWT_SECRET, { notifyBubbleAdmins, sendNotificationToMany });
+    vi.mocked(mockStorage.getMemberRole).mockResolvedValue("admin");
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "individual", reason: "harassment", bubbleId: "bubble-1", reportedUserId: "admin-user" });
+    expect(notifyBubbleAdmins).toHaveBeenCalledOnce();
+    expect(sendNotificationToMany).toHaveBeenCalledOnce();
+  });
+
+  it("excludes the reporter from super admin notification recipients", async () => {
+    const sendNotificationToMany = vi.fn();
+    vi.mocked(mockStorage.getSuperAdmins).mockResolvedValue([
+      { id: ACTIVE_USER.id }, // the reporter
+      { id: "super-1" },
+    ]);
+    const app = express();
+    app.use(express.json());
+    registerReportsRoute(app, mockStorage, JWT_SECRET, { sendNotificationToMany });
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "admin", reason: "rule_violation", bubbleId: "bubble-1" });
+    const call = vi.mocked(sendNotificationToMany).mock.calls[0][0];
+    expect(call.recipientIds).not.toContain(ACTIVE_USER.id);
+    expect(call.recipientIds).toContain("super-1");
+  });
+
+  it("does not call sendNotificationToMany when no super admins exist", async () => {
+    const sendNotificationToMany = vi.fn();
+    vi.mocked(mockStorage.getSuperAdmins).mockResolvedValue([]);
+    const app = express();
+    app.use(express.json());
+    registerReportsRoute(app, mockStorage, JWT_SECRET, { sendNotificationToMany });
+    await request(app)
+      .post("/api/reports")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reportType: "admin", reason: "rule_violation", bubbleId: "bubble-1" });
+    expect(sendNotificationToMany).not.toHaveBeenCalled();
   });
 });

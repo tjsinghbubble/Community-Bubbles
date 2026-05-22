@@ -12,11 +12,14 @@ import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBull
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
+import { registerCrashReportRoute } from "./crash-report-handler";
+import { registerPasswordResetRoutes } from "./password-reset-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { seedData } from "./seed-data";
 import { seedAppConfig } from "./seed-app-config";
+import { seedStaging } from "./seed-staging";
 import { seedRules } from "./seed-rules";
 import { seedCategoryPlaceholders } from "./seed-category-placeholders";
 import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
@@ -350,55 +353,9 @@ export async function registerRoutes(
 
   registerVerifyCodeRoute(app, storage, { rateLimiter: authLimiter });
 
-  app.post("/api/auth/forgot-password", async (req: any, res: any) => {
-    try {
-      const { email } = req.body ?? {};
-      if (!email || typeof email !== "string") {
-        return res.status(400).json({ error: "Email is required" });
-      }
-      const emailLower = email.toLowerCase().trim();
-      const user = await storage.getUserByEmail(emailLower);
-      if (user) {
-        const code = generateVerificationCode();
-        const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-        await storage.createVerificationCode({ email: emailLower, code, expiresAt });
-        try {
-          await sendVerificationEmail(emailLower, code);
-        } catch (e) {
-          console.error("[forgot-password] Email delivery failed:", e);
-        }
-      }
-      res.json({ success: true, message: "If an account with that email exists, a reset code has been sent." });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/auth/reset-password", async (req: any, res: any) => {
-    try {
-      const { email, code, newPassword } = req.body ?? {};
-      if (!email || !code || !newPassword) {
-        return res.status(400).json({ error: "Email, code, and new password are required" });
-      }
-      if (typeof newPassword !== "string" || newPassword.length < 8) {
-        return res.status(400).json({ error: "Password must be at least 8 characters" });
-      }
-      const verificationCode = await storage.getValidVerificationCode(email, code);
-      if (!verificationCode) {
-        return res.status(400).json({ error: "Invalid or expired code" });
-      }
-      const user = await storage.getUserByEmail(email.toLowerCase().trim());
-      if (!user) {
-        return res.status(400).json({ error: "User not found" });
-      }
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-      await storage.updateUserPassword(user.id, hashedPassword);
-      await storage.markCodeAsUsed(verificationCode.id);
-      await storage.incrementTokenVersion(user.id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
+  registerPasswordResetRoutes(app, storage, {
+    generateCode: generateVerificationCode,
+    sendEmail: sendVerificationEmail,
   });
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {
@@ -770,7 +727,7 @@ export async function registerRoutes(
 
       try {
         await storage.createMembershipWithRole(
-          { userId: req.userId!, bubbleId: bubble.id },
+          { userId: req.userId!, bubbleId: bubble.id, createdBy: req.userId! },
           'admin'
         );
       } catch (e) {
@@ -995,7 +952,7 @@ export async function registerRoutes(
         if (!existingMembership) {
           try {
             await storage.createMembershipWithRole(
-              { userId: bubble.createdBy, bubbleId: bubble.id },
+              { userId: bubble.createdBy, bubbleId: bubble.id, createdBy: bubble.createdBy },
               'admin'
             );
           } catch (e) {
@@ -1518,6 +1475,91 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/repair-member-counts", async (req, res) => {
+    try {
+      const seedSecret = process.env.SEED_SECRET;
+      const headerSecret = req.headers["x-seed-secret"];
+      const isSecretAuth = seedSecret && headerSecret === seedSecret;
+      if (!isSecretAuth) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+        const token = authHeader.slice(7);
+        let userId: string;
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch {
+          return res.status(401).json({ error: "Invalid token" });
+        }
+        const me = await storage.getUser(userId);
+        if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Step 1: find approved bubbles whose creator has no membership record
+      const orphaned = await db.execute(drizzleSql`
+        SELECT b.id, b.created_by
+        FROM bubbles b
+        WHERE b.status = 'approved'
+          AND b.deleted_at IS NULL
+          AND b.created_by IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM memberships m
+            WHERE m.bubble_id = b.id AND m.user_id = b.created_by
+          )
+      `);
+      let membershipsAdded = 0;
+      for (const row of orphaned.rows as { id: string; created_by: string }[]) {
+        await db.execute(drizzleSql`
+          INSERT INTO memberships (id, user_id, bubble_id, role, membership_status, created_by, created_at)
+          VALUES (gen_random_uuid(), ${row.created_by}, ${row.id}, 'admin', 'approved', ${row.created_by}, now())
+          ON CONFLICT DO NOTHING
+        `);
+        membershipsAdded++;
+      }
+
+      // Step 2: recalculate member count for every bubble from actual membership rows
+      await db.execute(drizzleSql`
+        UPDATE bubbles b
+        SET members = (
+          SELECT COUNT(*) FROM memberships m
+          WHERE m.bubble_id = b.id AND m.membership_status = 'approved'
+        )
+        WHERE b.deleted_at IS NULL
+      `);
+
+      res.json({ ok: true, membershipsAdded, message: `Fixed ${membershipsAdded} orphaned bubbles and recalculated all member counts` });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.post("/api/admin/seed-staging", async (req, res) => {
+    try {
+      const seedSecret = process.env.SEED_SECRET;
+      const headerSecret = req.headers["x-seed-secret"];
+      if (seedSecret && headerSecret === seedSecret) {
+        await seedStaging();
+        return res.json({ ok: true, message: "Staging seed completed successfully" });
+      }
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+      const token = authHeader.slice(7);
+      let userId: string;
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        userId = decoded.userId;
+      } catch {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+      const me = await storage.getUser(userId);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      await seedStaging();
+      res.json({ ok: true, message: "Staging seed completed successfully" });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.get("/api/admin/slow-call-config", authMiddleware, async (req, res) => {
     try {
       const me = await storage.getUser(req.userId!);
@@ -1616,52 +1658,55 @@ export async function registerRoutes(
         }
       }
 
+      const isPrivate = bubble.privacy === 'Request to Join' || bubble.privacy === 'Request' || bubble.privacy === 'Private';
+
+      let joinStatus: string;
       if (bubble.memberLimit != null) {
-        const currentCount = await storage.getRealMemberCount(bubbleId);
-        if (currentCount >= bubble.memberLimit) {
-          await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'waitlisted');
-          return res.json({ success: true, status: 'waitlisted' });
-        }
+        const desiredStatus = isPrivate ? 'pending' : 'approved';
+        joinStatus = await storage.joinBubbleWithCapacityCheck(
+          { userId: req.userId!, bubbleId, createdBy: req.userId! },
+          bubble.memberLimit,
+          desiredStatus,
+        );
+      } else if (isPrivate) {
+        await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId, createdBy: req.userId! }, 'pending');
+        joinStatus = 'pending';
+      } else {
+        await storage.createMembership({ userId: req.userId!, bubbleId, createdBy: req.userId! });
+        joinStatus = 'approved';
       }
 
-      if (bubble.privacy === 'Request to Join' || bubble.privacy === 'Request' || bubble.privacy === 'Private') {
-        await storage.createMembershipWithStatus({
-          userId: req.userId!,
-          bubbleId,
-        }, 'pending');
+      if (joinStatus === 'waitlisted') {
+        return res.json({ success: true, status: 'waitlisted' });
+      }
 
+      if (joinStatus === 'pending') {
         const requester = await storage.getUser(req.userId!);
         notifyBubbleAdmins(bubbleId, req.userId!, "membership_request",
           "Join Request", `${requester?.name || 'Someone'} wants to join ${bubble.title}`,
           { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: requester?.name },
           true);
-
-        res.json({ success: true, status: 'pending' });
-      } else {
-        await storage.createMembership({
-          userId: req.userId!,
-          bubbleId,
-        });
-        
-        try {
-          const joiner = await storage.getUser(req.userId!);
-          if (joiner) {
-            await ensureCometChatUser(String(joiner.id), joiner.name || joiner.email);
-            await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
-            await addMemberToGroup(bubbleId, String(joiner.id));
-          }
-        } catch (e) {
-          console.error('CometChat add member on join:', e);
-        }
-
-        const joinerUser = await storage.getUser(req.userId!);
-        notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
-          "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
-          { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name },
-          true);
-        
-        res.json({ success: true, status: 'approved' });
+        return res.json({ success: true, status: 'pending' });
       }
+
+      try {
+        const joiner = await storage.getUser(req.userId!);
+        if (joiner) {
+          await ensureCometChatUser(String(joiner.id), joiner.name || joiner.email);
+          await ensureCometChatGroup(bubbleId, bubble.title || 'Bubble');
+          await addMemberToGroup(bubbleId, String(joiner.id));
+        }
+      } catch (e) {
+        console.error('CometChat add member on join:', e);
+      }
+
+      const joinerUser = await storage.getUser(req.userId!);
+      notifyBubbleAdmins(bubbleId, req.userId!, "bubble_join",
+        "New Member", `${joinerUser?.name || 'Someone'} joined ${bubble.title}`,
+        { bubbleId, bubbleName: bubble.title, userId: req.userId!, userName: joinerUser?.name },
+        true);
+
+      res.json({ success: true, status: 'approved' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -3594,6 +3639,7 @@ export async function registerRoutes(
     notifyBubbleAdmins,
     sendNotificationToMany,
   });
+  registerCrashReportRoute(app, storage);
 
   app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
     try {
