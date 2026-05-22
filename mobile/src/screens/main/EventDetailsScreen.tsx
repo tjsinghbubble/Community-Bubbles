@@ -112,7 +112,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
   const { user } = useAuth();
   const [event, setEvent] = useState<Event | null>(routeEvent as Event | null);
-  const [bubble, setBubble] = useState<Bubble | null>(null);
+  const [bubble, setBubble] = useState<Bubble | null>((routeEvent as any)?.bubble ?? null);
   const [isLoading, setIsLoading] = useState(!routeEvent);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [isRsvpd, setIsRsvpd] = useState(false);
