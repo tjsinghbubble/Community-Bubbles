@@ -101,6 +101,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  suspendUser(id: string, reason: string): Promise<void>;
+  unsuspendUser(id: string): Promise<void>;
   incrementTokenVersion(id: string): Promise<void>;
   getSuperAdmins(): Promise<User[]>;
 
@@ -525,6 +527,28 @@ export class DatabaseStorage implements IStorage {
     // 14. Set user as inactive (soft delete) instead of deleting the row
     await db.update(users)
       .set({ isActive: false, tokenVersion: sql`token_version + 1` })
+      .where(eq(users.id, id));
+  }
+
+  async suspendUser(id: string, reason: string): Promise<void> {
+    await db.update(users)
+      .set({
+        isActive: false,
+        suspendedAt: new Date(),
+        suspendedReason: reason,
+        tokenVersion: sql`token_version + 1`,
+      })
+      .where(eq(users.id, id));
+  }
+
+  async unsuspendUser(id: string): Promise<void> {
+    await db.update(users)
+      .set({
+        isActive: true,
+        suspendedAt: null,
+        suspendedReason: null,
+        tokenVersion: sql`token_version + 1`,
+      })
       .where(eq(users.id, id));
   }
 

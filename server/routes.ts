@@ -14,6 +14,7 @@ import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } fr
 import { registerReportsRoute } from "./reports-handler";
 import { registerCrashReportRoute } from "./crash-report-handler";
 import { registerPasswordResetRoutes } from "./password-reset-handler";
+import { registerSuspendUserRoutes } from "./suspend-user-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -3554,6 +3555,7 @@ export async function registerRoutes(
     sendNotificationToMany,
   });
   registerCrashReportRoute(app, storage);
+  registerSuspendUserRoutes(app, storage, JWT_SECRET, { auditLog });
 
   app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
     try {
