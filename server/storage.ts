@@ -139,7 +139,7 @@ export interface IStorage {
   markCodeAsUsed(id: string): Promise<void>;
   markCodeAsUsedAtomic(id: string): Promise<boolean>;
 
-  joinBubbleWithCapacityCheck(data: { userId: string; bubbleId: string }, limit: number, desiredStatus: string): Promise<string>;
+  joinBubbleWithCapacityCheck(data: { userId: string; bubbleId: string; createdBy: string }, limit: number, desiredStatus: string): Promise<string>;
   rsvpEventWithCapacityCheck(data: { eventId: string; userId: string }, limit: number): Promise<string>;
 
   // Events
@@ -633,6 +633,7 @@ export class DatabaseStorage implements IStorage {
         await this.createMembershipWithRole({
           userId: approvedBubble.createdBy,
           bubbleId: id,
+          createdBy: approvedBubble.createdBy,
         }, 'admin');
       }
     }
@@ -896,7 +897,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async joinBubbleWithCapacityCheck(
-    data: { userId: string; bubbleId: string },
+    data: { userId: string; bubbleId: string; createdBy: string },
     limit: number,
     desiredStatus: string,
   ): Promise<string> {
@@ -908,7 +909,7 @@ export class DatabaseStorage implements IStorage {
         .from(memberships)
         .where(and(eq(memberships.bubbleId, data.bubbleId), eq(memberships.membershipStatus, 'approved')));
       const finalStatus = (row?.cnt ?? 0) >= limit ? 'waitlisted' : desiredStatus;
-      await tx.insert(memberships).values({ userId: data.userId, bubbleId: data.bubbleId, membershipStatus: finalStatus });
+      await tx.insert(memberships).values({ userId: data.userId, bubbleId: data.bubbleId, createdBy: data.createdBy, membershipStatus: finalStatus });
       return finalStatus;
     });
   }

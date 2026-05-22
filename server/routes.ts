@@ -726,7 +726,7 @@ export async function registerRoutes(
 
       try {
         await storage.createMembershipWithRole(
-          { userId: req.userId!, bubbleId: bubble.id },
+          { userId: req.userId!, bubbleId: bubble.id, createdBy: req.userId! },
           'admin'
         );
       } catch (e) {
@@ -951,7 +951,7 @@ export async function registerRoutes(
         if (!existingMembership) {
           try {
             await storage.createMembershipWithRole(
-              { userId: bubble.createdBy, bubbleId: bubble.id },
+              { userId: bubble.createdBy, bubbleId: bubble.id, createdBy: bubble.createdBy },
               'admin'
             );
           } catch (e) {
@@ -1578,15 +1578,15 @@ export async function registerRoutes(
       if (bubble.memberLimit != null) {
         const desiredStatus = isPrivate ? 'pending' : 'approved';
         joinStatus = await storage.joinBubbleWithCapacityCheck(
-          { userId: req.userId!, bubbleId },
+          { userId: req.userId!, bubbleId, createdBy: req.userId! },
           bubble.memberLimit,
           desiredStatus,
         );
       } else if (isPrivate) {
-        await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId }, 'pending');
+        await storage.createMembershipWithStatus({ userId: req.userId!, bubbleId, createdBy: req.userId! }, 'pending');
         joinStatus = 'pending';
       } else {
-        await storage.createMembership({ userId: req.userId!, bubbleId });
+        await storage.createMembership({ userId: req.userId!, bubbleId, createdBy: req.userId! });
         joinStatus = 'approved';
       }
 
