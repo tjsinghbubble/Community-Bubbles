@@ -161,10 +161,6 @@ export function registerSendVerificationRoute(
       }
 
       const response: any = { success: true, message: "Verification code sent" };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Verification code for ${email}:`, code);
         response.devCode = code;
