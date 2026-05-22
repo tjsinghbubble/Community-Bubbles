@@ -1475,6 +1475,64 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/repair-member-counts", async (req, res) => {
+    try {
+      const seedSecret = process.env.SEED_SECRET;
+      const headerSecret = req.headers["x-seed-secret"];
+      const isSecretAuth = seedSecret && headerSecret === seedSecret;
+      if (!isSecretAuth) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+        const token = authHeader.slice(7);
+        let userId: string;
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch {
+          return res.status(401).json({ error: "Invalid token" });
+        }
+        const me = await storage.getUser(userId);
+        if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Step 1: find approved bubbles whose creator has no membership record
+      const orphaned = await db.execute(drizzleSql`
+        SELECT b.id, b.created_by
+        FROM bubbles b
+        WHERE b.status = 'approved'
+          AND b.deleted_at IS NULL
+          AND b.created_by IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM memberships m
+            WHERE m.bubble_id = b.id AND m.user_id = b.created_by
+          )
+      `);
+      let membershipsAdded = 0;
+      for (const row of orphaned.rows as { id: string; created_by: string }[]) {
+        await db.execute(drizzleSql`
+          INSERT INTO memberships (id, user_id, bubble_id, role, membership_status, created_by, created_at)
+          VALUES (gen_random_uuid(), ${row.created_by}, ${row.id}, 'admin', 'approved', ${row.created_by}, now())
+          ON CONFLICT DO NOTHING
+        `);
+        membershipsAdded++;
+      }
+
+      // Step 2: recalculate member count for every bubble from actual membership rows
+      await db.execute(drizzleSql`
+        UPDATE bubbles b
+        SET members = (
+          SELECT COUNT(*) FROM memberships m
+          WHERE m.bubble_id = b.id AND m.membership_status = 'approved'
+        )
+        WHERE b.deleted_at IS NULL
+      `);
+
+      res.json({ ok: true, membershipsAdded, message: `Fixed ${membershipsAdded} orphaned bubbles and recalculated all member counts` });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.post("/api/admin/seed-staging", async (req, res) => {
     try {
       const seedSecret = process.env.SEED_SECRET;
