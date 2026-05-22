@@ -1475,9 +1475,25 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/admin/seed-staging", authMiddleware, async (req, res) => {
+  app.post("/api/admin/seed-staging", async (req, res) => {
     try {
-      const me = await storage.getUser(req.userId!);
+      const seedSecret = process.env.SEED_SECRET;
+      const headerSecret = req.headers["x-seed-secret"];
+      if (seedSecret && headerSecret === seedSecret) {
+        await seedStaging();
+        return res.json({ ok: true, message: "Staging seed completed successfully" });
+      }
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+      const token = authHeader.slice(7);
+      let userId: string;
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+        userId = decoded.userId;
+      } catch {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+      const me = await storage.getUser(userId);
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       await seedStaging();
       res.json({ ok: true, message: "Staging seed completed successfully" });
