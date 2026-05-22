@@ -19,6 +19,7 @@ import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
 import { seedData } from "./seed-data";
 import { seedAppConfig } from "./seed-app-config";
+import { seedStaging } from "./seed-staging";
 import { seedRules } from "./seed-rules";
 import { seedCategoryPlaceholders } from "./seed-category-placeholders";
 import { registerObjectStorageRoutes, ObjectStorageService } from "./replit_integrations/object_storage";
@@ -1469,6 +1470,17 @@ export async function registerRoutes(
       if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
       await storage.deleteAllSlowCalls();
       res.json({ ok: true });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
+  app.post("/api/admin/seed-staging", authMiddleware, async (req, res) => {
+    try {
+      const me = await storage.getUser(req.userId!);
+      if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      await seedStaging();
+      res.json({ ok: true, message: "Staging seed completed successfully" });
     } catch (error: unknown) {
       serverError(res, error);
     }
