@@ -94,7 +94,7 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
   };
 
   const handleEventPress = (event: Event) => {
-    navigation.navigate('EventDetails' as any, { eventId: event.id, event });
+    navigation.navigate('EventDetails' as any, { eventId: event.id, event, bubbleTitle });
   };
 
   const renderEvent = ({ item: event }: { item: Event }) => (

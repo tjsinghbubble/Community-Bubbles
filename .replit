@@ -138,6 +138,7 @@ EXPO_PUBLIC_COMETCHAT_REGION = "us"
 [userenv.development]
 
 [userenv.production]
+SEED_SECRET = "002d8cd4f38e61402233e5d2b0a3f59f80a1c8b5472203c36dab03314d514c99"
 
 [postMerge]
 path = "scripts/post-merge.sh"
