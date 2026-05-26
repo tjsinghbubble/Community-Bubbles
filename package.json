@@ -29,6 +29,7 @@
     "test:e2e:web-mobile": "maestro test -e APP_ID=com.apple.mobilesafari -e METRO_HOST=metro_host .maestro/web/",
     "qr": "node scripts/qr.mjs",
     "prepare": "husky",
+    "postinstall": "bash scripts/exclude-dev-tools-from-cloud.sh",
     "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)",
     "test": "vitest run",
     "test:watch": "vitest",
