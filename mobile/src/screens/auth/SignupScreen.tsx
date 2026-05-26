@@ -353,7 +353,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text
                   style={styles.termsLink}
                   testID="link-terms-of-service"
-                  onPress={() => { setTosViewed(true); navigation.navigate('TermsOfService'); }}
+                  onPress={() => navigation.navigate('TermsOfService')}
                 >
                   Terms of Service
                 </Text>
@@ -361,7 +361,7 @@ export default function SignupScreen({ navigation }: Props) {
                 <Text
                   style={styles.termsLink}
                   testID="link-privacy-policy"
-                  onPress={() => { setPrivacyViewed(true); navigation.navigate('PrivacyPolicy'); }}
+                  onPress={() => navigation.navigate('PrivacyPolicy')}
                 >
                   Privacy Policy
                 </Text>
