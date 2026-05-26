@@ -1533,6 +1533,66 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/repair-event-dates", async (req, res) => {
+    try {
+      const seedSecret = process.env.SEED_SECRET;
+      const headerSecret = req.headers["x-seed-secret"];
+      const isSecretAuth = seedSecret && headerSecret === seedSecret;
+      if (!isSecretAuth) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) return res.status(401).json({ error: "Unauthorized" });
+        const token = authHeader.slice(7);
+        let userId: string;
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch {
+          return res.status(401).json({ error: "Invalid token" });
+        }
+        const me = await storage.getUser(userId);
+        if (!me?.isSuperAdmin) return res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Find all past events grouped by bubble, ordered by original date
+      const pastEvents = await db.execute(drizzleSql`
+        SELECT id, bubble_id, date
+        FROM events
+        WHERE date < CURRENT_DATE
+        ORDER BY bubble_id, date ASC
+      `);
+
+      const rows = pastEvents.rows as { id: string; bubble_id: string; date: string }[];
+      if (rows.length === 0) {
+        return res.json({ ok: true, updated: 0, message: "No past events found — nothing to repair" });
+      }
+
+      // Group by bubble
+      const byBubble = new Map<string, string[]>();
+      for (const row of rows) {
+        if (!byBubble.has(row.bubble_id)) byBubble.set(row.bubble_id, []);
+        byBubble.get(row.bubble_id)!.push(row.id);
+      }
+
+      let updated = 0;
+      // For each bubble, redistribute events starting 7 days from now, 7 days apart
+      for (const [, eventIds] of byBubble) {
+        for (let i = 0; i < eventIds.length; i++) {
+          const daysAhead = 7 + i * 7;
+          await db.execute(drizzleSql`
+            UPDATE events
+            SET date = (CURRENT_DATE + ${daysAhead}::int)::text
+            WHERE id = ${eventIds[i]}
+          `);
+          updated++;
+        }
+      }
+
+      res.json({ ok: true, updated, message: `Pushed ${updated} past events into the future` });
+    } catch (error: unknown) {
+      serverError(res, error);
+    }
+  });
+
   app.post("/api/admin/seed-staging", async (req, res) => {
     try {
       const seedSecret = process.env.SEED_SECRET;
