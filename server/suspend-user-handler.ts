@@ -5,6 +5,7 @@ export interface SuspendUserStorage {
   getUser(id: string): Promise<{ id: string; tokenVersion: number; isActive: boolean; isSuperAdmin: boolean } | null | undefined>;
   suspendUser(id: string, reason: string): Promise<void>;
   unsuspendUser(id: string): Promise<void>;
+  searchUsers(query: string): Promise<Array<{ id: string; name: string; email: string; isActive: boolean; suspendedAt: Date | null; suspendedReason: string | null; createdAt: Date; [key: string]: unknown }>>;
 }
 
 export interface SuspendUserOptions {
@@ -66,6 +67,25 @@ export function registerSuspendUserRoutes(
       await storage.unsuspendUser(req.params.id);
       audit("user_unsuspended", req.userId, req.params.id, req.ip ?? "", undefined);
       res.json({ success: true });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.get("/api/admin/users/search", auth, async (req: any, res: any) => {
+    try {
+      const caller = await storage.getUser(req.userId);
+      if (!caller?.isSuperAdmin) {
+        return res.status(403).json({ error: "Super admin access required" });
+      }
+
+      const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+      if (!q) return res.status(400).json({ error: "Query parameter q is required" });
+      if (q.length < 2) return res.status(400).json({ error: "Query must be at least 2 characters" });
+
+      const results = await storage.searchUsers(q);
+      const safe = results.map(({ password: _p, emailHash: _h, ...rest }) => rest);
+      res.json(safe);
     } catch (e: any) {
       res.status(400).json({ error: e.message });
     }

@@ -18,6 +18,7 @@ function makeStorage(overrides: Partial<SuspendUserStorage> = {}): SuspendUserSt
     getUser: vi.fn().mockResolvedValue({ id: "admin-1", tokenVersion: 0, isActive: true, isSuperAdmin: true }),
     suspendUser: vi.fn().mockResolvedValue(undefined),
     unsuspendUser: vi.fn().mockResolvedValue(undefined),
+    searchUsers: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -197,5 +198,79 @@ describe("POST /api/admin/users/:id/unsuspend", () => {
     expect(auditLog).toHaveBeenCalledWith(
       "user_unsuspended", "admin-1", "user-1", expect.any(String), undefined,
     );
+  });
+});
+
+// ── search ─────────────────────────────────────────────────────────────────
+
+describe("GET /api/admin/users/search", () => {
+  it("returns 401 when no auth token is provided", async () => {
+    const res = await request(buildApp(makeStorage()))
+      .get("/api/admin/users/search?q=alice");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 when the caller is not a super admin", async () => {
+    const storage = makeStorage({
+      getUser: vi.fn().mockResolvedValue({ id: "user-99", tokenVersion: 0, isActive: true, isSuperAdmin: false }),
+    });
+    const res = await request(buildApp(storage))
+      .get("/api/admin/users/search?q=alice")
+      .set("Authorization", `Bearer ${makeToken("user-99")}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 400 when q is missing", async () => {
+    const res = await request(buildApp(makeStorage()))
+      .get("/api/admin/users/search")
+      .set("Authorization", `Bearer ${makeToken("admin-1")}`);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "Query parameter q is required");
+  });
+
+  it("returns 400 when q is shorter than 2 characters", async () => {
+    const res = await request(buildApp(makeStorage()))
+      .get("/api/admin/users/search?q=a")
+      .set("Authorization", `Bearer ${makeToken("admin-1")}`);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "Query must be at least 2 characters");
+  });
+
+  it("returns 200 with results from searchUsers", async () => {
+    const storage = makeStorage({
+      searchUsers: vi.fn().mockResolvedValue([
+        { id: "user-1", name: "Alice", email: "alice@example.com", isActive: true, suspendedAt: null, suspendedReason: null, createdAt: new Date("2024-01-01") },
+      ]),
+    });
+    const res = await request(buildApp(storage))
+      .get("/api/admin/users/search?q=alice")
+      .set("Authorization", `Bearer ${makeToken("admin-1")}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0]).toMatchObject({ id: "user-1", name: "Alice", email: "alice@example.com" });
+  });
+
+  it("does not include password or emailHash in the response", async () => {
+    const storage = makeStorage({
+      searchUsers: vi.fn().mockResolvedValue([
+        { id: "user-1", name: "Alice", email: "alice@example.com", password: "hashed", emailHash: "abc123", isActive: true, suspendedAt: null, suspendedReason: null, createdAt: new Date() },
+      ]),
+    });
+    const res = await request(buildApp(storage))
+      .get("/api/admin/users/search?q=alice")
+      .set("Authorization", `Bearer ${makeToken("admin-1")}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body[0]).not.toHaveProperty("password");
+    expect(res.body[0]).not.toHaveProperty("emailHash");
+  });
+
+  it("returns 200 with an empty array when no users match", async () => {
+    const res = await request(buildApp(makeStorage()))
+      .get("/api/admin/users/search?q=nomatch")
+      .set("Authorization", `Bearer ${makeToken("admin-1")}`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([]);
   });
 });
