@@ -89,6 +89,8 @@ type Attendee = {
 type Bubble = {
   id: string;
   title: string;
+  tagline?: string;
+  coverImage?: string;
   creatorId: string;
   privacy?: string;
 };
@@ -327,7 +329,11 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     try {
       const data = await apiService.getEvent(eventId) as Event;
       setEvent(data);
-      fetchBubble(data.bubbleId);
+      if ((data as any).bubble) {
+        setBubble((data as any).bubble);
+      } else {
+        fetchBubble(data.bubbleId);
+      }
       logAppEvent('eventDetails.loaded', {
         eventId,
         bubbleId: data.bubbleId,
