@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bubble",
     "slug": "bubble-mobile",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "scheme": "bubble",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

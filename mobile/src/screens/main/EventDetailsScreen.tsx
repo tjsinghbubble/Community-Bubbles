@@ -1073,10 +1073,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           )}
           <View style={styles.creatorInfo}>
             <Text style={styles.creatorLabel}>
-              Created by <Text style={styles.creatorName}>{creatorName}</Text>
+              <Text style={styles.creatorName}>{bubbleDisplayTitle || 'Bubble'}</Text>
             </Text>
             <Text style={styles.creatorCity}>
-              {bubbleDisplayTitle || 'Bubble'}
+              {creatorName}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
