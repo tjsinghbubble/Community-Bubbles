@@ -40,6 +40,8 @@ export const users = pgTable("users", {
   aboutMe: text("about_me"),
   tokenVersion: integer("token_version").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  suspendedAt: timestamp("suspended_at"),
+  suspendedReason: text("suspended_reason"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by"),
