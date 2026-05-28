@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './AuthNavigator';
@@ -330,6 +330,7 @@ export default function RootNavigator() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="hsl(210, 95%, 55%)" />
+        <Text style={styles.loadingText}>Loading…</Text>
       </View>
     );
   }
@@ -357,5 +358,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#555',
   },
 });
