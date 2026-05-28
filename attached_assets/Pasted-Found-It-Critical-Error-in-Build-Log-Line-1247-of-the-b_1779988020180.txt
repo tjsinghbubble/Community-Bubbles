@@ -1,0 +1,96 @@
+Found It — Critical Error in Build Log
+Line 1247 of the build log:
+error: build had 1 command failure
+FAILED: /var/folders/45/nqcc7nq15sz71jx6z6jw7nvc000gn/T/iphone-build-7d4b7cb0-35a6-439e-82c0-68a86ddd87b7/Payload/Bubble.app/Bubble
+Command: cd /var/folders/45/nqcc7nq15sz71jx6z6jw7nvc000gn/T/iphone-build-7d4b7cb0-35a6-439e-82c0-68a86ddd87b7 && /usr/bin/codesign ...
+The app is failing to codesign — it's not a code problem, it's a signing certificate problem.
+
+The Real Issue
+error: code signing is required for applications
+The EAS build system can't sign your app because:
+
+Missing provisioning profile (your iOS signing certificate isn't configured in EAS)
+Missing p8 certificate (the private key to sign apps)
+EAS credentials not set up for the testflight-staging profile
+
+
+How to Fix This
+Step 1: Set Up EAS Credentials
+bash# Navigate to your project
+cd ~/Community-Bubbles/mobile
+
+# Set up credentials for iOS
+eas credentials
+This will prompt:
+? What would you like to do?
+❯ Set up a new credentials config
+  Update existing credentials
+  List credentials
+Choose: Set up a new credentials config
+
+Step 2: Choose Platform & Profile
+? Platform? 
+❯ iOS
+  Android
+
+? Profile name?
+❯ testflight-staging
+
+Step 3: Choose Certificate Type
+? How would you like to setup your signing credentials?
+❯ I'll provide the signing credentials (you'll need a p8 key)
+  EAS will handle it (recommended)
+Choose: EAS will handle it (easiest)
+EAS will:
+
+✅ Generate a signing certificate
+✅ Create a provisioning profile
+✅ Store them securely
+
+
+Step 4: Verify Credentials Were Saved
+bash# Check credentials are configured
+eas credentials --list
+Should show:
+✓ iOS credentials for testflight-staging profile
+  - Apple Certificate
+  - Provisioning Profile
+
+Step 5: Rebuild
+bash# Now rebuild with credentials in place
+eas build --platform ios --profile testflight-staging
+This time it should:
+
+✅ Build successfully
+✅ Sign the app
+✅ Upload to TestFlight
+
+
+If You Already Have a P8 Certificate
+If you have your own Apple signing credentials (p8 key):
+basheas credentials
+Then choose: I'll provide the signing credentials
+And provide:
+
+Apple Team ID
+P8 private key file
+Provisioning profile (or let EAS create one)
+
+
+Why This Happened
+The build system did everything right:
+
+✅ Compiled your JavaScript
+✅ Built the iOS binary
+❌ Failed to sign it (no credentials)
+
+Without signing, TestFlight rejects the binary.
+
+Next Steps
+
+Run eas credentials and set up iOS signing
+Rebuild: eas build --platform ios --profile testflight-staging
+Submit: eas submit --platform ios --profile testflight-staging --latest
+
+This should fix the build error. 🫧
+Let me know if you hit any issues during the credentials setup!
