@@ -1555,10 +1555,11 @@ export async function registerRoutes(
       }
 
       // Find all past events grouped by bubble, ordered by original date
+      // date column is text (YYYY-MM-DD) so cast to date for comparison
       const pastEvents = await db.execute(drizzleSql`
         SELECT id, bubble_id, date
         FROM events
-        WHERE date < CURRENT_DATE
+        WHERE date::date < CURRENT_DATE
         ORDER BY bubble_id, date ASC
       `);
 
@@ -1581,7 +1582,7 @@ export async function registerRoutes(
           const daysAhead = 7 + i * 7;
           await db.execute(drizzleSql`
             UPDATE events
-            SET date = (CURRENT_DATE + ${daysAhead}::int)::text
+            SET date = to_char(CURRENT_DATE + (${daysAhead} * INTERVAL '1 day'), 'YYYY-MM-DD')
             WHERE id = ${eventIds[i]}
           `);
           updated++;
