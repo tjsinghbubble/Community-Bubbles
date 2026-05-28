@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "io.bubble.app",
+      "bundleIdentifier": "io.trybubble.app",
       "associatedDomains": ["applinks:trybubble.io"],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
