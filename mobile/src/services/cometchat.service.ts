@@ -8,7 +8,6 @@ import apiService from './api.service';
 let _sdk: any = null;
 function cc(): any {
   if (!_sdk) {
-    console.trace('[CometChat] SDK loading now — call stack:');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     _sdk = require('@cometchat/chat-sdk-react-native').CometChat;
   }
