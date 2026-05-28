@@ -14,6 +14,23 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
+// ── Diagnostic: log which file is importing the CometChat SDK at bundle time ──
+// Remove this block once the startup crash is fixed.
+const _origResolve = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === '@cometchat/chat-sdk-react-native') {
+    console.error(
+      '\n[METRO DIAGNOSTIC] @cometchat/chat-sdk-react-native imported by:\n  ' +
+      context.originModulePath +
+      '\n',
+    );
+  }
+  if (_origResolve) {
+    return _origResolve(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 // Enable inline requires so that all require() calls throughout the bundle are
 // evaluated lazily (only when the enclosing function is first called, not at
 // module load time). This fixes module initialisation-order issues — most
