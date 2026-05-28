@@ -44,6 +44,9 @@ export default function MainNavigator() {
 
   const fetchUnreadMessages = useCallback(async () => {
     if (!user) return;
+    // Only query CometChat if the user has already logged into it (i.e. opened
+    // Messages or started a chat). We never trigger the SDK just for a badge count.
+    if (!cometChatService.isReady) return;
     try {
       const myBubbles = await apiService.getMyBubbles().catch(() => []);
       const approvedBubbleIds = new Set<string>((myBubbles as any[]).map((b: any) => String(b.id)));

@@ -16,7 +16,13 @@ function cc(): any {
 
 class CometChatService {
   private initialized = false;
+  private loggedIn = false;
   private _conversationsRequest: any = null;
+
+  /** True only after the user has explicitly logged into CometChat (i.e. opened messaging). */
+  get isReady(): boolean {
+    return this.loggedIn;
+  }
 
   async init() {
     if (this.initialized) return;
@@ -87,8 +93,12 @@ class CometChatService {
       if (!this.initialized) await this.init();
       const CometChat = cc();
       const existing = await CometChat.getLoggedinUser();
-      if (existing) return;
+      if (existing) {
+        this.loggedIn = true;
+        return;
+      }
       await this.loginUser(String(userId), userName);
+      this.loggedIn = true;
     } catch (error) {
       console.log('CometChat ensureLoggedIn error:', error);
     }
@@ -98,9 +108,11 @@ class CometChatService {
     const CometChat = cc();
     try {
       await CometChat.logout();
+      this.loggedIn = false;
       console.log('Logout successful');
     } catch (error: any) {
       if (error?.code === 'USER_NOT_LOGED_IN') {
+        this.loggedIn = false;
         return;
       }
       console.error('Logout failed:', error);
