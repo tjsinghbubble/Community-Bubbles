@@ -1,14 +1,27 @@
-import { CometChat } from '@cometchat/chat-sdk-react-native';
 import { COMETCHAT_CONSTANTS } from '../constants/cometchat';
 import apiService from './api.service';
 
+// Lazy SDK reference — the heavy CometChat SDK is NOT imported at module load
+// time. It is required on first use so it doesn't crash the JS runtime during
+// app startup (the SDK's crypto dependency fails on iOS before the runtime is
+// fully warmed up).
+let _sdk: any = null;
+function cc(): any {
+  if (!_sdk) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _sdk = require('@cometchat/chat-sdk-react-native').CometChat;
+  }
+  return _sdk;
+}
+
 class CometChatService {
   private initialized = false;
-  private _conversationsRequest: CometChat.ConversationsRequest | null = null;
+  private _conversationsRequest: any = null;
 
   async init() {
     if (this.initialized) return;
 
+    const CometChat = cc();
     const appSetting = new CometChat.AppSettingsBuilder()
       .subscribePresenceForAllUsers()
       .setRegion(COMETCHAT_CONSTANTS.REGION)
@@ -26,22 +39,17 @@ class CometChatService {
   }
 
   async loginUser(uid: string, name: string) {
+    const CometChat = cc();
     try {
-      // If another user is already logged in, log them out first.
       const existing = await CometChat.getLoggedinUser();
       if (existing && existing.getUid() !== uid) {
         try { await CometChat.logout(); } catch (_) {}
       } else if (existing && existing.getUid() === uid) {
-        // Already logged in as the same user — nothing to do.
         console.log('CometChat: already logged in as', uid);
         return existing;
       }
 
-      // Fetch an auth token from the backend — this also creates the CometChat user
-      // server-side using the API key, which is the v4-recommended secure approach.
       const { authToken } = await apiService.getCometChatAuthToken();
-      // Auth token login: pass ONLY the authToken (no uid).
-      // Passing (uid, authToken) makes the SDK treat authToken as an Auth Key → AUTH_ERR_APIKEY_NOT_FOUND.
       const user = await CometChat.login(authToken);
       console.log('Login successful:', user);
       return user;
@@ -56,10 +64,10 @@ class CometChatService {
   }
 
   async getGroupMembers(guid: string): Promise<Array<{ uid: string; name: string; avatar?: string; scope: string }>> {
+    const CometChat = cc();
     try {
-      const limit = 100;
       const groupMemberRequest = new CometChat.GroupMembersRequestBuilder(guid)
-        .setLimit(limit)
+        .setLimit(100)
         .build();
       const members = await groupMemberRequest.fetchNext();
       return members.map((m: any) => ({
@@ -77,6 +85,7 @@ class CometChatService {
   async ensureLoggedIn(userId: number | string, userName: string): Promise<void> {
     try {
       if (!this.initialized) await this.init();
+      const CometChat = cc();
       const existing = await CometChat.getLoggedinUser();
       if (existing) return;
       await this.loginUser(String(userId), userName);
@@ -86,11 +95,11 @@ class CometChatService {
   }
 
   async logoutUser() {
+    const CometChat = cc();
     try {
       await CometChat.logout();
       console.log('Logout successful');
     } catch (error: any) {
-      // "User not logged in" is harmless — treat it as already logged out.
       if (error?.code === 'USER_NOT_LOGED_IN') {
         return;
       }
@@ -99,11 +108,11 @@ class CometChatService {
   }
 
   async createGroup(guid: string, name: string, type: string = 'public') {
+    const CometChat = cc();
     try {
-      const groupType = type === 'private' 
-        ? CometChat.GROUP_TYPE.PRIVATE 
+      const groupType = type === 'private'
+        ? CometChat.GROUP_TYPE.PRIVATE
         : CometChat.GROUP_TYPE.PUBLIC;
-      
       const group = new CometChat.Group(guid, name, groupType);
       const createdGroup = await CometChat.createGroup(group);
       console.log('Group created:', createdGroup);
@@ -117,12 +126,12 @@ class CometChatService {
   }
 
   async joinGroup(guid: string, groupType: string = 'public') {
+    const CometChat = cc();
     try {
-      const type = groupType === 'private' 
-        ? CometChat.GROUP_TYPE.PRIVATE 
+      const type = groupType === 'private'
+        ? CometChat.GROUP_TYPE.PRIVATE
         : CometChat.GROUP_TYPE.PUBLIC;
-      
-      const group = await CometChat.joinGroup(guid, type as CometChat.GroupType);
+      const group = await CometChat.joinGroup(guid, type);
       console.log('Joined group:', group);
       return group;
     } catch (error: any) {
@@ -140,9 +149,13 @@ class CometChatService {
   }
 
   async addMembersToGroup(guid: string, members: Array<{ uid: string; name: string; scope?: string }>) {
+    const CometChat = cc();
     try {
       const groupMembers = members.map(m => {
-        const member = new CometChat.GroupMember(m.uid, m.scope === 'admin' ? CometChat.GROUP_MEMBER_SCOPE.ADMIN : CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT);
+        const member = new CometChat.GroupMember(
+          m.uid,
+          m.scope === 'admin' ? CometChat.GROUP_MEMBER_SCOPE.ADMIN : CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT,
+        );
         member.setName(m.name);
         return member;
       });
@@ -155,11 +168,8 @@ class CometChatService {
     }
   }
 
-  async createContactGroup(
-    guid: string,
-    name: string,
-    memberUids: string[],
-  ) {
+  async createContactGroup(guid: string, name: string, memberUids: string[]) {
+    const CometChat = cc();
     let group: any;
     try {
       const newGroup = new CometChat.Group(guid, name, CometChat.GROUP_TYPE.PRIVATE);
@@ -173,7 +183,7 @@ class CometChatService {
     }
 
     try {
-      await CometChat.joinGroup(guid, CometChat.GROUP_TYPE.PRIVATE as CometChat.GroupType);
+      await CometChat.joinGroup(guid, CometChat.GROUP_TYPE.PRIVATE);
     } catch (e: any) {
       if (e?.code !== 'ERR_ALREADY_JOINED' && e?.code !== 'ERR_GROUP_JOIN_NOT_ALLOWED') {
         console.log('joinGroup in createContactGroup:', e?.code);
@@ -181,10 +191,9 @@ class CometChatService {
     }
 
     if (memberUids.length > 0) {
-      const groupMembers = memberUids.map(uid => {
-        const m = new CometChat.GroupMember(uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT);
-        return m;
-      });
+      const groupMembers = memberUids.map(uid =>
+        new CometChat.GroupMember(uid, CometChat.GROUP_MEMBER_SCOPE.PARTICIPANT),
+      );
       try {
         await CometChat.addMembersToGroup(guid, groupMembers, []);
       } catch (e: any) {
@@ -196,12 +205,13 @@ class CometChatService {
   }
 
   async leaveGroup(guid: string) {
+    const CometChat = cc();
     try {
       await CometChat.leaveGroup(guid);
       console.log('Left group:', guid);
     } catch (error: any) {
       if (error?.code === 'ERR_GROUP_NOT_JOINED' || error?.code === 'ERR_GUID_NOT_FOUND') {
-        console.log('User was not in CometChat group (already left or group does not exist):', guid);
+        console.log('User was not in CometChat group:', guid);
         return;
       }
       console.error('Failed to leave group:', error);
@@ -210,16 +220,9 @@ class CometChatService {
   }
 
   async sendMessage(guid: string, text: string) {
+    const CometChat = cc();
     try {
-      const receiverID = guid;
-      const messageText = text;
-      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
-      const textMessage = new CometChat.TextMessage(
-        receiverID,
-        messageText,
-        receiverType
-      );
-      
+      const textMessage = new CometChat.TextMessage(guid, text, CometChat.RECEIVER_TYPE.GROUP);
       const message = await CometChat.sendMessage(textMessage);
       console.log('Message sent successfully:', message);
       return message;
@@ -233,12 +236,9 @@ class CometChatService {
   }
 
   async sendDirectMessage(uid: string, text: string) {
+    const CometChat = cc();
     try {
-      const textMessage = new CometChat.TextMessage(
-        uid,
-        text,
-        CometChat.RECEIVER_TYPE.USER
-      );
+      const textMessage = new CometChat.TextMessage(uid, text, CometChat.RECEIVER_TYPE.USER);
       const message = await CometChat.sendMessage(textMessage);
       console.log('Direct message sent successfully:', message);
       return message;
@@ -249,22 +249,22 @@ class CometChatService {
   }
 
   getMessageListener(listenerID: string, onNewMessage: (message: any) => void) {
+    const CometChat = cc();
     return new CometChat.MessageListener({
-      onTextMessageReceived: (message: any) => {
-        onNewMessage(message);
-      },
+      onTextMessageReceived: (message: any) => { onNewMessage(message); },
     });
   }
 
   addMessageListener(listenerID: string, listener: any) {
-    CometChat.addMessageListener(listenerID, listener);
+    cc().addMessageListener(listenerID, listener);
   }
 
   removeMessageListener(listenerID: string) {
-    CometChat.removeMessageListener(listenerID);
+    cc().removeMessageListener(listenerID);
   }
 
   buildConversationsRequest(limit: number = 30) {
+    const CometChat = cc();
     this._conversationsRequest = new CometChat.ConversationsRequestBuilder()
       .setLimit(limit)
       .setConversationType('group')
@@ -283,69 +283,58 @@ class CometChatService {
   }
 
   async getTotalUnreadCount(): Promise<number> {
+    const CometChat = cc();
     try {
       const loggedInUser = await CometChat.getLoggedinUser();
-      if (!loggedInUser) {
-        return 0;
-      }
-      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+      if (!loggedInUser) return 0;
+      const conversations = await new CometChat.ConversationsRequestBuilder()
         .setLimit(50)
         .setConversationType('group')
-        .build();
-      const conversations = await conversationsRequest.fetchNext();
-      let total = 0;
-      for (const conv of conversations) {
-        const count = (conv as any).unreadMessageCount || 0;
-        total += count;
-      }
-      return total;
+        .build()
+        .fetchNext();
+      return conversations.reduce((total: number, conv: any) => total + ((conv as any).unreadMessageCount || 0), 0);
     } catch (error: any) {
-      if (error?.code === 'USER_NOT_LOGED_IN') {
-        return 0;
-      }
+      if (error?.code === 'USER_NOT_LOGED_IN') return 0;
       console.error('Failed to get unread count:', error);
       return 0;
     }
   }
 
   async getPermissionFilteredUnreadCount(approvedBubbleIds: Set<string>): Promise<number> {
+    const CometChat = cc();
     try {
       const loggedInUser = await CometChat.getLoggedinUser();
-      if (!loggedInUser) {
-        return 0;
-      }
-      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+      if (!loggedInUser) return 0;
+      const conversations = await new CometChat.ConversationsRequestBuilder()
         .setLimit(50)
         .setConversationType('group')
-        .build();
-      const conversations = await conversationsRequest.fetchNext();
+        .build()
+        .fetchNext();
       let total = 0;
       for (const conv of conversations) {
         const guid: string = (conv as any).conversationWith?.guid || '';
         const isDm = guid.startsWith('contact_') || guid.startsWith('adm_') || guid.startsWith('peer_');
         if (!isDm && !approvedBubbleIds.has(guid)) continue;
-        const count = (conv as any).unreadMessageCount || 0;
-        total += count;
+        total += (conv as any).unreadMessageCount || 0;
       }
       return total;
     } catch (error: any) {
-      if (error?.code === 'USER_NOT_LOGED_IN') {
-        return 0;
-      }
+      if (error?.code === 'USER_NOT_LOGED_IN') return 0;
       console.error('Failed to get filtered unread count:', error);
       return 0;
     }
   }
 
   async getAdmConversationCountForBubble(bubbleId: string): Promise<number> {
+    const CometChat = cc();
     try {
       const loggedInUser = await CometChat.getLoggedinUser();
       if (!loggedInUser) return 0;
-      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+      const conversations = await new CometChat.ConversationsRequestBuilder()
         .setLimit(50)
         .setConversationType('group')
-        .build();
-      const conversations = await conversationsRequest.fetchNext();
+        .build()
+        .fetchNext();
       const prefix = `adm_${bubbleId}_`;
       return conversations.filter((conv: any) => {
         const guid: string = conv.conversationWith?.guid || '';
@@ -357,13 +346,13 @@ class CometChatService {
   }
 
   async getMessages(guid: string, limit: number = 50) {
+    const CometChat = cc();
     try {
-      const messagesRequest = new CometChat.MessagesRequestBuilder()
+      const messages = await new CometChat.MessagesRequestBuilder()
         .setGUID(guid)
         .setLimit(limit)
-        .build();
-      
-      const messages = await messagesRequest.fetchPrevious();
+        .build()
+        .fetchPrevious();
       return messages;
     } catch (error: any) {
       if (error?.code === 'ERR_GROUP_NOT_JOINED') {
@@ -375,6 +364,7 @@ class CometChatService {
   }
 
   async addReaction(messageId: string | number, emoji: string) {
+    const CometChat = cc();
     try {
       const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
       await CometChat.addReaction(numericId, emoji);
@@ -386,6 +376,7 @@ class CometChatService {
   }
 
   async removeReaction(messageId: string | number, emoji: string) {
+    const CometChat = cc();
     try {
       const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
       await CometChat.removeReaction(numericId, emoji);
@@ -397,12 +388,13 @@ class CometChatService {
   }
 
   async getMessageReactions(messageId: string) {
+    const CometChat = cc();
     try {
-      const request = new CometChat.ReactionsRequestBuilder()
+      const reactions = await new CometChat.ReactionsRequestBuilder()
         .setMessageId(parseInt(messageId))
         .setLimit(100)
-        .build();
-      const reactions = await request.fetchNext();
+        .build()
+        .fetchNext();
       return reactions;
     } catch (error) {
       console.error('Failed to fetch reactions:', error);
@@ -411,17 +403,10 @@ class CometChatService {
   }
 
   async sendReplyMessage(guid: string, text: string, parentMessageId: number) {
+    const CometChat = cc();
     try {
-      const receiverID = guid;
-      const messageText = text;
-      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
-      const textMessage = new CometChat.TextMessage(
-        receiverID,
-        messageText,
-        receiverType
-      );
+      const textMessage = new CometChat.TextMessage(guid, text, CometChat.RECEIVER_TYPE.GROUP);
       textMessage.setParentMessageId(parentMessageId);
-      
       const message = await CometChat.sendMessage(textMessage);
       console.log('Reply message sent successfully:', message);
       return message;
@@ -434,36 +419,28 @@ class CometChatService {
     }
   }
 
-  getReactionListener(listenerID: string, onReactionAdded: (reaction: any) => void, onReactionRemoved: (reaction: any) => void) {
+  getReactionListener(
+    listenerID: string,
+    onReactionAdded: (reaction: any) => void,
+    onReactionRemoved: (reaction: any) => void,
+  ) {
+    const CometChat = cc();
     return new CometChat.MessageListener({
       onTextMessageReceived: () => {},
-      onMessageReactionAdded: (reaction: any) => {
-        onReactionAdded(reaction);
-      },
-      onMessageReactionRemoved: (reaction: any) => {
-        onReactionRemoved(reaction);
-      },
+      onMessageReactionAdded: (reaction: any) => { onReactionAdded(reaction); },
+      onMessageReactionRemoved: (reaction: any) => { onReactionRemoved(reaction); },
     });
   }
 
   async sendMediaMessage(guid: string, fileUri: string, fileName: string, mimeType: string) {
+    const CometChat = cc();
     try {
-      const receiverID = guid;
-      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
-      
-      const file = {
-        uri: fileUri,
-        name: fileName,
-        type: mimeType,
-      };
-      
       const mediaMessage = new CometChat.MediaMessage(
-        receiverID,
-        file,
+        guid,
+        { uri: fileUri, name: fileName, type: mimeType },
         CometChat.MESSAGE_TYPE.IMAGE,
-        receiverType
+        CometChat.RECEIVER_TYPE.GROUP,
       );
-      
       const message = await CometChat.sendMediaMessage(mediaMessage);
       console.log('Media message sent successfully:', message);
       return message;
@@ -477,6 +454,7 @@ class CometChatService {
   }
 
   async markAsRead(guid: string, lastMessageId: string, lastMessageSenderUid: string): Promise<void> {
+    const CometChat = cc();
     try {
       const loggedInUser = await CometChat.getLoggedinUser();
       if (!loggedInUser) return;
@@ -489,21 +467,19 @@ class CometChatService {
   }
 
   getFullMessageListener(
-    listenerID: string, 
+    listenerID: string,
     onTextMessage: (message: any) => void,
-    onMediaMessage: (message: any) => void
+    onMediaMessage: (message: any) => void,
   ) {
+    const CometChat = cc();
     return new CometChat.MessageListener({
-      onTextMessageReceived: (message: any) => {
-        onTextMessage(message);
-      },
-      onMediaMessageReceived: (message: any) => {
-        onMediaMessage(message);
-      },
+      onTextMessageReceived: (message: any) => { onTextMessage(message); },
+      onMediaMessageReceived: (message: any) => { onMediaMessage(message); },
     });
   }
 
   async getPeerUser(uid: string): Promise<{ status: 'online' | 'offline'; lastActiveAt: number | null }> {
+    const CometChat = cc();
     try {
       const user = await CometChat.getUser(uid);
       const status = (user as any).getStatus?.() === 'online' ? 'online' : 'offline';
@@ -518,8 +494,9 @@ class CometChatService {
   addUserPresenceListener(
     listenerID: string,
     onUserOnline: (user: any) => void,
-    onUserOffline: (user: any) => void
+    onUserOffline: (user: any) => void,
   ) {
+    const CometChat = cc();
     const listener = new CometChat.UserListener({
       onUserOnline: (user: any) => onUserOnline(user),
       onUserOffline: (user: any) => onUserOffline(user),
@@ -528,7 +505,7 @@ class CometChatService {
   }
 
   removeUserPresenceListener(listenerID: string) {
-    CometChat.removeUserListener(listenerID);
+    cc().removeUserListener(listenerID);
   }
 }
 
