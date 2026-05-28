@@ -105,6 +105,13 @@ class CometChatService {
   }
 
   async logoutUser() {
+    // If CometChat was never initialized, there's nothing to log out of.
+    // Returning early here is critical — it prevents the SDK from being loaded
+    // at startup when clearLocalAuth() fires due to a token expiry or 401.
+    if (!this.initialized) {
+      this.loggedIn = false;
+      return;
+    }
     const CometChat = cc();
     try {
       await CometChat.logout();
