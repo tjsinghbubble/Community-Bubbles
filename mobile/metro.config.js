@@ -14,28 +14,34 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// ── Diagnostic: log which file is importing the CometChat SDK at bundle time ──
-// Remove this block once the startup crash is fixed.
+// ── Diagnostic: log which files import the crash-related modules ──────────────
+// Remove once the startup crash is fixed.
+const WATCHED = [
+  '@cometchat/chat-sdk-react-native',
+  'node-forge',
+  '@expo/code-signing-certificates',
+];
+const seen = new Set();
 const _origResolve = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName === '@cometchat/chat-sdk-react-native') {
-    console.error(
-      '\n[METRO DIAGNOSTIC] @cometchat/chat-sdk-react-native imported by:\n  ' +
-      context.originModulePath +
-      '\n',
-    );
+  for (const pkg of WATCHED) {
+    if (moduleName === pkg || moduleName.startsWith(pkg + '/')) {
+      const key = `${pkg} ← ${context.originModulePath}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        // Use process.stderr so it appears even when Metro filters stdout
+        process.stderr.write(
+          `\n[METRO IMPORT] ${pkg}\n  imported by: ${context.originModulePath}\n\n`,
+        );
+      }
+    }
   }
-  if (_origResolve) {
-    return _origResolve(context, moduleName, platform);
-  }
+  if (_origResolve) return _origResolve(context, moduleName, platform);
   return context.resolveRequest(context, moduleName, platform);
 };
 
-// Enable inline requires so that all require() calls throughout the bundle are
-// evaluated lazily (only when the enclosing function is first called, not at
-// module load time). This fixes module initialisation-order issues — most
-// notably forge.md being undefined when node-forge sub-modules are accessed
-// before the forge object is fully built up during the Hermes cold start.
+// Enable inline requires to defer all require() calls to first use,
+// fixing module initialisation-order issues on Hermes cold start.
 config.transformer = {
   ...config.transformer,
   getTransformOptions: async () => ({
