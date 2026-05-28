@@ -93,6 +93,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loadStoredAuth = async () => {
+    const timeout = setTimeout(() => {
+      console.warn('[Auth] loadStoredAuth timed out — forcing isLoading=false');
+      setIsLoading(false);
+    }, 4000);
+
     try {
       const storedToken = await AsyncStorage.getItem('authToken');
       const storedUser = await AsyncStorage.getItem('user');
@@ -111,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('[Auth] Failed to load stored auth:', err.message);
       reportError(err, 'background.loadStoredAuth');
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };
