@@ -1,3 +1,8 @@
+// Polyfill crypto.getRandomValues FIRST — required by node-forge (used by the
+// CometChat SDK). Without this, forge.md is undefined on iOS and the app
+// crashes with a white screen before anything renders.
+import 'react-native-get-random-values';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';
