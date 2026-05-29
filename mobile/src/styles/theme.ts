@@ -141,6 +141,19 @@ export const PageHeader = {
   titleColor: Colors.text.primary,
 };
 
+export const Spacing = {
+  xxs: 2,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  xxxxl: 40,
+  huge: 48,
+};
+
 /**
  * PageBody — standard tokens for the scrollable content area below the header.
  *
@@ -158,19 +171,6 @@ export const PageBody = {
   paddingTop: Spacing.sm,         // 8
   paddingBottom: Spacing.sm,      // 8
   sectionGap: Spacing.lg,         // 16
-};
-
-export const Spacing = {
-  xxs: 2,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
-  xxxxl: 40,
-  huge: 48,
 };
 
 /**
