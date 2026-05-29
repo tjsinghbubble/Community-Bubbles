@@ -1,0 +1,234 @@
+#!/bin/zsh
+
+# semi-strict mode: fail immediately for undefined vars, pipes exit with first failing cmd
+# doesn't have "set -e" or "setopt ERR_EXIT" because commands are expected to fail here
+set -uo pipefail
+
+# FIXME need way to have different domains or IPs here
+API_HOST=localhost
+DB_HOST=localhost
+METRO_HOST=localhost
+
+: "${API_PORT:=3000}"
+: "${METRO_PORT:=8081}"
+
+# FIXME eh? 
+: "${DATABASE_URL=postgresql://traviswinfrey@db_host/bubble_dev}"
+
+# give extra information
+verbose=0
+
+function is_any_ios_simulator_installed()
+{
+
+    xcrun_available=$(which xcrun)
+    if [[ -z ${xcrun_available} ]] ; then
+	    print -u2 "Error: xcrun is not available for iOS simulators.\nInstall XCode or check your PATH variable in .zshrc"
+	    return 1;
+    fi
+
+    devices=$(xcrun simctl list devices)
+
+    # non-robust check.
+    # for 26.5 output will be "== Devices ==" followed by "-- iOS 26.1 --" etc.
+    # Devices are indented.
+    #
+    if [[ $(print "$devices" | grep -c -v '^[=-]' ) -eq 0 ]] ; then
+       print -u2 "Error: xcrun seems to report no iOS simulators are installed. "
+       print -u2 "\t In XCode, go into 'Devices & Simulators' to correct"
+       return 1
+    fi
+       return 0
+}
+
+#
+# devices	= a newline-separated list of devices
+# if_matching	= an optional regexp to filter devices 
+#
+# prints an indented list, optionally filtered
+#
+function show_filtered_device_list()
+{
+    devices="$1"
+    if_matching="$2"
+
+    # null string matches everything
+    if [[ -z "$if_matching" ]] ; then if_matching='' ; fi
+
+    echo "$devices" | sed "s/^/\t/" | grep "$if_matching"
+}
+
+
+function is_ios_simulator_running()
+{
+    if is_any_ios_simulator_installed ; then
+	# this is not a super robust chain of inferences, relying on barely formatted
+	# xcrun output
+	devices=$(xcrun simctl list devices)
+	running_sims=$(print "${devices}" | grep 'Booted')
+	if [[ -z "${running_sims}" ]]; then
+	    running_sims_cnt=0
+	else
+	    running_sims_cnt=$(print "${running_sims}" | grep -c ^)
+	fi
+	low_cnt=$(echo "$devices" | grep -cv "^[=-]" )
+
+
+	if [[ "$running_sims_cnt" -eq 0 ]] ; then
+	    print "❌  No iOS simulator is running."
+	    print "    There are at least $low_cnt iOS simulators installed."
+	    if [[  ${verbose} -gt 0 ]] ; then
+		    print "Here are the available simulators"
+		    show_filtered_device_list "${devices}" ''
+	    fi
+	    return 1
+	else
+	    # FIXME the grammar 
+	    echo "✅  ${running_sims_cnt} iOS simulators are running"
+	    show_filtered_device_list "${running_sims}" ''
+	    return 0
+	fi
+    else
+	print "❌ No iOS simulator can run"
+	return 1
+    fi
+}
+
+function android_device_info()
+{
+    local serial="$1"
+    local avd_name=""
+    local android_ver=""
+    local model=""
+
+    if [[ "${serial}" == emulator-* ]]; then
+        avd_name=$(adb -s "${serial}" emu avd name 2>/dev/null | head -1 | tr -d '\r ')
+    fi
+    android_ver=$(adb -s "${serial}" shell getprop ro.build.version.release 2>/dev/null | tr -d '\r')
+    model=$(adb -s "${serial}" shell getprop ro.product.model 2>/dev/null | tr -d '\r')
+
+    if [[ -n "${avd_name}" ]]; then
+        print "\t${serial}: ${avd_name}, Android ${android_ver}, ${model}"
+    else
+        print "\t${serial}: Android ${android_ver}, ${model}"
+    fi
+}
+
+function is_android_simulator_running()
+{
+    local running_sims running_sims_cnt
+    running_sims=$(adb devices 2>/dev/null | grep -Ev '^List|^ *$')
+    if [[ -z "${running_sims}" ]]; then
+        running_sims_cnt=0
+    else
+        running_sims_cnt=$(print "${running_sims}" | grep -c ^)
+    fi
+
+    if [[ ${running_sims_cnt} -gt 0 ]] ; then
+	echo "✅  ${running_sims_cnt} Android emulators are running"
+        print "${running_sims}" | while read -r line; do
+            local serial="${line%% *}"
+            android_device_info "${serial}"
+        done
+	return 0
+    else
+	echo "❌  No Android emulator is running"
+	return 1
+    fi
+}
+
+function is_api_server_healthy()
+{
+  # API server (Express, port 3000)
+  return_code=1
+  http_response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://${API_HOST}:${API_PORT}/api/auth/me")
+  # FIXME change this to use zsh evaluation
+  if [[ "${http_response_code}" -eq 200 ]] || [[ "${http_response_code}" -eq 401 ]] ; then
+      # 401 is healthy response for an auth request with no arguments
+      # but this is a bad health check FIXME
+      echo "✅  API server ok"
+      return_code=0
+  elif [[ ${http_response_code} -eq 0 ]] ; then
+      echo "❌  API server not running"
+  else
+      # no idea what values could be here, realistically
+      echo "❌  API server unhealthy: '$http_response_code'"
+  fi
+
+  return $return_code
+}
+
+function is_metro_server_healthy()
+{
+  return_code=1
+  http_response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://${METRO_HOST}:${METRO_PORT}/status")
+  if [[ "$http_response_code" -eq 200 ]] ; then
+      echo "✅  Metro Expo Build server ok"
+      return_code=0
+  elif [[ "$http_response_code" -eq 0 ]] ; then
+      echo "❌  Metro Expo Build server not running"
+  else
+      # no idea what values could be here
+      echo "❌  Metro Expo Build server unhealthy: '$http_response_code'"
+  fi
+
+  return $return_code
+}
+
+function is_db_server_healthy()
+{
+    if [[ -z $(which psql) ]] ; then
+	print "❌ DB server status undetermined. psql not in PATH"
+	return 1
+    else
+	return_code=1
+	# FIXME this is erroring different inside the function
+	db_response=$(psql -d postgres -l 2>&1)
+	db_is_ok=$( print "${db_response}" | grep -q "[0-9] rows" && echo "good" || echo "bad")
+
+	if [[ "$db_is_ok" = "good" ]] ; then
+	    echo "✅  DB server ok"
+	    return 0
+	else
+	    echo "❌  DB server not running"
+	    return 1
+	fi
+    fi
+}
+
+
+function is_genymotion_running()
+{
+    if [[ -z $(which gmtool) ]]; then
+        return 0
+    fi
+
+    local gm_output running_cnt
+    gm_output=$(gmtool admin list 2>/dev/null)
+    running_cnt=$(echo "${gm_output}" | awk -F'|' '$3 ~ /On/ {n++} END {print n+0}')
+
+    if [[ ${running_cnt} -gt 0 ]]; then
+        echo "✅  ${running_cnt} Genymotion emulators are running"
+        echo "${gm_output}" | awk -F'|' '$3 ~ /On/ {
+            name=$2; gsub(/^ +| +$/, "", name)
+            ip=$4;   gsub(/^ +| +$/, "", ip)
+            print "\t" name " (" ip ":5555)"
+        }'
+    else
+        echo "❌  No Genymotion emulator is running"
+    fi
+}
+
+######################
+# main ###############
+######################
+
+is_ios_simulator_running
+is_android_simulator_running
+is_genymotion_running
+is_api_server_healthy
+is_metro_server_healthy
+is_db_server_healthy
+
+exit 0
+
