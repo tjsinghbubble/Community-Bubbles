@@ -18,6 +18,10 @@ METRO_HOST=localhost
 # give extra information
 verbose=0
 
+# Repo root, resolved here at top level where $0 is the script path. (Inside a
+# zsh function $0 is the function name, so this must be computed globally.)
+REPO_ROOT="${0:A:h:h}"
+
 function is_any_ios_simulator_installed()
 {
 
@@ -219,6 +223,85 @@ function is_genymotion_running()
     fi
 }
 
+#
+# check_secrets — sanity-check the environment files and .gitignore so secrets are
+# both PRESENT (builds won't break) and PROTECTED (won't get committed).
+# Checks: required client vars in mobile/.env, required server vars in root .env,
+# that .env is gitignored, and a cheap scan for live-looking secrets in tracked files.
+# Never prints secret values. See docs/SECRETS_MANAGEMENT.md.
+#
+function check_secrets()
+{
+    local repo_root="${REPO_ROOT}"        # computed at top level (see note there)
+    local mobile_env="${repo_root}/mobile/.env"
+    local root_env="${repo_root}/.env"
+    local gitignore="${repo_root}/.gitignore"
+    local rc=0 v
+
+    # 1) required client (EXPO_PUBLIC_) vars — must be present so builds don't break
+    local client_required=(EXPO_PUBLIC_API_URL EXPO_PUBLIC_GOOGLE_PLACES_API_KEY EXPO_PUBLIC_COMETCHAT_APP_ID)
+    if [[ ! -f "${mobile_env}" ]]; then
+        print "❌  Secrets: mobile/.env not found (copy from mobile/.env.example)"
+        rc=1
+    else
+        local cmissing=()
+        for v in "${client_required[@]}"; do
+            grep -qE "^${v}=.+" "${mobile_env}" || cmissing+=("$v")
+        done
+        if (( ${#cmissing} > 0 )); then
+            print "❌  Secrets: mobile/.env missing/empty: ${cmissing}"
+            rc=1
+        else
+            print "✅  Secrets: mobile/.env has all required client vars"
+        fi
+    fi
+
+    # 2) required server vars (true secrets) — server-side only
+    local server_required=(DATABASE_URL JWT_SECRET ENCRYPTION_KEY)
+    if [[ ! -f "${root_env}" ]]; then
+        print "❌  Secrets: root .env not found"
+        rc=1
+    else
+        local smissing=()
+        for v in "${server_required[@]}"; do
+            grep -qE "^${v}=.+" "${root_env}" || smissing+=("$v")
+        done
+        if (( ${#smissing} > 0 )); then
+            print "❌  Secrets: root .env missing/empty: ${smissing}"
+            rc=1
+        else
+            print "✅  Secrets: root .env has required server vars"
+        fi
+    fi
+
+    # 3) .env must be gitignored (the pattern covers nested mobile/.env, app/.env)
+    if grep -qE '^\.env$' "${gitignore}" 2>/dev/null; then
+        print "✅  Secrets: .env is gitignored"
+    else
+        print "❌  Secrets: .env is NOT gitignored — secrets could be committed"
+        rc=1
+    fi
+
+    # 4) cheap leak scan: live-looking secrets in TRACKED files (excludes examples/docs)
+    # Exclude examples, docs, and asset/lock files (base64 image data coincidentally
+    # contains "AIza…"-shaped substrings and would false-positive).
+    local hits
+    hits=$(git -C "${repo_root}" grep -nIE 'AIza[0-9A-Za-z_-]{35}|sk_live_[0-9A-Za-z]+|-----BEGIN [A-Z ]*PRIVATE KEY-----' \
+            -- ':(exclude)*.example' ':(exclude)docs/*' \
+               ':(exclude)*.svg' ':(exclude)*.png' ':(exclude)*.jpg' ':(exclude)*.jpeg' ':(exclude)*.gif' \
+               ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*/assets/*' 2>/dev/null)
+    if [[ -n "${hits}" ]]; then
+        print "❌  Secrets: possible live secret(s) committed:"
+        print "${hits}" | sed 's/^/\t/'
+        rc=1
+    else
+        print "✅  Secrets: no obvious live secrets in tracked files"
+    fi
+
+    return $rc
+}
+
+
 ######################
 # main ###############
 ######################
@@ -229,6 +312,7 @@ is_genymotion_running
 is_api_server_healthy
 is_metro_server_healthy
 is_db_server_healthy
+check_secrets
 
 exit 0
 

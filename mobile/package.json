@@ -4,20 +4,22 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "preandroid": "bash ../scripts/exclude-dev-tools-from-cloud.sh",
+    "preandroid": "bash scripts/check-secrets.sh && bash ../scripts/flag-temp-files.sh",
     "android": "expo run:android --no-bundler",
-    "postandroid": "bash ../scripts/exclude-dev-tools-from-cloud.sh",
-    "preios": "bash ../scripts/exclude-dev-tools-from-cloud.sh",
+    "postandroid": "bash ../scripts/flag-temp-files.sh",
+    "preios": "bash scripts/check-secrets.sh && bash ../scripts/flag-temp-files.sh",
     "ios": "expo run:ios --no-bundler",
-    "postios": "bash ../scripts/exclude-dev-tools-from-cloud.sh",
+    "postios": "bash ../scripts/flag-temp-files.sh",
     "web": "expo start --web",
+    "check:secrets": "bash scripts/check-secrets.sh",
     "test": "node ../node_modules/.bin/jest --config jest.config.js",
     "version:bump": "node scripts/bump-version.js",
     "build:testflight-staging": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for testflight-staging build' && eas build --profile testflight-staging",
     "build:beta": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for beta build' && eas build --profile beta",
     "build:production": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for production build' && eas build --profile production",
+    "eas-build-pre-install": "bash scripts/check-secrets.sh",
     "eas-build-on-success": "bash scripts/sentry-post-build.sh",
-    "postinstall": "bash ../scripts/exclude-dev-tools-from-cloud.sh"
+    "postinstall": "bash ../scripts/flag-temp-files.sh"
   },
   "dependencies": {
     "@cometchat/chat-sdk-react-native": "^4.0.10",
