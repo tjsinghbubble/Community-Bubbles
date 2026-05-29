@@ -2,7 +2,7 @@
   "expo": {
     "name": "Bubble",
     "slug": "bubble-mobile",
-    "version": "0.1.7",
+    "version": "0.1.12",
     "scheme": "bubble",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,8 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "io.bubble.app",
-      "associatedDomains": ["applinks:trybubble.io"],
+      "bundleIdentifier": "io.trybubble.app",
+      "associatedDomains": [
+        "applinks:trybubble.io"
+      ],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
         "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events.",
@@ -33,10 +35,21 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "trybubble.io", "pathPrefix": "/b/" },
-            { "scheme": "https", "host": "trybubble.io", "pathPrefix": "/e/" }
+            {
+              "scheme": "https",
+              "host": "trybubble.io",
+              "pathPrefix": "/b/"
+            },
+            {
+              "scheme": "https",
+              "host": "trybubble.io",
+              "pathPrefix": "/e/"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "edgeToEdgeEnabled": true,

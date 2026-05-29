@@ -1,0 +1,169 @@
+crashReporter.ts:33 [CrashReporter] DSN present: false
+crashReporter.ts:35 [CrashReporter] SENTRY_DSN not configured — Sentry disabled
+anonymous @ console.js:662
+overrideMethod @ backend.js:17416
+anonymous @ setUpDeveloperTools.js:42
+registerWarning @ LogBox.js:222
+anonymous @ LogBox.js:84
+initSentry @ crashReporter.ts:35
+anonymous @ App.tsx:13
+loadModuleImplementation @ require.js:285
+guardedLoadModule @ require.js:190
+metroRequire @ require.js:98
+anonymous @ index.ts:22
+loadModuleImplementation @ require.js:285
+guardedLoadModule @ require.js:183
+metroRequire @ require.js:98
+global @ &platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:443188
+console.js:662 Running "main" with {"rootTag":11,"initialProps":{},"fabric":true}
+api.service.ts:51 [API] Request: GET https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev/api/config/share-base-url
+WelcomeScreen.tsx:35 SafeAreaView has been deprecated and will be removed in a future release. Please use 'react-native-safe-area-context' instead. See https://github.com/AppAndFlow/react-native-safe-area-context Error Stack:
+    at overrideMethod (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:47447:31)
+    at apply (native)
+    at anonymous (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:55122:35)
+    at apply (native)
+    at registerWarning (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:26490:28)
+    at apply (native)
+    at anonymous (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:26386:28)
+    at warnOnce (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:6705:17)
+    at get SafeAreaView (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:5127:76)
+    at WelcomeScreen (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:103469:64)
+    at SceneView (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262804:90)
+    at render (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262423:54)
+    at anonymous (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262455:27)
+    at reduce (native)
+    at useDescriptors (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262452:36)
+    at useNavigationBuilder (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:261605:97)
+    at NativeStackNavigator (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:272003:113)
+    at AuthNavigator (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:103367:51)
+    at SceneView (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262804:90)
+    at render (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262423:54)
+    at anonymous (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262455:27)
+    at reduce (native)
+    at useDescriptors (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:262452:36)
+    at useNavigationBuilder (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:261605:97)
+    at NativeStackNavigator (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:272003:113)
+    at RootNavigator (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:93256:56)
+    at App (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:3941:67)
+    at withDevTools(App) (localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:100642:53)
+anonymous @ console.js:662
+overrideMethod @ backend.js:17416
+anonymous @ setUpDeveloperTools.js:42
+registerWarning @ LogBox.js:222
+anonymous @ LogBox.js:84
+warnOnce @ warnOnce.js:27
+get SafeAreaView @ index.js:98
+WelcomeScreen @ WelcomeScreen.tsx:35
+react_stack_bottom_frame @ ReactFabric-dev.js:17130
+renderWithHooks @ ReactFabric-dev.js:5648
+updateFunctionComponent @ ReactFabric-dev.js:8081
+beginWork @ ReactFabric-dev.js:9340
+runWithFiberInDEV @ ReactFabric-dev.js:700
+performUnitOfWork @ ReactFabric-dev.js:14134
+workLoopSync @ ReactFabric-dev.js:13966
+renderRootSync @ ReactFabric-dev.js:13947
+performWorkOnRoot @ ReactFabric-dev.js:13087
+performWorkOnRootViaSchedulerTask @ ReactFabric-dev.js:3673
+api.service.ts:80 [API] Response /api/config/share-base-url (status 404): <!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Run this app to see the results here.</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1c2333;
+      font-family: "IBM Plex Sans", "sans";
+      color: #f5f9fc;
+    }
+
+    .title-box {
+      font-size: 12px;
+      inline-size: max-content;
+    }
+
+
+api.service.ts:115 [API] Client error: GET /api/config/share-base-url (404) in 1292 ms
+anonymous @ console.js:662
+overrideMethod @ backend.js:17416
+anonymous @ setUpDeveloperTools.js:42
+registerWarning @ LogBox.js:222
+anonymous @ LogBox.js:84
+?anon_0_ @ api.service.ts:115
+asyncGeneratorStep @ asyncToGenerator.js:3
+_next @ asyncToGenerator.js:17
+Welcome to React Native DevTools
+Debugger integration: iOS Bridgeless (RCTHost)
+api.service.ts:51 [API] Request: POST https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev/api/auth/login
+api.service.ts:80 [API] Response /api/auth/login (status 404): <!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Run this app to see the results here.</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1c2333;
+      font-family: "IBM Plex Sans", "sans";
+      color: #f5f9fc;
+    }
+
+    .title-box {
+      font-size: 12px;
+      inline-size: max-content;
+    }
+
+
+api.service.ts:115 [API] Client error: POST /api/auth/login (404) in 174 ms
+anonymous @ console.js:662
+overrideMethod @ backend.js:17416
+anonymous @ setUpDeveloperTools.js:42
+registerWarning @ LogBox.js:222
+anonymous @ LogBox.js:84
+?anon_0_ @ api.service.ts:115
+asyncGeneratorStep @ asyncToGenerator.js:3
+_next @ asyncToGenerator.js:17
+api.service.ts:51 [API] Request: POST https://163cfc20-e221-41ad-b2c3-67afe2df4e33-00-15yrg27byh3aa.spock.replit.dev/api/auth/login
+api.service.ts:80 [API] Response /api/auth/login (status 404): <!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Run this app to see the results here.</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=IBM+Plex+Sans">
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1c2333;
+      font-family: "IBM Plex Sans", "sans";
+      color: #f5f9fc;
+    }
+
+    .title-box {
+      font-size: 12px;
+      inline-size: max-content;
+    }
+
+
+api.service.ts:115 [API] Client error: POST /api/auth/login (404) in 47 ms
+anonymous @ console.js:662
+overrideMethod @ backend.js:17416
+anonymous @ setUpDeveloperTools.js:42
+registerWarning @ LogBox.js:222
+anonymous @ LogBox.js:84
+?anon_0_ @ api.service.ts:115
+asyncGeneratorStep @ asyncToGenerator.js:3
+_next @ asyncToGenerator.js:17
