@@ -1,8 +1,14 @@
 import { registerRootComponent } from 'expo';
-
 import App from './App';
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+// Wrap registration so any startup crash logs the full stack before React
+// Native's runtime is torn down. The [runtime not ready] error swallows the
+// call stack; this surfaces it in the Metro terminal.
+try {
+  registerRootComponent(App);
+} catch (e: any) {
+  // eslint-disable-next-line no-console
+  console.error('STARTUP CRASH — message:', e?.message);
+  // eslint-disable-next-line no-console
+  console.error('STARTUP CRASH — stack:\n', e?.stack);
+}

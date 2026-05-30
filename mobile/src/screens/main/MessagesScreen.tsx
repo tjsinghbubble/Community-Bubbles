@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { CometChat } from '@cometchat/chat-sdk-react-native';
 import cometChatService from '../../services/cometchat.service';
 import apiService from '../../services/api.service';
 import { useAuth } from '../../context/AuthContext';
