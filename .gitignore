@@ -2,6 +2,13 @@ node_modules
 dist
 .env
 .DS_Store
+# Python virtualenv (Replit side-effect)
+.venv/
+# Replit AI junk files (empty, never intentional)
+brand
+design
+Coroutine.h
+await import()
 server/public
 vite.config.ts.*
 # WIP
@@ -20,3 +27,4 @@ mobile/.tsbuildinfo
 playwright-report/
 test-results/
 server/__tests__/e2e/.test-context.json
+maestro/output

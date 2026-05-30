@@ -78,6 +78,27 @@ The project is a monorepo containing distinct frontend and backend components.
 -   **Google Places API**: Location autocomplete.
 -   **Google Fonts**: DM Sans and Outfit.
 
+### Secrets Management
+
+**Never hard-code API keys, tokens, or URLs in source, and never commit them.**
+All such values are read from environment variables only. Full guide:
+`docs/SECRETS_MANAGEMENT.md`.
+
+-   **Client values are PUBLIC.** Anything prefixed `EXPO_PUBLIC_` (mobile) or
+    `VITE_` (web) is inlined into the shipped bundle and is readable from the
+    binary and network traffic. Never put a true secret behind those prefixes.
+-   **Required client vars:** `EXPO_PUBLIC_API_URL`,
+    `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY`, `EXPO_PUBLIC_COMETCHAT_APP_ID`. Code reads
+    them via `requireEnv()`; the build is gated by `mobile/scripts/check-secrets.sh`,
+    so a missing required var fails the build (it will not silently fall back).
+-   **True secrets are server-side only:** DB credentials, `JWT_SECRET`,
+    `ENCRYPTION_KEY`, any CometChat REST/auth key, and any privileged or billable
+    API key. These must never reach client code.
+-   **On Replit:** set sensitive values in Tools → Secrets. The `.replit [env]`
+    block is committed — use it only for non-secret identifiers, never real keys.
+-   When adding a service, follow this model; do not reintroduce hard-coded
+    fallbacks "to make it work."
+
 ### Database
 
 -   **PostgreSQL**: Primary relational database.

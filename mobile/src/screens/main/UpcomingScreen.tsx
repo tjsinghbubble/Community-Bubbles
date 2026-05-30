@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -11,6 +10,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -156,7 +156,7 @@ export default function UpcomingScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           {isCampusVerified ? (
             <TouchableOpacity
@@ -188,7 +188,7 @@ export default function UpcomingScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         {isCampusVerified ? (
           <TouchableOpacity

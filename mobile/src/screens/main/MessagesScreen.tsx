@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
   Image,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -585,7 +585,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -601,7 +601,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (conversations.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -622,7 +622,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         {hamburgerButton}
         <Text style={styles.headerTitle}>Messages</Text>

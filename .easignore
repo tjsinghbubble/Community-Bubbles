@@ -1,0 +1,73 @@
+# .easignore — files NOT uploaded to EAS Build.
+#
+# IMPORTANT: when this file exists, EAS uses it INSTEAD OF .gitignore to decide
+# what to upload. So it must be a SUPERSET of .gitignore: everything .gitignore
+# excludes (node_modules, build output, secrets) PLUS the extra dev-only files
+# below that the build does not need. If you add an entry to .gitignore that
+# should also not ship to EAS, mirror it here.
+#
+# Goal: smaller, cleaner build uploads — and keep internal docs / test artifacts
+# out of the build context.
+
+# ---- mirror of .gitignore (must stay in sync) ----
+node_modules
+dist
+.env
+.DS_Store
+.venv/
+brand
+design
+Coroutine.h
+await import()
+server/public
+vite.config.ts.*
+LOCAL_DEV.md
+.idea/workspace.xml
+*.tmp
+*.tar.gz
+.cache
+.local
+.upm
+*.tsbuildinfo
+.tsbuildinfo
+mobile/.tsbuildinfo
+server/__tests__/e2e/.test-context.json
+
+# ---- mirror of mobile/.gitignore essentials (nested .gitignore may be bypassed) ----
+# Heavy generated native folders (EAS prebuilds these itself):
+mobile/ios/
+mobile/android/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+# NEVER upload signing material / private keys to a build:
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.env*.local
+
+# ---- EAS-only excludes (not needed to build the app) ----
+
+# Internal documentation — never needed in a build, and shouldn't ride along.
+docs/
+
+# Maestro: keep the flow/subflow definitions, drop generated output.
+maestro/output/
+**/.maestro/tests/
+
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Postman / Newman run output
+newman/
+
+# Logs and snapshots from any tool
+*.log
+**/__snapshots__/
+**/*-snapshots/

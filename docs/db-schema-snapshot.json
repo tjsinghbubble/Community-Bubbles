@@ -1,0 +1,1968 @@
+{
+  "admin_member_chats": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "member_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "cometchat_group_id",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "is_admin_dm",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "participant_ids",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "api_latency_samples": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "method",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "endpoint",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "count",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p50_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p95_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p99_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "avg_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "max_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "error_rate",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "recorded_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "app_config": [
+    {
+      "column": "key",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "value",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "app_rules": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "rule_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "position",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "audit_logs": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "action",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "admin_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "target_id",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "ip",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "extra",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bubble_chats": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "cometchat_group_id",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bubble_rule_overrides": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "rule_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "hidden",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bubble_rules": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "rule_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "position",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bubble_visits": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "visited_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bubbles": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "tagline",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "category",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "category_id",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "description",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "rules",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "privacy",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "cover_image",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "images",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "attachments",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "members",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "member_limit",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "distance",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_name",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_address",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_lat",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_lng",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "radius_miles",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": true
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "rejection_reason",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "short_id",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "deleted_at",
+      "type": "PgTimestamp",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "bulletin_boards": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "bulletin_post_reactions": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "post_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "emoji",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "bulletin_post_types": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "display_name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "color",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "admin_only",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "display_order",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "bulletin_posts": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "board_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "post_type_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "author_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "body",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "image_url",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "is_pinned",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "bulletin_replies": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "post_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "author_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "body",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "campuses": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "domain",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "categories": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "display_name",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "header",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "icon",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "image",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "parent_id",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "display_order",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "placeholder_name",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "placeholder_tagline",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "placeholder_description",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "category_placeholders": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "category_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "field_type",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "value",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "display_order",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "category_rules": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "category_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "rule_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "position",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "crash_reports": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "message",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "stack",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "context",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "platform",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "app_version",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "is_fatal",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "user_id",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "username",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "device_push_tokens": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "token",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "platform",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "error_logs": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "message",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "timestamp",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "platform",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "level",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "event_attendees": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "event_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "reminder_24h_sent",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "reminder_1h_sent",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "event_signup_tasks": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "event_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "description",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "icon",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "spots_needed",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "position",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "event_task_signups": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "task_id",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "reminder_sent",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "reminder_sent_1h",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "events": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "description",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "cover_image",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "images",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "date",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "start_time",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "end_time",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "timezone",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "location_name",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_address",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_lat",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_lng",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "location_tbd",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "visibility",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "pet_friendly",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "smoke_free",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "wheelchair_accessible",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "attendee_limit",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "rsvp_deadline",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "recurrence_type",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "recurrence_custom_frequency",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "recurrence_custom_interval",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "rejection_reason",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "reminder_24h_sent",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "reminder_1h_sent",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "short_id",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "feedback": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "type",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "message",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "latency_buckets": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "method",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "endpoint",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "bucket_ts",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p50_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p95_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "p99_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "avg_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "max_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "count",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "error_count",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "memberships": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "role",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "membership_status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "notification_preferences": [
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "push_paused",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "bubble_activity",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "event_activity",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "event_reminders",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "task_reminders",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "waitlist_updates",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "announcements",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "notifications": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "recipient_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "type",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "title",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "body",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "metadata",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "read",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "reports": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "report_type",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "reason",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "free_text",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "reporter_user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "reported_user_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "bubble_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "event_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "visible_to",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "status",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "rules": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "text",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "description",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "slow_calls": [
+    {
+      "column": "id",
+      "type": "PgSerial",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "endpoint",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "method",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "duration_ms",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ],
+  "user_profiles": [
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "interests",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "campus_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_email",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_verified",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "dismissed_campus_prompt",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "profile_photo",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "about_me",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_email_hash",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "user_sessions": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "user_id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "started_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "ended_at",
+      "type": "PgTimestamp",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "duration_seconds",
+      "type": "PgInteger",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "users": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "name",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "email",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "email_hash",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "password",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "interests",
+      "type": "PgArray",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "campus_id",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_email",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "campus_verified",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "dismissed_campus_prompt",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "is_super_admin",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "profile_photo",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "about_me",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "token_version",
+      "type": "PgInteger",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "is_active",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "updated_by",
+      "type": "PgVarchar",
+      "notNull": false,
+      "hasDefault": false
+    }
+  ],
+  "verification_codes": [
+    {
+      "column": "id",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "email",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "email_hash",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "code",
+      "type": "PgText",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "expires_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
+      "column": "used",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "created_at",
+      "type": "PgTimestamp",
+      "notNull": true,
+      "hasDefault": true
+    }
+  ]
+}

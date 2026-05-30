@@ -60,7 +60,7 @@ is upgraded to 4.3.x or later.
 ```
 
 The `--no-bundler` flag is intentional. These scripts only compile and install
-the native binary. Metro is started separately via `npm run mobile:start`.
+the native binary. Metro is started separately via `npm run metro_bundler`.
 Running both in the same process makes it harder to restart Metro independently
 and mixes build output with runtime logs.
 

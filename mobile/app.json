@@ -68,7 +68,8 @@
       "@react-native-community/datetimepicker",
       "@sentry/react-native",
       "expo-image",
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/withSoLoaderInit"
     ],
     "extra": {
       "eas": {
