@@ -26,13 +26,12 @@ describe("POST /api/auth/verify-code", () => {
   beforeEach(() => {
     mockStorage = {
       getValidVerificationCode: vi.fn(),
-      markCodeAsUsed: vi.fn(),
+      markCodeAsUsedAtomic: vi.fn().mockResolvedValue(true),
     };
   });
 
   it("returns 200 with { success: true, verified: true } for a valid code", async () => {
     vi.mocked(mockStorage.getValidVerificationCode).mockResolvedValue({ id: "code-1" });
-    vi.mocked(mockStorage.markCodeAsUsed).mockResolvedValue(undefined);
 
     const app = buildApp(mockStorage);
     const res = await request(app)
@@ -41,7 +40,7 @@ describe("POST /api/auth/verify-code", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true, verified: true });
-    expect(mockStorage.markCodeAsUsed).toHaveBeenCalledWith("code-1");
+    expect(mockStorage.markCodeAsUsedAtomic).toHaveBeenCalledWith("code-1");
   });
 
   it("returns 400 when email is missing", async () => {
@@ -86,7 +85,7 @@ describe("POST /api/auth/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Invalid or expired code");
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
   it("returns 400 with 'Invalid or expired code' when code is expired", async () => {
@@ -100,7 +99,7 @@ describe("POST /api/auth/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Invalid or expired code");
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
   it("returns 400 with 'Invalid or expired code' when code has already been used", async () => {
@@ -114,10 +113,10 @@ describe("POST /api/auth/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Invalid or expired code");
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
-  it("does not call markCodeAsUsed when the code is invalid", async () => {
+  it("does not call markCodeAsUsedAtomic when the code is invalid", async () => {
     vi.mocked(mockStorage.getValidVerificationCode).mockResolvedValue(undefined);
 
     const app = buildApp(mockStorage);
@@ -125,20 +124,19 @@ describe("POST /api/auth/verify-code", () => {
       .post("/api/auth/verify-code")
       .send({ email: "alice@example.com", code: "999999" });
 
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
-  it("calls markCodeAsUsed with the correct code id on success", async () => {
+  it("calls markCodeAsUsedAtomic with the correct code id on success", async () => {
     vi.mocked(mockStorage.getValidVerificationCode).mockResolvedValue({ id: "code-abc-123" });
-    vi.mocked(mockStorage.markCodeAsUsed).mockResolvedValue(undefined);
 
     const app = buildApp(mockStorage);
     await request(app)
       .post("/api/auth/verify-code")
       .send({ email: "bob@example.com", code: "987654" });
 
-    expect(mockStorage.markCodeAsUsed).toHaveBeenCalledTimes(1);
-    expect(mockStorage.markCodeAsUsed).toHaveBeenCalledWith("code-abc-123");
+    expect(mockStorage.markCodeAsUsedAtomic).toHaveBeenCalledTimes(1);
+    expect(mockStorage.markCodeAsUsedAtomic).toHaveBeenCalledWith("code-abc-123");
   });
 
   it("returns 429 after the rate limit threshold is crossed", async () => {
@@ -153,7 +151,6 @@ describe("POST /api/auth/verify-code", () => {
     };
 
     vi.mocked(mockStorage.getValidVerificationCode).mockResolvedValue({ id: "code-1" });
-    vi.mocked(mockStorage.markCodeAsUsed).mockResolvedValue(undefined);
 
     const app = buildApp(mockStorage, rateLimiter);
 

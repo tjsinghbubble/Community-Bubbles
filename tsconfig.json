@@ -5,11 +5,13 @@
     "server/**/*"
   ],
   "exclude": [
-    "node_modules",
-    "build",
-    "dist",
-    "**/*.test.ts"
-  ],
+  "node_modules",
+  "build",
+  "dist",
+  "**/*.test.ts",
+  "**/*.e2e.ts",
+  "server/__tests__/e2e/**"
+],
   "compilerOptions": {
     "incremental": true,
     "tsBuildInfoFile": "./.tsbuildinfo",

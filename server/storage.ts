@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, gte, or, isNull, ne, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, lt, gte, or, isNull, ne, inArray, sql, ilike } from "drizzle-orm";
 import { db } from "./db";
 import { encryptField, hashField, safeDecryptField, decryptUserEmails } from "./encryption";
 import { generateShortId } from "./shortId";
@@ -101,6 +101,9 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  suspendUser(id: string, reason: string): Promise<void>;
+  unsuspendUser(id: string): Promise<void>;
+  searchUsers(query: string): Promise<User[]>;
   incrementTokenVersion(id: string): Promise<void>;
   getSuperAdmins(): Promise<User[]>;
 
@@ -137,6 +140,10 @@ export interface IStorage {
   createVerificationCode(data: InsertVerificationCode): Promise<VerificationCode>;
   getValidVerificationCode(email: string, code: string): Promise<VerificationCode | undefined>;
   markCodeAsUsed(id: string): Promise<void>;
+  markCodeAsUsedAtomic(id: string): Promise<boolean>;
+
+  joinBubbleWithCapacityCheck(data: { userId: string; bubbleId: string; createdBy: string }, limit: number, desiredStatus: string): Promise<string>;
+  rsvpEventWithCapacityCheck(data: { eventId: string; userId: string }, limit: number): Promise<string>;
 
   // Events
   getEvent(id: string): Promise<Event | undefined>;
@@ -524,6 +531,52 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id));
   }
 
+  async suspendUser(id: string, reason: string): Promise<void> {
+    await db.update(users)
+      .set({
+        isActive: false,
+        suspendedAt: new Date(),
+        suspendedReason: reason,
+        tokenVersion: sql`token_version + 1`,
+      })
+      .where(eq(users.id, id));
+  }
+
+  async unsuspendUser(id: string): Promise<void> {
+    await db.update(users)
+      .set({
+        isActive: true,
+        suspendedAt: null,
+        suspendedReason: null,
+        tokenVersion: sql`token_version + 1`,
+      })
+      .where(eq(users.id, id));
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const conditions = [ilike(users.name, `%${query}%`)];
+
+    // For email queries, also try exact hash lookup and plaintext ILIKE (pre-migration)
+    if (query.includes("@")) {
+      const hash = hashField(query);
+      conditions.push(eq(users.emailHash, hash));
+      conditions.push(ilike(users.email, `%${query}%`));
+    }
+
+    const rows = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(or(...conditions))
+      .orderBy(desc(users.createdAt))
+      .limit(50);
+
+    return rows.map((row) => {
+      const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+      return decryptUserEmails({ ...row.users, ...profileFields } as User);
+    });
+  }
+
   async incrementTokenVersion(id: string): Promise<void> {
     await db.update(users).set({ tokenVersion: sql`token_version + 1` }).where(eq(users.id, id));
   }
@@ -629,6 +682,7 @@ export class DatabaseStorage implements IStorage {
         await this.createMembershipWithRole({
           userId: approvedBubble.createdBy,
           bubbleId: id,
+          createdBy: approvedBubble.createdBy,
         }, 'admin');
       }
     }
@@ -880,6 +934,49 @@ export class DatabaseStorage implements IStorage {
 
   async markCodeAsUsed(id: string): Promise<void> {
     await db.update(verificationCodes).set({ used: true }).where(eq(verificationCodes.id, id));
+  }
+
+  async markCodeAsUsedAtomic(id: string): Promise<boolean> {
+    const result = await db
+      .update(verificationCodes)
+      .set({ used: true })
+      .where(and(eq(verificationCodes.id, id), eq(verificationCodes.used, false)))
+      .returning({ id: verificationCodes.id });
+    return result.length > 0;
+  }
+
+  async joinBubbleWithCapacityCheck(
+    data: { userId: string; bubbleId: string; createdBy: string },
+    limit: number,
+    desiredStatus: string,
+  ): Promise<string> {
+    return db.transaction(async (tx) => {
+      // Serialise all join attempts for the same bubble; released when transaction commits/rolls back.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${data.bubbleId}))`);
+      const [row] = await tx
+        .select({ cnt: count() })
+        .from(memberships)
+        .where(and(eq(memberships.bubbleId, data.bubbleId), eq(memberships.membershipStatus, 'approved')));
+      const finalStatus = (row?.cnt ?? 0) >= limit ? 'waitlisted' : desiredStatus;
+      await tx.insert(memberships).values({ userId: data.userId, bubbleId: data.bubbleId, createdBy: data.createdBy, membershipStatus: finalStatus });
+      return finalStatus;
+    });
+  }
+
+  async rsvpEventWithCapacityCheck(
+    data: { eventId: string; userId: string },
+    limit: number,
+  ): Promise<string> {
+    return db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${data.eventId}))`);
+      const [row] = await tx
+        .select({ cnt: count() })
+        .from(eventAttendees)
+        .where(and(eq(eventAttendees.eventId, data.eventId), eq(eventAttendees.status, 'going')));
+      const finalStatus = (row?.cnt ?? 0) >= limit ? 'waitlisted' : 'going';
+      await tx.insert(eventAttendees).values({ eventId: data.eventId, userId: data.userId, status: finalStatus });
+      return finalStatus;
+    });
   }
 
   // Events

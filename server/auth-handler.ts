@@ -25,7 +25,7 @@ export interface AuthStorage {
 
 export interface VerifyCodeStorage {
   getValidVerificationCode(email: string, code: string): Promise<{ id: string } | undefined>;
-  markCodeAsUsed(id: string): Promise<void>;
+  markCodeAsUsedAtomic(id: string): Promise<boolean>;
 }
 
 export interface RegisterVerifyCodeRouteOptions {
@@ -66,7 +66,10 @@ export function registerVerifyCodeRoute(
         return res.status(400).json({ error: "Invalid or expired code" });
       }
 
-      await storage.markCodeAsUsed(verificationCode.id);
+      const claimed = await storage.markCodeAsUsedAtomic(verificationCode.id);
+      if (!claimed) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
       res.json({ success: true, verified: true });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -158,10 +161,6 @@ export function registerSendVerificationRoute(
       }
 
       const response: any = { success: true, message: "Verification code sent" };
-      if (emailFailed) {
-        response.emailFailed = true;
-        response.fallbackCode = code;
-      }
       if (process.env.NODE_ENV !== "production") {
         console.log(`[DEV] Verification code for ${email}:`, code);
         response.devCode = code;
@@ -256,11 +255,6 @@ export function registerAuthRoutes(
     try {
       const data = insertUserSchema.parse(req.body);
 
-      const existing = await storage.getUserByEmail(data.email);
-      if (existing) {
-        return res.status(400).json({ error: "Email already exists" });
-      }
-
       const hashedPassword = await bcrypt.hash(data.password, 10);
       const user = await storage.createUser({
         ...data,
@@ -282,6 +276,10 @@ export function registerAuthRoutes(
         token,
       });
     } catch (error: any) {
+      // Postgres unique-constraint violation on emailHash — two concurrent signups for the same address.
+      if (error.code === '23505') {
+        return res.status(400).json({ error: "Email already exists" });
+      }
       res.status(400).json({ error: error.message });
     }
   });

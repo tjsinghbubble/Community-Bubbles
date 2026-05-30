@@ -8,7 +8,11 @@ import {
   type SendVerificationStorage,
 } from "../auth-handler";
 
-function buildApp(storage: SendVerificationStorage, rateLimiter?: RequestHandler) {
+function buildApp(
+  storage: SendVerificationStorage,
+  rateLimiter?: RequestHandler,
+  sendEmail?: (email: string, code: string) => Promise<void>,
+) {
   const app = express();
   app.use(
     "/api/auth",
@@ -19,7 +23,7 @@ function buildApp(storage: SendVerificationStorage, rateLimiter?: RequestHandler
   registerSendVerificationRoute(app, storage, {
     rateLimiter,
     generateCode: () => "123456",
-    sendEmail: vi.fn().mockResolvedValue(undefined),
+    sendEmail: sendEmail ?? vi.fn().mockResolvedValue(undefined),
   });
   return app;
 }
@@ -147,6 +151,19 @@ describe("POST /api/auth/send-verification", () => {
 
     expect(secondRes.status).toBe(429);
     expect(secondRes.body).toHaveProperty("error");
+  });
+
+  it("does not expose the OTP in the response when email delivery fails", async () => {
+    const failingSendEmail = vi.fn().mockRejectedValue(new Error("SMTP timeout"));
+    const app = buildApp(mockStorage, undefined, failingSendEmail);
+
+    const res = await request(app)
+      .post("/api/auth/send-verification")
+      .send({ email: "alice@example.com" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ success: true });
+    expect(res.body).not.toHaveProperty("fallbackCode");
   });
 
   it("returns 413 when the request payload exceeds the 10kb limit", async () => {

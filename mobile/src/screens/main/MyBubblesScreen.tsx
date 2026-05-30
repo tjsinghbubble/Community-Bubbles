@@ -21,12 +21,12 @@ import { useAuth } from '../../context/AuthContext';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { getFallbackImage } from '../../utils/categoryImages';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow } from '../../styles/theme';
+import { Colors, Spacing, Radius, Typography, Gradients, NotificationBadge, CardShadow, Layout } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_GAP = 12;
-const CARD_PADDING = 20;
+const CARD_GAP = Layout.gridColumnGap;
+const CARD_PADDING = Layout.gridScreenPadding;
 const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2;
 
 type Bubble = {
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: Layout.gridScreenPadding,
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,

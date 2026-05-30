@@ -35,7 +35,7 @@ describe("POST /api/campus/verify-code", () => {
         title: "State University",
         domain: "state.edu",
       }),
-      markCodeAsUsed: vi.fn().mockResolvedValue(undefined),
+      markCodeAsUsedAtomic: vi.fn().mockResolvedValue(true),
       updateUserCampus: vi.fn().mockResolvedValue(undefined),
       getUser: vi.fn().mockResolvedValue({
         id: "user-1",
@@ -60,7 +60,7 @@ describe("POST /api/campus/verify-code", () => {
       campus: { id: "campus-1", name: "State University", domain: "state.edu" },
       user: { id: "user-1", campusId: "campus-1", campusVerified: true },
     });
-    expect(mockStorage.markCodeAsUsed).toHaveBeenCalledWith("code-1");
+    expect(mockStorage.markCodeAsUsedAtomic).toHaveBeenCalledWith("code-1");
     expect(mockStorage.updateUserCampus).toHaveBeenCalledWith(
       "user-1",
       "campus-1",
@@ -134,7 +134,7 @@ describe("POST /api/campus/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Invalid or expired code");
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
   it("returns 400 when campus is not found for the email domain", async () => {
@@ -147,7 +147,7 @@ describe("POST /api/campus/verify-code", () => {
 
     expect(res.status).toBe(400);
     expect(res.body).toHaveProperty("error", "Campus not found");
-    expect(mockStorage.markCodeAsUsed).not.toHaveBeenCalled();
+    expect(mockStorage.markCodeAsUsedAtomic).not.toHaveBeenCalled();
   });
 
   it("normalizes email to lowercase before looking up code and campus", async () => {

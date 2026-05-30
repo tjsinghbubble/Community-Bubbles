@@ -166,6 +166,23 @@ export const Spacing = {
   huge: 48,
 };
 
+/**
+ * Layout — screen-level padding tokens derived from design annotations.
+ *
+ * detailScreenPadding  : horizontal gutter for detail/content screens (BubbleDetails pattern)
+ * gridScreenPadding    : horizontal gutter for grid-list and dashboard screens (MyBubbles / AdminDashboard pattern)
+ * gridColumnGap        : gap between the two columns in a 2-column grid
+ * sectionLabelIndent   : vertical gap between a section label and its first item
+ * buttonBottomMargin   : space above the bottom CTA button and below the last content item
+ */
+export const Layout = {
+  detailScreenPadding: 16,
+  gridScreenPadding: 24,
+  gridColumnGap: 13,
+  sectionLabelIndent: 8,
+  buttonBottomMargin: 32,
+};
+
 export const Radius = {
   xs: 4,
   sm: 8,
@@ -678,6 +695,7 @@ const theme = {
   BackArrow,
   PageHeader,
   PageBody,
+  Layout,
   Gradients,
   Typography,
   Spacing,
