@@ -38,15 +38,24 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
   const isCodeComplete = code.every((digit) => digit !== '');
 
   const handleCodeChange = (value: string, index: number) => {
-    if (value.length > 1) {
-      value = value[value.length - 1];
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length > 1) {
+      const newCode = [...code];
+      digits.split('').forEach((d, i) => {
+        if (index + i < 6) newCode[index + i] = d;
+      });
+      setCode(newCode);
+      const lastFilled = Math.min(index + digits.length - 1, 5);
+      inputRefs.current[lastFilled]?.focus();
+      return;
     }
 
     const newCode = [...code];
-    newCode[index] = value;
+    newCode[index] = digits;
     setCode(newCode);
 
-    if (value && index < 5) {
+    if (digits && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
