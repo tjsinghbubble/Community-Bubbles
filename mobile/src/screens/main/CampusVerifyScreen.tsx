@@ -129,7 +129,6 @@ export default function CampusVerifyScreen({ navigation, route }: Props) {
               onChangeText={(value) => handleCodeChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
-              maxLength={1}
               selectTextOnFocus
             />
           ))}

@@ -149,7 +149,6 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
               onChangeText={(value) => handleCodeChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
-              maxLength={1}
               selectTextOnFocus
               testID={`input-otp-${index}`}
               accessibilityLabel={`Verification code digit ${index + 1}`}
