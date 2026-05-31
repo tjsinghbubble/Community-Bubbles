@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -18,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   GestureDetector,
   Gesture,
@@ -818,7 +818,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
   if (isLoading || !event) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <EventDetailsSkeleton />
       </SafeAreaView>
     );
@@ -868,7 +868,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.navHeader}>
         <TouchableOpacity
           onPress={handleBackPress}

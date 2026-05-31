@@ -1,17 +1,54 @@
 import crypto from "crypto";
 
+const MIGRATION_WARNING = `
+  WARNING: Changing ENCRYPTION_KEY requires migrating all encrypted fields
+  (user emails, campus emails) in the database. Any values encrypted with
+  the old key will become permanently unreadable. Coordinate with the team
+  and run a migration script before rotating this key in production.
+  To generate a valid key:
+    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+`.trim();
+
 function getKey(): Buffer {
-  const keyHex = process.env.ENCRYPTION_KEY;
-  if (!keyHex)
+  // Strip surrounding quotes that some dotenv parsers leave in place
+  const keyHex = process.env.ENCRYPTION_KEY?.trim().replace(/^["']|["']$/g, "");
+
+  if (!keyHex) {
     throw new Error(
       "ENCRYPTION_KEY environment variable is required for email encryption"
     );
+  }
+
   const key = Buffer.from(keyHex, "hex");
-  if (key.length !== 32)
+
+  if (key.length === 32) return key;
+
+  if (process.env.NODE_ENV === "production") {
     throw new Error(
-      "ENCRYPTION_KEY must be exactly 32 bytes (64 hex characters)"
+      [
+        `ENCRYPTION_KEY must be exactly 32 bytes (64 hex characters); ` +
+        `got ${key.length} bytes (${keyHex.length} hex chars).`,
+        "",
+        MIGRATION_WARNING,
+      ].join("\n")
     );
-  return key;
+  }
+
+  // Development: warn and zero-pad to 32 bytes so the server stays usable
+  console.warn(
+    `[encryption] ENCRYPTION_KEY is ${key.length} bytes; expected 32. ` +
+    `Zero-padding for development. ` +
+    `NOTE: Changing this key invalidates all existing test accounts — ` +
+    `run "npm run db:reset-full:local" to create fresh ones.`
+  );
+  const padded = Buffer.alloc(32);
+  key.copy(padded);
+  return padded;
+}
+
+// Call at startup to validate the key eagerly (throws in production if invalid).
+export function assertEncryptionKey(): void {
+  getKey();
 }
 
 // AES-256-GCM encryption. Output format: "ivHex:authTagHex:ciphertextHex"

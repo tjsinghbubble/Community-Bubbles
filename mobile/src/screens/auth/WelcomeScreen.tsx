@@ -30,7 +30,7 @@ const GRID_IMAGES = [
 
 export default function WelcomeScreen({ navigation }: Props) {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.content}>
         <View style={styles.photoGrid}>
           {GRID_IMAGES.map((img, index) => (

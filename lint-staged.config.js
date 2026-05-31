@@ -13,4 +13,11 @@ export default {
     if (hasRoot) commands.push("tsc --noEmit");
     return commands;
   },
+
+  // When the Drizzle schema changes, regenerate the snapshot so it stays in
+  // sync and gets committed alongside the schema change.
+  "shared/schema.ts": () => [
+    "tsx scripts/generate-db-snapshot.ts",
+    "git add docs/db-schema-snapshot.json",
+  ],
 };

@@ -1,0 +1,42 @@
+# Subflow: login
+# Launches the app from a clean state and logs in.
+# Parameters:
+#   EMAIL    - user email address
+#   PASSWORD - user password
+
+appId: com.bubble.mobile
+---
+
+- launchApp:
+    appId: com.bubble.mobile
+    clearState: true
+
+# Reconnect to Metro after clearState wipes the stored bundle URL
+- openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+
+- tapOn:
+    text: "Log In"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: input-email
+
+- tapOn:
+    id: input-email
+- inputText: ${EMAIL}
+
+- tapOn:
+    id: input-password
+- inputText: ${PASSWORD}
+
+- tapOn:
+    id: button-log-in
+
+# Dismiss campus prompt if present
+- tapOn:
+    id: button-dismiss-campus-prompt
+    optional: true
+
+- assertVisible:
+    id: button-create-fab
