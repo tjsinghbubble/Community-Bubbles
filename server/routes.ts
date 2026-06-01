@@ -285,7 +285,7 @@ export async function registerRoutes(
       applinks: {
         apps: [],
         details: [{
-          appID: "APPLE_TEAM_ID.io.bubble.app",
+          appID: "762F5X3N9L.io.trybubble.app",
           paths: ["/b/*", "/e/*"],
         }],
       },

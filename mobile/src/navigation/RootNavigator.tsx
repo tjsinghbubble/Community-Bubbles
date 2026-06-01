@@ -299,7 +299,7 @@ export default function RootNavigator() {
 
     Linking.getInitialURL()
       .then((url) => {
-        if (url) handleDeepLink(url);
+        if (url) setTimeout(() => handleDeepLink(url), 500);
       })
       .catch((err: unknown) => {
         const error = err instanceof Error ? err : new Error(String(err));
