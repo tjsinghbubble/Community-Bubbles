@@ -92,6 +92,46 @@ export async function autoMigrate(): Promise<void> {
         user_id     VARCHAR REFERENCES users(id),
         created_at  TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      -- user suspension (feat/user-suspension)
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS suspended_at     TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
+    `);
+
+    // Column renames — run in separate statements because RENAME COLUMN cannot
+    // be combined with IF NOT EXISTS; use information_schema guards instead.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'events' AND column_name = 'creator_id'
+        ) THEN
+          ALTER TABLE events RENAME COLUMN creator_id TO created_by;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'bubbles' AND column_name = 'creator_id'
+        ) THEN
+          ALTER TABLE bubbles RENAME COLUMN creator_id TO created_by;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_attendees' AND column_name = 'joined_at'
+        ) THEN
+          ALTER TABLE event_attendees RENAME COLUMN joined_at TO created_at;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'memberships' AND column_name = 'joined_at'
+        ) THEN
+          ALTER TABLE memberships RENAME COLUMN joined_at TO created_at;
+        END IF;
+      END $$;
     `);
 
     console.log("[autoMigrate] Schema is up to date.");

@@ -280,6 +280,10 @@ export async function registerRoutes(
   //       e.g. "ABC123DEF4"  →  appID becomes "ABC123DEF4.io.bubble.app"
   // ---------------------------------------------------------------------------
   app.get("/.well-known/apple-app-site-association", (_req, res) => {
+    const teamId = process.env.APPLE_TEAM_ID;
+    if (!teamId) {
+      console.warn("[AASA] APPLE_TEAM_ID is not set — iOS Universal Links will not work");
+    }
     res.setHeader("Content-Type", "application/json");
     res.json({
       applinks: {
@@ -294,19 +298,21 @@ export async function registerRoutes(
 
   // ---------------------------------------------------------------------------
   // App Links (Android) — Google fetches this to verify domain ownership.
-  //
-  // TODO: replace ANDROID_SHA256_FINGERPRINT with the SHA-256 cert fingerprint.
-  //       Get it by running:  eas credentials  (select Android → Production)
-  //       or from Google Play Console → App Integrity → App signing key cert.
-  //       Format: "AA:BB:CC:DD:..." (colon-separated hex pairs)
+  // Set ANDROID_SHA256_FINGERPRINT in Replit Secrets.
+  // Get it by running:  cd mobile && eas credentials --platform android
+  // Format: "AA:BB:CC:DD:..." (colon-separated hex pairs)
   // ---------------------------------------------------------------------------
   app.get("/.well-known/assetlinks.json", (_req, res) => {
+    const fingerprint = process.env.ANDROID_SHA256_FINGERPRINT;
+    if (!fingerprint) {
+      console.warn("[assetlinks] ANDROID_SHA256_FINGERPRINT is not set — Android App Links will not work");
+    }
     res.json([{
       relation: ["delegate_permission/common.handle_all_urls"],
       target: {
         namespace: "android_app",
         package_name: "com.bubble.mobile",
-        sha256_cert_fingerprints: ["ANDROID_SHA256_FINGERPRINT"],
+        sha256_cert_fingerprints: fingerprint ? [fingerprint] : [],
       },
     }]);
   });

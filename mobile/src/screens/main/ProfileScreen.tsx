@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Platform,
   StatusBar,
@@ -13,6 +12,7 @@ import {
   Image,
   Clipboard,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect, NavigationProp } from '@react-navigation/native';
@@ -121,7 +121,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.brand.bubbleBlue} />
         </View>
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
     .map((b: any) => b.coverImage);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditProfile')} testID="button-edit-profile">
           <EditIcon size={22} color={Colors.neutral.charcoal} />

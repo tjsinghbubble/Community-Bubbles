@@ -6,16 +6,19 @@
   "scripts": {
     "dev:client": "vite dev --port 5000",
     "dev": "NODE_ENV=development tsx server/index.ts",
-    "dev:local": "node scripts/qr.mjs & NODE_ENV=development node --env-file=.env --import=tsx/esm server/index.ts",
+    "api_server": "node scripts/check-port.mjs && (node scripts/qr.mjs & NODE_ENV=development tsx --env-file=.env server/index.ts)",
+    "check:port": "node scripts/check-port.mjs",
+    "check:db": "tsx --env-file=.env scripts/check-db-schema.ts",
+    "generate:db-snapshot": "tsx scripts/generate-db-snapshot.ts",
     "build": "tsx scripts/build.ts",
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:push:local": "node --env-file=.env ./node_modules/.bin/drizzle-kit push",
     "db:reset:local": "node --env-file=.env scripts/db-reset.mjs && npm run db:push:local",
-    "db:seed-test:local": "node --env-file=.env --import=tsx/esm scripts/seed-test-data.ts",
+    "db:seed-test:local": "tsx --env-file=.env scripts/seed-test-data.ts",
     "db:reset-full:local": "npm run db:reset:local && npm run db:seed-test:local",
-    "mobile:start": "npm --prefix mobile run start",
+    "metro_bundler": "npm --prefix mobile run start",
     "mobile:ios": "npm --prefix mobile run start -- --ios",
     "mobile:android": "npm --prefix mobile run start -- --android",
     "mobile:build:ios-sim": "npm --prefix mobile run ios",
@@ -26,6 +29,7 @@
     "test:e2e:web-mobile": "maestro test -e APP_ID=com.apple.mobilesafari -e METRO_HOST=metro_host .maestro/web/",
     "qr": "node scripts/qr.mjs",
     "prepare": "husky",
+    "postinstall": "bash scripts/exclude-dev-tools-from-cloud.sh",
     "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -36,8 +40,8 @@
   },
   "dependencies": {
     "@cometchat/chat-sdk-javascript": "^4.1.9",
-    "@commitlint/cli": "^20.5.2",
-    "@commitlint/config-conventional": "^20.5.0",
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@google-cloud/storage": "^7.19.0",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -87,6 +91,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
     "cors": "^2.8.6",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.3",
@@ -165,7 +170,7 @@
     "autoprefixer": "^10.4.21",
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.0",
-    "lint-staged": "^16.4.0",
+    "lint-staged": "^17.0.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.20.5",
@@ -176,6 +181,7 @@
     "bufferutil": "^4.0.8"
   },
   "overrides": {
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "debug": "4.3.7"
   }
 }

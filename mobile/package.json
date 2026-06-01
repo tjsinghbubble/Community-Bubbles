@@ -4,15 +4,22 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
+    "preandroid": "bash scripts/check-secrets.sh && (bash ../scripts/flag-temp-files.sh || true)",
     "android": "expo run:android --no-bundler",
+    "postandroid": "bash ../scripts/flag-temp-files.sh || true",
+    "preios": "bash scripts/check-secrets.sh && (bash ../scripts/flag-temp-files.sh || true)",
     "ios": "expo run:ios --no-bundler",
+    "postios": "bash ../scripts/flag-temp-files.sh || true",
     "web": "expo start --web",
+    "check:secrets": "bash scripts/check-secrets.sh",
     "test": "node ../node_modules/.bin/jest --config jest.config.js",
     "version:bump": "node scripts/bump-version.js",
     "build:testflight-staging": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for testflight-staging build' && eas build --profile testflight-staging",
     "build:beta": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for beta build' && eas build --profile beta",
     "build:production": "node scripts/bump-version.js && git add app.json package.json && git commit -m 'chore: bump version for production build' && eas build --profile production",
-    "eas-build-on-success": "bash scripts/sentry-post-build.sh"
+    "eas-build-pre-install": "bash scripts/check-secrets.sh",
+    "eas-build-on-success": "bash scripts/sentry-post-build.sh",
+    "postinstall": "bash ../scripts/flag-temp-files.sh || true"
   },
   "dependencies": {
     "@cometchat/chat-sdk-react-native": "^4.0.10",

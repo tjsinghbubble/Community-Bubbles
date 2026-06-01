@@ -1,0 +1,100 @@
+# Flow: create-bubble
+# Logs in as a user and creates a bubble, taking screenshots at each new view.
+#
+# Required env:
+#   EMAIL    - test account email
+#   PASSWORD - test account password
+#
+# Run:
+#   maestro test maestro/flows/create-bubble.yaml \
+#     -e EMAIL=you@example.com -e PASSWORD=secret
+
+appId: com.bubble.mobile
+
+---
+
+# ── Login ────────────────────────────────────────────────────────────────────
+
+- runFlow:
+    file: ../subflows/login.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+
+- takeScreenshot: login-complete
+
+# ── Navigate to Create Bubble ─────────────────────────────────────────────────
+
+- tapOn:
+    id: button-create-fab
+
+- waitForAnimationToEnd
+
+- takeScreenshot: create-bubble-fab-tapped
+
+- tapOn:
+    id: button-create-bubble
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: input-title
+
+- takeScreenshot: create-bubble-step1-details
+
+# ── Fill in bubble details ────────────────────────────────────────────────────
+
+- tapOn:
+    id: input-title
+- inputText: "Test Bubble"
+
+- tapOn:
+    id: input-tagline
+- inputText: "Created by Maestro"
+
+- tapOn:
+    id: input-description
+- inputText: "This bubble was created automatically by a Maestro test flow."
+
+- takeScreenshot: create-bubble-step1-filled
+
+# ── Pick a category ───────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "button-next"
+
+- takeScreenshot: create-bubble-step2-category
+
+# Tap the first visible category button
+- tapOn:
+    id: "button-category-.*"
+    index: 0
+
+- takeScreenshot: create-bubble-step2-category-selected
+
+# ── Privacy / settings step ───────────────────────────────────────────────────
+
+- tapOn:
+    id: "button-next"
+
+- takeScreenshot: create-bubble-step3-settings
+
+# ── Review screen ─────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "button-next"
+
+- takeScreenshot: create-bubble-review
+
+# ── Submit ────────────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: button-submit-review
+
+- takeScreenshot: create-bubble-submitted
+
+# Confirm we landed somewhere meaningful after submit (bubble details or explore)
+- assertVisible:
+    id: "button-create-fab"
+
+- takeScreenshot: create-bubble-done
