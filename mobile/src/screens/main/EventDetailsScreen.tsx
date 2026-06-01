@@ -1094,7 +1094,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
         <TouchableOpacity
           style={styles.bubbleRow}
           activeOpacity={0.7}
-          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubbleId: bubble.id })}
+          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubble })}
         >
           <View style={styles.bubbleIconContainer}>
             {bubble?.coverImage ? (
