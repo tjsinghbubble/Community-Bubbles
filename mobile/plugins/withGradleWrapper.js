@@ -2,7 +2,7 @@ const { withDangerousMod } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
-const GRADLE_VERSION = '8.10.2';
+const GRADLE_VERSION = '8.13';
 const DISTRIBUTION_URL = `https\\://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip`;
 
 module.exports = function withGradleWrapper(config) {
