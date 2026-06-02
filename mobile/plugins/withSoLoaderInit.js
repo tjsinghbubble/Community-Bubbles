@@ -17,12 +17,22 @@ module.exports = function withSoLoaderInit(config) {
       return config;
     }
 
-    // Add SoLoader + merged-SO-mapping imports after the DefaultReactNativeHost import line
+    // Inject imports after the last existing import line (robust across SDK versions)
     if (!contents.includes('import com.facebook.soloader.SoLoader')) {
-      contents = contents.replace(
-        'import com.facebook.react.defaults.DefaultReactNativeHost',
-        'import com.facebook.react.defaults.DefaultReactNativeHost\nimport com.facebook.react.soloader.OpenSourceMergedSoMapping\nimport com.facebook.soloader.SoLoader'
-      );
+      const allImports = contents.match(/^import .+$/gm);
+      if (allImports && allImports.length > 0) {
+        const lastImport = allImports[allImports.length - 1];
+        // Use lastIndexOf so we only replace the last occurrence of this import line
+        const lastIdx = contents.lastIndexOf(lastImport);
+        contents =
+          contents.slice(0, lastIdx + lastImport.length) +
+          '\nimport com.facebook.react.soloader.OpenSourceMergedSoMapping' +
+          '\nimport com.facebook.soloader.SoLoader' +
+          contents.slice(lastIdx + lastImport.length);
+        console.log('[withSoLoaderInit] Injected SoLoader imports after last import line.');
+      } else {
+        console.warn('[withSoLoaderInit] Could not find any import lines — skipping import injection.');
+      }
     }
 
     // Add SoLoader.init() and the marker as the first line inside onCreate().
