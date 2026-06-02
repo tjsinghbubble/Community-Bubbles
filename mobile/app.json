@@ -29,7 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bubble.mobile",
+      "package": "io.trybubble.app",
       "intentFilters": [
         {
           "action": "VIEW",
