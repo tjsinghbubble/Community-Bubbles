@@ -48,22 +48,12 @@ Notifications.setNotificationHandler({
 function buildLinking(shareBaseUrl?: string) {
   const prefixes = [prefix, 'bubble://'];
   if (shareBaseUrl) prefixes.push(shareBaseUrl);
-  return {
-    prefixes,
-    config: {
-      screens: {
-        Main: {
-          screens: {
-            Explore: {
-              screens: {
-                BubbleDetails: 'b/:shortId',
-              },
-            },
-          },
-        },
-      },
-    },
-  };
+  // Deep link routing is handled entirely by the manual handleDeepLink effect
+  // below, which fetches the full bubble/event object before navigating.
+  // Screens are intentionally omitted here to prevent React Navigation from
+  // auto-routing b/:shortId to BubbleDetails with only { shortId } params,
+  // which the screen cannot handle.
+  return { prefixes, config: { screens: {} } };
 }
 
 export default function RootNavigator() {
