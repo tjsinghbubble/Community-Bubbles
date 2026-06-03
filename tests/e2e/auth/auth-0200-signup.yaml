@@ -1,0 +1,77 @@
+# qa-id: auth-0200
+# Sign up with name, gender, date of birth, email, password (UC 180).
+#
+# STATUS: unverified. The multi-step signup + onboarding sequence (gender picker, DOB picker,
+# interests, guidelines) has NOT yet been verified against a running build, so this flow is
+# tagged `unverified` — it is excluded from the default smoke suite and a failure is reported
+# as an expected finding, not a regression. Verify interactively, then promote to `smoke`.
+#
+# The seed truncates the DB before each run, so `signup-0200@bubble.test` is fresh per run.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - e2e
+  - ios
+  - role-user
+  - unverified
+env:
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: ../common/reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Welcome → Signup
+- tapOn:
+    id: button-sign-up
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-name
+
+- tapOn:
+    id: input-name
+- inputText: "QA Signup User"
+
+# Gender picker (select the first option).
+- tapOn:
+    id: button-select-gender
+- tapOn:
+    id: "option-gender-.*"
+    index: 0
+- tapOn:
+    id: button-close-gender-picker
+    optional: true
+
+# Date-of-birth picker (accept the default and confirm).
+- tapOn:
+    id: button-select-dob
+- tapOn:
+    id: button-confirm-date
+
+- tapOn:
+    id: input-email
+- inputText: "signup-0200@bubble.test"
+- tapOn:
+    id: input-password
+- inputText: "Passw0rd!23"
+
+- tapOn:
+    id: checkbox-terms
+
+- takeScreenshot: signup-filled
+- tapOn:
+    id: button-continue
+
+# Onboarding (interests, then guidelines) — best-effort; optional taps tolerate variation.
+- tapOn:
+    id: button-continue
+    optional: true
+- waitForAnimationToEnd
+
+# Success is reaching the authenticated Explore FAB.
+- assertVisible:
+    id: button-create-fab
+- takeScreenshot: signup-complete

@@ -28,3 +28,11 @@ playwright-report/
 test-results/
 server/__tests__/e2e/.test-context.json
 maestro/output
+# QA test architecture (Phase 1) — run artifacts & panic marker
+tests/output/
+tests/PANIC
+# Local-only: editor project, Expo metadata, scratch dir, device logs
+.idea/
+.expo/
+tmp/
+*.adb.log

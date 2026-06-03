@@ -1,0 +1,45 @@
+# Subflow: login-as
+# Clean launch + Metro reconnect, then sign in with the supplied credentials.
+#
+# Env (defaults = the seeded role-user; the qa runner overrides EMAIL/PASSWORD/ROLE per role):
+#   EMAIL, PASSWORD, ROLE, METRO_HOST, METRO_PORT
+appId: com.bubble.mobile
+env:
+  EMAIL: member@bubble.test
+  PASSWORD: Member123!
+  ROLE: role-user
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Welcome screen → Login screen. Tap by TEXT: both screens expose a `button-log-in` testID,
+# so navigating by id would be ambiguous.
+- tapOn:
+    text: "Log In"
+
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: input-email
+
+- tapOn:
+    id: input-email
+- inputText: ${EMAIL}
+
+- tapOn:
+    id: input-password
+- inputText: ${PASSWORD}
+
+# Submit (the Login screen's button-log-in).
+- tapOn:
+    id: button-log-in
+
+# Dismiss the campus prompt if it appears.
+- tapOn:
+    id: button-dismiss-campus-prompt
+    optional: true

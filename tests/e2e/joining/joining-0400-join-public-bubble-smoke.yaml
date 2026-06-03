@@ -1,0 +1,58 @@
+# qa-id: joining-0400
+# Join a public bubble instantly (UC 212).
+#
+# STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run. Signs in as the role-user (member) — NOT the bubble's
+# owner — and joins the seeded public "QA Test Bubble".
+appId: com.bubble.mobile
+tags:
+  - joining
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-user
+env:
+  EMAIL: member@bubble.test
+  PASSWORD: Member123!
+  ROLE: role-user
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# Open the first bubble card.
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn:
+    id: "card-bubble-.*"
+    index: 0
+- waitForAnimationToEnd
+- takeScreenshot: bubble-details
+
+# Public bubbles join instantly. The control is either the details-screen toggle
+# (button-join-leave) or the dedicated join screen (button-join-bubble) — tap whichever shows.
+- tapOn:
+    id: button-join-leave
+    optional: true
+- tapOn:
+    id: button-join-bubble
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: joined
+
+# After joining, the members view becomes available on the details screen.
+- assertVisible:
+    id: button-view-members
+- takeScreenshot: joined-confirmed

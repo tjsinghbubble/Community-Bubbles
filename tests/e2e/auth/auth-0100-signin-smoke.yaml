@@ -1,0 +1,30 @@
+# qa-id: auth-0100
+# Sign in with email + password (UC 182). Happy path; runner iterates all three roles.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - smoke
+  - e2e
+  - ios
+  - role-any
+env:
+  EMAIL: member@bubble.test
+  PASSWORD: Member123!
+  ROLE: role-user
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Reaching the Explore tab's create FAB confirms an authenticated session.
+- assertVisible:
+    id: button-create-fab
+
+- takeScreenshot: signed-in

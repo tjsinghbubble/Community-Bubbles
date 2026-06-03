@@ -1,0 +1,51 @@
+{
+  "info": {
+    "name": "Bubble contract-smoke (qa-id: contract-0100)",
+    "description": "Minimal contract/smoke checks run by newman from the qa runner. baseUrl is supplied via --env-var. Uses the seeded role-user credentials.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Liveness ping",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "text/plain" }],
+        "url": { "raw": "{{baseUrl}}/api/v1/ping", "host": ["{{baseUrl}}"], "path": ["api", "v1", "ping"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('body is pong', () => pm.expect(pm.response.text()).to.include('pong'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login returns a token",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"email\":\"member@bubble.test\",\"password\":\"Member123!\"}" },
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('has token', () => pm.expect(pm.response.json()).to.have.property('token'));",
+              "pm.test('returns user', () => pm.expect(pm.response.json()).to.have.property('user'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

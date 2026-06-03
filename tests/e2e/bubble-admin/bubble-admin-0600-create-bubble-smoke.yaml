@@ -1,0 +1,79 @@
+# qa-id: bubble-admin-0600
+# Create a new bubble (UC 129). Adapted from the known-good maestro/flows/create-bubble.yaml,
+# re-pointed at the seeded bubble-admin role and the new run-scoped screenshot scheme.
+appId: com.bubble.mobile
+tags:
+  - bubble-admin
+  - smoke
+  - e2e
+  - ios
+  - role-bubble-admin
+env:
+  EMAIL: bubbleadmin@bubble.test
+  PASSWORD: BubbleAdmin123!
+  ROLE: role-bubble-admin
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- assertVisible:
+    id: button-create-fab
+- takeScreenshot: login-complete
+
+# Open the create menu and start the create-bubble wizard.
+- tapOn:
+    id: button-create-fab
+- waitForAnimationToEnd
+- tapOn:
+    id: button-create-bubble
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: input-title
+- takeScreenshot: create-step1-details
+
+# Step 1 — details
+- tapOn:
+    id: input-title
+- inputText: "QA E2E Bubble"
+- tapOn:
+    id: input-tagline
+- inputText: "Created by qa runner"
+- tapOn:
+    id: input-description
+- inputText: "Deterministic bubble created by the qa e2e suite."
+- takeScreenshot: create-step1-filled
+
+# Step 2 — category (first available)
+- tapOn:
+    id: "button-next"
+- takeScreenshot: create-step2-category
+- tapOn:
+    id: "button-category-.*"
+    index: 0
+
+# Step 3 — settings, Step 4 — review
+- tapOn:
+    id: "button-next"
+- takeScreenshot: create-step3-settings
+- tapOn:
+    id: "button-next"
+- takeScreenshot: create-review
+
+# Submit
+- tapOn:
+    id: button-submit-review
+- takeScreenshot: create-submitted
+
+# Land back on a meaningful screen.
+- assertVisible:
+    id: "button-create-fab"
+- takeScreenshot: create-done

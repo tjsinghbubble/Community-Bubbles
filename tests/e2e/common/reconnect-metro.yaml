@@ -1,0 +1,21 @@
+# Subflow: reconnect-metro
+# Launches the native dev build from a clean state and reconnects it to Metro.
+#
+# Why: with the Expo Dev Client, `clearState: true` wipes the stored Metro bundle URL, so the
+# app can't find the bundler on next launch. The openLink immediately re-points it. (See
+# CLAUDE.md / project memory: this is why a separate native Maestro flow set exists.)
+#
+# Env (defaults provided; overridable via -e from the qa runner):
+#   METRO_HOST, METRO_PORT
+appId: com.bubble.mobile
+env:
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- launchApp:
+    appId: com.bubble.mobile
+    clearState: true
+
+- openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A${METRO_PORT}"
+
+- waitForAnimationToEnd

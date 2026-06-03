@@ -1,0 +1,47 @@
+# qa-id: discovery-0300
+# Browse bubbles in the Explore tab (UC 204).
+#
+# STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop the `unverified` tag (so it joins the default smoke suite) after one green run.
+# Depends on the seeded "QA Test Bubble" (Public, approved) appearing in Explore.
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-any
+env:
+  EMAIL: member@bubble.test
+  PASSWORD: Member123!
+  ROLE: role-user
+  METRO_HOST: localhost
+  METRO_PORT: "8081"
+---
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- assertVisible:
+    id: button-create-fab
+
+# Explore → Bubbles tab; at least one bubble card must render.
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: explore-bubbles
+
+# Search narrows the list.
+- tapOn:
+    id: input-search
+- inputText: "QA"
+- waitForAnimationToEnd
+- takeScreenshot: explore-search

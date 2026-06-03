@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# Excludes developer tool build artifacts, caches, and emulator images from
-# iCloud Drive, Spotlight indexing, and Time Machine backups.
+# Flags developer tool build artifacts, caches, and emulator images to prevent
+# iCloud Drive backup, Spotlight indexing, and Time Machine backup.
+#
+# Usage: flag-temp-files.sh [project-root]
+#   project-root  Absolute path to the project root. Defaults to the parent of
+#                 the scripts/ directory this script lives in, so it works when
+#                 invoked from either the project root or mobile/.
 #
 # Silent on success; warns to stderr on failure.
 # Safe to re-run; skips missing directories and inactive backup systems.
 # Re-run after: expo prebuild, ./gradlew clean, SDK updates, new Genymotion VMs.
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT="${1:-"${SCRIPT_DIR%/scripts}"}"
+
+verbose=1
 
 warn() { echo "  ⚠  $1" >&2; }
 
@@ -18,8 +28,13 @@ warn() { echo "  ⚠  $1" >&2; }
 # ---------------------------------------------------------------------------
 ICLOUD_DOCS=false
 TM_ENABLED=false
-xattr "$HOME/Documents" 2>/dev/null | grep -q 'file-provider-domain-id' && ICLOUD_DOCS=true
-tmutil destinationinfo &>/dev/null && TM_ENABLED=true
+
+# iCloud Drive is active when this container directory exists.
+[ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs" ] && ICLOUD_DOCS=true
+
+# Time Machine is configured when at least one named destination is registered.
+tmutil destinationinfo 2>/dev/null | grep -q 'Name :' && TM_ENABLED=true
+
 
 # ---------------------------------------------------------------------------
 # Core helpers
@@ -29,6 +44,8 @@ apply_icloud() {
   $ICLOUD_DOCS || return 0
   local dir="$1"
   [ -d "$dir" ] || return 0
+  # com.apple.icloud.donotbackup maps to NSURLIsExcludedFromBackupKey.
+  # Setting it prevents iCloud Drive from syncing or backing up this directory.
   xattr -w com.apple.icloud.donotbackup 1 "$dir" 2>/dev/null \
     || warn "iCloud FAILED: $dir"
 }
@@ -66,10 +83,8 @@ apply_all_library() {
 }
 
 # ---------------------------------------------------------------------------
-# 1. Project source — inside ~/Documents (iCloud Drive scope)
+[ ${verbose} -gt 0 ] && echo "1. Project source — inside ~/Documents (iCloud Drive scope)"
 # ---------------------------------------------------------------------------
-
-PROJECT="${HOME}/Documents/src/bubble/TJ-branch-20260220"
 
 apply_all_icloud "${PROJECT}/node_modules"
 apply_all_icloud "${PROJECT}/mobile/node_modules"
@@ -79,10 +94,12 @@ apply_all_icloud "${PROJECT}/mobile/android/app/build"
 apply_all_icloud "${PROJECT}/mobile/android/app/.cxx"
 apply_all_icloud "${PROJECT}/mobile/ios"
 apply_all_icloud "${PROJECT}/dist"
+apply_all_icloud "${PROJECT}/.maestro/output"
+apply_all_icloud "${PROJECT}/tests/output"
 apply_all_icloud "${PROJECT}/.expo"
 
 # ---------------------------------------------------------------------------
-# 2. Android SDK & AVDs — ~/Library/Android, ~/.android
+[ ${verbose} -gt 0 ] && echo "2. Android SDK & AVDs — ~/Library/Android, ~/.android"
 #    Not in iCloud scope; Spotlight indexes aggressively after SDK updates.
 # ---------------------------------------------------------------------------
 
@@ -97,7 +114,7 @@ apply_all_library "${HOME}/.gradle/caches"
 apply_all_library "${HOME}/.gradle/wrapper"
 
 # ---------------------------------------------------------------------------
-# 3. Xcode & iOS Simulator — ~/Library/Developer
+[ ${verbose} -gt 0 ] && echo "3. Xcode & iOS Simulator — ~/Library/Developer"
 # ---------------------------------------------------------------------------
 
 apply_all_library "${HOME}/Library/Developer/Xcode/DerivedData"
@@ -109,7 +126,7 @@ apply_all_library "${HOME}/Library/Caches/com.apple.dt.Xcode"
 apply_all_library "${HOME}/Library/Caches/com.apple.dt.instruments"
 
 # ---------------------------------------------------------------------------
-# 4. Genymotion — auto-detect VM storage path
+[ ${verbose} -gt 0 ] && echo "4. Genymotion — auto-detect VM storage path"
 # ---------------------------------------------------------------------------
 
 GENY_VM_PATH=$(defaults read com.genymobile.Genymotion vmStoragePath 2>/dev/null || true)

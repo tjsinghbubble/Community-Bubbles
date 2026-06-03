@@ -1,0 +1,31 @@
+{
+  "_comment": "Seeded credentials for the dedicated bubble_test database ONLY. These are not secrets; they exist solely so automated tests can authenticate against an isolated test DB. Never reuse these passwords for dev or production accounts.",
+  "roles": {
+    "role-user": {
+      "label": "Group Member (lowest privilege)",
+      "email": "member@bubble.test",
+      "password": "Member123!",
+      "isSuperAdmin": false,
+      "bubbleAdmin": false
+    },
+    "role-bubble-admin": {
+      "label": "Bubble Admin (owns an approved bubble)",
+      "email": "bubbleadmin@bubble.test",
+      "password": "BubbleAdmin123!",
+      "isSuperAdmin": false,
+      "bubbleAdmin": true
+    },
+    "role-site-admin": {
+      "label": "Site Admin (super user)",
+      "email": "siteadmin@bubble.test",
+      "password": "SiteAdmin123!",
+      "isSuperAdmin": true,
+      "bubbleAdmin": false
+    }
+  },
+  "bulkUsers": {
+    "_comment": "Namespaced, never-used accounts for volume/perf tests. Created by tests/fixtures/bulk-users.ts; safe to run against any DB.",
+    "emailTemplate": "test-db-speed-{N}@bb.org",
+    "password": "DbSpeed123!"
+  }
+}
