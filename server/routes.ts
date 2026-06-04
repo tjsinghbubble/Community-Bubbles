@@ -651,7 +651,12 @@ export async function registerRoutes(
       const bubbles = await storage.getPublicBubbles();
       const enriched = await enrichBubblesCategory(bubbles);
       res.json(enriched.map((b: any) => {
-        const { rules, images, attachments, ...rest } = absoluteMediaUrls(b, baseUrl);
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        const { rules, images, attachments, ...rest } = resolved;
+        // Keep coverImage in sync with images[0] so Explore and Details show the same photo
+        if (Array.isArray(images) && images.length > 0) {
+          rest.coverImage = images[0];
+        }
         return rest;
       }));
     } catch (error: any) {
@@ -668,7 +673,13 @@ export async function registerRoutes(
         return { ...m.bubble, members: realCount, role: m.role };
       }));
       const enriched = await enrichBubblesCategory(bubblesWithCounts);
-      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
+      res.json(enriched.map((b: any) => {
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        if (Array.isArray(resolved.images) && resolved.images.length > 0) {
+          resolved.coverImage = resolved.images[0];
+        }
+        return resolved;
+      }));
     } catch (error: any) {
       serverError(res, error);
     }
