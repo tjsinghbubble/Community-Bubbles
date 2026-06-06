@@ -108,7 +108,35 @@ type SignupTask = {
   signers: { id: string; name: string; profilePhoto: string | null }[];
 };
 
-const SIGNUP_EMOJIS = ['📋','🙋','🍕','🎉','🏃','🎨','🎸','⚽','🎾','🏋️','🥗','🧹','📸','🎤','🚗','🛒','💡','🔧','🌿','🎁'];
+const TASK_ICONS: Array<{ name: string; ionicon: string }> = [
+  { name: 'clipboard-outline',     ionicon: 'clipboard-outline' },
+  { name: 'hand-left-outline',     ionicon: 'hand-left-outline' },
+  { name: 'pizza-outline',         ionicon: 'pizza-outline' },
+  { name: 'sparkles-outline',      ionicon: 'sparkles-outline' },
+  { name: 'walk-outline',          ionicon: 'walk-outline' },
+  { name: 'color-palette-outline', ionicon: 'color-palette-outline' },
+  { name: 'musical-notes-outline', ionicon: 'musical-notes-outline' },
+  { name: 'football-outline',      ionicon: 'football-outline' },
+  { name: 'tennisball-outline',    ionicon: 'tennisball-outline' },
+  { name: 'barbell-outline',       ionicon: 'barbell-outline' },
+  { name: 'restaurant-outline',    ionicon: 'restaurant-outline' },
+  { name: 'brush-outline',         ionicon: 'brush-outline' },
+  { name: 'camera-outline',        ionicon: 'camera-outline' },
+  { name: 'mic-outline',           ionicon: 'mic-outline' },
+  { name: 'car-outline',           ionicon: 'car-outline' },
+  { name: 'cart-outline',          ionicon: 'cart-outline' },
+  { name: 'bulb-outline',          ionicon: 'bulb-outline' },
+  { name: 'construct-outline',     ionicon: 'construct-outline' },
+  { name: 'leaf-outline',          ionicon: 'leaf-outline' },
+  { name: 'gift-outline',          ionicon: 'gift-outline' },
+];
+
+function renderTaskIconGlyph(icon: string, size: number, color: string) {
+  if (/[^\x00-\x7F]/.test(icon)) {
+    return <Text style={{ fontSize: size }}>{icon}</Text>;
+  }
+  return <Ionicons name={icon as any} size={size} color={color} />;
+}
 
 export default function EventDetailsScreen({ navigation, route }: Props) {
   const { eventId, event: routeEvent, bubbleTitle: routeBubbleTitle, source, highlightTaskId, scrollToRsvp, onTasksChanged } = route.params;
@@ -141,7 +169,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const [editingTask, setEditingTask] = useState<SignupTask | null>(null);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskIcon, setTaskIcon] = useState('📋');
+  const [taskIcon, setTaskIcon] = useState('clipboard-outline');
   const [taskSpotsNeeded, setTaskSpotsNeeded] = useState('');
   const [taskSubmitting, setTaskSubmitting] = useState(false);
 
@@ -399,7 +427,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
     setEditingTask(null);
     setTaskTitle('');
     setTaskDescription('');
-    setTaskIcon('📋');
+    setTaskIcon('clipboard-outline');
     setTaskSpotsNeeded('');
     setShowTaskModal(true);
   };
@@ -1063,29 +1091,10 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
         <View style={styles.separator} />
 
-        <TouchableOpacity style={styles.creatorRow} activeOpacity={0.7} onPress={() => Alert.alert(creatorName, `Event creator`)}>
-          {creatorProfilePhoto ? (
-            <Image source={{ uri: creatorProfilePhoto }} style={styles.creatorAvatarImage} />
-          ) : (
-            <View style={styles.creatorAvatar}>
-              <Ionicons name="person" size={20} color={Colors.background.primary} />
-            </View>
-          )}
-          <View style={styles.creatorInfo}>
-            <Text style={styles.creatorLabel}>
-              <Text style={styles.creatorName}>{bubbleDisplayTitle || 'Bubble'}</Text>
-            </Text>
-            <Text style={styles.creatorCity}>
-              {creatorName}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.bubbleRow}
           activeOpacity={0.7}
-          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubbleId: bubble.id })}
+          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubble })}
         >
           <View style={styles.bubbleIconContainer}>
             {bubble?.coverImage ? (
@@ -1098,9 +1107,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           </View>
           <View style={styles.bubbleInfo}>
             <Text style={styles.bubbleName}>{bubbleDisplayTitle || 'Bubble'}</Text>
-            {bubble?.tagline ? (
-              <Text style={styles.bubbleTagline} numberOfLines={1}>{bubble.tagline}</Text>
-            ) : null}
+            <Text style={styles.bubbleTagline} numberOfLines={1}>{creatorName}</Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
         </TouchableOpacity>
@@ -1219,7 +1226,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                           <Ionicons name="menu" size={18} color={Colors.text.tertiary} />
                         </View>
                         <View style={styles.taskIconWrap}>
-                          <Text style={styles.taskEmoji}>{task.icon}</Text>
+                          {renderTaskIconGlyph(task.icon, 18, Colors.brand.primary)}
                         </View>
                         <View style={styles.taskMeta}>
                           <Text style={styles.taskTitle}>{task.title}</Text>
@@ -1282,7 +1289,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                         <Ionicons name="menu" size={18} color={Colors.brand.primary} />
                       </View>
                       <View style={styles.taskIconWrap}>
-                        <Text style={styles.taskEmoji}>{draggingTask.icon}</Text>
+                        {renderTaskIconGlyph(draggingTask.icon, 18, Colors.brand.primary)}
                       </View>
                       <View style={styles.taskMeta}>
                         <Text style={styles.taskTitle} numberOfLines={1}>{draggingTask.title}</Text>
@@ -1308,7 +1315,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
                 >
                   <View style={styles.taskHeader}>
                     <View style={styles.taskIconWrap}>
-                      <Text style={styles.taskEmoji}>{task.icon}</Text>
+                      {renderTaskIconGlyph(task.icon, 18, Colors.brand.primary)}
                     </View>
                     <View style={styles.taskMeta}>
                       <Text style={styles.taskTitle}>{task.title}</Text>
@@ -1534,13 +1541,13 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
 
             <Text style={styles.taskModalLabel}>Icon</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiPicker}>
-              {SIGNUP_EMOJIS.map(e => (
+              {TASK_ICONS.map(({ name, ionicon }) => (
                 <TouchableOpacity
-                  key={e}
-                  style={[styles.emojiOption, taskIcon === e && styles.emojiOptionSelected]}
-                  onPress={() => setTaskIcon(e)}
+                  key={name}
+                  style={[styles.emojiOption, taskIcon === name && styles.emojiOptionSelected]}
+                  onPress={() => setTaskIcon(name)}
                 >
-                  <Text style={styles.emojiOptionText}>{e}</Text>
+                  <Ionicons name={ionicon as any} size={20} color={taskIcon === name ? Colors.brand.primary : Colors.text.secondary} />
                 </TouchableOpacity>
               ))}
             </ScrollView>

@@ -1,0 +1,9 @@
+node_modules/
+ios/
+android/
+.expo/
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo

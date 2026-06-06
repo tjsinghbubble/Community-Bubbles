@@ -92,6 +92,11 @@ export async function autoMigrate(): Promise<void> {
         user_id     VARCHAR REFERENCES users(id),
         created_at  TIMESTAMP NOT NULL DEFAULT NOW()
       );
+
+      -- user suspension (feat/user-suspension)
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS suspended_at     TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
     `);
 
     // Column renames — run in separate statements because RENAME COLUMN cannot

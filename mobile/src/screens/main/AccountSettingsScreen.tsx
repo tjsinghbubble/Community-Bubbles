@@ -79,7 +79,7 @@ function SysRow({
         ]}
         numberOfLines={1}
       >
-        {value}
+        {typeof value === 'string' ? value : JSON.stringify(value)}
       </Text>
     </View>
   );
