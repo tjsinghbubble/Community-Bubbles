@@ -43,6 +43,12 @@ const MAX_DOB_DATE = (() => {
 
 const MIN_DOB_DATE = new Date(1910, 0, 1);
 
+const DEFAULT_PICKER_DATE = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 22);
+  return d;
+})();
+
 export default function SignupScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -61,7 +67,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [emailBlurred, setEmailBlurred] = useState(false);
   const emailError = emailBlurred && (email.length === 0 || !EMAIL_REGEX.test(email));
 
-  const [pickerDate, setPickerDate] = useState(MAX_DOB_DATE);
+  const [pickerDate, setPickerDate] = useState(DEFAULT_PICKER_DATE);
 
   const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 

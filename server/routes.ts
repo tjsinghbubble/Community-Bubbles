@@ -289,7 +289,7 @@ export async function registerRoutes(
       applinks: {
         apps: [],
         details: [{
-          appID: `${teamId ?? ""}.io.bubble.app`,
+          appID: "762F5X3N9L.io.trybubble.app",
           paths: ["/b/*", "/e/*"],
         }],
       },
@@ -311,7 +311,7 @@ export async function registerRoutes(
       relation: ["delegate_permission/common.handle_all_urls"],
       target: {
         namespace: "android_app",
-        package_name: "com.bubble.mobile",
+        package_name: "io.trybubble.app",
         sha256_cert_fingerprints: fingerprint ? [fingerprint] : [],
       },
     }]);
@@ -651,7 +651,12 @@ export async function registerRoutes(
       const bubbles = await storage.getPublicBubbles();
       const enriched = await enrichBubblesCategory(bubbles);
       res.json(enriched.map((b: any) => {
-        const { rules, images, attachments, ...rest } = absoluteMediaUrls(b, baseUrl);
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        const { rules, images, attachments, ...rest } = resolved;
+        // Keep coverImage in sync with images[0] so Explore and Details show the same photo
+        if (Array.isArray(images) && images.length > 0) {
+          rest.coverImage = images[0];
+        }
         return rest;
       }));
     } catch (error: any) {
@@ -668,7 +673,13 @@ export async function registerRoutes(
         return { ...m.bubble, members: realCount, role: m.role };
       }));
       const enriched = await enrichBubblesCategory(bubblesWithCounts);
-      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
+      res.json(enriched.map((b: any) => {
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        if (Array.isArray(resolved.images) && resolved.images.length > 0) {
+          resolved.coverImage = resolved.images[0];
+        }
+        return resolved;
+      }));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -4290,7 +4301,7 @@ export async function registerRoutes(
       <button class="btn-open" onclick="openApp()">Open in Bubble App</button>
       <div class="store-row">
         <a class="btn-store" href="https://apps.apple.com/app/id6741453696" target="_blank">📱 App Store</a>
-        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.bubble.mobile" target="_blank">🤖 Google Play</a>
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=io.trybubble.app" target="_blank">🤖 Google Play</a>
       </div>
       <div id="status"></div>
       <div class="hint">Don't have Bubble yet? Download it free above.</div>
@@ -4401,7 +4412,7 @@ export async function registerRoutes(
       <button class="btn-open" onclick="openApp()">Open in Bubble App</button>
       <div class="store-row">
         <a class="btn-store" href="https://apps.apple.com/app/id6741453696" target="_blank">&#128241; App Store</a>
-        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.bubble.mobile" target="_blank">&#129302; Google Play</a>
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=io.trybubble.app" target="_blank">&#129302; Google Play</a>
       </div>
       <div id="status"></div>
       <div class="hint">Don't have Bubble yet? Download it free above.</div>

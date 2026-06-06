@@ -66,7 +66,7 @@ type Event = {
 };
 
 export default function BubbleDetailsScreen({ navigation, route }: Props) {
-  const { bubble } = route.params;
+  const { bubble } = route.params ?? {};
   const { user, token } = useAuth();
   const [isJoining, setIsJoining] = useState(false);
   const [isMember, setIsMember] = useState(false);
@@ -84,7 +84,7 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
   const [shareUrl, setShareUrl] = useState('');
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(false);
-  const [memberCount, setMemberCount] = useState<number>(bubble.members || 0);
+  const [memberCount, setMemberCount] = useState<number>(bubble?.members || 0);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [reportReason, setReportReason] = useState<string | null>(null);
   const [reportFreeText, setReportFreeText] = useState('');
@@ -106,14 +106,14 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     apiService.getAppConfig('max_bubble_photos')
       .then(({ value }) => setMaxBubblePhotos(parseInt(value, 10) || 20))
       .catch(() => {});
-  }, [bubble.id]);
+  }, [bubble?.id]);
 
   useFocusEffect(
     useCallback(() => {
       fetchEvents();
       fetchMemberCount();
       fetchAnnouncements();
-    }, [bubble.id])
+    }, [bubble?.id])
   );
 
   const fetchAnnouncements = async () => {
@@ -1145,6 +1145,16 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
       </View>
     );
   };
+
+  if (!bubble?.id) {
+    return (
+      <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ fontSize: 16, color: '#666', textAlign: 'center' }}>
+          Couldn't load this bubble — go back and try again.
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
