@@ -69,7 +69,8 @@
     "typescript": "~5.9.2"
   },
   "overrides": {
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "shell-quote": "1.8.4"
   },
   "private": true
 }

@@ -121,6 +121,7 @@ isValidation = true
 stack = "MOCKUP_JS"
 mockupState = "FULLSTACK"
 integrations = ["javascript_object_storage:2.0.0"]
+expertMode = true
 
 [userenv]
 

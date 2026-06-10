@@ -1,1 +1,2 @@
 - [ENCRYPTION_KEY setup](encryption-key-setup.md) — key must live in BOTH Replit dev env (server) and gitignored `.env` (seed scripts); seed inserts plaintext emails, login uses a fallback.
+- [shell-quote deploy block](deploy-shell-quote-firewall.md) — deploy npm install 403s on shell-quote@1.8.3 (firewall); pin 1.8.4 override in root+mobile package.json and lockfiles.

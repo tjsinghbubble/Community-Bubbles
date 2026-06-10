@@ -182,6 +182,7 @@
   },
   "overrides": {
     "yaml": "^2.9.0",
-    "debug": "4.3.7"
+    "debug": "4.3.7",
+    "shell-quote": "1.8.4"
   }
 }
