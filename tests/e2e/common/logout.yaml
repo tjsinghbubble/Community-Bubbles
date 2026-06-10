@@ -1,0 +1,29 @@
+# Subflow: logout
+# Signs the current user out and returns to the Welcome/Login screen, so the suite can isolate tests
+# with a logout instead of a clearState reinstall (login still runs every test → no false pass).
+#
+# Selectors were verified LIVE on iPhone 17e / iOS 26.5 (2026-06-10) via the Maestro MCP, because
+# several are non-obvious:
+#   * The bottom tab uses React-Navigation `tabBarTestID`, which does NOT surface as a resource-id —
+#     only `tabBarAccessibilityLabel` does. So tap the tab by TEXT "Profile", not id tab-profile.
+#   * `button-logout` is BELOW the fold on the Profile screen → scrollUntilVisible first.
+#   * Logout pops a NATIVE Alert whose buttons have no ids. Among the "Log Out" text matches it is
+#     index 1 (alert title = 0, confirm button = 1, the menu item = 2). The Welcome assertion at the
+#     end fails loudly if the wrong element is ever tapped.
+appId: com.bubble.mobile
+---
+- tapOn:
+    text: "Profile"
+- scrollUntilVisible:
+    element:
+      id: button-logout
+    direction: DOWN
+- tapOn:
+    id: button-logout
+- tapOn:
+    text: "Log Out"
+    index: 1
+- extendedWaitUntil:
+    visible:
+      text: "Log In"
+    timeout: 15000

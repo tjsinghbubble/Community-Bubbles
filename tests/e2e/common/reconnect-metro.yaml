@@ -15,7 +15,14 @@ env:
 - launchApp:
     appId: com.bubble.mobile
     clearState: true
+    # clearState wipes permissions every run, so pre-grant here to suppress the first-run
+    # "…Would Like to Send You Notifications" system prompt that otherwise blocks the flow.
+    permissions:
+      notifications: allow
 
 - openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A${METRO_PORT}"
 
-- waitForAnimationToEnd
+# Bounded: the bundle may still be streaming (continuous re-render never "settles", so an uncapped
+# wait burns the full 5s default). The next command waits for its own element regardless.
+- waitForAnimationToEnd:
+    timeout: 2500

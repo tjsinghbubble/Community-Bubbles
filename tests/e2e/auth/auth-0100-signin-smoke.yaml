@@ -1,4 +1,5 @@
 # qa-id: auth-0100
+# qa-reason: Sign in as ${ROLE} with email + password (UC 182)
 # Sign in with email + password (UC 182). Happy path; runner iterates all three roles.
 appId: com.bubble.mobile
 tags:
@@ -13,6 +14,7 @@ env:
   ROLE: role-user
   METRO_HOST: localhost
   METRO_PORT: "8081"
+  SHOT_PREFIX: ""
 ---
 - runFlow:
     file: ../common/login-as.yaml
@@ -27,4 +29,4 @@ env:
 - assertVisible:
     id: button-create-fab
 
-- takeScreenshot: signed-in
+- takeScreenshot: ${SHOT_PREFIX}signed-in

@@ -6,9 +6,11 @@
  * "Waiting for iOS simulator to start..." rather than a silent stall.
  */
 import os from "node:os";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
 import type pg from "pg";
 import { classify, currentDbName, type DbClass } from "../fixtures/journal.js";
+import { schemaSignature, readSchemaBaseline, diffSchema } from "../fixtures/signatures.js";
 
 export type GateStatus = "pass" | "fail";
 
@@ -71,6 +73,81 @@ export async function gateApiHealth(
 }
 
 /**
+ * API↔DB consistency gate: prove the API-under-test is actually serving the database we seeded
+ * by authenticating a should-exist seeded account against it. Catches the silent failure mode
+ * where the seed writes one DB (e.g. bubble_test) but the running API serves another (bubble_dev),
+ * which otherwise surfaces only as a buried 401 deep in a test. Run AFTER seeding, since a fresh
+ * test DB has no account until then. The fix it points at — `npm run qa:server` — is the API
+ * launcher that pins DATABASE_URL to the *_test DB.
+ */
+export async function gateSeededAccount(
+  baseUrl: string,
+  cred: { email: string; password: string } | undefined,
+): Promise<GateResult> {
+  if (!cred) {
+    return { name: "seeded-account", status: "fail", waited: false, message: "test canceled: no role-user credentials in config/roles.json to verify" };
+  }
+  // A non-2xx HTTP *response* (401/429/etc.) is definitive — classify and return immediately. Only
+  // a thrown fetch (network/loopback blip) is retried: api-health already proved the server
+  // reachable, so a single "fetch failed" shouldn't cancel the whole run.
+  const attempts = 3;
+  let lastErr: any;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: cred.email, password: cred.password }),
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (err: any) {
+      lastErr = err;
+      if (attempt < attempts) { await sleep(1000); continue; }
+      return {
+        name: "seeded-account",
+        status: "fail",
+        waited: attempt > 1,
+        message:
+          `test canceled: could not reach API at ${baseUrl}/api/auth/login after ${attempts} tries ` +
+          `(${err?.message ?? err}). api-health passed, so this is a connectivity blip, not a wrong-DB ` +
+          `mismatch — classically localhost resolving to IPv6 (::1) while the dev server binds IPv4. ` +
+          `The runner now forces ipv4first; if this persists, set apiBaseUrl to http://127.0.0.1:3000.`,
+      };
+    }
+    let json: any = null;
+    try { json = JSON.parse(await res.text()); } catch { /* non-JSON */ }
+    if (res.ok && json?.token) {
+      return { name: "seeded-account", status: "pass", waited: attempt > 1, message: `API authenticates seeded ${cred.email}` };
+    }
+    // 429 is rate limiting / lockout, NOT evidence of a DB mismatch. Don't cancel the run for it
+    // (this gate's job is to catch wrong-DB, i.e. invalid-credentials); surface it as a warning.
+    if (res.status === 429) {
+      return {
+        name: "seeded-account",
+        status: "pass",
+        waited: attempt > 1,
+        message:
+          `could not verify ${cred.email} — login rate-limited (429), not a DB mismatch. The auth ` +
+          `limiter is tripped; restart via \`npm run qa:server\` (raises RATE_LIMIT_AUTH_MAX/SEND_MAX) ` +
+          `to clear it. Proceeding.`,
+      };
+    }
+    return {
+      name: "seeded-account",
+      status: "fail",
+      waited: attempt > 1,
+      message:
+        `test canceled: API at ${baseUrl} rejected seeded account ${cred.email} (login -> ${res.status}). ` +
+        `The API is most likely connected to a different database than the one just seeded. ` +
+        `Start it with \`npm run qa:server\` so it serves the *_test DB.`,
+    };
+  }
+  // Loop always returns above; this satisfies the type checker.
+  return { name: "seeded-account", status: "fail", waited: true, message: `test canceled: seeded-account check failed (${lastErr?.message ?? lastErr})` };
+}
+
+/**
  * DB reachability + production guard. `destructive` runs (seed/reset) require classification
  * 'test'; non-destructive runs only warn when the classification is not 'test'.
  */
@@ -110,6 +187,37 @@ export async function gateProductionGuard(
       ? `DB '${dbName}' classified 'test'`
       : `DB '${dbName}' classified '${classification}' (non-destructive run allowed, proceeding)`;
   return { name: "production-guard", status: "pass", message: note, waited: false, classification };
+}
+
+/**
+ * Schema-drift gate: compare the live public schema to the baseline captured at provision time
+ * (meta.schema_baseline). Catches the `users.suspended_at`-class problem up front and names the
+ * exact column, instead of letting it surface as a buried runtime error. Cheap — no table scan.
+ * If no baseline exists, it can't compare and passes with a note.
+ */
+export async function gateSchemaDrift(pool: pg.Pool): Promise<GateResult> {
+  let baseline, current;
+  try {
+    baseline = await readSchemaBaseline(pool);
+    current = await schemaSignature(pool);
+  } catch (err: any) {
+    return { name: "schema-drift", status: "fail", waited: false, message: `test canceled: schema check failed (${err.message ?? err})` };
+  }
+  if (!baseline) {
+    return { name: "schema-drift", status: "pass", waited: false, message: "no schema baseline recorded (run qa:provision) — skipping" };
+  }
+  if (baseline.rollup === current.rollup) {
+    return { name: "schema-drift", status: "pass", waited: false, message: `schema matches baseline (schema-sig=${current.rollup})` };
+  }
+  const diffs = diffSchema(current.perTable, baseline.perTable);
+  const shown = diffs.slice(0, 6).join("; ");
+  const more = diffs.length > 6 ? ` (+${diffs.length - 6} more)` : "";
+  return {
+    name: "schema-drift",
+    status: "fail",
+    waited: false,
+    message: `test canceled: schema drift (live ${current.rollup} vs baseline ${baseline.rollup}) — ${shown}${more}`,
+  };
 }
 
 export async function gateSimulatorBooted(opts: { timeoutMs?: number } = {}): Promise<GateResult> {
@@ -157,10 +265,77 @@ export async function gateMetro(
     : { name: "metro", status: "fail", message: `test canceled: Metro bundler not reachable at ${host}:${port}`, waited };
 }
 
-/** Soft gate: back off while the machine is overloaded, then proceed (never cancels). */
-export async function gateLoadAverage(opts: { maxPerCpu?: number; timeoutMs?: number } = {}): Promise<GateResult> {
+/**
+ * Driver-warmup gate (iOS e2e only). Absorbs the XCUITest driver cold start in a dedicated,
+ * consequence-free launch so it can't fail the *first* real test for reasons unrelated to the
+ * app. The startup-timeout budget is scaled by the current 1-min load — higher load buys a
+ * longer wait — instead of a flat constant, and the wait is announced. On success the caller
+ * tightens MAESTRO_DRIVER_STARTUP_TIMEOUT for the real tests (the driver persists across the
+ * separate `maestro` processes, which is why a warm first run makes the rest fast). On failure
+ * the suite should cancel: a wedged driver would otherwise spray false failures.
+ *
+ * MAESTRO_DRIVER_STARTUP_TIMEOUT is in milliseconds.
+ */
+export async function gateDriverWarmup(opts: {
+  appId: string;
+  flowPath: string;
+  logFile: string;
+  metroHost: string;
+  metroPort: number;
+  baseTimeoutMs?: number;
+  maxTimeoutMs?: number;
+  tightTimeoutMs?: number;
+}): Promise<GateResult & { warmTimeoutMs: number; tightTimeoutMs: number }> {
   const cpus = os.cpus().length || 1;
-  const ceiling = (opts.maxPerCpu ?? 2.0) * cpus;
+  const load1 = os.loadavg()[0];
+  const perCpu = load1 / cpus;
+  const base = opts.baseTimeoutMs ?? 120_000;
+  const cap = opts.maxTimeoutMs ?? 600_000;
+  // Idle (perCpu≈0) → base; fully loaded (perCpu≈1) → 2×base; 2× overloaded → 3×base; capped.
+  const warmMs = Math.min(cap, Math.round(base * (1 + Math.max(0, perCpu))));
+  // Once warm, the driver is already up, so a real test only needs a short reconnect budget.
+  const tightMs = opts.tightTimeoutMs ?? 60_000;
+
+  console.log(
+    `⏳  Warming the iOS XCUITest driver (one-time cold start). ` +
+      `1-min load ${load1.toFixed(2)} on ${cpus} cores → budget ${(warmMs / 1000).toFixed(0)}s; ` +
+      `real tests then use ${(tightMs / 1000).toFixed(0)}s. May take a couple of minutes on a loaded machine …`,
+  );
+
+  const res = spawnSync(
+    "maestro",
+    ["test", opts.flowPath,
+      "-e", `APP_ID=${opts.appId}`,
+      "-e", `METRO_HOST=${opts.metroHost}`,
+      "-e", `METRO_PORT=${opts.metroPort}`],
+    { encoding: "utf8", env: { ...process.env, MAESTRO_DRIVER_STARTUP_TIMEOUT: String(warmMs) } },
+  );
+  try {
+    appendFileSync(opts.logFile, `\n===== driver warmup (exit ${res.status}) =====\n${res.stdout ?? ""}${res.stderr ?? ""}`);
+  } catch { /* best-effort log */ }
+
+  if (res.status === 0) {
+    return {
+      name: "driver-warmup", status: "pass", waited: true,
+      message: `XCUITest driver warm (cold start absorbed within ${(warmMs / 1000).toFixed(0)}s budget)`,
+      warmTimeoutMs: warmMs, tightTimeoutMs: tightMs,
+    };
+  }
+  return {
+    name: "driver-warmup", status: "fail", waited: true,
+    message:
+      `test canceled: iOS driver did not warm up within ${(warmMs / 1000).toFixed(0)}s — see warmup.log. ` +
+      `The simulator/driver may be wedged; \`xcrun simctl shutdown all\`, reboot the sim, and retry.`,
+    warmTimeoutMs: warmMs, tightTimeoutMs: tightMs,
+  };
+}
+
+/** Soft gate: back off while the machine is overloaded, then proceed (never cancels). */
+export async function gateLoadAverage(opts: { maxPerCpu?: number; ceiling?: number; timeoutMs?: number } = {}): Promise<GateResult> {
+  const cpus = os.cpus().length || 1;
+  // An absolute `ceiling` (e.g. 75) takes precedence over the per-CPU multiple. This machine is
+  // chronically loaded; a 2×cores=24 gate spent its budget waiting/warning for nothing.
+  const ceiling = opts.ceiling ?? (opts.maxPerCpu ?? 2.0) * cpus;
   const ok = () => Promise.resolve(os.loadavg()[0] <= ceiling);
   const { waited } = await pollUntil(ok, {
     timeoutMs: opts.timeoutMs ?? 30_000,
