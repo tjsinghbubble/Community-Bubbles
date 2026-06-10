@@ -38,7 +38,7 @@ async function seed() {
       tagline: 'Explore trails together',
       category: 'Outdoors',
       description: 'A group for outdoor enthusiasts who love hiking on weekends.',
-      creatorId: testUser.id,
+      createdBy: testUser.id,
       status: 'approved',
       privacy: 'Public',
       rules: [],
@@ -55,7 +55,7 @@ async function seed() {
       tagline: 'Reading and discussing great books',
       category: 'Books',
       description: 'Monthly book club for avid readers.',
-      creatorId: testUser.id,
+      createdBy: testUser.id,
       status: 'pending',
       privacy: 'Public',
       rules: [],
@@ -71,12 +71,14 @@ async function seed() {
       bubbleId: approvedBubble.id,
       role: 'admin',
       membershipStatus: 'approved',
+      createdBy: testUser.id,
     },
     {
       userId: testUser.id,
       bubbleId: pendingBubble.id,
       role: 'admin',
       membershipStatus: 'approved',
+      createdBy: testUser.id,
     },
   ]);
   console.log('  Created memberships');

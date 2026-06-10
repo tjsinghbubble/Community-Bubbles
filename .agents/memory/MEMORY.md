@@ -1,0 +1,1 @@
+- [ENCRYPTION_KEY setup](encryption-key-setup.md) — key must live in BOTH Replit dev env (server) and gitignored `.env` (seed scripts); seed inserts plaintext emails, login uses a fallback.
