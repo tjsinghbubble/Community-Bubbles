@@ -140,7 +140,7 @@ export interface SelectFilters {
   includeUnverified: boolean;
 }
 
-const AREA_TAGS = new Set([
+export const AREA_TAGS = new Set([
   "auth", "discovery", "joining", "inside", "events", "bubble-admin", "site-admin",
   "comms", "campus", "notification", "categories", "reports", "monitoring", "rules",
   "perf", "security", "contract", "infra",

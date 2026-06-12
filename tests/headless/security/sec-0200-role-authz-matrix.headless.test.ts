@@ -1,5 +1,5 @@
 // qa-id: sec-0200
-// qa-tags: security, smoke, headless, role-any
+// qa-tags: security, smoke, headless, role-user, role-bubble-admin
 // qa-reason: Role-authz matrix: lower-privilege tokens are denied on every role-gated API route
 //
 // Negative role coverage, exhaustive by construction:

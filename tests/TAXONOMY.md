@@ -70,7 +70,7 @@ Security tests use the `sec-` prefix (area `security`).
 | `sec-0100` | Login lockout resists password-stuffing (429 after 5 fails) | headless | security, smoke | — | very likely PASS (lockout exists) | ✅ |
 | `sec-0110` | Signup endpoint resists email enumeration | headless | security | unverified | very likely FAIL — documents the `send-verification` 400-vs-200 leak | ✅ |
 | `sec-0120` | Password-reset resists enumeration (uniform 200) | headless | security, smoke | — | likely PASS (`forgot-password` already uniform) | ✅ |
-| `sec-0200` | Role-authz matrix: every role-gated route denies lower-privilege tokens (super-only × {user, bubble-admin}, bubble-admin-only × user, cross-user resources, scoped-empty admin reads) + coverage guard over routes.ts | headless | security, smoke | — | verified PASS 2026-06-11 (117 probes, all gates held) | ✅ |
+| `sec-0200` | Role-authz matrix: every role-gated route denies lower-privilege tokens (super-only × {user, bubble-admin}, bubble-admin-only × user, cross-user resources, scoped-empty admin reads) + coverage guard over routes.ts. Tagged `role-user, role-bubble-admin` — the roles whose tokens it probes (site-admin is never exercised) | headless | security, smoke | — | verified PASS 2026-06-11 (117 probes, all gates held) | ✅ |
 | `sec-0300` | Bubble role affordances: role-user sees NO manage/admin-dashboard/create-event/add-photo controls; admin roles see the SAME selectors (selector-validity control) — Details + Events tabs | e2e (role-any) | security, smoke | unverified | authored from real testIDs; verify on sim, then drop tag | ✅ |
 
 ### discovery — Discovering Bubbles (area rank 2)
@@ -87,6 +87,12 @@ Security tests use the `sec-` prefix (area `security`).
 | ID | Use case | Layer | Roles | Selection | Implemented |
 |----|----------|-------|-------|-----------|-------------|
 | `bubble-admin-0600` | Create a new bubble (UC 129) | e2e | role-bubble-admin | smoke | ✅ |
+| `bubble-admin-0700` | Edit own bubble's details (UC 26) — positive counterpart to sec-0200's PUT-denied probe | headless | role-bubble-admin | smoke | ✅ |
+
+### site-admin — Site Admin (area rank 7)
+| ID | Use case | Layer | Roles | Selection | Implemented |
+|----|----------|-------|-------|-----------|-------------|
+| `site-admin-0100` | Approve a submitted bubble: submit (UC 135) → pending queue → approve (UC 68) → publicly visible — positive counterpart to sec-0200's super-only denials | headless | role-site-admin | smoke | ✅ |
 
 ### contract — API contract/smoke (newman)
 | ID | Use case | Layer | Selection | Implemented |

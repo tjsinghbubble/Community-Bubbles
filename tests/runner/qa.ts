@@ -2,7 +2,7 @@
  * qa — unified test runner.
  *
  * Default (no args): selection tag `smoke`, all three roles, platform ios.
- * Flags: --tag --area --role --layer --platform --env --no-gate --no-seed --seed
+ * Flags: --tag --area --all --role --layer --platform --env --no-gate --no-seed --seed
  *        --include-unverified --list
  *
  * Flow: select -> write run-params -> gate (fail/wait) -> seed -> run -> summarize.
@@ -12,7 +12,7 @@ import { readFileSync, existsSync, rmSync, openSync, writeSync, closeSync, copyF
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { spawnSync, spawn } from "node:child_process";
-import { discoverAll, selectTests, type Layer, type TestDescriptor } from "./select.js";
+import { discoverAll, selectTests, AREA_TAGS, type Layer, type TestDescriptor } from "./select.js";
 import { Run, type TestResult, type TestStatus } from "./report.js";
 import {
   gateApiHealth,
@@ -37,6 +37,7 @@ const ALL_ROLES = ["role-user", "role-bubble-admin", "role-site-admin"];
 interface Args {
   tags: string[];
   areas: string[];
+  all: boolean;
   roles: string[];
   layers: Layer[];
   platform: string;
@@ -52,7 +53,7 @@ interface Args {
 
 function parseArgs(argv: string[]): Args {
   const a: Args = {
-    tags: [], areas: [], roles: [], layers: [], platform: "ios", env: "local",
+    tags: [], areas: [], all: false, roles: [], layers: [], platform: "ios", env: "local",
     gate: true, seed: true, includeUnverified: false, list: false, verbose: false, help: false,
     jobs: 5,
   };
@@ -62,6 +63,7 @@ function parseArgs(argv: string[]): Args {
     switch (arg) {
       case "--tag": a.tags.push(...multi(argv[++i])); break;
       case "--area": a.areas.push(...multi(argv[++i])); break;
+      case "--all": a.all = true; break;
       case "--role": a.roles.push(...multi(argv[++i])); break;
       case "--layer": a.layers.push(...(multi(argv[++i]) as Layer[])); break;
       case "--platform": a.platform = argv[++i]; break;
@@ -89,7 +91,8 @@ Usage:
 Selection:
   --tag <a,b>           require ALL listed tags (default: smoke)
   --area <a,b>          select by area tag (auth, security, …); relaxes the smoke
-                        filter and includes unverified tests
+                        filter and includes unverified tests; unknown areas are an error
+  --all                 run every registered test, all layers (alias: --area all)
   --role <r,b>          restrict roles (role-user, role-bubble-admin, role-site-admin)
   --layer <e2e|headless>   run only the named layer(s) (default: both)
   --platform <ios|web>  e2e platform (default: ios)
@@ -105,7 +108,7 @@ Run control:
   -v, --verbose         stream seed + Maestro substep output live (default: quiet, captured)
   -h, --help            show this help
 
-Exit codes: 0 ok (expected findings allowed) · 1 real failure(s) · 2 canceled by a gate · 3 crash
+Exit codes: 0 ok (expected findings allowed) · 1 real failure(s) · 2 canceled by a gate or bad args · 3 crash
 `;
 
 /** Durations are reported in seconds to 4 decimals (per request) rather than raw ms. */
@@ -249,9 +252,27 @@ async function main(): Promise<void> {
   const dbUrl = resolveDbUrl(env);
   const creds = loadRoleCreds();
 
-  // Resolve selection: --area relaxes the default smoke filter and includes unverified.
-  const tags = args.tags.length > 0 ? args.tags : args.areas.length > 0 ? [] : ["smoke"];
-  const includeUnverified = args.includeUnverified || args.areas.length > 0;
+  // Resolve selection: --area / --all relax the default smoke filter and include unverified.
+  if (args.areas.includes("all")) {
+    args.all = true;
+    args.areas = args.areas.filter((a) => a !== "all");
+  }
+  // Areas are a closed vocabulary — an unknown name would silently select nothing.
+  const unknownAreas = args.areas.filter((a) => !AREA_TAGS.has(a));
+  if (unknownAreas.length > 0) {
+    console.error(`error: unknown area(s): ${unknownAreas.join(", ")}`);
+    for (const a of unknownAreas) {
+      if (["smoke", "slow", "alpha-high", "alpha-low", "beta", "unverified"].includes(a)) {
+        console.error(`  hint: '${a}' is a selection tag — use --tag ${a}`);
+      } else if (["e2e", "headless"].includes(a)) {
+        console.error(`  hint: '${a}' is a layer — use --layer ${a}`);
+      }
+    }
+    console.error(`valid areas: all, ${Array.from(AREA_TAGS).sort().join(", ")}`);
+    process.exit(2);
+  }
+  const tags = args.tags.length > 0 ? args.tags : args.all || args.areas.length > 0 ? [] : ["smoke"];
+  const includeUnverified = args.includeUnverified || args.areas.length > 0 || args.all;
   const layers: Layer[] = args.layers.length > 0 ? args.layers : ["e2e", "headless"];
   const roleFilter = args.roles.length > 0 ? args.roles : ALL_ROLES;
 
@@ -264,10 +285,14 @@ async function main(): Promise<void> {
   const testsWritten = allTests.reduce((n, t) => n + Math.max(t.roles.length, 1), 0);
 
   if (args.list) {
+    // Layer/platform tags are run dimensions, not test semantics — show them in their own group.
+    const LAYER_TAGS = new Set(["e2e", "headless", "ios", "android", "web"]);
     console.log(`Selected ${selected.length} test(s):`);
     for (const t of selected) {
       const r = t.roles.length ? ` roles=[${t.roles.join(",")}]` : "";
-      console.log(`  ${t.id.padEnd(22)} ${t.tool.padEnd(8)} [${t.tags.join(", ")}]${r}`);
+      const semantic = t.tags.filter((x) => !LAYER_TAGS.has(x));
+      const layerish = t.tags.filter((x) => LAYER_TAGS.has(x));
+      console.log(`  ${t.id.padEnd(22)} ${t.tool.padEnd(8)} [${semantic.join(", ")}] layers [${layerish.join(", ")}]${r}`);
     }
     return;
   }

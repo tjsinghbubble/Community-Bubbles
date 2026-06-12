@@ -95,8 +95,10 @@ Rules of engagement:
 ## Selection & tags
 
 See `TAXONOMY.md`. Tags live next to each test (Maestro `tags:`; TS `// qa-tags:`). Common
-flags: `--tag smoke`, `--area auth`, `--role role-user`, `--layer e2e|headless`,
-`--platform ios`, `--env local`, `--no-gate`, `--no-seed`, `--list` (dry run).
+flags: `--tag smoke`, `--area auth`, `--all` (every registered test; alias `--area all`),
+`--role role-user`, `--layer e2e|headless`, `--platform ios`, `--env local`, `--no-gate`,
+`--no-seed`, `--list` (dry run). `--tag` is AND over a test's tags; `--area` is OR over the
+closed area vocabulary (unknown area names are an error — `smoke` is a tag, `headless` a layer).
 
 ## Maestro env rules (hard-won — do not relax without reading this)
 
