@@ -6,15 +6,17 @@ One tool callable by every entity that pokes at tests: Claude Code, shell
 health scripts, humans, and the test scripts themselves.
 
   testctl.py status            what is running right now (test, step, runner, invoker, timings)
-  testctl.py nuke --nuke=LIST  stop test runners (known method first, else SIGQUIT → 2s → SIGKILL)
+  testctl.py nuke LIST         stop test runners (known method first, else SIGQUIT → 2s → SIGKILL)
   testctl.py health            diagnose the local test environment
   testctl.py --json <cmd>      machine-readable output for any command
 
-Nuke targets (comma list): qa, mcp, cli, xcodebuild, headless (vitest+newman),
-playwright, maestro (= cli+mcp+xcodebuild), all | them-all.
+Nuke targets (comma list, positional or --nuke=LIST): qa, mcp, cli, xcodebuild,
+headless (vitest+newman), playwright, maestro (= cli+mcp+xcodebuild), all | them-all.
 
 Known stop methods:
-  qa   → write tests/PANIC (the runner aborts between tests), then ladder its tree
+  qa   → write tests/PANIC (the runner aborts between tests), then ladder its tree.
+         The marker is only written when a live qa-runner process exists — an
+         abandoned heartbeat (runner pid gone) gets no marker.
   rest → SIGQUIT, wait 2s, SIGKILL          (JVMs ignore SIGQUIT — the KILL lands)
 
 stdlib only; no third-party deps.
@@ -261,8 +263,10 @@ def read_heartbeat(procs):
         return None
     pid = hb.get("pid")
     hb["runnerAlive"] = bool(pid and pid in procs)
+    hb["abandoned"] = False
     if not hb["runnerAlive"] and hb.get("state") not in ("done", "canceled"):
-        hb["state"] = f"stale ({hb.get('state')} — runner pid {pid} is gone)"
+        hb["abandoned"] = True
+        hb["state"] = f"ABANDONED (runner pid {pid} is gone)"
     return hb
 
 
@@ -273,11 +277,12 @@ def cmd_status(as_json):
     test_procs = find_test_processes(procs)
 
     runs = []
-    if hb and (hb["runnerAlive"] or hb.get("state", "").startswith("stale")):
+    if hb and (hb["runnerAlive"] or hb["abandoned"]):
         started = parse_iso(hb.get("startedAt"))
         run = {
             "runId": hb.get("runId"),
             "state": hb.get("state"),
+            "abandoned": hb["abandoned"],
             "invoker": None,
             "totalElapsedS": (now - started) if started else None,
             "completed": hb.get("completed"),
@@ -337,7 +342,10 @@ def cmd_status(as_json):
         return 0
 
     for run in runs:
-        print(f"🏃  qa run {run['runId']}  state={run['state']}  invoker={run['invoker'] or '?'}")
+        if run["abandoned"]:
+            print(f"🚨🚨🚨😵🪦🪦  qa run {run['runId']}  state={run['state']}")
+        else:
+            print(f"🏃  qa run {run['runId']}  state={run['state']}  invoker={run['invoker'] or '?'}")
         print(f"    run elapsed {humanize(run['totalElapsedS'])}, "
               f"jobs {run['completed']}/{run['totalJobs'] if run['totalJobs'] is not None else '?'} done")
         for j in run["active"]:
@@ -435,9 +443,13 @@ def cmd_nuke(spec, as_json):
         # Known method: PANIC marker — the runner aborts between tests and
         # finalizes its summary. Then ladder the runner tree anyway: a test
         # mid-flight (maestro/vitest/newman child) won't be aborted by the marker.
-        PANIC_MARKER.write_text(f"testctl nuke at {datetime.now().isoformat()}\n")
-        actions.append({"method": "panic-marker", "path": str(PANIC_MARKER)})
-        for p in [tp for tp in test_procs if tp["kind"] == "qa-runner"]:
+        # No live qa-runner (e.g. an ABANDONED heartbeat) → no marker: there is
+        # nothing to abort, and a stale marker only pollutes the next run's start.
+        qa_runners = [tp for tp in test_procs if tp["kind"] == "qa-runner"]
+        if qa_runners:
+            PANIC_MARKER.write_text(f"testctl nuke at {datetime.now().isoformat()}\n")
+            actions.append({"method": "panic-marker", "path": str(PANIC_MARKER)})
+        for p in qa_runners:
             tree = [p["pid"]] + [d["pid"] for d in descendants(p["pid"], procs)]
             signal_ladder(tree, actions)
             killed_kinds.append("qa-runner")
@@ -566,8 +578,49 @@ def booted_sims():
     for runtime, devs in data.get("devices", {}).items():
         ver = runtime.rsplit(".", 1)[-1].replace("iOS-", "").replace("-", ".")
         for d in devs:
-            sims.append({"udid": d["udid"], "name": d["name"], "runtime": ver})
+            sims.append({"udid": d["udid"], "name": d["name"], "runtime": ver,
+                         "bootedAt": parse_iso(d.get("lastBootedAt"))})
     return sims
+
+
+# Simulators booted longer than ~500,000s have shown instability (crashing sim-side
+# processes). Mandatory restart at 95% of that age; warnings start at 80%.
+# The qa runner's sim-boot-age gate (tests/runner/gating.ts) shares these thresholds
+# and performs the restart itself; health only reports.
+SIM_INSTABILITY_S = 500_000
+SIM_RESTART_S = SIM_INSTABILITY_S * 0.95   # 475,000 s
+SIM_WARN_S = SIM_INSTABILITY_S * 0.80      # 400,000 s
+
+
+def fmt_deadline(epoch):
+    dt = datetime.fromtimestamp(epoch)
+    return f"{dt.day} {dt.strftime('%b %H:%M')}"
+
+
+def check_sim_age():
+    now = time.time()
+    sims = [{**s, "age_s": now - s["bootedAt"]} for s in booted_sims() if s.get("bootedAt")]
+    over = [s for s in sims if s["age_s"] >= SIM_RESTART_S]
+    aging = [s for s in sims if SIM_WARN_S <= s["age_s"] < SIM_RESTART_S]
+    if over:
+        names = "; ".join(f"'{s['name']}' booted {s['age_s'] / 86400:.1f} days ago" for s in over)
+        return {"name": "sim-boot-age", "status": "fail",
+                "detail": f"RESTART REQUIRED — {names} — past 95% of the "
+                          f"{SIM_INSTABILITY_S:,}s age where sims grow crashing processes",
+                "fix": "restart: `xcrun simctl shutdown <udid> && xcrun simctl boot <udid>` "
+                       "(the qa runner's sim-boot-age gate does this automatically before e2e runs)"}
+    if aging:
+        names = "; ".join(f"'{s['name']}' booted {s['age_s'] / 86400:.1f} days ago, restart by "
+                          f"{fmt_deadline(s['bootedAt'] + SIM_RESTART_S)}" for s in aging)
+        return {"name": "sim-boot-age", "status": "warn",
+                "detail": f"{names} — sims grow unstable past {SIM_INSTABILITY_S:,}s booted",
+                "fix": "restart it at the next convenient break: `xcrun simctl shutdown <udid> && xcrun simctl boot <udid>`"}
+    if not sims:
+        return {"name": "sim-boot-age", "status": "ok", "detail": "no booted simulator to age-check"}
+    oldest = max(sims, key=lambda s: s["age_s"])
+    return {"name": "sim-boot-age", "status": "ok",
+            "detail": f"oldest booted sim '{oldest['name']}' up {oldest['age_s'] / 86400:.1f} days "
+                      f"(warn at {SIM_WARN_S / 86400:.1f}d, restart at {SIM_RESTART_S / 86400:.1f}d)"}
 
 
 def check_sim_binary():
@@ -609,7 +662,8 @@ def check_sim_binary():
 
 
 def cmd_health(as_json):
-    checks = [check_load(), check_api(), check_qa_server_identity(), check_metro(), check_sim_binary()]
+    checks = [check_load(), check_api(), check_qa_server_identity(), check_metro(),
+              check_sim_binary(), check_sim_age()]
     ok = all(c["status"] == "ok" for c in checks)
     if as_json:
         print(json.dumps({"ok": ok, "checks": checks}, indent=2))
@@ -631,8 +685,10 @@ def main():
     # --json is accepted both before and after the subcommand.
     p_status = sub.add_parser("status", help="show tests in progress")
     p_nuke = sub.add_parser("nuke", help="stop test runners")
-    p_nuke.add_argument("--nuke", required=True, metavar="LIST",
+    p_nuke.add_argument("targets", nargs="?", metavar="LIST",
                         help="comma list: qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all")
+    p_nuke.add_argument("--nuke", metavar="LIST",
+                        help="same as the positional LIST (kept for npm qa:nuke compatibility)")
     p_health = sub.add_parser("health", help="diagnose the local test environment")
     for p in (p_status, p_nuke, p_health):
         p.add_argument("--json", action="store_true", dest="json_sub", help=argparse.SUPPRESS)
@@ -642,7 +698,10 @@ def main():
     if args.command == "status":
         return cmd_status(args.json)
     if args.command == "nuke":
-        return cmd_nuke(args.nuke, args.json)
+        spec = args.nuke or args.targets
+        if not spec:
+            ap.error("nuke needs targets: `nuke all` or `nuke --nuke=LIST`")
+        return cmd_nuke(spec, args.json)
     if args.command == "health":
         return cmd_health(args.json)
     return 2

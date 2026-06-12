@@ -20,6 +20,7 @@ import {
   gateProductionGuard,
   gateSchemaDrift,
   gateSimulatorBooted,
+  gateSimulatorAge,
   gateMetro,
   gateDriverWarmup,
   gateLoadAverage,
@@ -340,6 +341,8 @@ async function main(): Promise<void> {
 
     if (needsE2e) {
       gates.push(await gateSimulatorBooted());
+      // Restart over-age sims before Metro/warmup so the cold start lands on a fresh boot.
+      gates.push(await gateSimulatorAge());
       gates.push(await gateMetro(env.metroHost, env.metroPort));
       // Warm the XCUITest driver only once the simulator + Metro are confirmed up, so the cold
       // start is absorbed here (load-scaled budget) rather than failing the first real test. On

@@ -242,6 +242,96 @@ export async function gateSimulatorBooted(opts: { timeoutMs?: number } = {}): Pr
     : { name: "ios-simulator", status: "fail", message: "test canceled: no iOS simulator booted", waited };
 }
 
+// Simulators booted longer than ~500,000s have shown instability (crashing sim-side
+// processes). Mandatory restart at 95% of that age; warnings start at 80%.
+const SIM_INSTABILITY_S = 500_000;
+const SIM_RESTART_S = SIM_INSTABILITY_S * 0.95; // 475,000 s
+const SIM_WARN_S = SIM_INSTABILITY_S * 0.8; // 400,000 s
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function fmtDeadline(epochMs: number): string {
+  const d = new Date(epochMs);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Boot-age gate: warn for sims between 80% and 95% of the instability age; shut down and
+ * re-boot any sim past 95% before tests run, so the run never starts on a sim that is about
+ * to grow crashing processes mid-suite.
+ */
+export async function gateSimulatorAge(): Promise<GateResult> {
+  let data: any;
+  try {
+    data = JSON.parse(execSync("xcrun simctl list -j devices booted", { encoding: "utf8" }));
+  } catch (err: any) {
+    return {
+      name: "sim-boot-age", status: "pass", waited: false,
+      message: `could not read simulator list (${err?.message ?? err}) — skipping age check`,
+    };
+  }
+
+  const now = Date.now();
+  const sims: { udid: string; name: string; bootedAtMs: number; ageS: number }[] = [];
+  for (const devs of Object.values(data.devices ?? {})) {
+    for (const d of devs as any[]) {
+      if (d.state !== "Booted" || !d.lastBootedAt) continue;
+      const bootedAtMs = Date.parse(d.lastBootedAt);
+      if (Number.isNaN(bootedAtMs)) continue;
+      sims.push({ udid: d.udid, name: d.name, bootedAtMs, ageS: (now - bootedAtMs) / 1000 });
+    }
+  }
+
+  const over = sims.filter((s) => s.ageS >= SIM_RESTART_S);
+  const aging = sims.filter((s) => s.ageS >= SIM_WARN_S && s.ageS < SIM_RESTART_S);
+
+  for (const s of aging) {
+    console.log(
+      `⚠️   Simulator '${s.name}' has been booted ${(s.ageS / 86400).toFixed(1)} days. Sims this old ` +
+        `grow unstable past ${SIM_INSTABILITY_S.toLocaleString()}s — restart it by ` +
+        `${fmtDeadline(s.bootedAtMs + SIM_RESTART_S * 1000)}.`,
+    );
+  }
+
+  if (over.length === 0) {
+    const message = aging.length
+      ? `aging sim(s): ${aging.map((s) => `'${s.name}' booted ${(s.ageS / 86400).toFixed(1)}d`).join(", ")} — restart soon`
+      : sims.length
+        ? `all booted sims under ${(SIM_WARN_S / 86400).toFixed(1)}d boot age`
+        : "no booted simulator to age-check";
+    return { name: "sim-boot-age", status: "pass", message, waited: false };
+  }
+
+  const restarted: string[] = [];
+  for (const s of over) {
+    console.log(
+      `🔄  Restarting simulator '${s.name}' (${s.udid}): booted ${(s.ageS / 86400).toFixed(1)} days — past ` +
+        `the mandatory-restart age (95% of the ${SIM_INSTABILITY_S.toLocaleString()}s mark where booted ` +
+        `sims develop crashing processes).`,
+    );
+    try {
+      execSync(`xcrun simctl shutdown ${s.udid}`, { stdio: "pipe", encoding: "utf8" });
+      execSync(`xcrun simctl boot ${s.udid}`, { stdio: "pipe", encoding: "utf8" });
+      // bootstatus blocks until the device is actually usable, not merely "Booted".
+      execSync(`xcrun simctl bootstatus ${s.udid}`, { stdio: "pipe", encoding: "utf8", timeout: 300_000 });
+      restarted.push(s.name);
+    } catch (err: any) {
+      return {
+        name: "sim-boot-age", status: "fail", waited: true,
+        message:
+          `test canceled: failed to restart over-age simulator '${s.name}' ` +
+          `(${err?.stderr?.toString().trim() || err?.message || err})`,
+      };
+    }
+  }
+  console.log(`✅  Simulator restart complete: ${restarted.map((n) => `'${n}'`).join(", ")} freshly booted.`);
+  return {
+    name: "sim-boot-age", status: "pass", waited: true,
+    message: `restarted ${restarted.length} over-age sim(s): ${restarted.join(", ")}`,
+  };
+}
+
 export async function gateMetro(
   host: string,
   port: number,

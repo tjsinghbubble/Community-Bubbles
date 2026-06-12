@@ -43,6 +43,7 @@ npm run qa:health     # python3 scripts/testctl.py health
 npm run qa:nuke       # python3 scripts/testctl.py nuke --nuke=them-all
 
 python3 scripts/testctl.py nuke --nuke=mcp,xcodebuild   # targeted stop
+python3 scripts/testctl.py nuke all                     # positional form works too
 ```
 
 - **status** — reads `tests/output/current-run.json` (a live heartbeat the qa
@@ -50,15 +51,19 @@ python3 scripts/testctl.py nuke --nuke=mcp,xcodebuild   # targeted stop
   newest `maestro.log` for the current step, then lists every test-related
   process (maestro CLI/MCP, XCUITest drivers, vitest, newman, playwright,
   qa runner) with who invoked it (CC, MCP, npm, user) and elapsed times.
-- **nuke** — `--nuke=qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all`.
+- **nuke** — targets `qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all`,
+  given positionally (`nuke all`) or via `--nuke=LIST`.
   Known stop methods are used first (`qa` → PANIC marker so the runner
-  finalizes its summary); everything else gets SIGQUIT, 2s, SIGKILL.
+  finalizes its summary — written only when a live qa-runner exists; an
+  ABANDONED heartbeat gets no marker); everything else gets SIGQUIT, 2s, SIGKILL.
   `mcp` also kills XCUITest drivers owned by the MCP server — orphaned
   drivers are what wedge later CLI runs.
 - **health** — load average vs `QA_LOAD_CEILING`; API socket per family
   (IPv4/IPv6) then `/api/v1/health` with Down-vs-Hung diagnosis; whether the
   port-3000 listener actually serves `bubble_test` (qa:server) or a dev DB;
-  Metro `/status`; installed sim binary (DTSDKName + mtime) vs booted runtime.
+  Metro `/status`; installed sim binary (DTSDKName + mtime) vs booted runtime;
+  sim boot age (sims booted >500,000s grow crashing processes — warn at 80%,
+  restart required at 95%; the qa runner's sim-boot-age gate auto-restarts).
   Exit 0 only when all checks pass.
 
 ### MCP Maestro vs CLI Maestro — one simulator, one driver
