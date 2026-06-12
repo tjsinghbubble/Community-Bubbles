@@ -9,6 +9,10 @@ const MIGRATION_WARNING = `
     node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 `.trim();
 
+// Warn at most once per process about a short (zero-padded) dev key, so a single command
+// that encrypts/hashes many rows (e.g. qa-seed) prints one notice, not one per row.
+let warnedShortKey = false;
+
 function getKey(): Buffer {
   // Strip surrounding quotes that some dotenv parsers leave in place
   const keyHex = process.env.ENCRYPTION_KEY?.trim().replace(/^["']|["']$/g, "");
@@ -34,13 +38,17 @@ function getKey(): Buffer {
     );
   }
 
-  // Development: warn and zero-pad to 32 bytes so the server stays usable
-  console.warn(
-    `[encryption] ENCRYPTION_KEY is ${key.length} bytes; expected 32. ` +
-    `Zero-padding for development. ` +
-    `NOTE: Changing this key invalidates all existing test accounts — ` +
-    `run "npm run db:reset-full:local" to create fresh ones.`
-  );
+  // Development: warn (once) and zero-pad to 32 bytes so the server stays usable
+  if (!warnedShortKey) {
+    warnedShortKey = true;
+    console.warn(
+      `[encryption] ENCRYPTION_KEY is ${key.length} bytes; expected 32 (64 hex chars). ` +
+      `Zero-padding for development. A valid key likely already exists in .env — an ` +
+      `exported ENCRYPTION_KEY in your shell can shadow it (--env-file does not override ` +
+      `already-set vars). NOTE: changing this key invalidates existing accounts — ` +
+      `run "npm run db:reset-full:local" to recreate them.`
+    );
+  }
   const padded = Buffer.alloc(32);
   key.copy(padded);
   return padded;

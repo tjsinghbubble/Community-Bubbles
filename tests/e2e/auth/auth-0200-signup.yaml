@@ -1,4 +1,5 @@
 # qa-id: auth-0200
+# qa-reason: New-user signup through onboarding to an authed session (UC 180)
 # Sign up with name, gender, date of birth, email, password (UC 180).
 #
 # STATUS: unverified. The multi-step signup + onboarding sequence (gender picker, DOB picker,
@@ -14,10 +15,13 @@ tags:
   - ios
   - role-user
   - unverified
-env:
-  METRO_HOST: localhost
-  METRO_PORT: "8081"
 ---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
 - runFlow:
     file: ../common/reconnect-metro.yaml
     env:
@@ -61,7 +65,7 @@ env:
 - tapOn:
     id: checkbox-terms
 
-- takeScreenshot: signup-filled
+- takeScreenshot: ${SHOT_PREFIX}signup-filled
 - tapOn:
     id: button-continue
 
@@ -74,4 +78,4 @@ env:
 # Success is reaching the authenticated Explore FAB.
 - assertVisible:
     id: button-create-fab
-- takeScreenshot: signup-complete
+- takeScreenshot: ${SHOT_PREFIX}signup-complete

@@ -255,9 +255,13 @@ async function main(): Promise<void> {
   const layers: Layer[] = args.layers.length > 0 ? args.layers : ["e2e", "headless"];
   const roleFilter = args.roles.length > 0 ? args.roles : ALL_ROLES;
 
-  const selected = selectTests(discoverAll(), {
+  const allTests = discoverAll();
+  const selected = selectTests(allTests, {
     tags, areas: args.areas, layers, roles: roleFilter, includeUnverified,
   });
+  // "Tests written" = every (test, role) pair in the repo, role-expanded the same way the job
+  // list is, so Run/Written compares like with like.
+  const testsWritten = allTests.reduce((n, t) => n + Math.max(t.roles.length, 1), 0);
 
   if (args.list) {
     console.log(`Selected ${selected.length} test(s):`);
@@ -281,6 +285,20 @@ async function main(): Promise<void> {
   let canceled: string | undefined;
   if (args.gate && selected.length > 0) {
     console.log("── Gating ─────────────────────────────");
+    run.beat("gating");
+
+    // MCP Maestro and CLI Maestro fight over the simulator's singleton XCUITest
+    // session (each side's session reinstalls/kills the other's driver runner).
+    // Before an e2e run, stop any `maestro mcp` server and the drivers it owns.
+    // Best-effort: testctl missing or python3 absent must not block the run.
+    if (needsE2e && args.platform !== "web") {
+      const res = spawnSync("python3", [join(REPO_ROOT, "scripts/testctl.py"), "nuke", "--nuke=mcp", "--json"],
+        { encoding: "utf8" });
+      try {
+        const acts = JSON.parse(res.stdout ?? "{}").actions ?? [];
+        if (acts.length > 0) console.log(`  🔪 stopped MCP Maestro (${acts.length} signal(s)) to free the XCUITest driver`);
+      } catch { /* best-effort */ }
+    }
     gates.push(await gateLoadAverage({ ceiling: Number(process.env.QA_LOAD_CEILING ?? 75) }));
     if (needsApi) gates.push(await gateApiHealth(env.apiBaseUrl));
 
@@ -343,6 +361,7 @@ async function main(): Promise<void> {
   // ── Seed ──────────────────────────────────────────────────────────────────
   if (willSeed) {
     console.log("── Seeding test DB ────────────────────");
+    run.beat("seeding");
     const seedEnv = { ...process.env, TEST_DATABASE_URL: dbUrl || process.env.TEST_DATABASE_URL || "" };
     const res = spawnSync("npx", ["tsx", "--env-file=.env", join(TESTS_ROOT, "fixtures/seed.ts")],
       { cwd: REPO_ROOT, encoding: "utf8", env: seedEnv, stdio: args.verbose ? "inherit" : "pipe" });
@@ -391,10 +410,12 @@ async function main(): Promise<void> {
     const rolesToRun: (string | null)[] = t.roles.length > 0 ? t.roles : [null];
     for (const role of rolesToRun) jobs.push({ t, role });
   }
+  run.setTotalJobs(jobs.length);
 
   const runJob = async ({ t, role }: Job): Promise<void> => {
     const artifactsDir = run.artifactsDir(t.layer, t.id, role);
     const started = Date.now();
+    run.jobStarted({ id: t.id, role, tool: t.tool, layer: t.layer, tags: t.tags });
     let status: TestStatus;
     if (t.tool === "maestro") status = runMaestro(t, role, role ? creds[role] : undefined, env, args.platform, artifactsDir, args.verbose);
     else if (t.tool === "vitest") status = await runVitest(t, env.apiBaseUrl, artifactsDir);
@@ -415,6 +436,7 @@ async function main(): Promise<void> {
         : "see artifacts",
     };
     run.record(result);
+    run.jobFinished(t.id, role);
     const icon = status === "pass" ? "✅" : knownBug ? "🐞" : expectedFinding ? "🔎" : "❌";
     console.log(`  ${icon} ${t.id}${role ? ` [${role}]` : ""} (${fmtSecs(result.durationMs)})${reason ? ` — ${reason}` : ""}`);
   };
@@ -439,10 +461,18 @@ async function main(): Promise<void> {
   }
 
   // ── Summary ────────────────────────────────────────────────────────────────
-  const { summaryPath, failed, findings, knownBugs } = run.finalize({ gates });
+  const { summaryPath, failed, findings, knownBugs, ran } = run.finalize({ gates });
   console.log("\n── Summary ────────────────────────────");
   run.printTable();
   console.log(`\n  ${failed} new failure(s), ${knownBugs} known bug(s), ${findings} expected finding(s).`);
+  const hhmmss = (d: Date) => d.toTimeString().slice(0, 8); // local, 24-hour
+  const pct = (num: number, den: number) => (den > 0 ? `${((num / den) * 100).toFixed(1)}%` : "n/a");
+  const failedAll = failed + knownBugs + findings; // every fail-status test, however classified
+  console.log(
+    `  Started: ${hhmmss(run.startedAt)}, Ended: ${hhmmss(new Date())}, ` +
+    `Tests Run/Written: ${pct(ran, testsWritten)} (${ran}/${testsWritten}), ` +
+    `Tests failed: ${pct(failedAll, ran)} (${failedAll}/${ran})`,
+  );
   console.log(`📄  ${summaryPath}\n`);
   process.exit(failed > 0 ? 1 : 0);
 }

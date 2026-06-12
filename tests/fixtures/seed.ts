@@ -130,6 +130,16 @@ async function main(): Promise<void> {
     });
     console.log(`[qa-seed] created fixture: lockout-victim@bubble.test`);
 
+    // Bulletin post types (the app has no built-in defaults; prod rows were created by
+    // admins). One member-postable type and one admin-only type, so sec-0200 can create a
+    // bulletin post and future tests can probe the adminOnly gate.
+    await pool.query(
+      `INSERT INTO bulletin_post_types (name, display_name, color, admin_only, display_order)
+       VALUES ('general', 'General', '#4A90D9', false, 0),
+              ('announcement', 'Announcement', '#D94A4A', true, 1)`,
+    );
+    console.log(`[qa-seed] created 2 bulletin post types (general, announcement)`);
+
     const userCount = Object.keys(roles).length + 1;
     await appendEntry(pool, {
       author: "qa-seed",

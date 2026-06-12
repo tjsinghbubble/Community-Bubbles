@@ -112,8 +112,10 @@ export function registerHealthRoutes(app: Express): void {
     const storageResult = await pingUrl("http://127.0.0.1:1106/", 3000);
     const storageStatus = storageResult.status === "ok" ? "up" : "down";
 
-    const cometChatAppId = process.env.COMETCHAT_APP_ID ?? "";
-    const cometChatRegion = process.env.COMETCHAT_REGION ?? "us";
+    const cometChatAppId =
+      process.env.EXPO_PUBLIC_COMETCHAT_APP_ID ?? process.env.COMETCHAT_APP_ID ?? "";
+    const cometChatRegion =
+      process.env.EXPO_PUBLIC_COMETCHAT_REGION ?? process.env.COMETCHAT_REGION ?? "us";
     const cometChatApiKey =
       process.env.COMETCHAT_API_KEY ?? process.env.COMETCHAT_AUTH_KEY ?? "";
     let thirdPartyAuth: {
@@ -122,7 +124,7 @@ export function registerHealthRoutes(app: Express): void {
       error?: string | null;
     };
     if (!cometChatAppId || !cometChatApiKey) {
-      thirdPartyAuth = { status: "unconfigured", error: "COMETCHAT_APP_ID or API key not set" };
+      thirdPartyAuth = { status: "unconfigured", error: "EXPO_PUBLIC_COMETCHAT_APP_ID or COMETCHAT_API_KEY not set" };
     } else {
       const ccUrl = `https://${cometChatAppId}.api-${cometChatRegion}.cometchat.io/v3/users?perPage=1`;
       const ccResult = await pingUrl(ccUrl, 5000, {

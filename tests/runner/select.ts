@@ -24,6 +24,8 @@ export interface TestDescriptor {
   tags: string[];
   /** role-* tags expanded for execution; empty = role-agnostic (run once). */
   roles: string[];
+  /** Human-readable purpose from a `# qa-reason:` / `// qa-reason:` line; shown in run output. */
+  reason?: string;
 }
 
 const ALL_ROLES = ["role-user", "role-bubble-admin", "role-site-admin"];
@@ -64,7 +66,9 @@ function parseMaestroTags(header: string): string[] {
   for (let i = start + 1; i < lines.length; i++) {
     const m = lines[i].match(/^\s*-\s*(.+?)\s*$/);
     if (!m) break;
-    tags.push(m[1]);
+    // YAML allows trailing comments on list items (`- external  # why`); keep only the value.
+    const tag = m[1].replace(/\s+#.*$/, "").trim();
+    if (tag) tags.push(tag);
   }
   return tags;
 }
@@ -97,6 +101,7 @@ export function discoverAll(): TestDescriptor[] {
       path: file,
       tags,
       roles: rolesFromTags(tags),
+      reason: parseComment(text, "qa-reason"),
     });
   }
 
@@ -107,7 +112,7 @@ export function discoverAll(): TestDescriptor[] {
     const tagsRaw = parseComment(text, "qa-tags");
     if (!id || !tagsRaw) continue;
     const tags = tagsRaw.split(",").map((s) => s.trim()).filter(Boolean);
-    descriptors.push({ id, tool: "vitest", layer: "headless", path: file, tags, roles: [] });
+    descriptors.push({ id, tool: "vitest", layer: "headless", path: file, tags, roles: [], reason: parseComment(text, "qa-reason") });
   }
 
   // newman contract collection (synthetic single descriptor).
@@ -120,6 +125,7 @@ export function discoverAll(): TestDescriptor[] {
       path: collection,
       tags: ["contract", "smoke", "headless"],
       roles: [],
+      reason: "API contract smoke (auth + core endpoints)",
     });
   }
 
@@ -137,7 +143,7 @@ export interface SelectFilters {
 const AREA_TAGS = new Set([
   "auth", "discovery", "joining", "inside", "events", "bubble-admin", "site-admin",
   "comms", "campus", "notification", "categories", "reports", "monitoring", "rules",
-  "perf", "security", "contract",
+  "perf", "security", "contract", "infra",
 ]);
 
 export function selectTests(all: TestDescriptor[], f: SelectFilters): TestDescriptor[] {

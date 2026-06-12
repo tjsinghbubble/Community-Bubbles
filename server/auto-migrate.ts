@@ -84,6 +84,12 @@ export async function autoMigrate(): Promise<void> {
         ADD COLUMN IF NOT EXISTS short_id TEXT;
       CREATE UNIQUE INDEX IF NOT EXISTS events_short_id_idx ON events(short_id);
 
+      -- user suspension fields (present in shared/schema.ts; were missing here,
+      -- so seedData()'s db.select().from(users) crashed on dev DBs)
+      ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS suspended_at     TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS suspended_reason TEXT;
+
       -- feedback (user-submitted feedback, feature requests, and defect reports)
       CREATE TABLE IF NOT EXISTS feedback (
         id          VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -125,6 +131,25 @@ export async function autoMigrate(): Promise<void> {
           WHERE table_name = 'memberships' AND column_name = 'joined_at'
         ) THEN
           ALTER TABLE memberships RENAME COLUMN joined_at TO created_at;
+        END IF;
+      END $$;
+    `);
+
+    // memberships.created_by (present in shared/schema.ts as NOT NULL + FK to
+    // users; was missing from this migration so dev DBs drifted). Added in three
+    // steps because a NOT NULL column cannot be added to a populated table:
+    // add nullable, backfill (creator defaults to the member), then SET NOT NULL.
+    // Guarded so it is a true no-op once the column is already correct.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'memberships' AND column_name = 'created_by'
+        ) THEN
+          ALTER TABLE memberships ADD COLUMN created_by VARCHAR REFERENCES users(id);
+          UPDATE memberships SET created_by = user_id WHERE created_by IS NULL;
+          ALTER TABLE memberships ALTER COLUMN created_by SET NOT NULL;
         END IF;
       END $$;
     `);

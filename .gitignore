@@ -36,3 +36,6 @@ tests/PANIC
 .expo/
 tmp/
 *.adb.log
+# Ad-hoc debug screenshots belong in tmp/maestro/, never the repo root
+/*.png
+__pycache__/

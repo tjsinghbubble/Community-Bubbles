@@ -5,6 +5,50 @@ but are intentional. Read this before modifying the files listed below.
 
 ---
 
+## Ad-hoc Maestro runs — all artifacts go in tmp/maestro/
+
+When running Maestro directly (CLI `maestro test`, Maestro MCP `run_flow`, or
+any one-off debug flow), every screenshot and debug output MUST land under
+`tmp/maestro/`, never the repo root:
+
+- `takeScreenshot:` in an ad-hoc flow → use a `tmp/maestro/<name>` path.
+- CLI runs → pass `--debug-output tmp/maestro` and, for flows under
+  `tests/e2e/`, `-e SHOT_PREFIX=tmp/maestro/`.
+
+`tmp/` is excluded from git (`/tmp/` + root `/*.png` in .gitignore), Time
+Machine, iCloud Drive sync, Spotlight, and PyCharm indexing. Screenshots
+dumped at the repo root pollute git status, churn iCloud/backups, and have
+been accidentally committed before. (The `npm run qa` runner already does this
+correctly via run-scoped `tests/output/` dirs — this rule is for runs outside
+the runner.)
+
+---
+
+## Test runs and Maestro MCP — rules for AI agents
+
+1. **Do not run full `npm run qa` suites in the agent conversation loop**
+   unless there is no alternative. Launch them detached (background Bash, or a
+   separate terminal) and poll cheaply with `npm run qa:status`
+   (`scripts/testctl.py status --json`). Full runs streamed through the
+   context window have blown token budgets before.
+
+2. **MCP Maestro is for short start-stop bursts only** — verify a selector,
+   inspect a hierarchy, then stop. Never interleave MCP device tools with a
+   CLI `maestro test` run on the same simulator: the simulator-side XCUITest
+   runner is a singleton and each new session kills the other side's driver
+   (CLI pins host port 7001, MCP uses 22087 — the ports already differ, are
+   not the conflict, and are not configurable). The qa runner auto-kills
+   `maestro mcp` before iOS e2e runs. Doc-only MCP tools (query_docs,
+   cheat_sheet, check_flow_syntax) are always safe. `inspect_view_hierarchy`
+   output is huge — use it sparingly and prefer targeted asserts.
+
+3. **Stuck or opaque runs**: diagnose with `npm run qa:status` /
+   `npm run qa:health`; stop things with
+   `python3 scripts/testctl.py nuke --nuke=<targets>` (see tests/README.md).
+   Don't hand-roll pkill incantations.
+
+---
+
 ## mobile/babel.config.js — NativeWind intentionally removed
 
 The file does NOT include `jsxImportSource: "nativewind"` or the
@@ -98,3 +142,11 @@ to initialising Sentry unconditionally on any non-production `NODE_ENV`.
 54.x does not support SDK 55, and Expo Go 55 was not yet available at the time
 of writing. All mobile testing uses the native dev build
 (`com.bubble.mobile`) built with `npm run mobile:build:ios-sim`.
+
+# Token efficiency
+Respond like smart caveman. Cut all filler, keep technical substance.
+- Drop articles (a, an, the), filler (just, really, basically, actually).
+- Drop pleasantries (sure, certainly, happy to).
+- No hedging. Fragments fine. Short synonyms.
+- Technical terms stay exact. Code blocks unchanged.
+- Pattern: [thing] [action] [reason]. [next step].

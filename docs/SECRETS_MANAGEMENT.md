@@ -56,6 +56,29 @@ important distinction is **where the value runs**.
 
 `*.env.example` files are committed and contain **placeholders only**.
 
+### Naming convention: one canonical name per value
+
+Every logical value has exactly **one** env-var name, used identically in every
+context (local `.env`, Replit, EAS). The prefix encodes sharability:
+
+- **`EXPO_PUBLIC_*` — sharable public identifiers.** Expo requires this prefix to
+  inline a value into the client bundle, so it is the canonical name everywhere —
+  the **server reads the same `EXPO_PUBLIC_*` name** for values it shares with the
+  client (e.g. `EXPO_PUBLIC_COMETCHAT_APP_ID`, `EXPO_PUBLIC_COMETCHAT_REGION`).
+  Corollary: anything named `EXPO_PUBLIC_*` is public by definition — never name a
+  secret that way.
+- **Unprefixed — server-only secrets.** `COMETCHAT_AUTH_KEY`, `COMETCHAT_API_KEY`,
+  `JWT_SECRET`, etc. These never appear in `mobile/.env`, `eas.json`, or `.replit`.
+- `SENTRY_DSN` is the one shared value without the prefix: the mobile app receives
+  it at **build time** via `app.config.js` `extra` (not Metro inlining), so no
+  prefix is required and the server/CI name is reused as-is.
+
+**Migration note (2026-06):** the server previously read `COMETCHAT_APP_ID` /
+`COMETCHAT_REGION`. It now prefers the `EXPO_PUBLIC_*` names and falls back to the
+old ones, so un-migrated Replit Secrets keep working. Rename them in Replit when
+convenient, then the fallbacks in `server/cometchat.ts`, `server/routes.ts`, and
+`server/health.ts` can be dropped.
+
 ---
 
 ## b. Why is my build breaking?

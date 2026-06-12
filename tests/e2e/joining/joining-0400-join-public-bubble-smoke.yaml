@@ -1,4 +1,5 @@
 # qa-id: joining-0400
+# qa-reason: Join a public bubble instantly as a member (UC 212)
 # Join a public bubble instantly (UC 212).
 #
 # STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
@@ -12,13 +13,13 @@ tags:
   - e2e
   - ios
   - role-user
-env:
-  EMAIL: member@bubble.test
-  PASSWORD: Member123!
-  ROLE: role-user
-  METRO_HOST: localhost
-  METRO_PORT: "8081"
 ---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
 - runFlow:
     file: ../common/login-as.yaml
     env:
@@ -39,7 +40,7 @@ env:
     id: "card-bubble-.*"
     index: 0
 - waitForAnimationToEnd
-- takeScreenshot: bubble-details
+- takeScreenshot: ${SHOT_PREFIX}bubble-details
 
 # Public bubbles join instantly. The control is either the details-screen toggle
 # (button-join-leave) or the dedicated join screen (button-join-bubble) — tap whichever shows.
@@ -50,9 +51,9 @@ env:
     id: button-join-bubble
     optional: true
 - waitForAnimationToEnd
-- takeScreenshot: joined
+- takeScreenshot: ${SHOT_PREFIX}joined
 
 # After joining, the members view becomes available on the details screen.
 - assertVisible:
     id: button-view-members
-- takeScreenshot: joined-confirmed
+- takeScreenshot: ${SHOT_PREFIX}joined-confirmed

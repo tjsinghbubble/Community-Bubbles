@@ -80,10 +80,11 @@ From your CometChat dashboard:
 ### 3. Add to Environment
 In `mobile/.env`:
 ```env
-COMETCHAT_APP_ID=your_app_id_here
-COMETCHAT_REGION=us
-COMETCHAT_AUTH_KEY=your_auth_key_here
+EXPO_PUBLIC_COMETCHAT_APP_ID=your_app_id_here
+EXPO_PUBLIC_COMETCHAT_REGION=us
 ```
+The Auth Key / REST API key are server-only secrets (`COMETCHAT_AUTH_KEY`,
+`COMETCHAT_API_KEY` in the root `.env`) — never put them in `mobile/.env`.
 
 ## Building the Chat Screen
 
@@ -309,7 +310,7 @@ CometChat handles offline/online automatically, but you should:
 ```
 Error: Invalid App ID
 ```
-**Solution**: Check `COMETCHAT_APP_ID` in `.env` matches dashboard
+**Solution**: Check `EXPO_PUBLIC_COMETCHAT_APP_ID` in `.env` matches dashboard
 
 ### User can't login to CometChat
 ```

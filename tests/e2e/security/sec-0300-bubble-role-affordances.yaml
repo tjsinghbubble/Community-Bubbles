@@ -1,0 +1,140 @@
+# qa-id: sec-0300
+# qa-reason: ${ROLE} sees exactly the bubble affordances their role allows (admin controls hidden from role-user)
+#
+# Negative role-visibility, one use case (viewing the seeded QA Test Bubble), asserted at
+# two UI levels (Details tab, Events tab). The SAME selectors are asserted PRESENT for the
+# admin roles and ABSENT for role-user — if a testID is ever renamed, the positive branch
+# fails instead of the negative branch passing vacuously (trustworthy-failures rule).
+#
+# Affordance gating in mobile/src/screens/main/BubbleDetailsScreen.tsx (~360):
+#   button-manage-bubble / button-admin-dashboard — canManage (creator || bubble-admin || super)
+#   button-create-event-fab                       — canCreateEvent (admin/super in public bubbles)
+#   button-add-photo                              — isMember (member of THIS bubble only)
+# Expected per seeded role: role-user none; role-bubble-admin all four; role-site-admin
+# manage/dashboard/fab but NOT add-photo (super, yet not a member of QA Test Bubble).
+#
+# API-level enforcement of the same boundary is sec-0200 (headless authz matrix). Deep
+# links expose only b/:shortId -> BubbleDetails (RootNavigator.buildLinking), so there is
+# currently no deep-link route that could force a member into an admin screen.
+#
+# STATUS: smoke + unverified — authored against real testIDs but not yet run on a
+# simulator (admin-dashboard may sit below the fold; the scrolls below are the first
+# calibration guess). Drop `unverified` after one green run on all three roles.
+appId: com.bubble.mobile
+tags:
+  - security
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-any
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof ROLE === 'string' && ROLE.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e ROLE -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Route to the seeded bubble. The bubble-admin is a member, so their copy lives under
+# My Bubbles (Explore may exclude joined bubbles); the other roles browse Explore.
+- runFlow:
+    when:
+      true: ${ROLE === 'role-bubble-admin'}
+    commands:
+      - tapOn:
+          text: "My Bubbles"
+      - tapOn:
+          text: "QA Test Bubble"
+- runFlow:
+    when:
+      true: ${ROLE !== 'role-bubble-admin'}
+    commands:
+      - tapOn:
+          id: tab-bubbles
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: "card-bubble-.*"
+      - tapOn:
+          id: "card-bubble-.*"
+          index: 0
+
+# State marker: the details screen is up (positive control — a blank/broken screen must
+# not let the assertNotVisible checks below pass vacuously).
+- extendedWaitUntil:
+    visible:
+      id: tab-details
+    timeout: 15000
+- assertVisible:
+    text: "QA Test Bubble"
+
+# Surface below-the-fold content before judging visibility either way.
+- scroll
+- scroll
+
+# ── role-user: NO admin/member affordances anywhere on the Details tab.
+- runFlow:
+    when:
+      true: ${ROLE === 'role-user'}
+    commands:
+      - assertNotVisible:
+          id: button-manage-bubble
+      - assertNotVisible:
+          id: button-admin-dashboard
+      - assertNotVisible:
+          id: button-create-event-fab
+      - assertNotVisible:
+          id: button-add-photo
+      - takeScreenshot: ${SHOT_PREFIX}role-user-no-admin-affordances
+
+# ── admin roles: the SAME selectors must exist (selector-validity control).
+- runFlow:
+    when:
+      true: ${ROLE === 'role-bubble-admin' || ROLE === 'role-site-admin'}
+    commands:
+      - assertVisible:
+          id: button-create-event-fab
+      - scrollUntilVisible:
+          element:
+            id: button-admin-dashboard
+      - assertVisible:
+          id: button-admin-dashboard
+      - takeScreenshot: ${SHOT_PREFIX}admin-affordances-present
+- runFlow:
+    when:
+      true: ${ROLE === 'role-bubble-admin'}
+    commands:
+      - assertVisible:
+          id: button-add-photo
+- runFlow:
+    when:
+      true: ${ROLE === 'role-site-admin'}
+    commands:
+      # Super admin manages but is NOT a member of QA Test Bubble — photo upload stays hidden.
+      - assertNotVisible:
+          id: button-add-photo
+
+# ── Second level: Events tab. The create-event FAB must follow the same role boundary.
+- tapOn:
+    id: tab-events
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      true: ${ROLE === 'role-user'}
+    commands:
+      - assertNotVisible:
+          id: button-create-event-fab
+- runFlow:
+    when:
+      true: ${ROLE !== 'role-user'}
+    commands:
+      - assertVisible:
+          id: button-create-event-fab

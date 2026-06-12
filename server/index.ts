@@ -190,10 +190,13 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.API_WEB_SERVER_PORT || "5000", 10);
+  // Default bind is IPv4 wildcard (unchanged for the firewalled deploy). Set API_BIND_HOST=::
+  // to bind dual-stack (IPv6 + IPv4-mapped) so `localhost` works for clients that prefer IPv6 —
+  // the qa:server script does this so the test runner's loopback fetches don't hit ::1 refusals.
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
+      host: process.env.API_BIND_HOST || "0.0.0.0",
     },
     () => {
       log(`serving on port ${port}`);

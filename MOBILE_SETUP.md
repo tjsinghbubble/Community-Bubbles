@@ -58,10 +58,9 @@ Create a `.env` file in the `/mobile` directory:
 # Backend API - Replace with your Replit backend URL
 EXPO_PUBLIC_API_URL=https://YOUR_REPLIT_URL.replit.dev
 
-# CometChat Credentials (already configured on backend)
-COMETCHAT_APP_ID=your_app_id
-COMETCHAT_REGION=us
-COMETCHAT_AUTH_KEY=your_auth_key
+# CometChat public identifiers (the auth/REST keys are server-only — never in mobile/.env)
+EXPO_PUBLIC_COMETCHAT_APP_ID=your_app_id
+EXPO_PUBLIC_COMETCHAT_REGION=us
 ```
 
 **Important Notes**:
@@ -189,7 +188,7 @@ mobile/
 
 **Solution**:
 1. Verify credentials in `.env` match your CometChat dashboard
-2. Check that `COMETCHAT_REGION` is correct (us, eu, or in)
+2. Check that `EXPO_PUBLIC_COMETCHAT_REGION` is correct (us, eu, or in)
 3. Ensure your CometChat app is active
 
 ### Build errors after installing dependencies

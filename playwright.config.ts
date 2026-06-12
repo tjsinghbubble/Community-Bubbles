@@ -32,7 +32,7 @@ export default defineConfig({
               "",
             RESEND_API_KEY: "test-no-emails-sent",
             SHARE_BASE_URL: "http://localhost:5000",
-            COMETCHAT_APP_ID: "test",
+            EXPO_PUBLIC_COMETCHAT_APP_ID: "test",
             COMETCHAT_API_KEY: "test",
             // 32-byte hex key required by the encryption module
             ENCRYPTION_KEY: "a".repeat(64),

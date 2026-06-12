@@ -29,6 +29,10 @@ export interface TestResult {
   durationMs: number;
   /** A failure on an `unverified` test is an expected finding, not a suite failure. */
   expectedFinding: boolean;
+  /** A failure on a `bug-filed`/`bug-deferred` test is a KNOWN bug — tracked, not a new failure. */
+  knownBug: boolean;
+  /** Human-readable purpose (from `qa-reason`), role-interpolated; shown in the report. */
+  reason?: string;
   artifactsDir: string;
   message?: string;
 }
@@ -59,10 +63,24 @@ export interface RunParams {
   selectedTestIds: string[];
 }
 
+/** Live-status entry for a job currently executing (mirrored into current-run.json). */
+export interface ActiveJob {
+  id: string;
+  role: string | null;
+  tool: string;
+  layer: string;
+  tags: string[];
+  startedAt: string;
+}
+
 export class Run {
   readonly dir: string;
   readonly id: string;
+  readonly startedAt: Date = new Date();
   private results: TestResult[] = [];
+  private hbState = "starting";
+  private hbTotalJobs: number | null = null;
+  private active = new Map<string, ActiveJob>();
 
   constructor() {
     if (!existsSync(OUTPUT_ROOT)) mkdirSync(OUTPUT_ROOT, { recursive: true });
@@ -70,6 +88,52 @@ export class Run {
     this.id = `run-${utcStamp(new Date())}-${nonce}`;
     this.dir = join(OUTPUT_ROOT, this.id);
     mkdirSync(this.dir, { recursive: true });
+    this.beat("starting");
+  }
+
+  /**
+   * Heartbeat for outside observers (scripts/testctl.py status): a single well-known
+   * file describing the live run. Best-effort only — status reporting must never
+   * fail a test run.
+   */
+  beat(state?: string): void {
+    if (state) this.hbState = state;
+    try {
+      writeFileSync(
+        join(OUTPUT_ROOT, "current-run.json"),
+        JSON.stringify(
+          {
+            pid: process.pid,
+            runId: this.id,
+            runDir: this.dir,
+            startedAt: this.startedAt.toISOString(),
+            updatedAt: new Date().toISOString(),
+            state: this.hbState,
+            totalJobs: this.hbTotalJobs,
+            completed: this.results.length,
+            active: Array.from(this.active.values()),
+          },
+          null,
+          2,
+        ),
+      );
+    } catch { /* best-effort */ }
+  }
+
+  setTotalJobs(n: number): void {
+    this.hbTotalJobs = n;
+    this.beat();
+  }
+
+  jobStarted(job: Omit<ActiveJob, "startedAt">): void {
+    const key = `${job.id}__${job.role ?? ""}`;
+    this.active.set(key, { ...job, startedAt: new Date().toISOString() });
+    this.beat("running");
+  }
+
+  jobFinished(id: string, role: string | null): void {
+    this.active.delete(`${id}__${role ?? ""}`);
+    this.beat();
   }
 
   writeParams(params: Omit<RunParams, "startedAt" | "gitSha">): void {
@@ -93,22 +157,29 @@ export class Run {
     summaryPath: string;
     failed: number;
     findings: number;
+    knownBugs: number;
+    ran: number;
   } {
-    const failed = this.results.filter((r) => r.status === "fail" && !r.expectedFinding).length;
-    const findings = this.results.filter((r) => r.status === "fail" && r.expectedFinding).length;
+    // Precedence for a failing test: known bug (filed/deferred) → expected finding (unverified)
+    // → new failure. Only "new failure" affects the suite exit code.
+    const knownBugs = this.results.filter((r) => r.status === "fail" && r.knownBug).length;
+    const findings = this.results.filter((r) => r.status === "fail" && !r.knownBug && r.expectedFinding).length;
+    const failed = this.results.filter((r) => r.status === "fail" && !r.knownBug && !r.expectedFinding).length;
     const passed = this.results.filter((r) => r.status === "pass").length;
     const summary = {
       runId: this.id,
       finishedAt: new Date().toISOString(),
       canceled: extra.canceled ?? false,
       cancelReason: extra.cancelReason,
-      totals: { total: this.results.length, passed, failed, findings },
+      totals: { total: this.results.length, passed, failed, knownBugs, findings },
       gates: extra.gates,
       results: this.results,
     };
     const summaryPath = join(this.dir, "summary.json");
     writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
-    return { summaryPath, failed, findings };
+    this.active.clear();
+    this.beat(extra.canceled ? "canceled" : "done");
+    return { summaryPath, failed, findings, knownBugs, ran: this.results.length };
   }
 
   printTable(): void {
@@ -117,11 +188,15 @@ export class Run {
       return;
     }
     const icon = (r: TestResult) =>
-      r.status === "pass" ? "✅" : r.expectedFinding ? "🔎" : r.status === "fail" ? "❌" : "⚠️ ";
+      r.status === "pass" ? "✅"
+      : r.knownBug ? "🐞"
+      : r.expectedFinding ? "🔎"
+      : r.status === "fail" ? "❌" : "⚠️ ";
     for (const r of this.results) {
       const role = r.role ? ` [${r.role}]` : "";
-      const ms = `${r.durationMs}ms`.padStart(7);
-      console.log(`  ${icon(r)} ${r.id}${role}  ${ms}  ${r.message ?? ""}`);
+      const secs = `${(r.durationMs / 1000).toFixed(4)}s`.padStart(10);
+      const note = [r.reason, r.message].filter(Boolean).join("  ");
+      console.log(`  ${icon(r)} ${r.id}${role}  ${secs}  ${note}`);
     }
   }
 }

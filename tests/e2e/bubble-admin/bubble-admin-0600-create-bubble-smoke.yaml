@@ -1,4 +1,5 @@
 # qa-id: bubble-admin-0600
+# qa-reason: Bubble-admin creates a new bubble end-to-end (UC 129)
 # Create a new bubble (UC 129). Adapted from the known-good maestro/flows/create-bubble.yaml,
 # re-pointed at the seeded bubble-admin role and the new run-scoped screenshot scheme.
 appId: com.bubble.mobile
@@ -8,13 +9,13 @@ tags:
   - e2e
   - ios
   - role-bubble-admin
-env:
-  EMAIL: bubbleadmin@bubble.test
-  PASSWORD: BubbleAdmin123!
-  ROLE: role-bubble-admin
-  METRO_HOST: localhost
-  METRO_PORT: "8081"
 ---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
 - runFlow:
     file: ../common/login-as.yaml
     env:
@@ -26,7 +27,7 @@ env:
 
 - assertVisible:
     id: button-create-fab
-- takeScreenshot: login-complete
+- takeScreenshot: ${SHOT_PREFIX}login-complete
 
 # Open the create menu and start the create-bubble wizard.
 - tapOn:
@@ -38,7 +39,7 @@ env:
 
 - assertVisible:
     id: input-title
-- takeScreenshot: create-step1-details
+- takeScreenshot: ${SHOT_PREFIX}create-step1-details
 
 # Step 1 — details
 - tapOn:
@@ -50,12 +51,12 @@ env:
 - tapOn:
     id: input-description
 - inputText: "Deterministic bubble created by the qa e2e suite."
-- takeScreenshot: create-step1-filled
+- takeScreenshot: ${SHOT_PREFIX}create-step1-filled
 
 # Step 2 — category (first available)
 - tapOn:
     id: "button-next"
-- takeScreenshot: create-step2-category
+- takeScreenshot: ${SHOT_PREFIX}create-step2-category
 - tapOn:
     id: "button-category-.*"
     index: 0
@@ -63,17 +64,17 @@ env:
 # Step 3 — settings, Step 4 — review
 - tapOn:
     id: "button-next"
-- takeScreenshot: create-step3-settings
+- takeScreenshot: ${SHOT_PREFIX}create-step3-settings
 - tapOn:
     id: "button-next"
-- takeScreenshot: create-review
+- takeScreenshot: ${SHOT_PREFIX}create-review
 
 # Submit
 - tapOn:
     id: button-submit-review
-- takeScreenshot: create-submitted
+- takeScreenshot: ${SHOT_PREFIX}create-submitted
 
 # Land back on a meaningful screen.
 - assertVisible:
     id: "button-create-fab"
-- takeScreenshot: create-done
+- takeScreenshot: ${SHOT_PREFIX}create-done

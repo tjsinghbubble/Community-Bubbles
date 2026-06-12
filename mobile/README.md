@@ -24,9 +24,8 @@ Create a `.env` file in the `mobile` directory:
 
 ```env
 EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:3000
-COMETCHAT_APP_ID=your_app_id
-COMETCHAT_REGION=us
-COMETCHAT_AUTH_KEY=your_auth_key
+EXPO_PUBLIC_COMETCHAT_APP_ID=your_app_id
+EXPO_PUBLIC_COMETCHAT_REGION=us
 SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project>
 ```
 

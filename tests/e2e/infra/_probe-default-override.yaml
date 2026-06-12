@@ -1,0 +1,8 @@
+# Probe subflow for infra-0200 (NOT a test — no qa-id, never discovered by the runner).
+# DELIBERATE exception to the suite-wide no-defaults rule: the default IS the probe — the
+# parent asserts that this default still overrides the caller's runFlow env value.
+appId: com.bubble.mobile
+env:
+  PROBE: "subflow-default"
+---
+- evalScript: ${output.probeDefaultOverride = PROBE}

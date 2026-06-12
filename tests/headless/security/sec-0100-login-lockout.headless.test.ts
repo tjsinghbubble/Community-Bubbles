@@ -1,5 +1,6 @@
 // qa-id: sec-0100
 // qa-tags: security, smoke, headless, role-any
+// qa-reason: Repeated bad logins must lock the account (brute-force resistance)
 //
 // Password-stuffing resistance: repeated wrong-password logins must be throttled (429 from
 // account lockout and/or rate limiting) and must NEVER return an auth token.

@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS meta.testing_journal (
 CREATE INDEX IF NOT EXISTS idx_journal_entry_time ON meta.testing_journal (entry_time DESC);
 CREATE INDEX IF NOT EXISTS idx_journal_tags       ON meta.testing_journal USING GIN (tags);
 
+-- Schema baseline: a per-table fingerprint of the column layout captured at provision time
+-- (when the DB is known to match shared/schema.ts). The runner's schema-drift gate compares the
+-- live schema to this baseline; `column_def` is kept verbatim so drift can name the exact
+-- column that was added/removed (e.g. users.suspended_at), not just "this table changed".
+-- Lives in `meta` so it survives public-schema resets. Replaced wholesale on each provision.
+CREATE TABLE IF NOT EXISTS meta.schema_baseline (
+    table_name  TEXT PRIMARY KEY,
+    column_def  TEXT NOT NULL,            -- sorted "col:type:nullable:default" lines for the table
+    rollup      TEXT NOT NULL,            -- whole-DB schema rollup at capture time (same for all rows)
+    captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    label       TEXT
+);
+
 -- Optional reference vocabularies (informational; not FK-enforced on the journal so that
 -- ad-hoc tags remain possible). Populated lazily; safe to leave empty.
 CREATE TABLE IF NOT EXISTS meta.observation_types (

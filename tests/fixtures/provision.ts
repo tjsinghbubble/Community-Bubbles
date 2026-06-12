@@ -11,6 +11,7 @@ import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { makePool, ensureJournal, appendEntry, classify, currentDbName } from "./journal.js";
+import { recordSchemaBaseline } from "./signatures.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..");
@@ -40,6 +41,9 @@ async function main(): Promise<void> {
     } else {
       console.log(`[qa-provision] '${dbName}' already classified 'test'.`);
     }
+    // Capture the schema baseline now, while the DB is known to match shared/schema.ts.
+    const sig = await recordSchemaBaseline(pool, "provision");
+    console.log(`[qa-provision] recorded schema baseline: schema-sig=${sig.rollup} (${sig.tableCount} tables).`);
   } finally {
     await pool.end();
   }

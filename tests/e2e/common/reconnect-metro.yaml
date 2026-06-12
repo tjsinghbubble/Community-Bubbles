@@ -5,13 +5,19 @@
 # app can't find the bundler on next launch. The openLink immediately re-points it. (See
 # CLAUDE.md / project memory: this is why a separate native Maestro flow set exists.)
 #
-# Env (defaults provided; overridable via -e from the qa runner):
+# Env (REQUIRED, no defaults — every caller must pass them):
 #   METRO_HOST, METRO_PORT
+#
+# DO NOT add an `env:` defaults block: subflow defaults OVERRIDE caller-passed values
+# (see login-as.yaml for the incident). A missing value leaves the literal ${METRO_HOST}
+# in the openLink URL, which fails loudly at the Metro connect step.
 appId: com.bubble.mobile
-env:
-  METRO_HOST: localhost
-  METRO_PORT: "8081"
 ---
+# Fail fast: catch a missing value (JS-undefined) or a forwarded-but-unset one (literal "${…}").
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$'}
+    label: "reconnect-metro requires METRO_HOST and METRO_PORT via runFlow env (no defaults by design)"
+
 - launchApp:
     appId: com.bubble.mobile
     clearState: true

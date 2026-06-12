@@ -1,5 +1,6 @@
 // qa-id: sec-0110
 // qa-tags: security, headless, unverified, role-any
+// qa-reason: Signup must not leak which emails are already registered (enumeration)
 //
 // Account-enumeration resistance on the signup verification endpoint. An attacker must not be
 // able to tell whether an email is already registered from the response.

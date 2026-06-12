@@ -43,9 +43,8 @@ npm install
 # Create .env file
 cat > .env << EOF
 EXPO_PUBLIC_API_URL=https://[your-replit-url].replit.dev
-COMETCHAT_APP_ID=your_app_id
-COMETCHAT_REGION=us
-COMETCHAT_AUTH_KEY=your_auth_key
+EXPO_PUBLIC_COMETCHAT_APP_ID=your_app_id
+EXPO_PUBLIC_COMETCHAT_REGION=us
 EOF
 
 # Start the app

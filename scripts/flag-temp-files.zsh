@@ -2,7 +2,7 @@
 # Flags developer tool build artifacts, caches, and emulator images to prevent
 # Spotlight indexing, and backups from iCloud Drive or Time Machine.
 #
-# Usage: flag-temp-files.sh [project-root]
+# Usage: flag-temp-files.zsh [project-root]
 #   project-root  Absolute path to the project root. Defaults to the parent of
 #                 the scripts/ directory this script lives in, so it works when
 #                 invoked from either the project root or mobile/.
@@ -20,15 +20,16 @@ set -o pipefail
 
 SCRIPT_DIR="${0:a:h}"
 PROJECT="${1:-"${SCRIPT_DIR%/scripts}"}"
+cd $PROJECT
 
-VERBOSE_FLAG=1
+VERBOSE_FLAG=0
 
 this_program="$0"
 
 warn()  { echo "${this_program}  ⚠  $1" >&2; }
 debug() { [ ${VERBOSE_FLAG} -gt 0 ] && echo "${this_program}: $*" >&2 }
 
-debug "Removing build directories and files from backups and indexing"
+debug "Removing build directories from backups and indexing"
 
 # ---------------------------------------------------------------------------
 # Detect which backup systems are active on this machine.
@@ -36,12 +37,12 @@ debug "Removing build directories and files from backups and indexing"
 # Spotlight is always excluded — mds_stores spikes on any path after large
 # file operations, regardless of iCloud or Time Machine state.
 # ---------------------------------------------------------------------------
-ICLOUD_DOCS=false
-TM_ENABLED=false
+ICLOUD_BACKUP_ENABLED=false
+TIME_MACHINE_ENABLED=false
 
 # iCloud Drive is active when this container directory exists.
 if [ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs" ] ; then
-    ICLOUD_DOCS=true
+    ICLOUD_BACKUP_ENABLED=true
     debug "iCloud backups are enabled"
 else 
     debug "iCloud backups are not enabled"
@@ -49,7 +50,7 @@ fi
 
 # Time Machine is configured when at least one named destination is registered.
 if tmutil destinationinfo 2>/dev/null | grep -q 'Name :' ; then
-    TM_ENABLED=true
+    TIME_MACHINE_ENABLED=true
     debug "Time Machine backups are enabled"
 else
     debug "Time Machine backups are not enabled" 
@@ -62,7 +63,7 @@ fi
 # ---------------------------------------------------------------------------
 
 block_icloud_backups() {
-  $ICLOUD_DOCS || return 0
+  $ICLOUD_BACKUP_ENABLED || return 0
   local dir="$1"
   [ -d "$dir" ] || return 0
   # com.apple.icloud.donotbackup maps to NSURLIsExcludedFromBackupKey.
@@ -79,7 +80,7 @@ block_spotlight_indexing() {
 }
 
 block_timemachine_backups() {
-  $TM_ENABLED || return 0
+  $TIME_MACHINE_ENABLED || return 0
   local dir="$1"
   [ -d "$dir" ] || return 0
   tmutil addexclusion "$dir"  \
@@ -118,6 +119,7 @@ block_all_indexing_and_backups "${PROJECT}/dist"
 block_all_indexing_and_backups "${PROJECT}/tests/output"
 block_all_indexing_and_backups "${PROJECT}/.maestro/output"
 block_all_indexing_and_backups "${PROJECT}/.expo"
+block_all_indexing_and_backups "${PROJECT}/tmp"
 
 # ---------------------------------------------------------------------------
 debug "    2. Block backups and indexing Android SDK & AVDs — ~/Library/Android, ~/.android"

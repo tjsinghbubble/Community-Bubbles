@@ -1,0 +1,147 @@
+# qa-id: events-0500
+# qa-reason: Bubble-admin creates an event in their bubble end-to-end (UC 160 / UC 33)
+#
+# Route: My Bubbles -> QA Test Bubble -> in-bubble create-event FAB. This route is used
+# deliberately INSTEAD of the Explore FAB "Create New" sheet: that sheet's items
+# (button-create-bubble / button-create-event) do not surface in the iOS accessibility
+# tree (verified live 2026-06-11 via Maestro MCP — id and text matches both fail), and
+# opening the wizard from inside the bubble also pre-selects the bubble (no
+# button-select-bubble step).
+#
+# Location: Morcom Rose Garden (700 Jean St, Oakland) — a city park, stable address.
+# Typing the partial "Morcom Ros" must yield it as the top Google Places suggestion.
+# The suggestion row's accessibility text has a LEADING COMMA and Maestro text match
+# is whole-string regex, hence the ".*Morcom Rose Garden.*" pattern.
+#
+# Date picker (iOS): an INLINE spinner that commits only when a wheel actually moves
+# (onChange; see CreateEventScreen.onDateChange), then auto-collapses after 1.5s.
+# Tapping the row one below the selected one selects TOMORROW and fires the commit.
+# The 53%/41% point is the day-column row directly under the selection; step 2 always
+# opens unscrolled so the position is stable on a 390x844-pt device. If this proves
+# flaky on other sim sizes, add a testID-driven commit to the picker instead.
+#
+# Start time: a Confirm/Cancel modal; Confirm accepts the current time (value varies
+# per run, flow is deterministic).
+appId: com.bubble.mobile
+tags:
+  - events
+  - bubble-admin
+  - smoke
+  - e2e
+  - ios
+  - role-bubble-admin
+  - external   # exercises the live Google Places autocomplete API
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Into the seeded bubble. Bottom tabs only expose their LABELS (tabBarTestID does not
+# surface as a resource-id — same finding as logout.yaml), so tap the tab by text.
+- tapOn:
+    text: "My Bubbles"
+- tapOn:
+    text: "QA Test Bubble"
+- extendedWaitUntil:
+    visible:
+      id: button-create-event-fab
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}event-bubble-details
+
+# Step 1 — Event Details (bubble is pre-selected on this route).
+- tapOn:
+    id: button-create-event-fab
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-event-title
+- tapOn:
+    id: input-event-title
+- inputText: "QA Park Meetup"
+- tapOn:
+    id: input-event-description
+- inputText: "Deterministic event created by the qa e2e suite."
+- takeScreenshot: ${SHOT_PREFIX}event-step1-filled
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 2 — Date & Location. Location first (while the layout is in its initial,
+# unshifted state), then date, then start time.
+- assertVisible:
+    id: button-select-date
+- tapOn:
+    id: button-location-picker
+- waitForAnimationToEnd
+- tapOn:
+    text: "Search for a place..."
+- inputText: "Morcom Ros"
+- extendedWaitUntil:
+    visible:
+      text: ".*Morcom Rose Garden.*"
+    timeout: 10000
+- takeScreenshot: ${SHOT_PREFIX}event-places-suggestion
+- tapOn:
+    text: ".*Morcom Rose Garden.*"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*700 Jean St.*"
+
+# Date: open the inline spinner and tap the day-column row one below the selection
+# (= tomorrow) to fire the commit; the spinner auto-collapses ~1.5s later.
+- tapOn:
+    id: button-select-date
+- waitForAnimationToEnd
+- tapOn:
+    point: 53%, 41%
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Start time: modal spinner, accept the default via Confirm.
+- tapOn:
+    id: button-select-start-time
+- waitForAnimationToEnd
+- tapOn:
+    text: "Confirm"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}event-step2-filled
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 3 — Privacy & Settings.
+- tapOn:
+    id: radio-visibility-public
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 4 — Review & Publish: the chosen address must have survived to review.
+- assertVisible:
+    text: ".*700 Jean St.*"
+- takeScreenshot: ${SHOT_PREFIX}event-review
+- tapOn:
+    id: button-publish-event
+
+# Success modal, then the event details screen.
+- extendedWaitUntil:
+    visible:
+      text: "Event Created!"
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}event-created
+- tapOn:
+    text: "View Event"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "QA Park Meetup"
+- takeScreenshot: ${SHOT_PREFIX}event-details
