@@ -113,7 +113,7 @@ COVERED: dict[tuple[int, str], tuple[str, str]] = {
 MOCK_RULES = [
     (("reset", "change password", "forgot"), "mock1-email"),
     ((".edu", "verification code", "verify a university", "verification received"), "mock1-email"),
-    (("chat", "message", "messaging", "conversation", "direct message", " dm "), "mock2-cometchat"),
+    ((" chat ", "message", "messaging", "conversation", "direct message", " dm "), "mock2-cometchat"),
     (("photo", "cover image", "image", "upload"), "mock3-media"),
     (("notification",), "mock5-push"),
     (("qr code", "share sheet", "native share", "short link", "copy the"), "mock6-share"),
