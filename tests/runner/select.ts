@@ -143,7 +143,7 @@ export interface SelectFilters {
 export const AREA_TAGS = new Set([
   "auth", "discovery", "joining", "inside", "events", "bubble-admin", "site-admin",
   "comms", "campus", "notification", "categories", "reports", "monitoring", "rules",
-  "perf", "security", "contract", "infra",
+  "perf", "security", "contract", "infra", "wander",
 ]);
 
 export function selectTests(all: TestDescriptor[], f: SelectFilters): TestDescriptor[] {

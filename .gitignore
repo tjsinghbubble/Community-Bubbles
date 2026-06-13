@@ -31,6 +31,9 @@ maestro/output
 # QA test architecture (Phase 1) — run artifacts & panic marker
 tests/output/
 tests/PANIC
+# Test-expansion (Phase 2) — claimed prompt files are transient local work-state
+# (the durable record is backlog.tsv + the produced tests). See tests/plan/README.md.
+tests/plan/units/
 # Local-only: editor project, Expo metadata, scratch dir, device logs
 .idea/
 .expo/
