@@ -28,8 +28,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from string import Template
@@ -312,6 +315,128 @@ def cmd_gen(_args) -> int:
     return subprocess.call([sys.executable, str(REPO / "scripts" / "gen_test_backlog.py")])
 
 
+# ---- area orchestration (batch ops that replace the manual for-loops) ---------
+
+HEADLESS = REPO / "tests" / "headless"
+VITEST_CFG = "tests/headless/vitest.headless.config.ts"
+
+
+def _area_units(area: str) -> list[dict]:
+    return [r for r in load_backlog() if r["area"] == area]
+
+
+def _area_test_files(area: str) -> list[Path]:
+    d = HEADLESS / area
+    return sorted(d.glob("*.headless.test.ts")) if d.exists() else []
+
+
+def ratify_files(area: str) -> int:
+    """Drop a trailing `, unverified` from each test's qa-tags line (post-green). Returns files changed."""
+    changed = 0
+    for f in _area_test_files(area):
+        txt = f.read_text(encoding="utf-8")
+        new = "\n".join(
+            (ln.replace(", unverified", "") if ("qa-tags" in ln and "unverified" in ln) else ln)
+            for ln in txt.splitlines()
+        ) + ("\n" if txt.endswith("\n") else "")
+        if new != txt:
+            f.write_text(new, encoding="utf-8")
+            changed += 1
+    return changed
+
+
+def cmd_preflight(args) -> int:
+    cpu = os.cpu_count() or 1
+    load1 = os.getloadavg()[0]
+    free_gb = shutil.disk_usage(REPO).free / 1e9
+    base = os.environ.get("QA_BASE_URL", "http://localhost:3000")
+    server = "down"
+    for path in ("/api/v1/health", "/api/v1/ping"):
+        try:
+            with urllib.request.urlopen(base + path, timeout=3) as resp:
+                if resp.status == 200:
+                    server = "up"
+                    break
+        except Exception:
+            continue
+    load_ok, disk_ok = load1 < cpu * 1.5, free_gb > 2
+    ok = server == "up" and disk_ok
+    if args.json:
+        print(json.dumps({"load1": round(load1, 2), "cpu": cpu, "load_ok": load_ok,
+                          "free_gb": round(free_gb, 1), "disk_ok": disk_ok, "server": server, "ok": ok}))
+        return 0 if ok else 1
+    flags = [f for f, c in (("HIGH-LOAD", not load_ok), ("LOW-DISK", not disk_ok),
+                            ("SERVER-DOWN", server != "up")) if c]
+    print(f"preflight: load={load1:.2f}/{cpu} disk={free_gb:.0f}GB server={server} "
+          f"-> {'OK' if ok else 'CHECK: ' + ','.join(flags)}")
+    if server != "up":
+        print("  start it with: npm run qa:server:log")
+    print("  (token budget is not scriptable — judge that yourself before a big batch.)")
+    return 0 if ok else 1
+
+
+def cmd_claim_area(args) -> int:
+    want = ("todo", "blocked") if args.include_blocked else ("todo",)
+    rows = sorted((r for r in _area_units(args.area)
+                   if (args.kind in (None, r["kind"])) and effective_status(r) in want),
+                  key=prio_key)
+    claimed = [(r["unit_id"], r["output_path"]) for r in rows if materialize(r)]
+    if args.json:
+        print(json.dumps([{"unit_id": u, "output_path": o} for u, o in claimed], indent=2))
+    else:
+        for u, o in claimed:
+            print(f"{u}\t{o}")
+        print(f"\nclaimed {len(claimed)} unit(s) in {args.area}; hand each units/<id>.md to a Writer.")
+    return 0
+
+
+def cmd_done_area(args) -> int:
+    n = sum(1 for r in _area_units(args.area)
+            if unit_file(r["unit_id"]).exists() and (set_status(r["unit_id"], "done") or True))
+    print(f"{args.area}: marked {n} claimed unit(s) done.")
+    return 0
+
+
+def cmd_ratify_area(args) -> int:
+    print(f"{args.area}: dropped 'unverified' from {ratify_files(args.area)} test file(s).")
+    return 0
+
+
+def cmd_verify_area(args) -> int:
+    """Seed (opt) -> run the area's headless suite serially -> on green, ratify + mark done.
+    One call replaces: qa:seed + npx vitest + the done for-loop + the unverified sed."""
+    files = _area_test_files(args.area)
+    if not files:
+        print(f"no headless tests at tests/headless/{args.area}/", file=sys.stderr)
+        return 1
+    qa_ids = {ln.split(":", 1)[1].strip() for f in files
+              for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip().startswith("// qa-id:")}
+    claimed = [r["unit_id"] for r in _area_units(args.area) if unit_file(r["unit_id"]).exists()]
+    if len(qa_ids) < len(claimed):
+        print(f"WARN: {len(qa_ids)} qa-ids across {len(files)} files but {len(claimed)} units claimed — "
+              "a Writer may have FOLDED units into one file; split before trusting green.")
+    if args.seed:
+        env = dict(os.environ)
+        env.setdefault("TEST_DATABASE_URL", "postgresql://localhost:5432/bubble_test")
+        if subprocess.call(["npm", "run", "qa:seed"], cwd=str(REPO), env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
+            print("seed FAILED — aborting verify.", file=sys.stderr)
+            return 1
+    proc = subprocess.run(["npx", "vitest", "run", "--config", VITEST_CFG, f"tests/headless/{args.area}/"],
+                          cwd=str(REPO), capture_output=True, text=True)
+    summary = next((ln.strip() for ln in reversed(proc.stdout.splitlines()) if "Tests" in ln and "(" in ln), "")
+    if proc.returncode != 0:
+        print(f"{args.area}: VERIFY FAILED. {summary}")
+        for ln in proc.stdout.splitlines():
+            if "FAIL" in ln and ".test.ts" in ln:
+                print("  " + ln.strip())
+        return 1
+    n_ratified = 0 if args.keep_unverified else ratify_files(args.area)
+    done = sum(1 for uid in claimed if (set_status(uid, "done") or True))
+    print(f"{args.area}: VERIFY PASS. {summary}; ratified {n_ratified} file(s), marked {done} unit(s) done.")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="testplan", description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -331,6 +456,16 @@ def main() -> int:
     b = sub.add_parser("block"); b.add_argument("unit_id"); b.add_argument("reason", nargs="*"); b.set_defaults(fn=cmd_block)
     r = sub.add_parser("release"); r.add_argument("unit_id"); r.set_defaults(fn=cmd_release)
     g = sub.add_parser("gen"); g.set_defaults(fn=cmd_gen)
+
+    pf = sub.add_parser("preflight"); pf.add_argument("--json", action="store_true"); pf.set_defaults(fn=cmd_preflight)
+    ca = sub.add_parser("claim-area"); ca.add_argument("area")
+    ca.add_argument("--kind"); ca.add_argument("--include-blocked", action="store_true")
+    ca.add_argument("--json", action="store_true"); ca.set_defaults(fn=cmd_claim_area)
+    da = sub.add_parser("done-area"); da.add_argument("area"); da.set_defaults(fn=cmd_done_area)
+    ra = sub.add_parser("ratify-area"); ra.add_argument("area"); ra.set_defaults(fn=cmd_ratify_area)
+    va = sub.add_parser("verify-area"); va.add_argument("area")
+    va.add_argument("--seed", action="store_true"); va.add_argument("--keep-unverified", action="store_true")
+    va.set_defaults(fn=cmd_verify_area)
 
     args = ap.parse_args()
     return args.fn(args)
