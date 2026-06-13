@@ -10,10 +10,41 @@ export interface JsonResponse {
   text: string;
 }
 
+const PID = process.pid;
+
+/** Best-effort current test id (e.g. "auth-0100") from the running vitest file path.
+ *  Uses the global `expect` (config has globals:true) so http.ts stays import-decoupled
+ *  from vitest. Falls back to QA_TEST_ID or "unknown" outside a test. */
+export function currentTestId(): string {
+  try {
+    const st = (globalThis as any).expect?.getState?.();
+    const p: string | undefined = st?.testPath;
+    if (p) {
+      const m = p.match(/([a-z]+-\d{4})/);
+      if (m) return m[1];
+      const base = p.split("/").pop()?.replace(/\.headless\.test\.ts$/, "");
+      if (base) return base;
+    }
+  } catch {
+    /* not running inside a vitest test */
+  }
+  return process.env.QA_TEST_ID ?? "unknown";
+}
+
+/** Per-test identifier sent on every headless request in the dedicated `X-Bubble-Test`
+ *  header so the server access log can be synced back to the originating test, e.g.
+ *  `test(auth-0100,r=u,pid=1234)`. A dedicated header (not User-Agent) is used so this is
+ *  engine-agnostic: web/browser tests can inject the same header (Playwright
+ *  setExtraHTTPHeaders) WITHOUT clobbering the browser's real User-Agent. */
+export const QA_TEST_HEADER = "x-bubble-test";
+export function qaTestTag(roleCode = "anon"): string {
+  return `test(${currentTestId()},r=${roleCode},pid=${PID})`;
+}
+
 export async function postJson(path: string, body: unknown): Promise<JsonResponse> {
   const res = await fetch(`${baseUrl()}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", [QA_TEST_HEADER]: qaTestTag() },
     body: JSON.stringify(body),
   });
   const text = await res.text();

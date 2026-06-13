@@ -3,12 +3,21 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { baseUrl, type JsonResponse } from "./http.js";
+import { baseUrl, qaTestTag, QA_TEST_HEADER, type JsonResponse } from "./http.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROLES_PATH = join(__dirname, "..", "..", "config", "roles.json");
 
 export type RoleKey = "role-user" | "role-bubble-admin" | "role-site-admin";
+
+/** Short role codes for the per-test User-Agent (test(<id>,r=<code>,pid=<n>)). */
+const ROLE_CODE: Record<RoleKey, string> = {
+  "role-user": "u",
+  "role-bubble-admin": "ba",
+  "role-site-admin": "sa",
+};
+/** token -> role code, so request() can stamp the acting role onto each call's UA. */
+const tokenRole = new Map<string, string>();
 
 export interface RoleSession {
   token: string;
@@ -31,7 +40,7 @@ export async function loginAs(role: RoleKey): Promise<RoleSession> {
   const { email, password } = roleCreds(role);
   const res = await fetch(`${baseUrl()}/api/auth/login`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", [QA_TEST_HEADER]: qaTestTag(ROLE_CODE[role]) },
     body: JSON.stringify({ email, password }),
   });
   const json: any = await res.json().catch(() => null);
@@ -41,6 +50,7 @@ export async function loginAs(role: RoleKey): Promise<RoleSession> {
     );
   }
   const session: RoleSession = { token: json.token, userId: json.user?.id, email };
+  tokenRole.set(session.token, ROLE_CODE[role]);
   cache.set(role, session);
   return session;
 }
@@ -51,7 +61,11 @@ export async function request(
   path: string,
   opts: { token?: string | null; body?: unknown } = {},
 ): Promise<JsonResponse> {
-  const headers: Record<string, string> = { "content-type": "application/json" };
+  const roleCode = opts.token ? tokenRole.get(opts.token) ?? "auth" : "anon";
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    [QA_TEST_HEADER]: qaTestTag(roleCode),
+  };
   if (opts.token) headers.authorization = `Bearer ${opts.token}`;
   const res = await fetch(`${baseUrl()}${path}`, {
     method,

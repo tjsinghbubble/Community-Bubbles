@@ -96,6 +96,10 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      // Client IP, real User-Agent, and the per-test tag. QA tests stamp X-Bubble-Test
+      // (test(<id>,r=<role>,pid=<n>)) — a dedicated header so the browser's real UA is
+      // preserved for web tests — letting requests/responses be synced to a test.
+      logLine += ` ip=${req.ip ?? "-"} ua="${req.get("user-agent") ?? "-"}" test=${req.get("x-bubble-test") ?? "-"}`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
