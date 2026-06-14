@@ -33,22 +33,29 @@ tags:
     id: tab-bubbles
 - waitForAnimationToEnd
 
-# Open the first bubble card.
+# Open the seeded public bubble by title — the seed now creates TWO bubbles
+# (QA Test Bubble + QA Rules Bubble), so "first card" is no longer deterministic.
 - assertVisible:
     id: "card-bubble-.*"
-- tapOn:
-    id: "card-bubble-.*"
-    index: 0
+- tapOn: "QA Test Bubble"
 - waitForAnimationToEnd
 - takeScreenshot: ${SHOT_PREFIX}bubble-details
 
-# Public bubbles join instantly. The control is either the details-screen toggle
-# (button-join-leave) or the dedicated join screen (button-join-bubble) — tap whichever shows.
+# Non-members are auto-redirected to the Join screen (button-join-bubble); a member
+# would stay on the details screen (button-join-leave toggle). Tap whichever shows.
 - tapOn:
     id: button-join-leave
     optional: true
 - tapOn:
     id: button-join-bubble
+    optional: true
+- waitForAnimationToEnd
+
+# For a public bubble the join API call only fires from the welcome modal's "Let's Go"
+# (JoinBubbleScreen.handleLetsGo). QA Test Bubble has no rules, so the button is enabled
+# immediately. Optional because the details-screen toggle path joins without a modal.
+- tapOn:
+    id: button-lets-go
     optional: true
 - waitForAnimationToEnd
 - takeScreenshot: ${SHOT_PREFIX}joined
