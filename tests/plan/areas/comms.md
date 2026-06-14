@@ -36,3 +36,8 @@ standing it up unblocks this entire area at once.
 - Everything above. Also: message moderation, online-presence dots
   (`status-online-*`), DM permission rules (can a member DM any other member, or only
   shared-bubble peers — confirm with product).
+
+## Blocked this pass (2026-06-14)
+- `comms-0700` / `comms-0710` (UC230 share-the-bubble) — BLOCKED: mock2-cometchat +
+  mock6-share (the share sheet leaves the app; no in-app assertion possible). Per the
+  2026-06-13 decision, no partial variants — deferred until the mock lands.

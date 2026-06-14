@@ -37,3 +37,10 @@ steps need the emailed code captured (SMTP sink or a DB read of `verification_co
 ## Future work (knowingly deferred)
 - Full .edu verification + campus-exclusive access gating — mock1-email. Invalid/non-.edu
   email rejected; wrong code rejected; code expiry — negatives for when the mock exists.
+
+## Blocked/done this pass (2026-06-14)
+- `campus-0500` (UC200 dismiss-prompt, pos) — DONE (e2e, unverified; no email involved).
+- `campus-0400` / `campus-0410` (UC199 campus-exclusive access) — BLOCKED on mock1-email
+  (access depends on the UC197->198 .edu verification chain).
+- `campus-0510` (UC200 neg) — BLOCKED: low value; "stays dismissed across relaunch" is
+  fragile under Maestro clearState/openLink. Revisit as `review`.
