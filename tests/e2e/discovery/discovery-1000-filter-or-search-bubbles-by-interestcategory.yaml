@@ -2,18 +2,15 @@
 # qa-reason: Search the Explore tab filters bubbles by query and clear restores the list (UC 205)
 # Filter/search bubbles (UC 205 / row 20). Positive path.
 #
-# STATUS: unverified — authored against real testIDs (ExploreScreen: input-search,
-# button-clear-search, card-bubble-*), NOT yet run on a simulator. Drop `unverified`
-# after one green run. Signs in as role-user, searches "QA" (matches the seeded QA
-# bubbles), asserts a known seeded bubble surfaces, then clears and asserts the full
-# list returns. Read-only — joins nothing, mutates nothing.
+# Verified green on simulator 2026-06-13. Signs in as role-user, searches "QA" (matches
+# the seeded QA bubbles), asserts a known seeded bubble surfaces, then clears and asserts
+# the full list returns. Read-only — joins nothing, mutates nothing.
 appId: com.bubble.mobile
 tags:
   - discovery
   - e2e
   - ios
   - role-user
-  - unverified
 ---
 # Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
 # OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).

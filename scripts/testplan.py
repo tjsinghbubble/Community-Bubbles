@@ -291,7 +291,24 @@ def cmd_show(args) -> int:
 
 def cmd_done(args) -> int:
     set_status(args.unit_id, "done")
-    print(f"{args.unit_id} -> done")
+    msg = f"{args.unit_id} -> done"
+    if not args.no_ratify:
+        changed, residual = ratify_unit(args.unit_id)
+        msg += f"; ratified ({changed} tag edit(s))"
+        if residual:
+            msg += f"; NOTE {residual} comment line(s) still mention 'unverified' — review"
+    print(msg)
+    return 0
+
+
+def cmd_ratify(args) -> int:
+    changed, residual = ratify_unit(args.unit_id)
+    if not args.no_done:
+        set_status(args.unit_id, "done")
+    msg = f"{args.unit_id}: ratified ({changed} tag edit(s)" + ("" if args.no_done else "; marked done") + ")"
+    if residual:
+        msg += f"; NOTE {residual} comment line(s) still mention 'unverified' — review"
+    print(msg)
     return 0
 
 
@@ -343,6 +360,34 @@ def ratify_files(area: str) -> int:
             f.write_text(new, encoding="utf-8")
             changed += 1
     return changed
+
+
+def ratify_unit(uid: str) -> tuple[int, int]:
+    """Strip the `unverified` tag from ONE unit's test file — handles BOTH the e2e YAML
+    list item (`  - unverified`) and the headless inline form (`// qa-tags: ..., unverified`).
+    Returns (tag edits, residual comment lines still mentioning 'unverified' — prose is left
+    for a human, since auto-rewriting comments isn't safe)."""
+    row = next((r for r in load_backlog() if r["unit_id"] == uid), None)
+    if not row:
+        sys.exit(f"unknown unit_id: {uid}")
+    path = REPO / row["output_path"]
+    if not path.exists():
+        return (0, 0)
+    src = path.read_text(encoding="utf-8")
+    out, changed = [], 0
+    for ln in src.splitlines():
+        if ln.strip() == "- unverified":             # e2e YAML tags: list item
+            changed += 1
+            continue
+        if "qa-tags" in ln and "unverified" in ln:   # headless inline qa-tags list
+            new = ln.replace(", unverified", "").replace(",unverified", "")
+            if new != ln:
+                changed += 1
+                ln = new
+        out.append(ln)
+    path.write_text("\n".join(out) + ("\n" if src.endswith("\n") else ""), encoding="utf-8")
+    residual = sum(1 for ln in out if "unverified" in ln.lower())
+    return (changed, residual)
 
 
 def cmd_preflight(args) -> int:
@@ -452,7 +497,8 @@ def main() -> int:
     n.add_argument("--json", action="store_true"); n.set_defaults(fn=cmd_next)
     c = sub.add_parser("claim"); c.add_argument("unit_id"); c.set_defaults(fn=cmd_claim)
     sh = sub.add_parser("show"); sh.add_argument("unit_id"); sh.add_argument("--json", action="store_true"); sh.set_defaults(fn=cmd_show)
-    d = sub.add_parser("done"); d.add_argument("unit_id"); d.set_defaults(fn=cmd_done)
+    d = sub.add_parser("done"); d.add_argument("unit_id"); d.add_argument("--no-ratify", action="store_true"); d.set_defaults(fn=cmd_done)
+    rt = sub.add_parser("ratify"); rt.add_argument("unit_id"); rt.add_argument("--no-done", action="store_true"); rt.set_defaults(fn=cmd_ratify)
     b = sub.add_parser("block"); b.add_argument("unit_id"); b.add_argument("reason", nargs="*"); b.set_defaults(fn=cmd_block)
     r = sub.add_parser("release"); r.add_argument("unit_id"); r.set_defaults(fn=cmd_release)
     g = sub.add_parser("gen"); g.set_defaults(fn=cmd_gen)
