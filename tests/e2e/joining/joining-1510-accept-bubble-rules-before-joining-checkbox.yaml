@@ -1,0 +1,80 @@
+# qa-id: joining-1510
+# qa-reason: Rules checkbox blocks join when unchecked — verify gating prevents joining without rule acceptance (UC 213)
+# Negative test for rules acceptance gate: rules checkbox must be checked to enable join.
+#
+# STATUS: unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Uses the seeded "QA Rules Bubble" (one bubble-level rule). This is the INVERSE of
+# joining-0600 (positive): the join is BLOCKED while the rule remains unchecked.
+# We prove that button-lets-go stays disabled and no join occurs:
+#   1. Open the bubble's join screen
+#   2. Assert the rule row and button-lets-go (disabled)
+#   3. DO NOT check the rule
+#   4. Assert button-lets-go still disabled
+#   5. Assert no join occurred (button-view-members NOT visible, assertNotVisible)
+appId: com.bubble.mobile
+tags:
+  - joining
+  - smoke
+  - e2e
+  - ios
+  - role-user
+  - security
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Rules Bubble"
+- waitForAnimationToEnd
+
+# Non-member is auto-redirected to the Join screen; start the join.
+- tapOn:
+    id: button-join-bubble
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}welcome-modal-unchecked
+
+# Welcome modal: the seeded rule row is shown and "Let's Go" is disabled (rule unchecked).
+- assertVisible:
+    id: button-rule-0
+- assertVisible:
+    id: button-lets-go
+    enabled: false
+
+# Assert that button-lets-go remains disabled without checking the rule.
+# This proves the checkbox gates the join action.
+- assertVisible:
+    id: button-lets-go
+    enabled: false
+- takeScreenshot: ${SHOT_PREFIX}rule-still-unchecked
+
+# Verify no join occurred: button-view-members should NOT be visible.
+# The join screen should still be showing (button-join-bubble or welcome modal).
+- assertNotVisible:
+    id: button-view-members
+
+# Close the modal tolerantly to clean up.
+- tapOn:
+    id: button-close-welcome
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}join-blocked
