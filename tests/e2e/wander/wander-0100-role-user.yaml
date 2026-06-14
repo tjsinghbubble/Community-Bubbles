@@ -1,0 +1,171 @@
+# qa-id: wander-0100
+# qa-reason: Member multi-screen wander: browse→bubble→event→RSVP→join→messages→account (UC -)
+#
+# KNOWN UNVERIFIED RISKS (resolve on first sim/MCP run, then drop `unverified`):
+#  - Stops 4-9 act on QA Browse Bubble as a NON-member (view-only). The member lands on the
+#    JoinBubbleScreen PREVIEW (member-info / text-upcoming-events), NOT the member
+#    BubbleDetailsScreen — so there is no in-bubble tab-events, and the bulletin board /
+#    view-members affordances may be gated. Those asserts are marked `optional: true` so the
+#    wander degrades gracefully; verify what the preview actually exposes via Maestro MCP.
+#  - Stop 7 RSVP on a view-only bubble may be gated (optional).
+#  - Bottom-tab navigation taps go by TEXT label, not tabBarTestID (the latter does not
+#    surface as a resource-id on iOS — see events-0500 header / logout.yaml).
+appId: com.bubble.mobile
+tags:
+  - wander
+  - slow
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Stop 1: Login → land on Explore. Assert tab-bubbles visible.
+- assertVisible:
+    id: tab-bubbles
+- takeScreenshot: ${SHOT_PREFIX}01-explore-land
+
+# Stop 2: Browse bubbles — Explore Bubbles tab; scroll the list; assert a bubble card is visible.
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}02-explore-bubbles
+
+# Stop 3: Search — input-search, type "QA"; assert the seeded QA bubbles filter in; clear search.
+- tapOn:
+    id: input-search
+- inputText: "QA"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}03-explore-search-qa
+- tapOn:
+    id: button-clear-search
+- waitForAnimationToEnd
+
+# Stop 4: View QA Browse Bubble details — open QA Browse Bubble; assert tagline / member-info.
+- tapOn:
+    id: "card-bubble-.*"
+- waitForAnimationToEnd
+- assertVisible:
+    id: member-info
+- takeScreenshot: ${SHOT_PREFIX}04-browse-bubble-details
+
+# Stop 5: Look at events — on the non-member preview (JoinBubbleScreen) the seeded event
+# renders under the "upcoming events" section; there is no in-bubble tab-events here.
+- assertVisible:
+    id: text-upcoming-events
+    optional: true
+- assertVisible:
+    id: "card-event-.*"
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}05-browse-bubble-events
+
+# Stop 6: Open the event — tap the event card; assert event detail.
+- tapOn:
+    id: "card-event-.*"
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-rsvp
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}06-event-details
+
+# Stop 7: RSVP — button-rsvp → button-rsvp-going; assert the RSVP state reflects "Going".
+# NOTE: Risk — QA Browse Bubble is view-only; RSVP gating is unverified.
+# Kept TOLERANT: tap attempt, screenshot, do not hard-fail if RSVP button unavailable.
+- tapOn:
+    id: button-rsvp
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-rsvp-going
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}07-rsvp-going
+
+# Stop 8: Bulletins — back to the bubble; assert the bulletin board renders if exposed on
+# the non-member preview (tolerant — empty/absent is information, not failure).
+- tapOn:
+    id: button-back
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-create-post-empty
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}08-bulletins
+
+# Stop 9: Members — button-view-members; assert a member row if the preview exposes it.
+- tapOn:
+    id: button-view-members
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    id: "button-member-profile-.*"
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}09-members
+
+# Stop 10: Join QA Test Bubble — navigate to QA Test Bubble and join via the welcome modal.
+# Go back to Explore, tap a different bubble (QA Test Bubble).
+- tapOn:
+    id: button-back
+- waitForAnimationToEnd
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element:
+      id: "card-bubble-.*"
+    direction: down
+- tapOn:
+    id: "card-bubble-.*"
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-join-bubble
+- tapOn:
+    id: button-join-bubble
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-lets-go
+- tapOn:
+    id: button-lets-go
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}10-joined-test-bubble
+
+# Stop 11: Messages tab — open Messages; assert the screen renders.
+# Chat is CometChat-backed and may be empty/unconfigured locally — tolerate it.
+# Bottom tabs are tapped by text label (tabBarTestID does not surface as a resource-id).
+- tapOn:
+    text: "Messages"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}11-messages
+
+# Stop 12: Profile / settings — open Account; assert button-personal-info and text-version.
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: link-settings
+- tapOn:
+    id: link-settings
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-personal-info
+- assertVisible:
+    id: text-version
+- takeScreenshot: ${SHOT_PREFIX}12-account-settings
