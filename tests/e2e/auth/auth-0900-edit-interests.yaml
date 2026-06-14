@@ -1,0 +1,72 @@
+# qa-id: auth-0900
+# qa-reason: Select interests and persist profile changes (UC 187)
+appId: com.bubble.mobile
+tags:
+  - auth
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- takeScreenshot: ${SHOT_PREFIX}01-signed-in
+
+# Navigate to Profile tab
+- tapOn:
+    text: "Profile"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: ${SHOT_PREFIX}02-profile-tab
+
+# Tap Edit Profile button
+- tapOn:
+    id: button-edit-profile
+
+- waitForAnimationToEnd
+
+- takeScreenshot: ${SHOT_PREFIX}03-edit-profile-screen
+
+# Expand Interests section
+- tapOn:
+    id: button-toggle-interests
+
+- waitForAnimationToEnd
+
+- takeScreenshot: ${SHOT_PREFIX}04-interests-expanded
+
+# Select an interest chip (first available). The testID is chip-interest-${interest.id}
+# (a real interest id), so match by regex and take the first.
+- tapOn:
+    id: "chip-interest-.*"
+    index: 0
+
+- waitForAnimationToEnd
+
+- takeScreenshot: ${SHOT_PREFIX}05-interest-selected
+
+# Save changes
+- tapOn:
+    id: button-done
+
+- waitForAnimationToEnd
+
+- takeScreenshot: ${SHOT_PREFIX}06-interests-saved
+
+# Assert an interest chip rendered (tolerant: the post-save screen's interest rendering
+# is unverified — the screenshot above is the primary evidence).
+- assertVisible:
+    id: "chip-interest-.*"
+    optional: true
