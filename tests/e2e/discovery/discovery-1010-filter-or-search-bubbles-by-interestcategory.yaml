@@ -1,0 +1,54 @@
+# qa-id: discovery-1010
+# qa-reason: Search with no results empties list and clear-search restores it (UC 205)
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# Baseline: unfiltered list shows bubbles.
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}baseline
+
+# Search for a clearly non-existent bubble name.
+- tapOn:
+    id: input-search
+- inputText: "ZzQqNoSuchBubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}no-results-search
+
+# Assert NO bubble cards are visible (search found nothing).
+- assertNotVisible:
+    id: "card-bubble-.*"
+
+# Clear the search to restore the full list.
+- tapOn:
+    id: button-clear-search
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}search-cleared
+
+# Assert bubbles are back.
+- assertVisible:
+    id: "card-bubble-.*"

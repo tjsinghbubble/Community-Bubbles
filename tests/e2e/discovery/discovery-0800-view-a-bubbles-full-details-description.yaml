@@ -1,0 +1,51 @@
+# qa-id: discovery-0800
+# qa-reason: View full details and expanded description in a public bubble's preview (UC 207)
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "Required env missing — run via `npm run qa`, or pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# Open the seeded QA Test Bubble by tapping its card.
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Test Bubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}bubble-preview-closed
+
+# Assert the bubble preview surface shows tagline and member info (pre-join details).
+- assertVisible:
+    id: text-tagline
+- assertVisible:
+    id: member-info
+
+# Expand the About section to reveal the full description.
+- tapOn:
+    id: button-about-toggle
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}about-expanded
+
+# Assert description is now visible.
+- assertVisible:
+    id: text-about-description
