@@ -145,3 +145,6 @@ PROD_IMPORT_OVERWRITE = "true"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[objectStorage]
+defaultBucketID = "replit-objstore-96ba6dae-e1d8-4871-8e0c-ccbf5a0d68b5"

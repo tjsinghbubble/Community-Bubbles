@@ -14,6 +14,7 @@ import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { importProdData } from "./prod-import";
+import { normalizeObjectUrls } from "./normalize-object-urls";
 import { autoMigrate } from "./auto-migrate";
 import { assertEncryptionKey } from "./encryption";
 
@@ -159,6 +160,7 @@ app.use((req, res, next) => {
     // Production never seeds demo data — it serves only the user's real data.
     (async () => {
       const realData = await importProdData();
+      await normalizeObjectUrls();
       await ensureSuperAdmins();
       // Fail closed: production uses the user's REAL imported data only. We never
       // seed demo/staging data here — if the import didn't run (e.g. source
