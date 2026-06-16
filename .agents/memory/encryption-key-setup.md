@@ -9,15 +9,26 @@ The server reads `process.env.ENCRYPTION_KEY` (AES-256-GCM, 64 hex chars / 32 by
 fails hard at startup if it's missing.
 
 - **Server workflow** (`npm run dev` → `tsx server/index.ts`): reads it from the Replit
-  **development** env var (set via the environment-secrets tooling, NOT from `.replit`).
+  **ENCRYPTION_KEY secret** (global). The real/legacy production data is encrypted with the OLD
+  legacy key (NOT the defunct dev key) — the correct value already lives in the ENCRYPTION_KEY
+  secret; if real emails won't decrypt or `email_hash` login lookups don't match, the secret holds
+  the wrong key. Never paste the key value into memory or any tracked file.
 - **Seed / reset scripts** (`db:seed-test:local`, `db:reset-full:local`): run with
   `--env-file=.env`, so they read it from a **gitignored `.env`** at repo root. If `.env` is
   absent, seeding runs without the key.
 
 The SAME key value must be in both, or encrypted fields written by one side won't decrypt on the other.
 
-**Why:** During migration the key was only exported in a shell once, so it vanished on workflow
-restart and `npm run dev` crashed with "ENCRYPTION_KEY ... required for email encryption".
+# A `.replit` dev env-var override MASKS the secret
+
+`[userenv.development] ENCRYPTION_KEY` in `.replit` takes precedence over the global ENCRYPTION_KEY
+**secret** in the dev environment. A stale wrong value there (a defunct dev key) silently
+masked the correct secret, so decryption kept failing even after the user "added the key."
+
+**Fix:** delete the dev env-var override (`deleteEnvVars development ENCRYPTION_KEY`) so the secret
+applies; you cannot `setEnvVars` a key that already exists as a secret (it errors on conflict).
+**How to apply:** if decryption fails despite the secret being correct, check `viewEnvVars` for a
+development `ENCRYPTION_KEY` and remove it.
 
 # Seed inserts plaintext emails — login works via a fallback
 
