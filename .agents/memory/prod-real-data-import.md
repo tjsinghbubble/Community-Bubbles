@@ -23,11 +23,19 @@ to avoid a long-term dependency on that old account.
 - Shared-column intersection per table (treats timestamptz≡timestamp, text≡varchar);
   skips operational/incompatible tables (app_config, latency/error/feedback/
   slow_calls/crash_reports, sessions, `_`-prefixed).
-- One transaction: `SET LOCAL session_replication_role = replica` (this DOES work on
-  the Replit-managed DB — verified), scoped `DELETE` of only the planned tables (NOT
-  `TRUNCATE CASCADE`, so unrelated FK-children like `feedback` are left intact),
-  chunked param inserts (json/jsonb re-stringified), `setval` sequences, write flag,
-  COMMIT. On ANY error: ROLLBACK + return false, never crashes the app.
+- One transaction, FK enforcement left **ON** (the managed PROD DB does NOT grant
+  permission to set `session_replication_role` — it errors `permission denied to set
+  parameter "session_replication_role"`; dev/helium allowed it, prod does not). Instead
+  the planned tables are topologically sorted via the live FK graph (`topoSortPlan`,
+  Kahn's algorithm): scoped `DELETE` runs children-first (reverse topo), inserts run
+  parents-first. Works because this schema has NO self-referencing FKs and the FK graph
+  is a DAG. Scoped `DELETE` (NOT `TRUNCATE CASCADE`) leaves unrelated FK-children like
+  `feedback` intact; chunked param inserts (json/jsonb re-stringified), `setval`
+  sequences, write flag, COMMIT. On ANY error: ROLLBACK + return false, never crashes.
+- Preflight (`findBlockingChildren`, before BEGIN): if a NON-imported table that
+  references a planned parent still holds rows, the scoped DELETE would fail — so it
+  aborts cleanly with an explicit log instead. Today only `feedback`→`users` qualifies
+  and prod has 0 feedback rows, so it passes.
 
 ## Two safety gates (don't remove without thinking)
 1. **Overwrite gate:** if the target already has users, the import REFUSES unless

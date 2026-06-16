@@ -16,10 +16,12 @@ const FLAG_KEY = "prod_real_data_imported";
  *    compatible base type (timestamptz≡timestamp, text≡varchar), so schema drift
  *    between the older source and the current schema is handled automatically.
  *  - Operational / telemetry / incompatible tables are skipped.
- *  - The whole load runs inside ONE transaction with FK enforcement disabled
- *    (session_replication_role=replica) so insert order and self-references don't
- *    matter. On ANY error the transaction rolls back — no partial state — and the
- *    function returns false WITHOUT crashing the server.
+ *  - The whole load runs inside ONE transaction. Tables are emptied children-first
+ *    and reloaded parents-first using a topological sort of the live FK graph, so
+ *    we never need to disable FK enforcement (the managed prod DB does NOT grant
+ *    permission to set session_replication_role). On ANY error the transaction
+ *    rolls back — no partial state — and the function returns false WITHOUT
+ *    crashing the server.
  *  - The completion flag is written inside the same transaction so it is only set
  *    if the entire import committed successfully.
  *
@@ -106,21 +108,38 @@ export async function importProdData(): Promise<boolean> {
       return false;
     }
 
+    // Order the planned tables parents-first from the live FK graph so we can
+    // load with FK enforcement ON (the managed prod DB does not let us turn it
+    // off). Deletes run in the reverse (children-first) order.
+    const ordered = await topoSortPlan(tgt, plan);
+
+    // Preflight: a NON-imported table that holds rows and FK-references one of
+    // the planned (parent) tables would make our scoped DELETE fail mid-load.
+    // Detect that up front and abort cleanly with an explicit message rather
+    // than discovering it as an FK violation after BEGIN.
+    const blockers = await findBlockingChildren(tgt, new Set(plan.map((t) => t.name)));
+    if (blockers.length) {
+      console.warn(
+        `${LOG} Refusing to import — these non-imported tables reference imported ` +
+          `data and still hold rows (delete would fail): ` +
+          blockers.map((b) => `${b.table}(${b.count})`).join(", "),
+      );
+      return false;
+    }
+
     await tgt.query("BEGIN");
     await tgt.query(`SET TimeZone = 'UTC'`);
-    // Disable FK/trigger enforcement for the duration of this transaction so the
-    // load doesn't depend on insert order or care about self-references, and so
-    // emptying parent tables doesn't require touching unrelated child tables.
-    await tgt.query(`SET LOCAL session_replication_role = replica`);
 
-    // Empty ONLY the planned tables (scoped DELETE, not TRUNCATE CASCADE) so
-    // non-imported tables that merely FK-reference these are left untouched.
-    for (const t of plan) {
-      await tgt.query(`DELETE FROM ${ident(t.name)}`);
+    // Empty ONLY the planned tables, children-first (scoped DELETE, not TRUNCATE
+    // CASCADE) so non-imported tables that merely FK-reference these are left
+    // untouched and the deletes don't violate foreign keys.
+    for (let i = ordered.length - 1; i >= 0; i--) {
+      await tgt.query(`DELETE FROM ${ident(ordered[i].name)}`);
     }
 
     let totalRows = 0;
-    for (const t of plan) {
+    // Insert parents-first so every FK target already exists when its child loads.
+    for (const t of ordered) {
       const n = await copyTable(src, tgt, t);
       totalRows += n;
       console.log(`${LOG}   ${t.name}: ${n} rows`);
@@ -249,6 +268,105 @@ async function columnsMap(client: pg.PoolClient): Promise<Record<string, any>> {
     out[t] = Object.assign(cols.slice(), lookup);
   }
   return out as any;
+}
+
+/**
+ * Order the planned tables parents-first using the target DB's live FK graph
+ * (Kahn topological sort). The load then inserts in this order and deletes in
+ * reverse, so FK enforcement can stay ON. This schema has no self-referencing
+ * tables and no FK cycles; if a cycle ever appears, leftover tables are appended
+ * (best-effort) and a warning is logged rather than silently dropping them.
+ */
+async function topoSortPlan(
+  client: pg.PoolClient,
+  plan: TablePlan[],
+): Promise<TablePlan[]> {
+  const names = new Set(plan.map((t) => t.name));
+  const res = await client.query(
+    `SELECT tc.table_name AS child, ccu.table_name AS parent
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = 'public'`,
+  );
+
+  const children = new Map<string, Set<string>>();
+  const indeg = new Map<string, number>();
+  for (const name of names) {
+    children.set(name, new Set());
+    indeg.set(name, 0);
+  }
+  for (const row of res.rows) {
+    const child = row.child as string;
+    const parent = row.parent as string;
+    if (child === parent) continue; // ignore self-references
+    if (!names.has(child) || !names.has(parent)) continue;
+    if (!children.get(parent)!.has(child)) {
+      children.get(parent)!.add(child);
+      indeg.set(child, (indeg.get(child) ?? 0) + 1);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [name, d] of indeg) if (d === 0) queue.push(name);
+  queue.sort();
+  const orderNames: string[] = [];
+  while (queue.length) {
+    const n = queue.shift()!;
+    orderNames.push(n);
+    for (const c of children.get(n)!) {
+      const left = indeg.get(c)! - 1;
+      indeg.set(c, left);
+      if (left === 0) queue.push(c);
+    }
+  }
+
+  if (orderNames.length < names.size) {
+    for (const name of names) {
+      if (!orderNames.includes(name)) orderNames.push(name);
+    }
+    console.warn(`${LOG} FK cycle detected — load order is best-effort`);
+  }
+
+  const byName = new Map(plan.map((t) => [t.name, t]));
+  return orderNames.map((n) => byName.get(n)!);
+}
+
+/**
+ * Find non-imported tables that (a) FK-reference a planned (parent) table and
+ * (b) still hold rows. Their rows would block our scoped DELETE of the parent,
+ * so we detect them up front and abort the import cleanly instead of failing
+ * with an FK violation mid-transaction.
+ */
+async function findBlockingChildren(
+  tgt: pg.PoolClient,
+  planNames: Set<string>,
+): Promise<{ table: string; count: number }[]> {
+  const res = await tgt.query(
+    `SELECT DISTINCT tc.table_name AS child, ccu.table_name AS parent
+       FROM information_schema.table_constraints tc
+       JOIN information_schema.constraint_column_usage ccu
+         ON ccu.constraint_name = tc.constraint_name
+        AND ccu.table_schema = tc.table_schema
+      WHERE tc.constraint_type = 'FOREIGN KEY'
+        AND tc.table_schema = 'public'`,
+  );
+  const candidates = new Set<string>();
+  for (const row of res.rows) {
+    const child = row.child as string;
+    const parent = row.parent as string;
+    // Child is NOT imported, but it references a table we will empty.
+    if (!planNames.has(child) && planNames.has(parent)) candidates.add(child);
+  }
+  const blockers: { table: string; count: number }[] = [];
+  for (const table of candidates) {
+    const r = await tgt.query(`SELECT COUNT(*)::int AS c FROM ${ident(table)}`);
+    const count = r.rows[0]?.c ?? 0;
+    if (count > 0) blockers.push({ table, count });
+  }
+  return blockers;
 }
 
 async function copyTable(
