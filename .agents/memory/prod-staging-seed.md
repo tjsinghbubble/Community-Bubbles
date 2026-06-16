@@ -5,9 +5,14 @@ description: Why production is full of Seinfeld demo data, and that the seed is 
 
 # Production staging seed
 
-`seedStaging()` (server/seed-staging.ts) is invoked from server startup whenever
-`NODE_ENV === "production"`. The inline comment calls it "one-time," but there is
-no guard flag — it runs on **every** production boot/deploy.
+> **SUPERSEDED:** production no longer auto-seeds demo data. The prod boot path now
+> runs the real-data import instead (see `prod-real-data-import.md`) and fails
+> closed (no demo seed). `seedStaging()` is no longer called from `server/index.ts`.
+> The history below explains why old prod databases were full of Seinfeld demo data.
+
+`seedStaging()` (server/seed-staging.ts) used to be invoked from server startup
+whenever `NODE_ENV === "production"`. The inline comment called it "one-time," but
+there was no guard flag — it ran on **every** production boot/deploy.
 
 It populates ~10 Seinfeld users (jerry@/george@/kramer@…seinfeld.com, password
 `Bubble123!`), ~20 demo bubbles created by SysAdmin, memberships, events, and RSVPs.
