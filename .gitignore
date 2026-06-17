@@ -42,3 +42,5 @@ tmp/
 # Ad-hoc debug screenshots belong in tmp/maestro/, never the repo root
 /*.png
 __pycache__/
+# Device-manager SQLite DB (durable local state: loops, aliases, name allocations)
+.device-manager/

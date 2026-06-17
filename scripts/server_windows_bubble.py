@@ -48,9 +48,26 @@ WIN_CONFIGS = {
     "iOS App":       (40000, 10000, 12000, 65535, 65535, 65535),  # deep crimson
     "Android App":   (28000, 10000, 42000, 65535, 65535, 65535),  # deep violet
     "General":       (16384, 16384, 16384, 65535, 65535,     0),  # slate gray / yellow text
+    "Testing":		 (16384, 16384, 16384, 65535, 65535,     0),  # slate gray / yellow text FIXME
 }
 
-LAYOUT_ORDER = ["API Server", "Metro Bundler", "iOS App", "Android App", "General"]
+FUN="cd $PROJ_ROOT; f=/usr/share/dict/words; integer z="$(wc -l < $f)"; w=$(sed -n $[RANDOM%z+1]p $f); echo Word of the day: $w"
+NOT_FUN="cd $PROJ_ROOT; echo Have a good day!"
+
+SCRIPT_CONFIGS = {
+    "API Server":    "cd $PROJ_ROOT ; echo to start, run \'npm run api_server\'",
+    "Metro Bundler": "cd $PROJ_ROOT ; echo to start, run \'npm run metro_bundler\'",
+    "iOS App":       "cd $PROJ_ROOT ; echo to compile and launch, run \'npm run build:mobile:ios-sim\'",
+    "Android App":   "cd $PROJ_ROOT ; echo to start the API server, run \'npm run api_server\'",
+    "General":       $FUN,
+    "Testing":		 "cd $PROJ_ROOT ; echo FIXME", 
+}
+
+LAYOUT_ORDER = [
+    "API Server",	"Metro Bundler",
+    "iOS App",		"Android App",
+    "General",		"Testing",
+    ]
 
 # ---- Global storage for computed bounds ----
 bounds = {}   # name -> (x, y, w, h)
@@ -122,7 +139,7 @@ def detect_screen():
     return None
 
 # ---- Escape string for AppleScript ----
-def escape_as(s):
+def escape_string_for_applescript(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 # ---- Window management via osascript ----
@@ -140,7 +157,7 @@ def run_osascript(script):
 
 def window_exists(name):
     """Check if any open Terminal tab has custom title matching name."""
-    esc = escape_as(name)
+    esc = escape_string_for_applescript(name)
     script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
@@ -155,26 +172,27 @@ end tell'''
     except Exception:
         return False
 
-def create_window(name):
+def create_single_window(name):
     """Create a new Terminal window with bounds, colors, and a title echo."""
     x, y, win_w, win_h = bounds[name]
     right = x + win_w
     bottom = y + win_h
     bg_r, bg_g, bg_b, fg_r, fg_g, fg_b = WIN_CONFIGS[name]
-    esc = escape_as(name)
+    title_string = escape_string_for_applescript(name)
+    script = SCRIPT_CONFIGS[name] or "echo {title_string}"
 
     # Terminal.app has no 'make new window'; do script "" (no 'in' clause) always
     # opens a new window and returns the new tab.  Colors are tab properties, not
     # window properties; bounds IS a window property.
     script = f'''tell application "Terminal"
     activate
-    set newTab to do script "echo {esc}"
+    set newTab to do script "{script}"
     delay 0.3
     set tw to front window
     set bounds of tw to {{{x}, {y}, {right}, {bottom}}}
     set background color of newTab to {{{bg_r}, {bg_g}, {bg_b}}}
     set normal text color of newTab to {{{fg_r}, {fg_g}, {fg_b}}}
-    set custom title of newTab to "{esc}"
+    set custom title of newTab to "{title_string}"
 end tell'''
     run_osascript(script)
 
@@ -186,11 +204,11 @@ def resize_all():
         x, y, win_w, win_h = bounds[name]
         right = x + win_w
         bottom = y + win_h
-        esc = escape_as(name)
+        title_string = escape_string_for_applescript(name)
         script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
-            if custom title of t is "{esc}" then
+            if custom title of t is "{title_string}" then
                 set bounds of tw to {{{x}, {y}, {right}, {bottom}}}
                 exit repeat
             end if
@@ -289,16 +307,16 @@ def _create_windows(names):
             print(f"Window '{name}' already exists, skipping.")
         else:
             print(f"Creating window '{name}'...")
-            create_window(name)
+            create_single_window(name)
 
 def kill_all():
     """Close every Terminal window whose tab custom title matches a known name."""
     for name in LAYOUT_ORDER:
-        esc = escape_as(name)
+        title_string = escape_string_for_applescript(name)
         script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
-            if custom title of t is "{esc}" then
+            if custom title of t is "{title_string}" then
                 close tw
                 exit repeat
             end if

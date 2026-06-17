@@ -97,23 +97,51 @@ tags:
 - assertVisible:
     text: ".*700 Jean St.*"
 
-# Date: open the inline spinner and tap the day-column row one below the selection
-# (= tomorrow) to fire the commit; the spinner auto-collapses ~1.5s later.
+# Date & start-time pickers differ by OS (CreateEventScreen uses @react-native-community/
+# datetimepicker): iOS = inline spinner / Confirm-modal; Android = NATIVE DatePickerDialog /
+# TimePickerDialog (display="default") that stay modal until OK is tapped.
 - tapOn:
     id: button-select-date
 - waitForAnimationToEnd
-- tapOn:
-    point: 53%, 41%
-- waitForAnimationToEnd:
-    timeout: 3000
+# iOS: inline spinner — tap the day-column row one below the selection (= tomorrow) to fire the
+# commit; the spinner auto-collapses ~1.5s later. (Calibrated for a 390x844-pt device.)
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          point: 53%, 41%
+      - waitForAnimationToEnd:
+          timeout: 3000
+# Android: native DatePickerDialog (min = today). OK commits the default date (today) via
+# onDateChange. NOTE: if publish later rejects a non-future date, advance the day here instead.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: "OK"
+      - waitForAnimationToEnd
 
-# Start time: modal spinner, accept the default via Confirm.
 - tapOn:
     id: button-select-start-time
 - waitForAnimationToEnd
-- tapOn:
-    text: "Confirm"
-- waitForAnimationToEnd
+# iOS: Confirm/Cancel modal spinner.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: "Confirm"
+      - waitForAnimationToEnd
+# Android: native TimePickerDialog — accept with OK.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          text: "OK"
+      - waitForAnimationToEnd
 - takeScreenshot: ${SHOT_PREFIX}event-step2-filled
 - tapOn:
     id: button-next

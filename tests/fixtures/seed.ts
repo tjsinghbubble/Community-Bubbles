@@ -115,6 +115,97 @@ async function main(): Promise<void> {
           [userId, bubbleId, userId],
         );
         membershipCount++;
+
+        // Second bubble with ONE bubble-level rule, for the rules-acceptance flow
+        // (joining-0600). Kept separate so "QA Test Bubble" stays rule-free and the
+        // welcome modal in other join flows (joining-0400) is never gated by a checkbox.
+        const { rows: rulesBubbleRows } = await pool.query<{ id: string }>(
+          `INSERT INTO bubbles (title, tagline, category, description, created_by, status, privacy)
+           VALUES ($1, $2, $3, $4, $5, 'approved', 'Public')
+           RETURNING id`,
+          [
+            "QA Rules Bubble",
+            "Seeded by qa-seed (has one rule)",
+            "Outdoors",
+            "A deterministic, approved bubble with one bubble-level rule, used by rules-acceptance tests.",
+            userId,
+          ],
+        );
+        const rulesBubbleId = rulesBubbleRows[0].id;
+        bubbleCount++;
+        await pool.query(
+          `INSERT INTO memberships (user_id, bubble_id, role, membership_status, created_by)
+           VALUES ($1, $2, 'admin', 'approved', $3)`,
+          [userId, rulesBubbleId, userId],
+        );
+        membershipCount++;
+        const { rows: ruleRows } = await pool.query<{ id: number }>(
+          `INSERT INTO rules (text, name, description)
+           VALUES ('Be kind to other members.', 'Be kind', 'Seeded rule for the rules-acceptance checkbox flow.')
+           RETURNING id`,
+        );
+        await pool.query(
+          `INSERT INTO bubble_rules (bubble_id, rule_id, position) VALUES ($1, $2, 0)`,
+          [rulesBubbleId, ruleRows[0].id],
+        );
+        console.log(`[qa-seed] created 'QA Rules Bubble' with 1 bubble rule`);
+
+        // Third bubble that NO test ever joins, so pre-join (non-member) reads like
+        // discovery-0400 are order-independent from the join flows.
+        const { rows: browseBubbleRows } = await pool.query<{ id: string }>(
+          `INSERT INTO bubbles (title, tagline, category, description, created_by, status, privacy)
+           VALUES ($1, $2, $3, $4, $5, 'approved', 'Public')
+           RETURNING id`,
+          [
+            "QA Browse Bubble",
+            "Seeded by qa-seed (read-only)",
+            "Outdoors",
+            "A deterministic, approved bubble that tests only VIEW — no test may ever join it.",
+            userId,
+          ],
+        );
+        bubbleCount++;
+        await pool.query(
+          `INSERT INTO memberships (user_id, bubble_id, role, membership_status, created_by)
+           VALUES ($1, $2, 'admin', 'approved', $3)`,
+          [userId, browseBubbleRows[0].id, userId],
+        );
+        membershipCount++;
+        console.log(`[qa-seed] created 'QA Browse Bubble' (view-only fixture)`);
+
+        // Seeded upcoming event inside QA Browse Bubble. Lets pre-join reads assert the
+        // "upcoming events" section (discovery-0400) and gives the edit-event UI tests
+        // (events-0720) a stable event to open WITHOUT saving changes. Date is always
+        // 30 days out so "upcoming" never expires.
+        await pool.query(
+          `INSERT INTO events (title, date, start_time, timezone, bubble_id, created_by, status)
+           VALUES ('QA Seeded Event', to_char(CURRENT_DATE + 30, 'YYYY-MM-DD'), '18:00', 'UTC', $1, $2, 'approved')`,
+          [browseBubbleRows[0].id, userId],
+        );
+        console.log(`[qa-seed] created 'QA Seeded Event' in QA Browse Bubble (+30 days)`);
+
+        // Request-to-Join bubble for the request-pending UI flow (joining-0520). Dedicated
+        // so the member's pending request never leaks into the other bubbles' state.
+        const { rows: requestBubbleRows } = await pool.query<{ id: string }>(
+          `INSERT INTO bubbles (title, tagline, category, description, created_by, status, privacy)
+           VALUES ($1, $2, $3, $4, $5, 'approved', 'Request to Join')
+           RETURNING id`,
+          [
+            "QA Request Bubble",
+            "Seeded by qa-seed (request to join)",
+            "Outdoors",
+            "A deterministic, approved Request-to-Join bubble for join-request UI tests.",
+            userId,
+          ],
+        );
+        bubbleCount++;
+        await pool.query(
+          `INSERT INTO memberships (user_id, bubble_id, role, membership_status, created_by)
+           VALUES ($1, $2, 'admin', 'approved', $3)`,
+          [userId, requestBubbleRows[0].id, userId],
+        );
+        membershipCount++;
+        console.log(`[qa-seed] created 'QA Request Bubble' (Request to Join)`);
       }
     }
 
@@ -143,8 +234,8 @@ async function main(): Promise<void> {
     const userCount = Object.keys(roles).length + 1;
     await appendEntry(pool, {
       author: "qa-seed",
-      observation: `reset+seeded smoke fixtures v1: ${userCount} role users, ${bubbleCount} bubble(s), ${membershipCount} membership(s).`,
-      tags: ["env:test", "data-class:synthetic", "seed:smoke-v1", "destructive-ok"],
+      observation: `reset+seeded smoke fixtures v3: ${userCount} role users, ${bubbleCount} bubble(s), ${membershipCount} membership(s), 1 bubble rule, 1 event.`,
+      tags: ["env:test", "data-class:synthetic", "seed:smoke-v3", "destructive-ok"],
     });
 
     console.log(

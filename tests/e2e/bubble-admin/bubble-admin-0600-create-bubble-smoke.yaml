@@ -29,12 +29,15 @@ tags:
     id: button-create-fab
 - takeScreenshot: ${SHOT_PREFIX}login-complete
 
-# Open the create menu and start the create-bubble wizard.
+# Open the create-bubble wizard via the My Bubbles FAB. (The Explore "Create New" sheet's
+# button-create-bubble item does not reliably surface in the accessibility tree — see the
+# events-0500 header — so the FAB tap "completes" but the wizard never opens. The My Bubbles
+# route is the reliable one, mirroring how events-0500 reaches create-event.)
+# Bottom tabs expose their LABELS, not testIDs, so tap the tab by text.
 - tapOn:
-    id: button-create-fab
-- waitForAnimationToEnd
+    text: "My Bubbles"
 - tapOn:
-    id: button-create-bubble
+    id: button-create-bubble-fab
 - waitForAnimationToEnd
 
 - assertVisible:

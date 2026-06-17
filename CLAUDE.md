@@ -5,11 +5,17 @@ but are intentional. Read this before modifying the files listed below.
 
 ---
 
-## Ad-hoc Maestro runs — all artifacts go in tmp/maestro/
+## Ad-hoc Maestro runs — never write artifacts at the repo root
 
-When running Maestro directly (CLI `maestro test`, Maestro MCP `run_flow`, or
-any one-off debug flow), every screenshot and debug output MUST land under
-`tmp/maestro/`, never the repo root:
+Preferred: run one-off flows through `npm run qa:flow -- <flow.yaml>
+[--role role-user] [-e K=V …]`. It creates a dedicated
+`tests/output/run-manual-<flow>-<UTC>/` dir, points SHOT_PREFIX inside it,
+copies the flow + subflows next to the artifacts, and flattens Maestro's
+`.maestro/tests/<timestamp>/` debris into shell-typeable names.
+
+If you must invoke Maestro outside that wrapper (bare CLI `maestro test`,
+Maestro MCP `run_flow`, or any one-off debug flow), every screenshot and debug
+output MUST land under `tmp/maestro/`, never the repo root:
 
 - `takeScreenshot:` in an ad-hoc flow → use a `tmp/maestro/<name>` path.
 - CLI runs → pass `--debug-output tmp/maestro` and, for flows under
@@ -19,8 +25,12 @@ any one-off debug flow), every screenshot and debug output MUST land under
 Machine, iCloud Drive sync, Spotlight, and PyCharm indexing. Screenshots
 dumped at the repo root pollute git status, churn iCloud/backups, and have
 been accidentally committed before. (The `npm run qa` runner already does this
-correctly via run-scoped `tests/output/` dirs — this rule is for runs outside
-the runner.)
+correctly via run-scoped `tests/output/` dirs.)
+
+Standing rule for any test output the platform creates: filenames must be
+shell-typeable — route new output names through
+`tests/runner/artifacts.ts:sanitizeFileName()` (see "Output naming" in
+tests/README.md).
 
 ---
 

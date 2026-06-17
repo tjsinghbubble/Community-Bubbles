@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -42,6 +43,35 @@ PLAN = REPO / "tests" / "plan"
 BACKLOG = PLAN / "backlog.tsv"
 UNITS = PLAN / "units"
 TEMPLATE = PLAN / "PROMPT_TEMPLATE.md"
+TICKETS_DIR = REPO / "tmp" / "trello-cards"  # bug/ticket drafts (see trello skill)
+
+
+def ticket_counts(areas) -> dict[str, int]:
+    """Approximate count of Trello card drafts attributed to each area.
+
+    Best-effort (the user accepts <100% accuracy): scan card *.md drafts (and
+    ./filed/) and attribute each to at most one area by whole-word match of the
+    area name in the filename + body. Longer area names win (site-admin before
+    site). Cards matching no area are not counted.
+    """
+    counts = {a: 0 for a in areas}
+    if not TICKETS_DIR.exists():
+        return counts
+    ordered = sorted(counts, key=len, reverse=True)
+    files = list(TICKETS_DIR.glob("*.md")) + list((TICKETS_DIR / "filed").glob("*.md"))
+    for f in files:
+        if f.name.startswith("TEMPLATE"):
+            continue
+        try:
+            text = (f.name + "\n" + f.read_text(encoding="utf-8")).lower()
+        except OSError:
+            continue
+        for a in ordered:
+            variants = {a, a.replace("-", " ")}
+            if any(re.search(rf"\b{re.escape(v)}\b", text) for v in variants):
+                counts[a] += 1
+                break
+    return counts
 
 POS_INSTR = (
     "Write the **positive / blue-sky** path: the use case succeeds for the role(s) above "
@@ -197,21 +227,36 @@ def cmd_status(args) -> int:
         by_area[r["area"]][st] += 1
         if st in ("claimed", "drafted"):
             inprog.append(r["unit_id"])
+    tickets = ticket_counts(by_area.keys())
     if args.json:
-        print(json.dumps({"by_area": by_area, "in_progress": inprog}, indent=2))
+        print(json.dumps({"by_area": by_area, "tickets": tickets,
+                          "in_progress": inprog}, indent=2))
         return 0
-    print(f"{'area':<14} todo block done claim review")
-    tot = {"todo": 0, "blocked": 0, "done": 0, "claimed": 0, "review": 0}
+    # The 'claim' column is omitted from the steady-state matrix: a claim is a
+    # transient artifact of test-GENERATION, not a backlog status. It only means
+    # something while writers are running, so it's summarized below — in that
+    # context — rather than shown as a column that reads 0 the rest of the time.
+    print(f"{'area':<14}{'todo':>6}{'block':>7}{'done':>6}{'review':>8}{'tickets':>9}")
+    tot = {"todo": 0, "blocked": 0, "done": 0, "review": 0, "tickets": 0}
+    claims_by_area: dict[str, int] = {}
     for area in sorted(by_area):
         c = by_area[area]
-        for k in tot:
+        tk = tickets.get(area, 0)
+        for k in ("todo", "blocked", "done", "review"):
             tot[k] += c.get(k, 0)
-        print(f"{area:<14} {c.get('todo',0):>4} {c.get('blocked',0):>5} "
-              f"{c.get('done',0):>4} {c.get('claimed',0):>5} {c.get('review',0):>6}")
-    print(f"{'TOTAL':<14} {tot['todo']:>4} {tot['blocked']:>5} {tot['done']:>4} "
-          f"{tot['claimed']:>5} {tot['review']:>6}")
-    if inprog:
-        print("\nin progress: " + ", ".join(sorted(inprog)))
+        tot["tickets"] += tk
+        if c.get("claimed", 0) or c.get("drafted", 0):
+            claims_by_area[area] = c.get("claimed", 0) + c.get("drafted", 0)
+        print(f"{area:<14}{c.get('todo',0):>6}{c.get('blocked',0):>7}"
+              f"{c.get('done',0):>6}{c.get('review',0):>8}{tk:>9}")
+    print(f"{'TOTAL':<14}{tot['todo']:>6}{tot['blocked']:>7}"
+          f"{tot['done']:>6}{tot['review']:>8}{tot['tickets']:>9}")
+    # Claim summary — only when test-generation is actually happening.
+    if claims_by_area:
+        spread = ", ".join(f"{a}×{n}" for a, n in sorted(claims_by_area.items()))
+        print(f"\ntest-generation in progress: {len(inprog)} unit(s) claimed "
+              f"across {len(claims_by_area)} area(s) — {spread}")
+        print("claimed: " + ", ".join(sorted(inprog)))
     return 0
 
 

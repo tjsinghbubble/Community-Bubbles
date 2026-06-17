@@ -31,7 +31,7 @@ npm run qa:sig
 npm run qa:panic
 ```
 
-## testctl — status / nuke / health (scripts/testctl.py)
+## testctl — status / nuke / health / inspect (scripts/testctl.py)
 
 One control surface for everyone who pokes at tests (humans, Claude Code, shell
 scripts, the qa runner itself). Python 3, stdlib only. Add `--json` to any
@@ -41,6 +41,7 @@ subcommand for machine-readable output.
 npm run qa:status     # python3 scripts/testctl.py status
 npm run qa:health     # python3 scripts/testctl.py health
 npm run qa:nuke       # python3 scripts/testctl.py nuke --nuke=them-all
+npm run qa:inspect    # python3 scripts/testctl.py inspect (interactive)
 
 python3 scripts/testctl.py nuke --nuke=mcp,xcodebuild   # targeted stop
 python3 scripts/testctl.py nuke all                     # positional form works too
@@ -48,7 +49,8 @@ python3 scripts/testctl.py nuke all                     # positional form works 
 
 - **status** — reads `tests/output/current-run.json` (a live heartbeat the qa
   runner maintains: state, active test/role/tags, jobs done/total) and the
-  newest `maestro.log` for the current step, then lists every test-related
+  newest maestro log (`maestro.log` while a flow is live, `internal-maestro-log.log`
+  after the post-run flatten) for the current step, then lists every test-related
   process (maestro CLI/MCP, XCUITest drivers, vitest, newman, playwright,
   qa runner) with who invoked it (CC, MCP, npm, user) and elapsed times.
 - **nuke** — targets `qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all`,
@@ -65,6 +67,26 @@ python3 scripts/testctl.py nuke all                     # positional form works 
   sim boot age (sims booted >500,000s grow crashing processes — warn at 80%,
   restart required at 95%; the qa runner's sim-boot-age gate auto-restarts).
   Exit 0 only when all checks pass.
+- **inspect** — interactive failure inspector over a run's artifacts.
+  `inspect [TEST] [RUN_DIR]`: RUN_DIR defaults to the live run (heartbeat) or
+  the newest `tests/output/run-*`; a file path means its directory; an artifact
+  subdir is climbed to the run root. With no TEST it menus the failing tests
+  (same lines as the qa summary, minus run time). TEST parsing is forgiving:
+  `auth-0100 [role-site-admin]`, `auth 100, site admin`, a whole pasted summary
+  line, or `uc-182` (use-case alias, when unambiguous). Ambiguous specs are
+  rejected with the candidate roles. Once a (test, role) run is selected, a
+  typed/numbered command menu offers: **failure** (just the failing step from
+  the runner log), **code** (the flow + subflows / headless source), **use case**
+  (row from docs/use-cases-and-tests.tsv), **images** (screenshots → Preview),
+  **run cmd** / **movie** (single-test re-run command, movie variant wraps it in
+  `simctl recordVideo`; auto-copied to the clipboard), **params**, **dir**
+  (Finder), **prompt** / **trello** (fill `scripts/testctl_prompt_template.md` /
+  `_trello_template.md`; trello drafts land in `tmp/trello-cards/` for review,
+  never auto-filed), **internal log**, and **configure** (per-type viewer
+  commands, stored in `~/.config/testctl/viewers.json`; default is macOS
+  `open`). Non-interactive: `--cmd <name>` runs one command and exits;
+  `--json` lists the failing tests. Old artifact names (`run.log`,
+  `vitest.json`, `newman.json`) are still understood.
 
 ### MCP Maestro vs CLI Maestro — one simulator, one driver
 
@@ -93,9 +115,47 @@ Rules of engagement:
 | `fixtures/` | `meta-schema.sql`, `journal.ts`, `seed.ts`, `bulk-users.ts` |
 | `e2e/` | Maestro flows: `common/` subflows + per-area tagged flows |
 | `headless/` | `security/` TS tests, `contract/` newman collection, vitest config |
-| `runner/` | `qa.ts` CLI, `gating.ts`, `select.ts`, `report.ts`, `panic.ts` |
-| `output/` | Run artifacts (gitignored): `run-<UTC>-<nonce>/` |
+| `runner/` | `qa.ts` CLI, `gating.ts`, `select.ts`, `report.ts`, `panic.ts`, `artifacts.ts` (naming/flatten), `run-flow.ts` (manual wrapper) |
+| `output/` | Run artifacts (gitignored): `run-<UTC>-<nonce>/`, `run-manual-<flow>-<UTC>/` |
+| `plan/` | Test-expansion planning + work assignment (`backlog.tsv`, area docs, prompts). See `plan/README.md`; drive with `npm run qa:plan` / `scripts/testplan.py` |
 | `TAXONOMY.md` | Tag vocabulary + test-ID registry (source of truth) |
+
+## Output naming (standing rule)
+
+Every file or directory the test platform creates must be **easy to type at a shell**.
+`runner/artifacts.ts:sanitizeFileName()` enforces it at creation time:
+
+- Unix special characters are removed: `/ ( ) & ; " ' < > { } [ ] @ | ? * \`
+- whitespace and control characters are removed
+- Latin-1 accents (U+00A0–U+00FF) become their HTML entity name wrapped in colons
+  (`déme` → `d:eacute:me`); U+0080–U+009F → `:U+8X:`; anything above U+00FF (emoji,
+  CJK) is dropped
+- anything new that writes test output must route names through `sanitizeFileName()`
+
+Per-test artifact dirs are `<layer>/<test-id>-<role>/` (single dash, not `__`). Maestro's
+`--debug-output` debris (`.maestro/tests/<timestamp>/…`) is flattened into the test's
+artifact dir right after the flow exits, renamed by function:
+
+| Maestro writes | Becomes |
+|----------------|---------|
+| `maestro.log` | `internal-maestro-log.log` (verbose trace — rarely worth reading) |
+| `ai-(<flow>).json` | `detailed-log--<test-id>-<role>.json` (double dash = very detailed) |
+| `ai-report-<flow>.html` | `WIP-report-<test-id>-<role>.html` (report gen not working yet) |
+| `commands-(<flow>.yaml).json` | `maestro-flow-details-<test-id>-<role>.json` |
+| `screenshot-⚠️-<epoch-ms>-(…).png` | `screenshot-WARNING-time-<HHMMSS.s>-<test-id>-<role>.png` (local time) |
+| `screenshot-❌-<epoch-ms>-(…).png` | `screenshot-FAIL-time-<HHMMSS.s>-<test-id>-<role>.png` |
+| anything else | `sanitizeFileName(original)` |
+
+Name collisions across multiple `.maestro/tests/<timestamp>` dirs get a `.2`/`.3` suffix
+(newest dir wins the canonical name). Maestro's captured CLI output is
+`high-level-maestro-output.log` (its trailing "Debug output" pointer is rewritten to the
+artifact dir, since the `.maestro/tests/<ts>` dir it names is flattened away). The flow
+yaml that ran — plus every subflow it references — is copied into `<artifact-dir>/flow/`.
+Headless tests get their source file copied next to `vitest-results--<leaf>.json` /
+`detailed-log--<leaf>.json` (newman). Captured CLI output is
+`high-level-vitest-output.log` / `high-level-newman-output.log`; the vitest one appears
+only when the output carried information beyond a pointer to the results file
+(vitest's quiet pass does not).
 
 ## Selection & tags
 
@@ -128,8 +188,12 @@ Therefore, suite-wide:
   platform (e.g. Windows) changes precedence, infra-0200 fails first and its assert labels
   say what changed. Its `_probe-*.yaml` neighbors are the only files allowed to declare
   `env:` defaults — the defaults are the probes.
-- Direct runs: `maestro test <flow> -e METRO_HOST=localhost -e METRO_PORT=8081 \
-  -e SHOT_PREFIX=tmp/maestro/ [-e EMAIL=… -e PASSWORD=…]` (see `config/roles.json`).
+- Direct runs: prefer `npm run qa:flow -- <flow.yaml> [--role role-user] [-e K=V …]` —
+  it injects the env vars above, gives the run its own
+  `tests/output/run-manual-<flow>-<UTC>/` dir, and applies the output-naming flatten.
+  Bare `maestro test` (only if you must): `-e METRO_HOST=localhost -e METRO_PORT=8081 \
+  -e SHOT_PREFIX=tmp/maestro/ [-e EMAIL=… -e PASSWORD=…]` (see `config/roles.json`),
+  with `--debug-output tmp/maestro` so debris stays out of the repo root.
 
 ## Gating (two phases)
 
