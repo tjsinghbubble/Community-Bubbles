@@ -221,6 +221,26 @@ export async function gateSchemaDrift(pool: pg.Pool): Promise<GateResult> {
   };
 }
 
+/**
+ * Static lint: fail the suite if any Maestro flow uses a BLIND coordinate/percentage tap
+ * (`point:` etc.) without a `# blind-tap-ok:` justification. Blind taps are device-size-
+ * fragile (a 390x844-calibrated point mis-taps on an iPhone 17 and derails the flow), so
+ * new ones are blocked at the gate. Fast + offline — runs before any device work.
+ */
+export async function gateBlindTaps(repoRoot: string): Promise<GateResult> {
+  const res = spawnSync("python3", [join(repoRoot, "scripts/check_blind_taps.py")],
+    { cwd: repoRoot, encoding: "utf8" });
+  if (res.status === 0) {
+    return { name: "blind-taps", status: "pass", waited: false,
+      message: "no un-annotated coordinate/percentage taps in flows" };
+  }
+  const offenders = (res.stdout || "").split("\n").filter((l) => l.includes("BLIND TAP"));
+  const shown = offenders.slice(0, 5).map((l) => l.replace(/^✘ BLIND TAP\s*/, "")).join("; ");
+  return { name: "blind-taps", status: "fail", waited: false,
+    message: `test canceled: ${offenders.length} un-annotated blind tap(s) — ${shown}` +
+      ` (use a testID/text selector, or add '# blind-tap-ok: <reason>')` };
+}
+
 export async function gateSimulatorBooted(opts: { timeoutMs?: number } = {}): Promise<GateResult> {
   const booted = () =>
     Promise.resolve(

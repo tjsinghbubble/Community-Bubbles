@@ -52,6 +52,7 @@
     "qa:health": "python3 scripts/testctl.py health",
     "qa:nuke": "python3 scripts/testctl.py nuke --nuke=them-all",
     "qa:inspect": "python3 scripts/testctl.py inspect",
+    "qa:lint:taps": "python3 scripts/check_blind_taps.py",
     "qa:plan": "python3 scripts/testplan.py status",
     "qa:plan:gen": "python3 scripts/gen_test_backlog.py",
     "testplan": "python3 scripts/testplan.py",

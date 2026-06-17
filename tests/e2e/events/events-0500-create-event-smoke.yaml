@@ -109,6 +109,9 @@ tags:
     when:
       platform: iOS
     commands:
+      # blind-tap-ok: KNOWN-DEBT — iOS inline date spinner has no per-row testID; this
+      # 390x844-calibrated point mis-taps on an iPhone 17 (P2 in tmp/test-problems-
+      # prioritized.md). Replace with a selector/robust spinner interaction.
       - tapOn:
           point: 53%, 41%
       - waitForAnimationToEnd:

@@ -23,6 +23,7 @@ import {
   gateSimulatorAge,
   gateAndroidEmulatorBooted,
   gateAppInstalled,
+  gateBlindTaps,
   gateMetro,
   gateDriverWarmup,
   gateLoadAverage,
@@ -246,9 +247,23 @@ function runMaestro(
   // (the log then only has the header — the full trace still lands in internal-maestro-log.log
   // via --debug-output).
   copyFlowSources(t.path, artifactsDir, join(TESTS_ROOT, "e2e"));
-  const res = spawnSync("maestro", args, { cwd: REPO_ROOT, encoding: "utf8", stdio: verbose ? "inherit" : "pipe" });
+  // Per-test wall-clock cap: without it, a single hung maestro test (driver wedge, lost
+  // signal, stuck device) blocks the whole run indefinitely — a `--all` sweep once sat on
+  // one test for 4h+. e2e flows run ~50-140s, so default 6 min is generous headroom;
+  // override via QA_MAESTRO_TIMEOUT_MS. SIGKILL so a wedged driver actually dies.
+  const timeoutMs = Number(process.env.QA_MAESTRO_TIMEOUT_MS ?? 360_000);
+  const res = spawnSync("maestro", args, {
+    cwd: REPO_ROOT, encoding: "utf8", stdio: verbose ? "inherit" : "pipe",
+    timeout: timeoutMs, killSignal: "SIGKILL",
+  });
   const logPath = join(artifactsDir, "high-level-maestro-output.log");
-  appendLog(logPath, `maestro ${t.id}`, res);
+  const timedOut = (res as { error?: NodeJS.ErrnoException }).error?.code === "ETIMEDOUT"
+    || res.signal === "SIGKILL";
+  if (timedOut) {
+    appendLog(logPath, `maestro ${t.id} — TIMED OUT after ${Math.round(timeoutMs / 1000)}s (killed)`, res);
+  } else {
+    appendLog(logPath, `maestro ${t.id}`, res);
+  }
   // Maestro buried its trace/report/screenshots under .maestro/tests/<timestamp>/ with
   // shell-hostile names; lift them into the artifact dir under typeable, function-first names.
   flattenMaestroDebugOutput(artifactsDir, shotLeaf);
@@ -259,7 +274,7 @@ function runMaestro(
     const fixed = txt.replace(/[/\\]\.maestro[/\\]tests[/\\][\w.-]+/g, "");
     if (fixed !== txt) writeFileSync(logPath, fixed);
   } catch { /* best-effort */ }
-  return res.status === 0 ? "pass" : "fail";
+  return (!timedOut && res.status === 0) ? "pass" : "fail";
 }
 
 async function runVitest(t: TestDescriptor, baseUrl: string, artifactsDir: string): Promise<TestStatus> {
@@ -395,6 +410,9 @@ async function main(): Promise<void> {
     }
 
     if (needsE2e) {
+      // Static, offline, fast: block device-fragile blind coordinate taps before any
+      // simulator/Metro work, so a flow lint failure cancels the suite immediately.
+      gates.push(await gateBlindTaps(REPO_ROOT));
       if (args.platform === "ios") {
         gates.push(await gateSimulatorBooted());
         // Restart over-age sims before Metro/warmup so the cold start lands on a fresh boot.

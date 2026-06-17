@@ -122,6 +122,9 @@ tags:
 - tapOn:
     id: button-select-date
 - waitForAnimationToEnd
+# blind-tap-ok: KNOWN-DEBT — iOS inline date spinner has no per-row testID; this
+# 390x844-calibrated point mis-taps on larger devices (same root cause as P2,
+# tmp/test-problems-prioritized.md). Replace with a selector/robust interaction.
 - tapOn:
     point: 53%, 41%
 - waitForAnimationToEnd:
