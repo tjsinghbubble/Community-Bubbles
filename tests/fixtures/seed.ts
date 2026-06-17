@@ -231,6 +231,59 @@ async function main(): Promise<void> {
     );
     console.log(`[qa-seed] created 2 bulletin post types (general, announcement)`);
 
+    // Categories: GET /api/categories drives the create-bubble wizard's first step
+    // ("What category will your bubble be in?"). TRUNCATE wipes the categories table,
+    // so a fresh test DB returns [] and the wizard can never advance (bubble-admin-0600).
+    // Seed a representative subset of the canonical tree (server/seed-categories.ts) —
+    // a few parent groups each with children — enough for the wizard to render and a
+    // test to pick one. Raw SQL on the guarded pool (same idiom as bulletin types),
+    // NOT the drizzle seedCategories(), which connects via DATABASE_URL (could be the
+    // dev DB) and leaves an unclosed pool that would hang this script.
+    const categoryTree: Array<{
+      name: string; displayName: string; header: string; icon: string;
+      children: Array<{ name: string; displayName: string; icon: string }>;
+    }> = [
+      { name: "food_and_social", displayName: "Food & Social", header: "Eat & Meet", icon: "cafe", children: [
+        { name: "dining_out", displayName: "Dining Out", icon: "restaurant" },
+        { name: "coffee_meetups", displayName: "Coffee Meetups", icon: "cafe" },
+        { name: "brunch", displayName: "Brunch", icon: "sunny" },
+      ] },
+      { name: "active", displayName: "Active", header: "Move Together", icon: "fitness", children: [
+        { name: "fitness_classes", displayName: "Fitness Classes", icon: "barbell" },
+        { name: "hiking", displayName: "Hiking", icon: "walk" },
+        { name: "yoga", displayName: "Yoga", icon: "body" },
+      ] },
+      { name: "creative", displayName: "Creative", header: "Create & Chill", icon: "color-palette", children: [
+        { name: "cooking", displayName: "Cooking", icon: "restaurant" },
+        { name: "board_games", displayName: "Board Games", icon: "game-controller" },
+        { name: "book_clubs", displayName: "Book Clubs", icon: "book" },
+      ] },
+    ];
+    let categoryCount = 0;
+    for (let pIdx = 0; pIdx < categoryTree.length; pIdx++) {
+      const parent = categoryTree[pIdx];
+      const { rows: pRows } = await pool.query<{ id: number }>(
+        `INSERT INTO categories (name, display_name, header, icon, parent_id, display_order)
+         VALUES ($1, $2, $3, $4, NULL, $5) RETURNING id`,
+        [parent.name, parent.displayName, parent.header, parent.icon, pIdx + 1],
+      );
+      categoryCount++;
+      for (let cIdx = 0; cIdx < parent.children.length; cIdx++) {
+        const child = parent.children[cIdx];
+        await pool.query(
+          `INSERT INTO categories
+             (name, display_name, icon, parent_id, display_order,
+              placeholder_name, placeholder_tagline, placeholder_description)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [child.name, child.displayName, child.icon, pRows[0].id, cIdx + 1,
+           `e.g., ${child.displayName} Crew`, `e.g., Connect over ${child.displayName.toLowerCase()}`,
+           `e.g., A seeded ${child.displayName} category for automated create-bubble tests.`],
+        );
+        categoryCount++;
+      }
+    }
+    console.log(`[qa-seed] created ${categoryCount} categories (${categoryTree.length} groups + children)`);
+
     const userCount = Object.keys(roles).length + 1;
     await appendEntry(pool, {
       author: "qa-seed",
