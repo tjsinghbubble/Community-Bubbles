@@ -4,7 +4,8 @@ manage_devices — one syntax to start / stop / list / loop / tune simulated
 devices, backed by a small SQLite database used as a test-time oracle.
 
   -r, --running              list running devices (or "No running devices")
-  -l, --list                 list ALL devices + aliases (non-running first, running last)
+  -l, --list [-v]            list ALL devices + aliases, grouped Running then Available,
+                             each in platform order; -v dumps the full record (TSV)
       --resolve ID           print the maestro device id (android adb serial / iOS UDID)
                              for an id/alias; bare id on stdout, rich line on stderr
   -s, --start ID             start device(s) with perf flags (software GPU, cores, …)
@@ -30,8 +31,9 @@ Identifiers
 
 System aliases (computed)        User/auto aliases (stored in DB)
   ios, android                     human names (auto, e.g. "Liam"), -a aliases,
-  last, last-ios, last-android     UDID alt-names.
-  all, all-ios, all-android, loop
+  last-ios, last-android           UDID alt-names.
+  all, all-ios, all-android, loop  (the platform-agnostic `last` was removed —
+                                   too ambiguous; say last-ios / last-android)
 
 DB: $MANAGE_DEVICES_DB, default <repo>/.device-manager/devices.db (WAL, ACID).
 stdlib only.
@@ -218,7 +220,7 @@ CREATE TABLE IF NOT EXISTS requirements (
   effective_date TEXT, source TEXT, notes TEXT
 );
 
--- Cross-process scalar state (last / last-ios / last-android), kept in the DB
+-- Cross-process scalar state (last-ios / last-android), kept in the DB
 -- so concurrent invocations agree.
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 
@@ -239,6 +241,33 @@ REF_SEED = {
 
 _conn = None
 
+# Columns added after the original `devices` schema shipped. CREATE TABLE IF NOT
+# EXISTS never alters an existing table, so add them idempotently on every open.
+# These record device READINESS (so callers can ask the row, not scan history):
+#   compile_level   last AOT/dexopt level baked in (low|medium|hot|NULL)
+#   has_default_boot 1 once a default_boot snapshot has been written
+#   last_warmed_at  ISO ts of the last warm/bake/save-quickboot
+#   last_used       ISO ts of the last resolve/start/kill/warm (touch())
+_DEVICE_MIGRATIONS = [
+    ("compile_level",    "TEXT"),
+    ("has_default_boot", "INTEGER DEFAULT 0"),
+    ("last_warmed_at",   "TEXT"),
+    ("last_used",        "TEXT"),
+]
+
+def _migrate(conn):
+    have = {r["name"] for r in conn.execute("PRAGMA table_info(devices)")}
+    for col, decl in _DEVICE_MIGRATIONS:
+        if col not in have:
+            conn.execute(f"ALTER TABLE devices ADD COLUMN {col} {decl}")
+    conn.commit()
+
+def _norm_state(s):
+    """Collapse platform-specific liveness to two values: Running | Shutdown.
+    iOS reports 'Booted'; Android reports 'Running'. Everything else (Unknown,
+    Shutting Down, …) maps to Shutdown for listing purposes."""
+    return "Running" if s in ("Booted", "Running") else "Shutdown"
+
 def db():
     global _conn
     if _conn is None:
@@ -248,6 +277,7 @@ def db():
         _conn.isolation_level = None  # autocommit; immediate() owns explicit txns
         _conn.execute("PRAGMA busy_timeout=5000")
         _conn.executescript(SCHEMA)
+        _migrate(_conn)
         for table, vals in REF_SEED.items():
             _conn.executemany(f"INSERT OR IGNORE INTO {table}(name) VALUES (?)",
                               [(v,) for v in vals])
@@ -286,6 +316,18 @@ def log_history(udid, event, detail=None, duration_ms=None,
                  (now_iso(), udid, event, detail, duration_ms, sys_load, dev_load))
     db().commit()
 
+def _device_set(udid, **cols):
+    """Update arbitrary devices columns for one udid. No-op if the row is absent
+    (a device not yet sync'd) so warm/bake on a fresh clone never throws."""
+    if not cols:
+        return
+    if not db().execute("SELECT 1 FROM devices WHERE udid=?", (udid,)).fetchone():
+        return
+    sets = ", ".join(f"{k}=?" for k in cols)
+    db().execute(f"UPDATE devices SET {sets} WHERE udid=?",
+                 (*cols.values(), udid))
+    db().commit()
+
 # ── live discovery ─────────────────────────────────────────────────────────────
 
 def ios_devices():
@@ -303,11 +345,12 @@ def ios_devices():
                 continue
             out.append({"kind": "ios", "id": d["udid"], "serial": None,
                         "name": d.get("name", d["udid"]),
-                        "os_version": ver, "state": d.get("state", "Unknown")})
+                        "os_version": ver,
+                        "state": _norm_state(d.get("state", "Unknown"))})
     return out
 
 def ios_booted():
-    return [d for d in ios_devices() if d["state"] == "Booted"]
+    return [d for d in ios_devices() if d["state"] == "Running"]
 
 def android_avds():
     r = run([emulator_bin(), "-list-avds"])
@@ -432,10 +475,19 @@ def host_load_sample(dev, interval=5):
 # ── sync: reconcile DB.devices with the live toolchain ──────────────────────────
 
 def allocate_name(udid):
-    """First-come random human name; persists by udid. Returns name or None."""
+    """First-come random human name; persists by udid. Returns name or None.
+    Idempotent: if this udid already owns a pooled name OR already carries a
+    name/user alias, reuse it — never hand a device a SECOND human name (the
+    `--copy` double-name bug: the copy claimed a free name as its alias, then a
+    later sync() auto-allocated another, leaving e.g. both 'Lainey' and 'Esther')."""
     row = db().execute("SELECT name FROM name_pool WHERE udid=?", (udid,)).fetchone()
     if row:
         return row["name"]
+    existing = db().execute(
+        "SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user') "
+        "ORDER BY kind LIMIT 1", (udid,)).fetchone()
+    if existing:
+        return existing["alias"]
     free = [r["name"] for r in
             db().execute("SELECT name FROM name_pool WHERE udid IS NULL")]
     if not free:
@@ -548,8 +600,7 @@ def resolve_many(ident, idx=None) -> "list[dict]":
         if avds:
             return [avds[-1]]
         raise ResolveError("alias 'android': no Android emulators found")
-    for key, kv in (("last-ios", "last_ios"), ("last-android", "last_android"),
-                    ("last", "last")):
+    for key, kv in (("last-ios", "last_ios"), ("last-android", "last_android")):
         if low == key:
             udid = kv_get(kv)
             if not udid:
@@ -590,8 +641,10 @@ def resolve_one(ident, idx=None) -> "dict":
     return resolve_many(ident, idx)[0]
 
 def touch(dev):
-    kv_set("last", dev["id"])
+    # `last` (platform-agnostic) was removed — too ambiguous. Callers must say
+    # last-ios / last-android explicitly.
     kv_set("last_ios" if dev["kind"] == "ios" else "last_android", dev["id"])
+    _device_set(dev["id"], last_used=now_iso())
 
 def aliases_for(udid):
     return [r["alias"] for r in
@@ -682,8 +735,6 @@ def _android_start(dev, flags):
 
 def _system_alias_map():
     m = {}
-    if kv_get("last"):
-        m.setdefault(kv_get("last"), []).append("last")
     if kv_get("last_ios"):
         m.setdefault(kv_get("last_ios"), []).append("last-ios")
     if kv_get("last_android"):
@@ -726,21 +777,135 @@ def cmd_running():
         print(_device_line(d, sysmap))
     return 0
 
-def cmd_list():
-    """Every device (in scope: iOS sims + Android emulators) with its aliases.
-    Non-running listed first; running devices last so they stand out at the end."""
+# ── --list rendering ─────────────────────────────────────────────────────────────
+_USE_COLOR = sys.stdout.isatty()
+SHORT_HEADERS = ["ALIASES", "KIND", "DEVICE", "STATE", "READY", "LAST USED"]
+PLATFORM_ORDER = ["iOS", "Android", "Genymotion"]
+
+def _c(s, *codes):
+    """ANSI-wrap s (no-op when stdout isn't a TTY, so pipes/captures stay clean)."""
+    if not _USE_COLOR or not codes:
+        return s
+    return f"\033[{';'.join(str(x) for x in codes)}m{s}\033[0m"
+
+def _device_row(udid):
+    return db().execute("SELECT * FROM devices WHERE udid=?", (udid,)).fetchone()
+
+def _is_genymotion(d):
+    return (d["kind"] == "android" and bool(d.get("serial"))
+            and bool(re.match(r"^[\w.-]+:\d+$", d["serial"])))
+
+def _platform_of(d):
+    if d["kind"] == "ios":
+        return "iOS"
+    return "Genymotion" if _is_genymotion(d) else "Android"
+
+def _flavor_label(d, row):
+    """Combined Flavor/Type/OS, e.g. 'iOS / 26.5', 'Android', 'Native iOS'.
+    'Simulated' is dropped (nearly every row is it); 'iOS ' stripped from version."""
+    flavor = (row["flavor"] if row else None) or "Simulated"
+    typ = _platform_of(d)
+    label = (f"{flavor} " if flavor != "Simulated" else "") + typ
+    ver = d.get("os_version") or (row["os_version"] if row else None)
+    if typ == "iOS" and ver:
+        label += f" / {ver}"
+    return label
+
+def _display_short(d, row):
+    # Personal display names pack the OS after a ' / ' — show only the model half.
+    name = (row["display_name"] if row else None) or d.get("name") or ""
+    return name.split(" / ")[0].strip()
+
+def _ready_marker(row):
+    """Surface bake/warm readiness: compile level and whether a default_boot exists."""
+    if not row:
+        return ""
+    lvl, baked = row["compile_level"], row["has_default_boot"]
+    if lvl and baked:
+        return f"{lvl}/baked"
+    return "baked" if baked else (lvl or "")
+
+def _last_used_short(row):
+    return ((row["last_used"] if row else None) or "").replace("T", " ")[:16]
+
+def _short_cells(d, sysmap):
+    row = _device_row(d["id"])
+    return [", ".join(all_aliases_for(d["id"], sysmap)),
+            _flavor_label(d, row), _display_short(d, row),
+            _norm_state(d["state"]), _ready_marker(row), _last_used_short(row)]
+
+def _order_within(devs, plat, sysmap):
+    """Within a platform, the default-alias holder (ios/last-ios, android/last-android)
+    sorts first; then alphabetical."""
+    firsts = {"iOS": {"ios", "last-ios"},
+              "Android": {"android", "last-android"}}.get(plat, set())
+    return sorted(devs, key=lambda d: (
+        0 if set(all_aliases_for(d["id"], sysmap)) & firsts else 1, d["name"].lower()))
+
+def _list_long(sections, sysmap):
+    """Verbose: short columns + UDID + every remaining devices column, TAB-separated
+    (no alignment — built for copy/paste). First pass; intentionally dense."""
+    extra = ["UDID", "SERIAL", "MANUFACTURER", "MODEL", "DISPLAY_NAME", "PRESENT",
+             "COMPILE_LEVEL", "HAS_DEFAULT_BOOT", "LAST_WARMED_AT", "FIRST_SEEN",
+             "LAST_SEEN", "NOTES"]
+    print("\t".join(["SECTION", "PLATFORM"] + SHORT_HEADERS + extra))
+    for label, devs in sections:
+        for plat in PLATFORM_ORDER:
+            for d in _order_within([x for x in devs if _platform_of(x) == plat],
+                                   plat, sysmap):
+                row = _device_row(d["id"])
+                vals = ([label, plat] + _short_cells(d, sysmap) +
+                        [d["id"], d.get("serial") or "",
+                         (row["manufacturer"] if row else "") or "",
+                         (row["model"] if row else "") or "",
+                         (row["display_name"] if row else "") or "",
+                         (row["present"] if row else "") if row else "",
+                         (row["compile_level"] if row else "") or "",
+                         (row["has_default_boot"] if row else "") if row else "",
+                         (row["last_warmed_at"] if row else "") or "",
+                         (row["first_seen"] if row else "") or "",
+                         (row["last_seen"] if row else "") or "",
+                         (row["notes"] if row else "") or ""])
+                print("\t".join(str(v) for v in vals))
+
+def cmd_list(verbose=False):
+    """Every in-scope device (iOS sims + Android emulators), grouped Running then
+    Available, each in platform order (iOS, Android, Genymotion). Reminds testers
+    what's around. -v/--verbose dumps the full per-device record (tab-separated)."""
     sync()
     host_profile()
     devices = ios_devices() + android_all()
     sysmap = _system_alias_map()
-    not_running = [d for d in devices if not is_running(d)]
-    running = [d for d in devices if is_running(d)]
-    for d in sorted(not_running, key=lambda x: (x["kind"], x["name"].lower())):
-        print(_device_line(d, sysmap))
-    if running:
-        print("── running ──────────────────────────────")
-        for d in running:
-            print(_device_line(d, sysmap))
+    sections = [("RUNNING", [d for d in devices if is_running(d)]),
+                ("AVAILABLE", [d for d in devices if not is_running(d)])]
+    if verbose:
+        _list_long(sections, sysmap)
+        return 0
+
+    plain = {d["id"]: _short_cells(d, sysmap) for d in devices}
+    widths = [len(h) for h in SHORT_HEADERS]
+    for cells in plain.values():
+        for i, c in enumerate(cells):
+            widths[i] = max(widths[i], len(c))
+    header = "  ".join(h.ljust(widths[i]) for i, h in enumerate(SHORT_HEADERS))
+
+    for label, devs in sections:
+        print(_c(label, 1))
+        for plat in PLATFORM_ORDER:
+            pdevs = [d for d in devs if _platform_of(d) == plat]
+            if plat == "Genymotion" and not pdevs:
+                continue                       # only surface Genymotion when present
+            print("  " + _c(plat, 4))
+            if not pdevs:
+                print("    No devices available")
+                continue
+            print("    " + _c(header, 2))
+            for d in _order_within(pdevs, plat, sysmap):
+                acolor = (1, 91) if is_running(d) else (1, 31)  # bold; bright-red vs red
+                cells = [c.ljust(widths[i]) for i, c in enumerate(plain[d["id"]])]
+                cells[0] = _c(cells[0], *acolor)
+                print("    " + "  ".join(cells))
+        print()
     return 0
 
 def cmd_resolve(ident):
@@ -967,8 +1132,14 @@ def warmup_one(dev, level=None):
                      "default_boot"], capture=False)
     ms = int((time.time() - t0) * 1000)
     cpu, load = host_load_sample(dev)
-    log_history(dev["id"], f"warmup:{level}" if level else "warmup",
+    # detail carries the level (queryable); event stays the bare 'warmup'.
+    log_history(dev["id"], "warmup", detail=(f"warmup:{level}" if level else "warmup"),
                 duration_ms=ms, sys_load=load, dev_load=cpu)
+    cols: "dict[str, object]" = {"last_warmed_at": now_iso()}
+    if level:                       # a level also saves a default_boot snapshot above
+        cols["compile_level"] = level
+        cols["has_default_boot"] = 1
+    _device_set(dev["id"], **cols)
     touch(dev)
     cpu_s = f"{cpu:.1f}% host cpu" if cpu is not None else "process gone"
     load_s = f", load {load:.2f}" if load is not None else ""
@@ -1046,7 +1217,9 @@ def cmd_save_quickboot(ident):
     print(f"Saving 'default_boot' quickboot snapshot of {dev['name']} …")
     run([adb_bin(), "-s", dev["serial"], "emu", "avd", "snapshot", "save",
          "default_boot"], capture=False)
-    log_history(dev["id"], "save-quickboot")
+    log_history(dev["id"], "save-quickboot", detail="save-quickboot")
+    _device_set(dev["id"], has_default_boot=1, last_warmed_at=now_iso())
+    touch(dev)
     print("Saved. Next launch quick-boots into this exact state.")
     return 0
 
@@ -1177,6 +1350,7 @@ def bake_optimizations(dev, level=None):
     GApps (wedges system_server — see the playstore lesson; ATD images need
     nothing disabled anyway). Pass level to also AOT-compile (slow)."""
     narrate(f"bake {dev['name']}: booting headless to apply optimizations …")
+    t0 = time.time()
     if not is_running(dev):
         # -no-window but NOT -read-only: read-only DISABLES snapshot save, which
         # is the whole point of baking (we must write default_boot).
@@ -1203,8 +1377,16 @@ def bake_optimizations(dev, level=None):
         capture=False)
     narrate("  shutting the baked device down …")
     run([adb_bin(), "-s", serial, "emu", "kill"], capture=False)
-    log_history(dev["id"], f"bake:{level}" if level else "bake")
-    narrate(f"bake done: {dev['name']} will quick-boot optimized")
+    ms = int((time.time() - t0) * 1000)
+    # bake used to log no duration (gap #3); record it + the level in detail, and
+    # mark device readiness: a bake always writes a default_boot snapshot.
+    log_history(dev["id"], "bake", detail=(f"bake:{level}" if level else "bake"),
+                duration_ms=ms)
+    cols: "dict[str, object]" = {"last_warmed_at": now_iso(), "has_default_boot": 1}
+    if level:
+        cols["compile_level"] = level
+    _device_set(dev["id"], **cols)
+    narrate(f"bake done in {ms/1000:.0f}s: {dev['name']} will quick-boot optimized")
 
 def cmd_bake(ident, level=None):
     sync()
@@ -1256,21 +1438,29 @@ def cmd_copy(ident, new_alias, mode="optimized"):
         return 2
     print(f"Cloned AVD {dev['id']} -> {new_avd}")
 
-    baked = False
+    # Register the alias NOW, before any sync(): sync()->allocate_name would
+    # otherwise see a nameless clone and hand it a SECOND human name (the
+    # 'Lainey'+'Esther' double-name bug). If the chosen alias is a pooled human
+    # name, claim it for this udid (kind 'name'); else it's a 'user' alias.
+    pooled = db().execute("SELECT 1 FROM name_pool WHERE name=? COLLATE NOCASE",
+                          (new_alias,)).fetchone()
+    db().execute("INSERT INTO aliases(alias,udid,kind,created_at) VALUES (?,?,?,?) "
+                 "ON CONFLICT(alias) DO UPDATE SET udid=excluded.udid",
+                 (new_alias, new_avd, "name" if pooled else "user", now_iso()))
+    if pooled:
+        db().execute("UPDATE name_pool SET udid=?, allocated_at=? "
+                     "WHERE name=? COLLATE NOCASE", (new_avd, now_iso(), new_alias))
+    db().commit()
+    print(f"alias {new_alias!r} -> {new_avd}")
+
     if mode == "optimized":
         if atd_ify(new_avd, dev["id"]):     # download ATD + re-point + wipe userdata
             sync()
             new_dev = resolve_one(new_avd)
             bake_optimizations(new_dev)     # boot, low-power, save default_boot, halt
-            baked = True
+            return 0
 
-    if not baked:
-        sync()  # at least register the new AVD as a device
-    db().execute("INSERT INTO aliases(alias,udid,kind,created_at) VALUES (?,?,?,?) "
-                 "ON CONFLICT(alias) DO UPDATE SET udid=excluded.udid",
-                 (new_alias, new_avd, "user", now_iso()))
-    db().commit()
-    print(f"alias {new_alias!r} -> {new_avd}")
+    sync()  # at least register the new AVD as a device
     return 0
 
 # ── nuke ─────────────────────────────────────────────────────────────────────
@@ -1370,6 +1560,8 @@ def main(argv=None):
                    help="define an ordered loop from a comma list of ids/aliases")
     g.add_argument("-n", "--next", nargs="?", const=None, default=False,
                    metavar="NAME", help="advance the loop cursor; print next device")
+    p.add_argument("-v", "--verbose", action="store_true",
+                   help="with --list: dump the full per-device record (tab-separated)")
     args = p.parse_args(argv)
 
     def _copy_args(lst):
@@ -1378,7 +1570,7 @@ def main(argv=None):
     if args.running:
         return cmd_running()
     if args.list_all:
-        return cmd_list()
+        return cmd_list(args.verbose)
     if args.resolve:
         return cmd_resolve(args.resolve)
     if args.start:
