@@ -40,11 +40,29 @@ tags:
     id: button-create-bubble-fab
 - waitForAnimationToEnd
 
+# Create-a-Bubble is a 5-step wizard (CreateBubbleScreen): 0 Category → 1 Details →
+# 2 Rules → 3 Privacy → 4 Preview. Each step's Next (button-next) is gated until the step
+# is valid; the final step submits via button-submit-review. (The category step is FIRST —
+# this flow used to assume title was step 1, which broke once the wizard was reordered.)
+
+# Step 0 — Category. Wait out the async /api/categories load (a spinner shows until then;
+# the prompt text appears only once loaded), then pick the first subcategory card, which
+# sets `category` and enables Next.
+- extendedWaitUntil:
+    visible:
+      text: "What category will your bubble be in?"
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}create-step0-category
+- tapOn:
+    id: "button-category-.*"
+    index: 0
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 1 — Details (title + description are required to advance).
 - assertVisible:
     id: input-title
-- takeScreenshot: ${SHOT_PREFIX}create-step1-details
-
-# Step 1 — details
 - tapOn:
     id: input-title
 - inputText: "QA E2E Bubble"
@@ -55,29 +73,47 @@ tags:
     id: input-description
 - inputText: "Deterministic bubble created by the qa e2e suite."
 - takeScreenshot: ${SHOT_PREFIX}create-step1-filled
+# Dismiss the keyboard so the sticky footer's Next button (rendered OUTSIDE the
+# KeyboardAvoidingView, so the keyboard covers it) is tappable. Tapping a static label
+# dismisses the keyboard because the form list uses keyboardShouldPersistTaps="handled".
+# (Maestro's hideKeyboard is unreliable on iOS — it failed here.)
+- tapOn:
+    text: "Bubble Title"
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
 
-# Step 2 — category (first available)
+# Step 2 — Rules (optional; Next is always enabled).
 - tapOn:
-    id: "button-next"
-- takeScreenshot: ${SHOT_PREFIX}create-step2-category
-- tapOn:
-    id: "button-category-.*"
-    index: 0
+    id: button-next
+- waitForAnimationToEnd
 
-# Step 3 — settings, Step 4 — review
+# Step 3 — Privacy (defaults to Public, so the step is already valid).
+- takeScreenshot: ${SHOT_PREFIX}create-step3-privacy
 - tapOn:
-    id: "button-next"
-- takeScreenshot: ${SHOT_PREFIX}create-step3-settings
-- tapOn:
-    id: "button-next"
-- takeScreenshot: ${SHOT_PREFIX}create-review
+    id: button-next
+- waitForAnimationToEnd
 
-# Submit
+# Step 4 — Preview → submit.
+- assertVisible:
+    id: button-submit-review
+- takeScreenshot: ${SHOT_PREFIX}create-step4-preview
 - tapOn:
     id: button-submit-review
-- takeScreenshot: ${SHOT_PREFIX}create-submitted
+- waitForAnimationToEnd
 
-# Land back on a meaningful screen.
+# Submitted: a success screen ("Thanks for submitting your bubble") with Finish, which
+# navigates back to My Bubbles. The bubble is submitted for approval, not auto-approved.
+- extendedWaitUntil:
+    visible:
+      id: button-finish
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}create-submitted
+- tapOn:
+    id: button-finish
+- waitForAnimationToEnd
+
+# Land back on My Bubbles (the FAB we came in through).
 - assertVisible:
-    id: "button-create-fab"
+    id: button-create-bubble-fab
 - takeScreenshot: ${SHOT_PREFIX}create-done
