@@ -49,6 +49,14 @@ beforeAll(async () => {
   if (!qaBubble) throw new Error("seeded 'QA Test Bubble' not found — run npm run qa:seed");
   bubbleId = qaBubble.id;
 
+  // The BUBBLE_ADMIN_ONLY matrix below assumes role-user is NOT a member of this bubble, so
+  // the member-gated routes (photos / sync-chat-members / bulletin) deny with 403. The seed
+  // honors that, BUT in a full `--all` run the e2e layer runs first and joining-0400 joins
+  // role-user to this public bubble — leaking an approved membership into this headless run,
+  // which then sees those routes return 200/400 instead of 403 (false authz failure). Force
+  // non-membership defensively; best-effort (a 4xx when already a non-member is fine).
+  await request("POST", `/api/bubbles/${bubbleId}/leave`, { token: member.token });
+
   // A category id for the super-only category routes (public list; any id works —
   // the super gate must fire before the resource is touched).
   const cats = await request("GET", "/api/categories/flat");
