@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
+import { sanitizeFileName } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_ROOT = join(__dirname, "..", "output");
@@ -55,6 +56,8 @@ export interface RunParams {
   apiBaseUrl: string;
   dbClassification: string;
   platform: string;
+  /** Resolved e2e device id (UDID / adb serial) Maestro was pinned to; "" for non-e2e runs. */
+  deviceId?: string;
   tags: string[];
   areas: string[];
   roles: string[];
@@ -143,7 +146,7 @@ export class Run {
 
   /** Create (and return) a per-test-id artifact directory under the run. */
   artifactsDir(layer: string, id: string, role?: string | null): string {
-    const leaf = role ? `${id}__${role}` : id;
+    const leaf = sanitizeFileName(role ? `${id}-${role}` : id);
     const dir = join(this.dir, layer, leaf);
     mkdirSync(dir, { recursive: true });
     return dir;

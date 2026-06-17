@@ -6,8 +6,9 @@
  * "Waiting for iOS simulator to start..." rather than a silent stall.
  */
 import os from "node:os";
+import { join } from "node:path";
 import { execSync, spawnSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import type pg from "pg";
 import { classify, currentDbName, type DbClass } from "../fixtures/journal.js";
 import { schemaSignature, readSchemaBaseline, diffSchema } from "../fixtures/signatures.js";
@@ -242,6 +243,127 @@ export async function gateSimulatorBooted(opts: { timeoutMs?: number } = {}): Pr
     : { name: "ios-simulator", status: "fail", message: "test canceled: no iOS simulator booted", waited };
 }
 
+function androidAdb(): string {
+  const home = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT
+    || join(os.homedir(), "Library/Android/sdk");
+  const p = join(home, "platform-tools/adb");
+  return existsSync(p) ? `"${p}"` : "adb";
+}
+
+// Android counterpart to gateSimulatorBooted: an emulator must be attached in
+// `device` state AND past sys.boot_completed (layer-2 readiness — `device` alone
+// races the framework). Physical/Genymotion devices are out of scope for now.
+export async function gateAndroidEmulatorBooted(opts: { timeoutMs?: number } = {}): Promise<GateResult> {
+  const adb = androidAdb();
+  const booted = () =>
+    Promise.resolve(
+      (() => {
+        try {
+          const out = execSync(`${adb} devices`, { encoding: "utf8" });
+          const row = out.split("\n").map((l) => l.trim().split(/\s+/))
+            .find((p) => p.length >= 2 && p[1] === "device" && p[0].startsWith("emulator-"));
+          if (!row) return false;
+          const bc = execSync(`${adb} -s ${row[0]} shell getprop sys.boot_completed`,
+            { encoding: "utf8" }).trim();
+          return bc === "1";
+        } catch {
+          return false;
+        }
+      })(),
+    );
+  const { ok, waited } = await pollUntil(booted, {
+    timeoutMs: opts.timeoutMs ?? 120_000,
+    intervalMs: 4_000,
+    waitingMsg: "Waiting for Android emulator to finish booting...",
+  });
+  return ok
+    ? { name: "android-emulator", status: "pass", message: "Android emulator booted", waited }
+    : { name: "android-emulator", status: "fail", message: "test canceled: no booted Android emulator", waited };
+}
+
+/** Newest sim .app (DerivedData or mobile/ios/build) whose bundle id matches appId. */
+function findIosApp(appId: string, repoRoot: string): string | null {
+  const globs = [
+    `"${os.homedir()}/Library/Developer/Xcode/DerivedData"/*/Build/Products/*-iphonesimulator/*.app`,
+    `"${repoRoot}/mobile/ios/build/Build/Products"/*-iphonesimulator/*.app`,
+  ];
+  const res = spawnSync("bash", ["-lc", `ls -dt ${globs.join(" ")} 2>/dev/null`], { encoding: "utf8" });
+  const apps = (res.stdout ?? "").split("\n").map((s) => s.trim()).filter(Boolean);
+  for (const app of apps) {
+    try {
+      const id = execSync(`/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "${app}/Info.plist"`,
+        { encoding: "utf8" }).trim();
+      if (id === appId) return app;
+    } catch { /* not a sim app bundle / unreadable plist */ }
+  }
+  return null;
+}
+
+/** Newest debug APK under the gradle output dirs, or null. */
+function findAndroidApk(repoRoot: string): string | null {
+  const globs = [
+    `"${repoRoot}/mobile/android/app/build/outputs/apk/debug"/*.apk`,
+    `"${repoRoot}/mobile/android/app/build/outputs/apk"/*/*.apk`,
+  ];
+  const res = spawnSync("bash", ["-lc", `ls -dt ${globs.join(" ")} 2>/dev/null`], { encoding: "utf8" });
+  return (res.stdout ?? "").split("\n").map((s) => s.trim()).filter(Boolean)[0] ?? null;
+}
+
+/**
+ * App-presence gate (e2e): the app under test must be on the resolved device. Standing rule —
+ * run it if it's there, install it if it's not, fail if no binary is available. Closes the gap
+ * where a freshly-resolved iOS sim had no com.bubble.mobile and Maestro died at clearAppState.
+ */
+export async function gateAppInstalled(opts: {
+  platform: string; deviceId: string; appId: string; repoRoot: string;
+}): Promise<GateResult> {
+  const { platform, deviceId, appId, repoRoot } = opts;
+  if (platform === "web") {
+    return { name: "app-installed", status: "pass", waited: false, message: "no app to install (web)" };
+  }
+  if (!deviceId) {
+    return { name: "app-installed", status: "fail", waited: false, message: "test canceled: no resolved device to check app install on" };
+  }
+  if (platform === "ios") {
+    let installed = false;
+    try { execSync(`xcrun simctl get_app_container ${deviceId} ${appId}`, { stdio: "pipe" }); installed = true; }
+    catch { installed = false; }
+    if (installed) return { name: "app-installed", status: "pass", waited: false, message: `${appId} present on ${deviceId}` };
+    const app = findIosApp(appId, repoRoot);
+    if (!app) {
+      return { name: "app-installed", status: "fail", waited: false,
+        message: `test canceled: ${appId} not installed on ${deviceId} and no .app binary found — build it with \`npm run mobile:build:ios-sim\`` };
+    }
+    try { execSync(`xcrun simctl install ${deviceId} "${app}"`, { stdio: "pipe" }); }
+    catch (err: any) {
+      return { name: "app-installed", status: "fail", waited: true,
+        message: `test canceled: failed to install ${appId} on ${deviceId} (${err?.stderr?.toString().trim() || err?.message || err})` };
+    }
+    return { name: "app-installed", status: "pass", waited: true, message: `installed ${appId} from ${app.replace(os.homedir(), "~")}` };
+  }
+  if (platform === "android") {
+    const adb = androidAdb();
+    let installed = false;
+    try {
+      const out = execSync(`${adb} -s ${deviceId} shell pm list packages ${appId}`, { encoding: "utf8" });
+      installed = out.includes(`package:${appId}`);
+    } catch { installed = false; }
+    if (installed) return { name: "app-installed", status: "pass", waited: false, message: `${appId} present on ${deviceId}` };
+    const apk = findAndroidApk(repoRoot);
+    if (!apk) {
+      return { name: "app-installed", status: "fail", waited: false,
+        message: `test canceled: ${appId} not installed on ${deviceId} and no APK found — build it with \`npm run android\` in mobile/` };
+    }
+    try { execSync(`${adb} -s ${deviceId} install -r "${apk}"`, { stdio: "pipe" }); }
+    catch (err: any) {
+      return { name: "app-installed", status: "fail", waited: true,
+        message: `test canceled: failed to install APK on ${deviceId} (${err?.stderr?.toString().trim() || err?.message || err})` };
+    }
+    return { name: "app-installed", status: "pass", waited: true, message: `installed ${appId} from ${apk}` };
+  }
+  return { name: "app-installed", status: "pass", waited: false, message: `no app install step for platform '${platform}'` };
+}
+
 // Simulators booted longer than ~500,000s have shown instability (crashing sim-side
 // processes). Mandatory restart at 95% of that age; warnings start at 80%.
 const SIM_INSTABILITY_S = 500_000;
@@ -372,6 +494,10 @@ export async function gateDriverWarmup(opts: {
   logFile: string;
   metroHost: string;
   metroPort: number;
+  /** Pin warmup to the same device the tests use (UDID / adb serial). Empty = auto-select. */
+  deviceId?: string;
+  /** Where maestro --debug-output lands (default: ~/.maestro); caller flattens it. */
+  debugOutput?: string;
   baseTimeoutMs?: number;
   maxTimeoutMs?: number;
   tightTimeoutMs?: number;
@@ -394,10 +520,12 @@ export async function gateDriverWarmup(opts: {
 
   const res = spawnSync(
     "maestro",
-    ["test", opts.flowPath,
+    [...(opts.deviceId ? ["--device", opts.deviceId] : []),
+      "test", opts.flowPath,
       "-e", `APP_ID=${opts.appId}`,
       "-e", `METRO_HOST=${opts.metroHost}`,
-      "-e", `METRO_PORT=${opts.metroPort}`],
+      "-e", `METRO_PORT=${opts.metroPort}`,
+      ...(opts.debugOutput ? ["--debug-output", opts.debugOutput] : [])],
     { encoding: "utf8", env: { ...process.env, MAESTRO_DRIVER_STARTUP_TIMEOUT: String(warmMs) } },
   );
   try {
