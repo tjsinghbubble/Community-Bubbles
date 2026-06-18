@@ -283,6 +283,123 @@ def read_heartbeat(procs):
     return hb
 
 
+DEVICE_DB = REPO / ".device-manager" / "devices.db"
+
+
+def _device_label(device_id):
+    """(friendly_name, os_version) for a run's deviceId, from the device-manager DB.
+    deviceId is an iOS udid or an android adb serial; match either column. Best-effort:
+    returns (deviceId, None) if the DB or row is absent."""
+    if not device_id or not DEVICE_DB.exists():
+        return device_id, None
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{DEVICE_DB}?mode=ro", uri=True, timeout=2)
+        con.row_factory = sqlite3.Row
+        row = con.execute(
+            "SELECT udid, os_version FROM devices WHERE udid=? OR serial=?",
+            (device_id, device_id)).fetchone()
+        if not row:
+            return device_id, None
+        # Prefer a human name/user alias (e.g. 'Lainey') over the raw udid/AVD name.
+        al = con.execute(
+            "SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user') "
+            "ORDER BY kind LIMIT 1", (row["udid"],)).fetchone()
+        con.close()
+        return (al["alias"] if al else row["udid"]), row["os_version"]
+    except Exception:
+        return device_id, None
+
+
+def _fmt_started(epoch):
+    if not epoch:
+        return "—"
+    dt = datetime.fromtimestamp(epoch)
+    today = datetime.now().date()
+    delta_days = (today - dt.date()).days
+    when = {0: "today", 1: "yesterday"}.get(delta_days, dt.strftime("%b %-d"))
+    return f"{when} {dt.strftime('%-I:%M%p').lower()}"
+
+
+def _run_result(run_dir):
+    """High-level verdict string from summary.json, or a state if it never finished."""
+    sm = run_dir / "summary.json"
+    if not sm.exists():
+        return "INCOMPLETE (no summary — crashed/killed?)"
+    try:
+        d = json.loads(sm.read_text())
+    except Exception:
+        return "INCOMPLETE (unreadable summary)"
+    if d.get("canceled"):
+        return f"CANCELED: {d.get('cancelReason', 'gating')}"
+    t = d.get("totals") or {}
+    total, passed, failed = t.get("total", 0), t.get("passed", 0), t.get("failed", 0)
+    findings = t.get("findings", 0)
+    verdict = "FAIL" if failed else "PASS"
+    extra = f" · {findings}🔎" if findings else ""
+    return f"{verdict} · {passed}/{total} pass · {failed}✗{extra}"
+
+
+def _hyperlink(label, path, width):
+    """label left-padded to `width`, wrapped as an OSC-8 file:// hyperlink on a TTY."""
+    padded = label.ljust(width)
+    if not sys.stdout.isatty():
+        return padded
+    uri = path.resolve().as_uri()
+    return f"\033]8;;{uri}\033\\{padded}\033]8;;\033\\"
+
+
+def _recent_runs_table(limit=5, window_h=24):
+    """Table of the last `limit` qa runs started within `window_h` hours. Each row's
+    driver cell is a clickable link to that run's artifact directory."""
+    now = time.time()
+    rows = []
+    for d in OUTPUT_ROOT.glob("run-*"):
+        if not d.is_dir():
+            continue
+        params = d / "run-params.json"
+        if not params.exists():
+            continue  # qa runs only (manual single-flow runs don't write params)
+        try:
+            p = json.loads(params.read_text())
+        except Exception:
+            continue
+        started = parse_iso(p.get("startedAt"))
+        if not started or (now - started) > window_h * 3600:
+            continue
+        driver, osv = _device_label(p.get("deviceId"))
+        plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
+            p.get("platform"), (p.get("platform") or "—").capitalize())
+        platform = f"{plat} / {osv}" if osv else plat
+        flavor = "+".join(p.get("layers") or []) or "—"
+        rows.append({
+            "dir": d, "driver": driver or "—", "platform": platform,
+            "started": _fmt_started(started), "started_epoch": started,
+            "flavor": flavor, "result": _run_result(d),
+        })
+    rows.sort(key=lambda r: r["started_epoch"], reverse=True)
+    rows = rows[:limit]
+    if not rows:
+        return
+
+    cols = [("driver", "DRIVER"), ("platform", "PLATFORM"),
+            ("started", "STARTED"), ("flavor", "FLAVOR"), ("result", "RESULT")]
+    widths = {k: len(h) for k, h in cols}
+    for r in rows:
+        for k, _ in cols:
+            widths[k] = max(widths[k], len(str(r[k])))
+
+    print(f"\nLast {len(rows)} qa run(s) in the past {window_h}h "
+          f"(driver = clickable link to artifacts):")
+    header = "  ".join(h.ljust(widths[k]) for k, h in cols)
+    print("  " + header)
+    print("  " + "  ".join("-" * widths[k] for k, _ in cols))
+    for r in rows:
+        driver_cell = _hyperlink(str(r["driver"]), r["dir"], widths["driver"])
+        rest = "  ".join(str(r[k]).ljust(widths[k]) for k, _ in cols[1:])
+        print("  " + driver_cell + "  " + rest)
+
+
 def cmd_status(as_json):
     now = time.time()
     procs = ps_snapshot()
@@ -348,10 +465,17 @@ def cmd_status(as_json):
         print(json.dumps(payload, indent=2))
         return 0
 
-    if not runs and not test_procs:
-        print("✅  No tests in progress (no qa run, no maestro/vitest/newman/playwright processes).")
+    # A lingering maestro MCP server is not "a test running" — don't let it suppress the
+    # idle view + recent-runs table (it's the common leftover state).
+    non_mcp_procs = [p for p in test_procs if p["kind"] != "maestro-mcp"]
+    if not runs and not non_mcp_procs:
+        if test_procs:
+            print("✅  No tests in progress (a maestro MCP server is connected but idle).")
+        else:
+            print("✅  No tests in progress (no qa run, no maestro/vitest/newman/playwright processes).")
         if payload["panicMarker"]:
             print("⚠️   Stale PANIC marker present (tests/PANIC) — qa clears it on next start.")
+        _recent_runs_table()
         return 0
 
     for run in runs:
