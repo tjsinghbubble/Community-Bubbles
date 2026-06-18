@@ -23,7 +23,7 @@ import {
   gateSimulatorAge,
   gateAndroidEmulatorBooted,
   gateAppInstalled,
-  gateBlindTaps,
+  gateBrittleSelectors,
   gateMetro,
   gateDriverWarmup,
   gateLoadAverage,
@@ -410,9 +410,10 @@ async function main(): Promise<void> {
     }
 
     if (needsE2e) {
-      // Static, offline, fast: block device-fragile blind coordinate taps before any
-      // simulator/Metro work, so a flow lint failure cancels the suite immediately.
-      gates.push(await gateBlindTaps(REPO_ROOT));
+      // Static, offline, fast: block device-fragile ERROR-class brittle selectors (coords,
+      // relative, css, traits) before any simulator/Metro work, so a flow lint failure cancels
+      // the suite immediately. RISKY text/index selectors are warned, not failed.
+      gates.push(await gateBrittleSelectors(REPO_ROOT));
       if (args.platform === "ios") {
         gates.push(await gateSimulatorBooted());
         // Restart over-age sims before Metro/warmup so the cold start lands on a fresh boot.
