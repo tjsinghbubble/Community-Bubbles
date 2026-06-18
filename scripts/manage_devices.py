@@ -356,6 +356,30 @@ def android_avds():
     r = run([emulator_bin(), "-list-avds"])
     return [l.strip() for l in (r.stdout or "").splitlines() if l.strip()]
 
+# Android API level → marketing release, to mirror iOS's os_version style ("14" vs "26.5").
+# A running device reports its release directly via getprop; a shutdown AVD only exposes its
+# API level on disk, so we map it (unknown levels fall back to "API NN").
+_API_TO_RELEASE = {
+    28: "9", 29: "10", 30: "11", 31: "12", 32: "12", 33: "13",
+    34: "14", 35: "15", 36: "16",
+}
+
+def _release_from_api(api):
+    return _API_TO_RELEASE.get(api, f"API {api}") if api else None
+
+def _avd_os_version(avd):
+    """Marketing release of a (possibly shutdown) AVD, parsed from its config.ini's
+    `image.sysdir`/`target` (android-NN) and mapped to a release. None if not found —
+    unlike _avd_api, never guesses a default level."""
+    cfg = Path.home() / ".android" / "avd" / f"{avd}.avd" / "config.ini"
+    ini = Path.home() / ".android" / "avd" / f"{avd}.ini"
+    for p in (cfg, ini):
+        if p.exists():
+            m = re.search(r"android-(\d+)", p.read_text())
+            if m:
+                return _release_from_api(int(m.group(1)))
+    return None
+
 def android_running():
     r = run([adb_bin(), "devices"])
     out = []
@@ -380,8 +404,11 @@ def android_running():
                 if name:
                     break
             name = name or serial
+        # Marketing release straight from the live device (authoritative); one-shot getprop.
+        rel = run([adb_bin(), "-s", serial, "shell", "getprop", "ro.build.version.release"])
+        os_version = (rel.stdout or "").strip() or None
         out.append({"kind": "android", "id": name, "serial": serial,
-                    "name": name, "os_version": None, "state": "Running"})
+                    "name": name, "os_version": os_version, "state": "Running"})
     return out
 
 def android_all():
@@ -393,7 +420,8 @@ def android_all():
             out.append(running.pop(name))
         else:
             out.append({"kind": "android", "id": name, "serial": None,
-                        "name": name, "os_version": None, "state": "Shutdown"})
+                        "name": name, "os_version": _avd_os_version(name),
+                        "state": "Shutdown"})
     out.extend(running.values())  # running but not in -list-avds (rare)
     return out
 
@@ -807,7 +835,7 @@ def _flavor_label(d, row):
     typ = _platform_of(d)
     label = (f"{flavor} " if flavor != "Simulated" else "") + typ
     ver = d.get("os_version") or (row["os_version"] if row else None)
-    if typ == "iOS" and ver:
+    if ver:
         label += f" / {ver}"
     return label
 
