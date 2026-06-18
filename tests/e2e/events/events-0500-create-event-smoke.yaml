@@ -103,17 +103,28 @@ tags:
 - tapOn:
     id: button-select-date
 - waitForAnimationToEnd
-# iOS: inline spinner — tap the day-column row one below the selection (= tomorrow) to fire the
-# commit; the spinner auto-collapses ~1.5s later. (Calibrated for a 390x844-pt device.)
+# iOS: inline date spinner. TEMPORARY workaround — swipe the wheel up to advance the date.
+# We don't need a specific date, only a valid FUTURE one: minimumDate is today, and onDateChange
+# fires (setting `date`) on ANY wheel movement, so a forward swipe always lands on a usable date;
+# the spinner auto-collapses ~1.5s after. A swipe tolerates screen-size differences far better
+# than the old fixed point tap (which mis-fired on the iPhone 17). Still coordinate-based debt.
+#
+# KNOWN: this gets PAST the date step, but events-0500 still fails downstream on iOS at the
+# start-time step — tapping button-select-start-time lands on the "Search Location" picker and
+# the time-modal "Confirm" is never found. Same root cause: the new Create-Event date/time +
+# LocationPicker UI lacks testIDs/a11y (Trello 4Ivuvgkl). Until that lands, events-0500 stays
+# red on iOS; this swipe only de-flakes the date interaction itself.
 - runFlow:
     when:
       platform: iOS
     commands:
-      # blind-tap-ok: KNOWN-DEBT — iOS inline date spinner has no per-row testID; this
-      # 390x844-calibrated point mis-taps on an iPhone 17 (P2 in tmp/test-problems-
-      # prioritized.md). Replace with a selector/robust spinner interaction.
-      - tapOn:
-          point: 53%, 41%
+      - takeScreenshot: ${SHOT_PREFIX}event-ios-datespinner
+      # blind-tap-ok: TEMP — no testID on the iOS inline date-spinner rows; swipe to advance to a
+      # future date. Replace with a selector once the picker is instrumented (Trello 4Ivuvgkl).
+      - swipe:
+          start: 50%, 44%
+          end: 50%, 32%
+          duration: 600
       - waitForAnimationToEnd:
           timeout: 3000
 # Android: native DatePickerDialog (min = today). OK commits the default date (today) via

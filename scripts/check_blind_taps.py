@@ -25,8 +25,14 @@ DEFAULT_ROOTS = [REPO_ROOT / "tests" / "e2e"]
 
 OK_MARKER = "blind-tap-ok"
 
-# A `point:` key (YAML mapping) is always a blind locator.
-POINT_KEY = re.compile(r"^\s*point\s*:", re.IGNORECASE)
+# A `point:`, `start:`, or `end:` key whose value is a coordinate pair (x,y or x%,y%) is a
+# blind locator. `start:`/`end:` are the coordinate forms of `swipe:` — a swipe driven by
+# raw coordinates is the same device-size-fragile debt as a coordinate tap.
+POINT_KEY = re.compile(
+    r"^\s*(?:point|start|end)\s*:\s*['\"]?"
+    r"\d+(?:\.\d+)?%?\s*,\s*\d+(?:\.\d+)?%?",
+    re.IGNORECASE,
+)
 # An inline coordinate tap: `tapOn: "50%, 50%"`, `tapOn: 100, 200`, longPressOn, …
 INLINE_COORD = re.compile(
     r"^\s*(?:tapOn|longPressOn|doubleTapOn)\s*:\s*['\"]?"
@@ -35,8 +41,10 @@ INLINE_COORD = re.compile(
 )
 
 
-_OWNER = re.compile(r"^-?\s*(?:tapOn|longPressOn|doubleTapOn|commands)\s*:",
+_OWNER = re.compile(r"^-?\s*(?:tapOn|longPressOn|doubleTapOn|swipe|commands)\s*:",
                     re.IGNORECASE)
+# Non-coordinate sibling props of a swipe block, stepped over when locating its annotation.
+_SWIPE_PROP = re.compile(r"^-?\s*(?:duration|direction)\s*:", re.IGNORECASE)
 
 
 def _annotated(lines, idx):
@@ -53,7 +61,11 @@ def _annotated(lines, idx):
             j -= 1
         elif OK_MARKER in s:
             return True
-        elif s.startswith("#") or _OWNER.match(s):
+        # Step over blanks, comments, the owning command header (tapOn/swipe/…), and the
+        # block's sibling property lines (start/end/point coords, duration, direction) so a
+        # `# blind-tap-ok` above a multi-line swipe covers all of its coordinate lines.
+        elif (s.startswith("#") or _OWNER.match(s) or POINT_KEY.match(s)
+              or _SWIPE_PROP.match(s)):
             j -= 1
         else:
             break
