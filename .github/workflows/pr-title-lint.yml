@@ -6,7 +6,7 @@ on:
 
 jobs:
   lint-pr-title:
-    name: Validate PR title
+    name: Validate PR title (conventional commit)
     runs-on: ubuntu-latest
     steps:
       - name: Check PR title is not empty
