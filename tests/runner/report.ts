@@ -91,7 +91,32 @@ export class Run {
     this.id = `run-${utcStamp(new Date())}-${nonce}`;
     this.dir = join(OUTPUT_ROOT, this.id);
     mkdirSync(this.dir, { recursive: true });
+    this.writePlaceholderSummary();
     this.beat("starting");
+  }
+
+  /**
+   * Drop a placeholder summary.json the moment the run dir exists, BEFORE any test
+   * runs. finalize() overwrites it on a clean finish; if the process is killed/crashes
+   * mid-run, this minimal file is what remains — a legible clue (canceled=true,
+   * finishedAt="unknown") instead of a missing, empty, or half-written summary.json.
+   */
+  private writePlaceholderSummary(): void {
+    const placeholder = {
+      meta: {
+        runId: this.id,
+        canceled: true,
+        startedAt: this.startedAt.toISOString(),
+        finishedAt: "unknown",
+        cancelReason: "incomplete — placeholder, run never finalized",
+        totals: {},
+      },
+      gates: [],
+      results: [],
+    };
+    try {
+      writeFileSync(join(this.dir, "summary.json"), JSON.stringify(placeholder, null, 2));
+    } catch { /* best-effort */ }
   }
 
   /**
@@ -170,11 +195,17 @@ export class Run {
     const failed = this.results.filter((r) => r.status === "fail" && !r.knownBug && !r.expectedFinding).length;
     const passed = this.results.filter((r) => r.status === "pass").length;
     const summary = {
-      runId: this.id,
-      finishedAt: new Date().toISOString(),
-      canceled: extra.canceled ?? false,
-      cancelReason: extra.cancelReason,
-      totals: { total: this.results.length, passed, failed, knownBugs, findings },
+      meta: {
+        runId: this.id,
+        startedAt: this.startedAt.toISOString(),
+        finishedAt: new Date().toISOString(),
+        canceled: extra.canceled ?? false,
+        cancelReason: extra.cancelReason,
+        // `targeted` = jobs the run set out to execute (tests × roles), independent of how
+        // many actually produced a result. For a clean run targeted === total; for an
+        // aborted/canceled run targeted > total, and it is the honest pass-rate denominator.
+        totals: { total: this.results.length, targeted: this.hbTotalJobs ?? this.results.length, passed, failed, knownBugs, findings },
+      },
       gates: extra.gates,
       results: this.results,
     };

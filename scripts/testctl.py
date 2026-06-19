@@ -8,15 +8,18 @@ health scripts, humans, and the test scripts themselves.
   testctl.py status            what is running right now (test, step, runner, invoker, timings)
   testctl.py nuke LIST         stop test runners (known method first, else SIGQUIT → 2s → SIGKILL)
   testctl.py health            diagnose the local test environment
-  testctl.py inspect [TEST] [RUN_DIR]   interactive failure inspector for a run's artifacts
+  testctl.py inspect [last|all|recent|<N> [<B>]] [RUN_DIR]   artifact inspector
   testctl.py --json <cmd>      machine-readable output for any command
 
-Inspect: with no RUN_DIR it uses the current run (heartbeat) or the newest
-tests/output/run-*; with no TEST it menus the failing tests. TEST parsing is
-forgiving ("auth 100, site admin", a pasted summary line, "uc-182", …).
-Inside, a typed/numbered command menu: failure, code, use case, images,
-run cmd, movie, params, dir, prompt, trello draft, internal log, configure.
-`--cmd <name>` runs a single command non-interactively.
+Inspect is a menu app; CLI args are deep-links into its nav tree (RUNS → RUN →
+TEST). With no RUN_DIR it uses the current run (heartbeat) or the newest
+tests/output/run-*. `inspect` lists the run's non-OK tests; `inspect all` lists
+them all; `inspect last` is the explicit last run; `inspect <N>` drills into test
+N (canonical # = execution order, stable across filters); `inspect <N> <B>` runs
+menu item B on it; `inspect recent` browses every run in the window. A test name
+still parses forgivingly ("auth 100, site admin", a pasted summary line, "uc-182").
+The per-test menu: failure, code, use case, images, run cmd, movie, params, dir,
+prompt, trello draft, internal log, configure. `--cmd <name>` runs one step.
 
 Nuke targets (comma list, positional or --nuke=LIST): qa, mcp, cli, xcodebuild,
 headless (vitest+newman), playwright, maestro (= cli+mcp+xcodebuild), all | them-all.
@@ -321,23 +324,72 @@ def _fmt_started(epoch):
     return f"{when} {dt.strftime('%-I:%M%p').lower()}"
 
 
-def _run_result(run_dir):
-    """High-level verdict string from summary.json, or a state if it never finished."""
+def _summary_meta(run_dir):
+    """The summary.json `meta` block (new shape) or the top-level dict (old shape),
+    or None when there is no readable summary."""
     sm = run_dir / "summary.json"
     if not sm.exists():
-        return "INCOMPLETE (no summary — crashed/killed?)"
+        return None
     try:
         d = json.loads(sm.read_text())
     except Exception:
-        return "INCOMPLETE (unreadable summary)"
-    if d.get("canceled"):
-        return f"CANCELED: {d.get('cancelReason', 'gating')}"
-    t = d.get("totals") or {}
-    total, passed, failed = t.get("total", 0), t.get("passed", 0), t.get("failed", 0)
-    findings = t.get("findings", 0)
-    verdict = "FAIL" if failed else "PASS"
-    extra = f" · {findings}🔎" if findings else ""
-    return f"{verdict} · {passed}/{total} pass · {failed}✗{extra}"
+        return None
+    return d.get("meta") or d
+
+
+# Result-column styling. GREEN (bold) = mostly good news; RED = mostly bad; "" = mixed.
+_ANSI = {"green": "\033[1;32m", "red": "\033[31m", "reset": "\033[0m"}
+
+
+def _style(text, style):
+    if not style or not sys.stdout.isatty():
+        return text
+    return f"{_ANSI[style]}{text}{_ANSI['reset']}"
+
+
+def _run_result(run_dir):
+    """(label, style) summarizing a run, per the agreed decision table.
+
+    style ∈ {"green","red",""}: green = highlight good news, red = bad, "" = mixed.
+    The pass-rate denominator is `targeted` (jobs the run set out to run), so an
+    aborted run reports its honest fraction (18/37, not 18/18)."""
+    m = _summary_meta(run_dir)
+    if m is None:
+        return "No summary (crashed/killed?)", "red"
+    t = m.get("totals") or {}
+    ran = t.get("total", 0)
+    targeted = t.get("targeted") or ran
+    passed = t.get("passed", 0)
+    new_fail = t.get("failed", 0)
+    backlog = t.get("knownBugs", 0) + t.get("findings", 0)
+
+    # ── canceled / aborted (RED) ────────────────────────────────────────────
+    if m.get("canceled"):
+        reason = (m.get("cancelReason") or "").lower()
+        note = f" · {ran}/{targeted} ran" if ran else ""
+        if reason == "user":
+            return f"Canceled by user{note}", "red"
+        if reason == "panic" or "incomplete" in reason or "placeholder" in reason:
+            return f"Crashed/incomplete{note}", "red"
+        return "Failed gating", "red"
+
+    # ── bad news (RED) ──────────────────────────────────────────────────────
+    if ran == 0:
+        return "No tests ran", "red"
+    if new_fail / ran > 0.9:
+        return f"Nearly everything failed ({new_fail}/{ran})", "red"
+
+    # ── good news (GREEN, bold) ─────────────────────────────────────────────
+    if new_fail == 0:
+        if backlog == 0:
+            return "100% clear — all pass, no backlog", "green"
+        kb, fd = t.get("knownBugs", 0), t.get("findings", 0)
+        return f"Green — {kb}🐞 {fd}🔎 carried, 0 new", "green"
+
+    # ── mixed (no highlight) ────────────────────────────────────────────────
+    pct = round(100 * passed / targeted) if targeted else 0
+    carried = f" · {backlog} carried" if backlog else ""
+    return f"{pct}% pass ({passed}/{targeted}) · {new_fail}✗ new{carried}", ""
 
 
 def _hyperlink(label, path, width):
@@ -349,9 +401,11 @@ def _hyperlink(label, path, width):
     return f"\033]8;;{uri}\033\\{padded}\033]8;;\033\\"
 
 
-def _recent_runs_table(limit=5, window_h=24):
-    """Table of the last `limit` qa runs started within `window_h` hours. Each row's
-    driver cell is a clickable link to that run's artifact directory."""
+RUNS_WINDOW_H = 72  # how far back the recent-runs table reaches
+
+
+def _collect_recent_runs(window_h=RUNS_WINDOW_H):
+    """All qa runs started within `window_h` hours, newest first. One row dict each."""
     now = time.time()
     rows = []
     for d in OUTPUT_ROOT.glob("run-*"):
@@ -367,37 +421,55 @@ def _recent_runs_table(limit=5, window_h=24):
         started = parse_iso(p.get("startedAt"))
         if not started or (now - started) > window_h * 3600:
             continue
+        m = _summary_meta(d)
+        fin = parse_iso(m.get("finishedAt")) if m else None
+        runtime = f"{(fin - started) / 3600:.1f}" if fin else "—"
         driver, osv = _device_label(p.get("deviceId"))
         plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
             p.get("platform"), (p.get("platform") or "—").capitalize())
         platform = f"{plat} / {osv}" if osv else plat
         flavor = "+".join(p.get("layers") or []) or "—"
+        label, rstyle = _run_result(d)
         rows.append({
             "dir": d, "driver": driver or "—", "platform": platform,
             "started": _fmt_started(started), "started_epoch": started,
-            "flavor": flavor, "result": _run_result(d),
+            "runtime": runtime, "flavor": flavor,
+            "result": label, "result_style": rstyle,
         })
     rows.sort(key=lambda r: r["started_epoch"], reverse=True)
-    rows = rows[:limit]
-    if not rows:
-        return
+    return rows
 
-    cols = [("driver", "DRIVER"), ("platform", "PLATFORM"),
-            ("started", "STARTED"), ("flavor", "FLAVOR"), ("result", "RESULT")]
+
+def _recent_runs_table(rows=None, window_h=RUNS_WINDOW_H, numbered=False):
+    """Render the recent-runs table (no row cap, reverse-chronological). With
+    numbered=True each row gets a 1-based index for `inspect recent` selection.
+    Returns the rows so callers can map an index back to a run dir."""
+    if rows is None:
+        rows = _collect_recent_runs(window_h)
+    if not rows:
+        return rows
+
+    cols = [("driver", "Driver"), ("platform", "Platform"),
+            ("started", "Started"), ("runtime", "Run Time"),
+            ("flavor", "Flavor"), ("result", "Result")]
     widths = {k: len(h) for k, h in cols}
     for r in rows:
         for k, _ in cols:
             widths[k] = max(widths[k], len(str(r[k])))
 
-    print(f"\nLast {len(rows)} qa run(s) in the past {window_h}h "
-          f"(driver = clickable link to artifacts):")
+    numw = len(str(len(rows)))
+    pad = (" " * (numw + 4)) if numbered else "  "  # "  {i}) " is numw+4 wide
+    print(f"\nQa runs in the past {window_h}h (driver = clickable link to artifacts):")
     header = "  ".join(h.ljust(widths[k]) for k, h in cols)
-    print("  " + header)
-    print("  " + "  ".join("-" * widths[k] for k, _ in cols))
-    for r in rows:
+    print(pad + header)
+    print(pad + "  ".join("-" * widths[k] for k, _ in cols))
+    for i, r in enumerate(rows, 1):
+        prefix = f"  {str(i).rjust(numw)}) " if numbered else "  "
         driver_cell = _hyperlink(str(r["driver"]), r["dir"], widths["driver"])
-        rest = "  ".join(str(r[k]).ljust(widths[k]) for k, _ in cols[1:])
-        print("  " + driver_cell + "  " + rest)
+        mid = "  ".join(str(r[k]).ljust(widths[k]) for k, _ in cols[1:-1])
+        result_cell = _style(str(r["result"]).ljust(widths["result"]), r["result_style"])
+        print(prefix + driver_cell + "  " + mid + "  " + result_cell)
+    return rows
 
 
 def cmd_status(as_json):
@@ -1522,12 +1594,28 @@ def print_command_menu(with_desc=True):
             print(f"  {i:>2}) {key}")
 
 
-def print_test_menu(entries, failing_only):
-    shown = [e for e in entries if e.failing] if failing_only else entries
-    title = "Failing tests" if failing_only else "Tests in this run"
-    print(f"\n{title}:")
-    for i, e in enumerate(shown, 1):
-        print(f"  {i:>2}) {e.label()}")
+TEST_FILTER_TITLE = {"fails": "Failing / non-OK tests", "passes": "Passing tests",
+                     "all": "All tests in this run"}
+
+
+def filter_entries(entries, mode):
+    """[(canonical_num, entry)] for the filter mode. The canonical number is the
+    test's 1-based position in execution order and is stable across filters — so
+    `3` always names the same test whether the view is fails, passes, or all."""
+    if mode == "fails":
+        keep = lambda e: e.failing
+    elif mode == "passes":
+        keep = lambda e: not e.failing
+    else:
+        keep = lambda e: True
+    return [(i, e) for i, e in enumerate(entries, 1) if keep(e)]
+
+
+def print_test_menu(entries, mode):
+    shown = filter_entries(entries, mode)
+    print(f"\n{TEST_FILTER_TITLE[mode]} ({len(shown)} of {len(entries)}):")
+    for num, e in shown:
+        print(f"  {num:>2}) {e.label()}")
     return shown
 
 
@@ -1564,21 +1652,122 @@ def inspect_command_loop(e, run):
             print(f"  ⚠️  {cmd[0]} failed: {err}")
 
 
+RECOGNIZED_KW = {"all", "last", "fails", "failing", "failed",
+                 "passes", "passing", "passed"}
+
+
+def _mode_from_kws(kws):
+    mode = "fails"
+    for kw in kws:
+        if kw == "all":
+            mode = "all"
+        elif kw in ("passes", "passing", "passed"):
+            mode = "passes"
+        elif kw in ("fails", "failing", "failed", "last"):
+            mode = "fails"
+    return mode
+
+
+def run_menu_loop(run, mode="fails", from_recent=False):
+    """RUN level: list a run's tests (filtered), drill into one. Returns 'quit' or,
+    when from_recent, 'back' to return to the run list."""
+    entries = run["entries"]
+    while True:
+        shown = print_test_menu(entries, mode)
+        if not shown:
+            print("  (none in this view — try 'all')")
+        opts = ["# = test", "all/fails/passes = filter"]
+        if from_recent:
+            opts.append("'runs' = run list")
+        opts.append("'q' quits")
+        try:
+            raw = input(f"\nSelect ({', '.join(opts)}): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return "quit"
+        if not raw:
+            continue
+        n = norm_input(raw)
+        if n in ("q", "quit", "exit"):
+            return "quit"
+        if n in ("all", "a"):
+            mode = "all"; continue
+        if n in ("fails", "f", "failing", "failed"):
+            mode = "fails"; continue
+        if n in ("passes", "p", "passing", "passed"):
+            mode = "passes"; continue
+        if from_recent and n in ("runs", "recent", "r", "back", "b"):
+            return "back"
+        if n.isdigit():
+            idx = int(n)
+            if not (1 <= idx <= len(entries)):
+                print(f"  no test #{idx} (this run has {len(entries)})")
+                continue
+            sel = entries[idx - 1]
+        else:
+            sel, perr = parse_test_spec(raw, entries)
+            if perr:
+                print(f"🔴🥺 {perr}")
+                continue
+        if inspect_command_loop(sel, run) == "quit":
+            return "quit"
+
+
+def recent_browser():
+    """RUNS level: numbered table of every run in the window; pick one to drill in."""
+    while True:
+        rows = _recent_runs_table(numbered=True)
+        if not rows:
+            print(f"No qa runs in the past {RUNS_WINDOW_H}h.")
+            return 0
+        try:
+            raw = input(f"\nSelect run (1-{len(rows)}; 'q' quits): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return 0
+        n = norm_input(raw)
+        if n in ("q", "quit", "exit"):
+            return 0
+        if not n.isdigit() or not (1 <= int(n) <= len(rows)):
+            print(f"  enter a number 1-{len(rows)}")
+            continue
+        run = load_run(rows[int(n) - 1]["dir"])
+        if not run["entries"]:
+            print(f"  No test artifacts in {run['dir'].name}")
+            continue
+        if run_menu_loop(run, from_recent=True) == "quit":
+            return 0
+
+
 def cmd_inspect(spec_args, one_cmd, as_json):
     try:
         import readline  # noqa: F401 — line editing + history for input()
     except ImportError:
         pass
 
-    # Positionals are sniffed: an existing path (or anything with a /) is the run
-    # directory; the remaining words form the test spec.
-    run_arg, spec_words = None, []
+    # Split positionals: a path (or anything with a "/") is the run dir; the rest are
+    # words — keywords (recent/all/last/fails/passes) and/or numbers (test #, item #).
+    run_arg, words = None, []
     for a in spec_args or []:
         if run_arg is None and ("/" in a or Path(a).expanduser().exists()):
             run_arg = a
         else:
-            spec_words.append(a)
-    spec = " ".join(spec_words).strip()
+            words.append(a)
+    first = words[0].lower() if words else ""
+    interactive = sys.stdin.isatty()
+
+    # `inspect recent` → browse ALL runs in the window, then drill in.
+    if first in ("recent", "runs"):
+        if as_json:
+            rows = _collect_recent_runs()
+            print(json.dumps({"recent": [
+                {"dir": str(r["dir"]), "started": r["started"], "platform": r["platform"],
+                 "runtimeHours": r["runtime"], "result": r["result"]} for r in rows]}, indent=2))
+            return 0
+        if not interactive:
+            _recent_runs_table(numbered=True)
+            return 0
+        return recent_browser()
 
     run = load_run(find_run_dir(run_arg))
     entries = run["entries"]
@@ -1599,61 +1788,51 @@ def cmd_inspect(spec_args, one_cmd, as_json):
     state = "in progress / no summary" if run["live"] else "finished"
     print(f"Run {run['dir'].name}  ({state}; {len(failing)} failing of {len(entries)})")
 
-    selected, err = (None, None)
-    if spec:
-        selected, err = parse_test_spec(spec, entries)
+    # Parse word args. Pure-number args are canonical indices (test #, then item #);
+    # anything with a non-keyword word is a forgiving spec ("auth 100, site admin").
+    kws = [w.lower() for w in words]
+    mode = _mode_from_kws(kws)
+    leftover = [w for w in words if w.lower() not in RECOGNIZED_KW]
+    selected, item = None, None
+    if leftover and all(w.isdigit() for w in leftover):
+        idx = int(leftover[0])
+        if not (1 <= idx <= len(entries)):
+            print(f"🔴🥺 no test #{idx} (this run has {len(entries)})")
+            return 2
+        selected = entries[idx - 1]
+        item = leftover[1] if len(leftover) > 1 else None
+    elif leftover:
+        selected, err = parse_test_spec(" ".join(leftover), entries)
         if err:
             print(f"🔴🥺 {err}")
-            if one_cmd or not sys.stdin.isatty():
+            if one_cmd or not interactive:
                 return 2
 
-    interactive = sys.stdin.isatty()
-    if selected and one_cmd:
-        cmd = match_command(one_cmd)
+    # A menu item on the command line (the B in `inspect N B`) or --cmd runs at once.
+    run_item = item or one_cmd
+    if selected and run_item:
+        cmd = match_command(run_item)
         if cmd is None or cmd[0] == "help":
             print_command_menu()
             return 0 if cmd else 2
         cmd[3](selected, run)
-        return 0
+        if not interactive:
+            return 0
+
     if not interactive:
-        # Non-interactive without --cmd: just list, never hang on input().
-        shown = print_test_menu(entries, failing_only=bool(failing))
+        shown = print_test_menu(entries, mode)
         if not shown:
             print("  (none)")
-        print("\n(no tty — pass a test name and --cmd <command> to run one inspection step)")
+        print("\n(no tty — `inspect <N>` then a menu number, or --cmd <command>, runs one step)")
         return 0
 
-    failing_only = bool(failing)
-    while True:
-        if selected is None:
-            shown = print_test_menu(entries, failing_only)
-            if failing_only and not shown:
-                print("  (no failing tests)")
-            prompt = "Select test (number or name"
-            prompt += "; 'all' lists every test" if failing_only else ""
-            try:
-                raw = input(prompt + "; 'q' quits): ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                return 0
-            if not raw:
-                continue
-            n = norm_input(raw)
-            if n in ("q", "quit", "exit"):
-                return 0
-            if n in ("all", "a"):
-                failing_only = False
-                continue
-            if n.isdigit() and 1 <= int(n) <= len(shown):
-                selected = shown[int(n) - 1]
-            else:
-                selected, perr = parse_test_spec(raw, entries)
-                if perr:
-                    print(f"🔴🥺 {perr}")
-                    continue
+    # Interactive: a chosen test drops into its menu; 'back' falls through to the run
+    # menu, so the whole run stays navigable from a deep-link.
+    if selected:
         if inspect_command_loop(selected, run) == "quit":
             return 0
-        selected = None
+    run_menu_loop(run, mode=mode)
+    return 0
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -1670,11 +1849,11 @@ def main():
     p_nuke.add_argument("--nuke", metavar="LIST",
                         help="same as the positional LIST (kept for npm qa:nuke compatibility)")
     p_health = sub.add_parser("health", help="diagnose the local test environment")
-    p_inspect = sub.add_parser("inspect", help="interactive inspector for a run's failing tests")
-    p_inspect.add_argument("spec", nargs="*", metavar="TEST|RUN_DIR",
-                           help="optional test name (forgiving: 'auth 100, site admin', a pasted "
-                                "summary line, 'uc-182') and/or a run directory (default: current "
-                                "or newest run)")
+    p_inspect = sub.add_parser("inspect", help="artifact inspector for a run's tests")
+    p_inspect.add_argument("spec", nargs="*", metavar="ARG",
+                           help="last | all | recent | <N> [<B>] | a forgiving test name "
+                                "('auth 100, site admin', a pasted summary line, 'uc-182') "
+                                "and/or a run directory (default: current or newest run)")
     p_inspect.add_argument("--cmd", metavar="NAME",
                            help="run one menu command non-interactively (failure, code, run, …)")
     for p in (p_status, p_nuke, p_health, p_inspect):

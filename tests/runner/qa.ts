@@ -377,6 +377,22 @@ async function main(): Promise<void> {
   // ── Phase A: gating ──────────────────────────────────────────────────────
   const gates: GateResult[] = [];
   let canceled: string | undefined;
+
+  // Ctrl-C / Ctrl-\ : finalize with an explicit "user" reason so the run is legible
+  // as a deliberate cancel (not a crash). Without this the process just dies and only
+  // the placeholder summary remains — indistinguishable from a mid-run crash.
+  let cancelHandled = false;
+  for (const sig of ["SIGINT", "SIGQUIT"] as const) {
+    process.on(sig, () => {
+      if (cancelHandled) return;
+      cancelHandled = true;
+      console.error(`\n🚫  ${sig} — canceled by user; finalizing partial summary.`);
+      try {
+        run.finalize({ canceled: true, cancelReason: "user", gates });
+      } catch { /* best-effort; the placeholder summary still stands */ }
+      process.exit(130);
+    });
+  }
   // The resolved e2e device id (UDID / adb serial) that pins every Maestro invocation.
   let e2eDeviceId = "";
   if (args.gate && selected.length > 0) {
@@ -568,7 +584,7 @@ async function main(): Promise<void> {
       artifactsDir,
       message: status === "pass" ? ""
         : knownBug ? "known bug (see artifacts)"
-        : expectedFinding ? "expected finding (see artifacts)"
+        : expectedFinding ? "unverified (see artifacts)"
         : "see artifacts",
     };
     run.record(result);
@@ -600,7 +616,7 @@ async function main(): Promise<void> {
   const { summaryPath, failed, findings, knownBugs, ran } = run.finalize({ gates });
   console.log("\n── Summary ────────────────────────────");
   run.printTable();
-  console.log(`\n  ${failed} new failure(s), ${knownBugs} known bug(s), ${findings} expected finding(s).`);
+  console.log(`\n  ${failed} new failure(s), ${knownBugs} known bug(s), ${findings} unverified.`);
   const hhmmss = (d: Date) => d.toTimeString().slice(0, 8); // local, 24-hour
   const pct = (num: number, den: number) => (den > 0 ? `${((num / den) * 100).toFixed(1)}%` : "n/a");
   const failedAll = failed + knownBugs + findings; // every fail-status test, however classified
