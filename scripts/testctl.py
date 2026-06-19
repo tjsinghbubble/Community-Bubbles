@@ -314,6 +314,75 @@ def _device_label(device_id):
         return device_id, None
 
 
+def _device_udid(device_id):
+    """Resolve a device id (iOS udid OR android adb serial) to its canonical udid."""
+    if not device_id or not DEVICE_DB.exists():
+        return device_id
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{DEVICE_DB}?mode=ro", uri=True, timeout=2)
+        row = con.execute("SELECT udid FROM devices WHERE udid=? OR serial=?",
+                          (device_id, device_id)).fetchone()
+        con.close()
+        return row[0] if row else device_id
+    except Exception:
+        return device_id
+
+
+def _last_alias_for(device_id):
+    """'last-ios'/'last-android' if device_id is the recorded last device, else None."""
+    if not device_id or not DEVICE_DB.exists():
+        return None
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{DEVICE_DB}?mode=ro", uri=True, timeout=2)
+        udid = _device_udid(device_id)
+        out = None
+        for key, alias in (("last_ios", "last-ios"), ("last_android", "last-android")):
+            row = con.execute("SELECT v FROM kv WHERE k=?", (key,)).fetchone()
+            if row and row[0] == udid:
+                out = alias
+                break
+        con.close()
+        return out
+    except Exception:
+        return None
+
+
+def _device_aliases(device_id):
+    """Every human handle for a device — name alias, last-<platform>, raw id — so any
+    place that prints a deviceId can show all the ways to name it (Travis, Low item)."""
+    out = []
+    name, _os = _device_label(device_id)
+    if name and name != device_id:
+        out.append(name)
+    last = _last_alias_for(device_id)
+    if last:
+        out.append(last)
+    if device_id:
+        out.append(device_id)
+    return out
+
+
+def _sim_token(device_id, platform):
+    """Best `--sim` token for a re-run, in priority order: name alias → last-<platform>
+    → raw id. The raw adb serial often does NOT resolve (`manage_devices --resolve
+    emulator-5554` fails) while the name alias / last-android do — so name/last-* first."""
+    if not device_id:
+        return f"last-{platform}" if platform in ("ios", "android") else None
+    name, _os = _device_label(device_id)
+    if name and name != device_id:
+        return name
+    return _last_alias_for(device_id) or device_id
+
+
+def _looks_headless(_device_id, platform):
+    """Best-effort 'will the screen be black?' check. On this host the Android emulator
+    boots -no-window + swiftshader (screenshots/recordings come back BLACK); iOS sims are
+    windowed. There is no persisted headless flag, so this is a 'likely', not a certainty."""
+    return platform == "android"
+
+
 def _fmt_started(epoch):
     if not epoch:
         return "—"
@@ -1332,6 +1401,10 @@ def cmd_show_use_case(e, run):
             print(f"\nUC {uc}:")
             for i, h in enumerate(header):
                 v = r[i].strip() if i < len(r) else ""
+                # The recorded manual-testing status is stale/untrustworthy; the use-case
+                # command is slated for rework (deferred). Stub it rather than mislead.
+                if "Manual testing status" in h:
+                    v = "FIXME - future work"
                 if v and h.strip():
                     print(f"  {h.strip():<28} {v}")
 
@@ -1348,6 +1421,7 @@ def build_run_cmd(e, run):
     params = run["params"]
     envname = params.get("env", "local")
     platform = params.get("platform", "ios")
+    device_id = params.get("deviceId")
     if e.tool == "maestro":
         src = find_source_by_qa_id(e.id, e.layer)
         rel = src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
@@ -1356,8 +1430,14 @@ def build_run_cmd(e, run):
             cmd += f" --role {e.role}"
         if envname != "local":
             cmd += f" --env {envname}"
-        if platform == "web":
-            cmd += " --platform web"
+        # Preserve the run's platform (qa:flow defaults to iOS) and pin the device by a
+        # RESOLVABLE token. Without this, an android run re-ran on iOS — the core bug.
+        if platform != "ios":
+            cmd += f" --platform {platform}"
+        if platform != "web":
+            tok = _sim_token(device_id, platform)
+            if tok:
+                cmd += f" --sim {tok}"
         return cmd
     base = params.get("apiBaseUrl", f"http://localhost:{API_PORT}")
     if e.tool == "vitest":
@@ -1378,42 +1458,102 @@ def cmd_run_cmd(e, run):
 
 
 def cmd_run_movie(e, run):
-    base = build_run_cmd(e, run)
     if e.tool != "maestro":
+        base = build_run_cmd(e, run)
         print("  Headless test — there is no screen to record; plain re-run command instead:")
         print(f"  {base}")
         if clipboard_copy(base):
             print("  📋 copied to the clipboard")
         return
-    stamp = datetime.now().strftime("%Y%m%dt%H%M%S")
-    leaf = f"{e.id}-{e.role}" if e.role else e.id
-    mov = f"tmp/maestro/movie-{leaf}-{stamp}.mp4"
-    cmd = (f"mkdir -p tmp/maestro; "
-           f"xcrun simctl io booted recordVideo --codec h264 --force {mov} & REC=$!; "
-           f"{base}; kill -INT $REC; wait $REC; echo movie: {mov}")
-    print(f"  {cmd}")
-    if clipboard_copy(cmd):
-        print("  📋 copied to the clipboard")
+    p = run["params"]
+    platform = p.get("platform", "ios")
+    device_id = p.get("deviceId")
+    src = find_source_by_qa_id(e.id, e.layer)
+    rel = src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
+    env = p.get("env", "local")
+    env_arg = f" --env {env}" if env != "local" else ""
+    fn_leaf = re.sub(r"[^a-z0-9]+", "_",
+                     (f"{e.id}-{short_role(e.role)}" if e.role else e.id).lower()).strip("_")
+    fn = f"movie_run_{fn_leaf}"
+    dev = _sim_token(device_id, platform) or platform
+    role = e.role or ""
+    # A re-runnable zsh FUNCTION (not a one-shot one-liner): optional $1 platform, $2 device
+    # alias, $3 role. The device alias is resolved to a native id at call time via
+    # manage_devices (Travis: $() to map alias → native recorder). iOS=simctl, Android=adb.
+    # Warmup is still recorded (trim deferred). Output name is computed at call time.
+    body = f"""{fn}() {{
+  emulate -L zsh
+  local platform="${{1:-{platform}}}" device="${{2:-{dev}}}" role="${{3:-{role}}}"
+  local native; native="$(python3 scripts/manage_devices.py --resolve "$device")" \\
+      || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
+  local out="tmp/maestro/movie-{fn_leaf}-$(date -u +%Y%m%dt%H%M%S).mp4"
+  mkdir -p tmp/maestro
+  local -a flow=(npm run qa:flow -- {rel}{env_arg})
+  [[ -n "$role" ]] && flow+=(--role "$role")
+  flow+=(--platform "$platform" --sim "$device")
+  if [[ "$platform" == android ]]; then
+    print "movie[android]: screenrecord on $native (NB: -no-window emulator records BLACK on this host)"
+    adb -s "$native" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local rec=$!
+    "${{flow[@]}}"
+    adb -s "$native" shell pkill -INT screenrecord 2>/dev/null; wait $rec 2>/dev/null
+    adb -s "$native" pull /sdcard/{fn_leaf}.mp4 "$out" && adb -s "$native" shell rm -f /sdcard/{fn_leaf}.mp4
+  else
+    print "movie[ios]: simctl recordVideo on $native"
+    xcrun simctl io "$native" recordVideo --codec h264 --force "$out" & local rec=$!
+    "${{flow[@]}}"
+    kill -INT $rec; wait $rec 2>/dev/null
+  fi
+  print "movie: $out"
+}}"""
+    print(body)
+    copied = clipboard_copy(body)
+    print(f"\n  {'📋 function copied — paste into your shell, then call:' if copied else 'paste into your shell, then call:'}")
+    print(f"     {fn}                          # defaults: {platform} / {dev} / {short_role(e.role) or 'no role'}")
+    print(f"     {fn} ios June role-user       # override platform / device / role")
 
 
 def cmd_show_params(e, run):
+    p = run["params"]
+    platform = p.get("platform", "ios")
+    device_id = p.get("deviceId")
+    src = find_source_by_qa_id(e.id, e.layer)
     print(f"  test     : {e.id}" + (f" [{e.role}]" if e.role else ""))
     print(f"  runner   : {e.tool} (layer {e.layer})")
     print(f"  status   : {e.status}" + (f"  ({(e.duration_ms or 0) / 1000:.4f}s)" if e.duration_ms else ""))
     if e.tags:
-        print(f"  tags     : {', '.join(e.tags)}")
+        # Flows are iOS-authored, so an 'ios'/'android' tag is about the flow's origin,
+        # NOT the platform this run executed on. Call it out to avoid the classic trap.
+        note = ""
+        if platform != "ios" and "ios" in e.tags:
+            note = f"   (⚠ 'ios' is a flow-authoring tag — this run was {platform})"
+        elif platform == "ios" and "android" in e.tags:
+            note = "   (⚠ 'android' is a flow-authoring tag — this run was ios)"
+        print(f"  tags     : {', '.join(e.tags)}{note}")
     if e.reason:
         print(f"  reason   : {e.reason}")
-    p = run["params"]
-    if p:
-        print("  run-params.json:")
-        for k, v in p.items():
-            if k == "selectedTestIds":
-                v = f"[{len(v)} tests]"
-            print(f"    {k:<16} {v}")
+    if e.tool == "maestro":
+        print(f"  flow     : {src.relative_to(REPO) if src else '(source not found by qa-id)'}")
+    print("  ── how this was run ──────────────────────────────")
+    print(f"  platform : {platform}")
+    if platform != "web":
+        aliases = _device_aliases(device_id)
+        hl = "   [likely headless — black screen on this host]" if _looks_headless(device_id, platform) else ""
+        print(f"  device   : {' / '.join(aliases) if aliases else '(unknown)'}{hl}")
+    print(f"  env      : {p.get('env', 'local')}    api: {p.get('apiBaseUrl', '?')}    db: {p.get('dbClassification', '?')}")
+    print(f"  command  : {build_run_cmd(e, run)}")
     load_gate = next((g for g in run["gates"] if g.get("name") == "load-average"), None)
     if load_gate:
-        print(f"  load at run time: {load_gate.get('message')}")
+        print(f"  load     : {load_gate.get('message')}")
+    # Run-level provenance, compact — no 138-id selectedTestIds dump (the old noise).
+    scope = []
+    if p.get("roles"):
+        scope.append(f"{len(p['roles'])} roles")
+    if p.get("layers"):
+        scope.append("+".join(p["layers"]))
+    if p.get("selectedTestIds"):
+        scope.append(f"{len(p['selectedTestIds'])} tests selected")
+    print(f"  run      : {p.get('startedAt', run['dir'].name)}  @{p.get('gitSha', '?')}"
+          + (f"   ({', '.join(scope)})" if scope else ""))
     print(f"  artifacts: {e.artifacts}")
 
 
@@ -1521,6 +1661,136 @@ def cmd_internal_log(e, run):
     open_with("logs", [log])
 
 
+WIZARD_TEXT = """\
+  This is a work-in-progress!  In the future, we'll have more dynamic wizardry.
+  Right now, this is fixed text with general guidance.
+
+  And even the fixed test is a WIP.
+
+  Best of luck!
+"""
+
+
+def cmd_wizard(e, run):
+    print(WIZARD_TEXT)
+
+
+def _ask_yes(prompt, default=False):
+    if not sys.stdin.isatty():
+        return default
+    try:
+        ans = input(f"{prompt} [{'Y/n' if default else 'y/N'}] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return default
+    return ans.startswith("y") if ans else default
+
+
+def _editor_open(paths):
+    """Open the generated files in $VISUAL/$EDITOR; if unset, the caller already printed
+    the paths, so just hint how to auto-open next time."""
+    ed = os.environ.get("VISUAL") or os.environ.get("EDITOR")
+    if ed:
+        try:
+            subprocess.run(shlex.split(ed) + [str(p) for p in paths], check=False)
+            print(f"  ✎ opened in {ed}")
+            return
+        except OSError:
+            pass
+    print("  (set $EDITOR or $VISUAL to auto-open these)")
+
+
+def _verbose_flow(text):
+    """Best-effort 'extraordinary logging' copy: insert a screenshot after each action
+    step. Line-based (Maestro flows are line-oriented); WIP — review before running."""
+    out, n = [], 0
+    action = re.compile(r"^(\s*)- (tapOn|inputText|runFlow|scroll|swipe|assertVisible|pressKey)\b")
+    for line in text.splitlines():
+        out.append(line)
+        m = action.match(line)
+        if m:
+            n += 1
+            out.append(f"{m.group(1)}- takeScreenshot: ${{SHOT_PREFIX}}verbose-step-{n:02d}")
+    return "\n".join(out) + "\n"
+
+
+def _write_run_script(e, run, manual):
+    """A re-runnable zsh script next to the manual flow, carrying the full invocation."""
+    p = run["params"]
+    platform = p.get("platform", "ios")
+    device_id = p.get("deviceId")
+    tok = _sim_token(device_id, platform) or platform
+    rel = manual.relative_to(REPO)
+    role_arg = f" --role {e.role}" if e.role else ""
+    plat_arg = f" --platform {platform}" if platform != "ios" else ""
+    env = p.get("env", "local")
+    env_arg = f" --env {env}" if env != "local" else ""
+    headless_note = ""
+    if _looks_headless(device_id, platform):
+        alias = _device_label(device_id)[0]
+        headless_note = ("# ⚠️ headless device: the screen is BLACK here. To watch it, boot windowed first:\n"
+                         f"#    python3 scripts/manage_devices.py --start {alias}\n")
+    out = manual.with_name(f"run-{manual.stem}.zsh")
+    body = f"""#!/usr/bin/env zsh
+# Generated by testctl 'edit' for {e.id}{(' [' + e.role + ']') if e.role else ''} — manual debugging copy.
+# flow: {rel}   platform: {platform}   device: {' / '.join(_device_aliases(device_id)) or '?'}
+{headless_note}set -e
+cd {REPO}
+
+# Preferred: drive through the qa runner (resolves the device, sets METRO/SHOT_PREFIX, seeds).
+npm run qa:flow -- {rel}{role_arg}{plat_arg}{env_arg} --sim {tok}
+
+# Alternatives (uncomment one):
+# Bare Maestro (SHOT_PREFIX must stay under tmp/maestro/ per CLAUDE.md):
+#   mkdir -p tmp/maestro
+#   maestro --device "$(python3 scripts/manage_devices.py --resolve {tok})" test \\
+#     -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/ {rel}
+# Maestro Studio (interactive selector inspector):
+#   maestro --device "$(python3 scripts/manage_devices.py --resolve {tok})" studio
+"""
+    out.write_text(body)
+    out.chmod(0o755)
+    return out
+
+
+def cmd_edit(e, run):
+    if e.tool != "maestro":
+        print("  'edit' is for Maestro e2e flows; this is a headless test — use 'test'/'cmd'.")
+        return
+    p = run["params"]
+    platform = p.get("platform", "ios")
+    device_id = p.get("deviceId")
+    if _looks_headless(device_id, platform):
+        alias = _device_label(device_id)[0]
+        print("  ⚠️  This device is headless. You can't see progress on the screen and "
+              "screenshots may not work (black frames on this host).")
+        print(f"      To watch the flow, boot a visible {platform} screen first, e.g.:")
+        print(f"      python3 scripts/manage_devices.py --start {alias}   (default emulator boot is -no-window)")
+    # Prefer the artifact's flow copy (its subflows sit beside it, so runFlow: ../common/…
+    # paths resolve, and it lives under gitignored tests/output/). Fall back to the repo src.
+    files = flow_files(e)
+    src = files[0] if files else find_source_by_qa_id(e.id, e.layer)
+    if not src:
+        print("  No flow source found to copy.")
+        return
+    leaf = f"{src.stem}-{short_role(e.role)}" if e.role else src.stem
+    text = src.read_text(errors="replace")
+    manual = src.with_name(f"manual-{leaf}.yaml")
+    manual.write_text(text)
+    written = [manual]
+    if _ask_yes("  Also generate a max-logging variant (screenshot after each step)?"):
+        verbose = src.with_name(f"manual-{leaf}-verbose.yaml")
+        verbose.write_text(_verbose_flow(text))
+        written.append(verbose)
+    written.append(_write_run_script(e, run, manual))
+    print("  📝 generated:")
+    for f in written:
+        try:
+            print(f"     {f.relative_to(REPO)}")
+        except ValueError:
+            print(f"     {f}")
+    _editor_open(written)
+
+
 def cmd_configure(e, run):
     cfg = load_viewer_config()
     print("  Viewer commands per type (Enter keeps current, '-' resets to default):")
@@ -1536,34 +1806,35 @@ def cmd_configure(e, run):
     print(f"  saved {VIEWER_CONFIG}")
 
 
-# (key, [aliases], description, handler) — numbered in this order.
+# (key, [aliases], description, handler, section) — numbered in this order.
+# 'configure'/'help' are NOT here: they're global keys handled in inspect_command_loop.
 INSPECT_COMMANDS = [
     ("failure",  ["show failure", "failure", "fail"],
-     "Show only the failing step, plus any comments from the runner", cmd_show_failure),
-    ("code",     ["show test code", "test code", "code", "show code"],
-     "Show the entire test script", cmd_show_code),
+     "Show only the failing step, plus any comments from the runner", cmd_show_failure, "SHOW"),
+    ("test",     ["show test", "test", "script", "show script", "test code", "code", "show code"],
+     "Show the entire test script", cmd_show_code, "SHOW"),
     ("use case", ["show use case", "use case", "uc", "usecase"],
-     "Show the use case related to this test", cmd_show_use_case),
+     "Show the use case related to this test (WIP)", cmd_show_use_case, "SHOW"),
     ("images",   ["show images", "images", "screenshots", "shots"],
-     "Open all screenshots in the external viewer", cmd_show_images),
-    ("run cmd",  ["run cmd", "run command", "run", "show run cmd", "show run", "create run cmd"],
-     "Command to run just this test again, with the original parameters (auto-copied)", cmd_run_cmd),
-    ("movie",    ["run as a movie", "movie", "run movie", "record"],
-     "Re-run command that also records an MP4 of the simulator screen", cmd_run_movie),
+     "Open all screenshots in an external viewer", cmd_show_images, "SHOW"),
     ("params",   ["show parameters", "parameters", "params"],
-     "How this was run: runner, tags, env, system load", cmd_show_params),
+     "How this was run: runner, tags, env, device, system load", cmd_show_params, "SHOW"),
     ("dir",      ["go to directory", "directory", "dir", "open dir", "finder"],
-     "Open the artifact directory in the directory viewer", cmd_go_dir),
-    ("prompt",   ["create prompt", "prompt"],
-     "Build an LLM-assistance prompt from this test's details", cmd_create_prompt),
-    ("trello",   ["create trello ticket", "trello", "ticket", "create ticket"],
-     "Draft a Trello bug card from this test's details (to tmp/trello-cards/)", cmd_create_trello),
-    ("internal log", ["show runner internal log", "internal log", "log", "logs", "internal"],
-     "Open the runner's detailed internal log", cmd_internal_log),
-    ("configure", ["configure", "config"],
-     "Set preferred viewers for images, dirs, logs, code", cmd_configure),
-    ("help",     ["help", "h", "?", "menu"],
-     "Show this menu", None),
+     "Open the artifact directory in the directory viewer", cmd_go_dir, "SHOW"),
+    ("log",      ["show runner internal log", "internal log", "log", "logs", "internal"],
+     "Open the runner's detailed internal log", cmd_internal_log, "SHOW"),
+    ("cmd",      ["cmd", "run cmd", "run command", "run", "show run cmd", "show run", "create run cmd"],
+     "Command to run just this test again, with the original parameters (auto-copied)", cmd_run_cmd, "RUN"),
+    ("movie",    ["movie", "run as a movie", "run movie", "record"],
+     "Re-run that also records an MP4 of the device screen", cmd_run_movie, "RUN"),
+    ("edit",     ["edit", "edit script", "manual"],
+     "Edit a generated copy of the original script", cmd_edit, "RUN"),
+    ("wizard",   ["wizard", "wiz", "suggest"],
+     "Get debugging suggestions (WIP)", cmd_wizard, "DIG DEEPER"),
+    ("prompt",   ["prompt", "create prompt"],
+     "Build a prompt for an LLM (WIP)", cmd_create_prompt, "DIG DEEPER"),
+    ("bug",      ["bug", "trello", "ticket", "create ticket", "create trello ticket", "draft bug"],
+     "Draft a Trello bug card from this test's details (WIP)", cmd_create_trello, "DIG DEEPER"),
 ]
 
 
@@ -1586,8 +1857,13 @@ def match_command(inp):
 
 
 def print_command_menu(with_desc=True):
-    print("\nCommands (number or name; 'tests' = back to test list, 'q' = quit):")
-    for i, (key, _aliases, desc, _h) in enumerate(INSPECT_COMMANDS, 1):
+    print("\nCommands (abbreviations ok; 'tests' = test list, 'h' = help, "
+          "'c' = configure, 'q' = quit):")
+    last_section = None
+    for i, (key, _aliases, desc, _h, section) in enumerate(INSPECT_COMMANDS, 1):
+        if section != last_section:
+            print(f"\n  {section}")
+            last_section = section
         if with_desc:
             print(f"  {i:>2}) {key:<14} {desc}")
         else:
@@ -1637,12 +1913,18 @@ def inspect_command_loop(e, run):
             return "quit"
         if n in ("t", "tests", "back", "b"):
             return "back"
+        if n in ("h", "help", "menu") or raw.strip() == "?":
+            print_command_menu()
+            continue
+        if n in ("c", "config", "configure"):
+            try:
+                cmd_configure(e, run)
+            except (KeyboardInterrupt, EOFError):
+                print("\n  (canceled)")
+            continue
         cmd = match_command(raw)
         if cmd is None:
-            print(f"  ❓ unknown command {raw!r} — type 'help' for the menu")
-            continue
-        if cmd[0] == "help":
-            print_command_menu()
+            print(f"  ❓ unknown command {raw!r} — type 'h' for the menu")
             continue
         try:
             cmd[3](e, run)
@@ -1811,10 +2093,17 @@ def cmd_inspect(spec_args, one_cmd, as_json):
     # A menu item on the command line (the B in `inspect N B`) or --cmd runs at once.
     run_item = item or one_cmd
     if selected and run_item:
-        cmd = match_command(run_item)
-        if cmd is None or cmd[0] == "help":
+        norm = norm_input(run_item)
+        if norm in ("h", "help", "menu") or run_item.strip() == "?":
             print_command_menu()
-            return 0 if cmd else 2
+            return 0
+        if norm in ("c", "config", "configure"):
+            cmd_configure(selected, run)
+            return 0
+        cmd = match_command(run_item)
+        if cmd is None:
+            print_command_menu()
+            return 2
         cmd[3](selected, run)
         if not interactive:
             return 0
