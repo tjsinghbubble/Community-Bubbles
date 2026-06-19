@@ -8,6 +8,8 @@ devices, backed by a small SQLite database used as a test-time oracle.
                              each in platform order; -v dumps the full record (TSV)
       --resolve ID           print the maestro device id (android adb serial / iOS UDID)
                              for an id/alias; bare id on stdout, rich line on stderr
+      --mark-used ID         record an id/alias as last-ios/last-android (no stdout id);
+                             a manual qa:flow run calls this to mark the device it ran on
   -s, --start ID             start device(s) with perf flags (software GPU, cores, …)
       --start:headless ID    start headless + read-only + perf flags (CI)
   -S, --start-basic ID       start device(s), legacy windowed behaviour
@@ -438,6 +440,30 @@ def android_pids(dev):
         pids = pids_matching(f"-port {dev['serial'].split('-', 1)[1]}")
     return pids
 
+def _proc_argv(pid):
+    """Full command line of a pid (one string), via `ps -o command=`. '' if gone."""
+    r = subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    return (r.stdout or "").strip()
+
+def looks_headless(dev):
+    """Best-effort: is THIS running device headless (screenshots come back BLACK)?
+
+    'Headless' is a BOOT MODE, not a persisted property, so this inspects the live
+    emulator process args for `-no-window` (how --start:headless / the qa runner boot
+    it on this host). Returns True/False for a running Android emulator, None when it
+    can't be told (not running, no pid, or iOS — sims are always windowed). Keep the
+    terminology 'headless'/'likely headless' consistent with testctl's surfacing."""
+    if dev["kind"] != "android" or not is_running(dev):
+        return None
+    pids = android_pids(dev)
+    if not pids:
+        return None
+    argv = _proc_argv(pids[0])
+    if not argv:
+        return None
+    return "-no-window" in argv.split()
+
 def is_running(dev):
     return dev["state"] in ("Booted", "Running")
 
@@ -791,7 +817,8 @@ def _device_line(d, sysmap):
     ident = d["serial"] if (d["kind"] == "android" and d.get("serial")) else d["id"]
     plat = "iOS" if d["kind"] == "ios" else "Android"
     ver = f" {d['os_version']}" if d.get("os_version") else ""
-    return f"{prefix:<34}{d['name']} ({ident}) [{plat}{ver}] {d['state']}"
+    hl = " [headless]" if looks_headless(d) else ""
+    return f"{prefix:<34}{d['name']} ({ident}) [{plat}{ver}] {d['state']}{hl}"
 
 def cmd_running():
     sync()
@@ -807,7 +834,7 @@ def cmd_running():
 
 # ── --list rendering ─────────────────────────────────────────────────────────────
 _USE_COLOR = sys.stdout.isatty()
-SHORT_HEADERS = ["ALIASES", "KIND", "DEVICE", "STATE", "READY", "LAST USED"]
+SHORT_HEADERS = ["ALIASES", "KIND", "DEVICE", "STATE", "HEADLESS", "READY", "LAST USED"]
 PLATFORM_ORDER = ["iOS", "Android", "Genymotion"]
 
 def _c(s, *codes):
@@ -856,11 +883,21 @@ def _ready_marker(row):
 def _last_used_short(row):
     return ((row["last_used"] if row else None) or "").replace("T", " ")[:16]
 
+def _headless_marker(d):
+    """Cell for the HEADLESS column. Only a RUNNING android emulator can be probed;
+    everything else (iOS, shutdown) is blank. 'headless' = -no-window seen in the live
+    process args; '' = windowed; 'headless?' = running but un-probeable (a 'likely')."""
+    hl = looks_headless(d)
+    if hl is None:
+        return ""
+    return "headless" if hl else ""
+
 def _short_cells(d, sysmap):
     row = _device_row(d["id"])
     return [", ".join(all_aliases_for(d["id"], sysmap)),
             _flavor_label(d, row), _display_short(d, row),
-            _norm_state(d["state"]), _ready_marker(row), _last_used_short(row)]
+            _norm_state(d["state"]), _headless_marker(d),
+            _ready_marker(row), _last_used_short(row)]
 
 def _order_within(devs, plat, sysmap):
     """Within a platform, the default-alias holder (ios/last-ios, android/last-android)
@@ -959,6 +996,23 @@ def cmd_resolve(ident):
     plat = "iOS" if dev["kind"] == "ios" else "Android"
     rich = f'{plat}: name="{dev["name"]}", id={mid}'
     err(f"[ {', '.join(al)} ] {rich}" if al else rich)
+    return 0
+
+def cmd_mark_used(ident):
+    """Record an id/alias as the platform's last-used device (kv last_ios/last_android +
+    devices.last_used) WITHOUT printing a maestro id — so a manual `qa:flow` run can mark
+    the device it actually ran on, making a later `--resolve last-android` point back at it.
+    (`--resolve` already touches on every resolve; this is the explicit, side-effect-only
+    hook a caller invokes AFTER a successful run.)"""
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"mark-used: {e}")
+        return 2
+    touch(dev)
+    plat = "last-ios" if dev["kind"] == "ios" else "last-android"
+    err(f"marked {dev['name']} ({dev['id']}) as {plat}")
     return 0
 
 def cmd_start(ident, mode="optimized"):
@@ -1558,6 +1612,9 @@ def main(argv=None):
                    help="list ALL devices + aliases (non-running first, running last)")
     g.add_argument("--resolve", metavar="ID",
                    help="print the maestro device id (android serial / iOS UDID) for an id/alias")
+    g.add_argument("--mark-used", dest="mark_used", metavar="ID",
+                   help="record id/alias as last-ios/last-android (no stdout id); for a "
+                        "manual qa:flow run to mark the device it ran on")
     g.add_argument("-s", "--start", metavar="ID", help="start device(s) with perf flags")
     g.add_argument("--start:headless", dest="start_headless", metavar="ID",
                    help="start headless + read-only + perf flags (CI)")
@@ -1601,6 +1658,8 @@ def main(argv=None):
         return cmd_list(args.verbose)
     if args.resolve:
         return cmd_resolve(args.resolve)
+    if args.mark_used:
+        return cmd_mark_used(args.mark_used)
     if args.start:
         return cmd_start(args.start, "optimized")
     if args.start_headless:

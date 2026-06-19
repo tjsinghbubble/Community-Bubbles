@@ -31,7 +31,7 @@ import {
 } from "./gating.js";
 import { makePool } from "../fixtures/journal.js";
 import { PANIC_MARKER } from "./panic.js";
-import { flattenMaestroDebugOutput, copyFlowSources, copyTestSource } from "./artifacts.js";
+import { flattenMaestroDebugOutput, copyFlowSources, copyTestSource, headlessShotMode, stubHeadlessScreenshots } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS_ROOT = join(__dirname, "..");
@@ -267,6 +267,11 @@ function runMaestro(
   // Maestro buried its trace/report/screenshots under .maestro/tests/<timestamp>/ with
   // shell-hostile names; lift them into the artifact dir under typeable, function-first names.
   flattenMaestroDebugOutput(artifactsDir, shotLeaf);
+  // T8: a headless android emulator (-no-window) produces all-black screenshots; replace
+  // those useless PNGs with a tiny warning stub. Gated by QA_HEADLESS_SCREENSHOTS
+  // (auto|stub|keep|skip; default auto = stub black shots only on a headless device).
+  const shotMode = headlessShotMode(process.env.QA_HEADLESS_SCREENSHOTS);
+  stubHeadlessScreenshots(artifactsDir, shotMode, platform === "android");
   // Maestro's captured output ends with a "Debug output" pointer at the .maestro/tests/<ts>
   // dir the flatten just removed — strip that suffix so the pointer lands on the artifact dir.
   try {

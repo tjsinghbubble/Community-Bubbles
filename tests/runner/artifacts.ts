@@ -16,8 +16,10 @@
  */
 import {
   copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync,
+  unlinkSync, writeFileSync,
 } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
+import { inflateSync } from "node:zlib";
 
 // ── sanitizeFileName ─────────────────────────────────────────────────────────
 
@@ -188,4 +190,134 @@ export function copyTestSource(testPath: string, artifactsDir: string): void {
   try {
     copyFileSync(testPath, join(artifactsDir, sanitizeFileName(basename(testPath))));
   } catch { /* best-effort */ }
+}
+
+// ── headless screenshots: warn instead of keeping a useless black PNG ─────────
+//
+// On this host the Android emulator boots `-no-window -gpu swiftshader_indirect`, so
+// Maestro `takeScreenshot:` writes an ALL-BLACK PNG (the a11y-tree asserts still pass,
+// but the image is large and useless). When a run is known-headless we detect those
+// black PNGs and replace each with a tiny text stub + log a warning — never silently
+// drop them (the run should still record that a shot was attempted, and why it's gone).
+//
+// Env-gated via QA_HEADLESS_SCREENSHOTS (read by the runner, passed in as `mode`):
+//   "auto"  (default) — stub black PNGs only when the device is headless
+//   "stub"            — stub black PNGs regardless of device (force the behaviour)
+//   "keep"            — never touch screenshots (legacy behaviour)
+//   "skip"            — stub EVERY screenshot without decoding (assume black; cheapest)
+// "auto"/"stub" still WARN, never silently drop. Visible (windowed) devices are
+// untouched under "auto".
+
+export type HeadlessShotMode = "auto" | "stub" | "keep" | "skip";
+
+/** Parse the QA_HEADLESS_SCREENSHOTS env value (default "auto"). */
+export function headlessShotMode(raw: string | undefined): HeadlessShotMode {
+  const v = (raw ?? "").trim().toLowerCase();
+  return v === "stub" || v === "keep" || v === "skip" ? v : "auto";
+}
+
+/**
+ * Decode a PNG far enough to decide "is every pixel black?". Returns true only when
+ * the image is wholly black (R=G=B=0, alpha ignored). Returns false on any non-black
+ * pixel OR if the PNG can't be cheaply decoded (unknown filter, interlace, palette,
+ * 16-bit) — i.e. err toward KEEPING an image we're unsure about. Pure Node (zlib),
+ * no native deps; handles the truecolour/truecolour-alpha 8-bit PNGs Maestro emits.
+ */
+export function isAllBlackPng(file: string): boolean {
+  try {
+    const buf = readFileSync(file);
+    // PNG signature
+    if (buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return false;
+    let width = 0, height = 0, bitDepth = 0, colorType = 0, interlace = 0;
+    const idat: Buffer[] = [];
+    let pos = 8;
+    while (pos + 8 <= buf.length) {
+      const len = buf.readUInt32BE(pos);
+      const type = buf.toString("ascii", pos + 4, pos + 8);
+      const dataStart = pos + 8;
+      if (type === "IHDR") {
+        width = buf.readUInt32BE(dataStart);
+        height = buf.readUInt32BE(dataStart + 4);
+        bitDepth = buf[dataStart + 8];
+        colorType = buf[dataStart + 9];
+        interlace = buf[dataStart + 12];
+      } else if (type === "IDAT") {
+        idat.push(buf.subarray(dataStart, dataStart + len));
+      } else if (type === "IEND") {
+        break;
+      }
+      pos = dataStart + len + 4; // skip data + CRC
+    }
+    // Only handle the simple, common case; bail (→ keep) on anything fancier.
+    if (bitDepth !== 8 || interlace !== 0) return false;
+    const channels = colorType === 2 ? 3 : colorType === 6 ? 4 : 0; // RGB / RGBA only
+    if (!channels || !width || !height) return false;
+    const raw = inflateSync(Buffer.concat(idat));
+    const stride = width * channels;
+    if (raw.length < (stride + 1) * height) return false;
+    for (let y = 0; y < height; y++) {
+      const rowStart = y * (stride + 1);
+      const filter = raw[rowStart];
+      if (filter !== 0) return false; // un-defiltering is out of scope → keep
+      for (let x = 0; x < width; x++) {
+        const p = rowStart + 1 + x * channels;
+        if (raw[p] !== 0 || raw[p + 1] !== 0 || raw[p + 2] !== 0) return false;
+      }
+    }
+    return true;
+  } catch {
+    return false; // undecodable → keep, don't risk stubbing a real image
+  }
+}
+
+/**
+ * After flattening, replace useless black screenshots with a tiny .txt stub + warn.
+ * Returns the number of screenshots stubbed. `mode` comes from headlessShotMode();
+ * `deviceHeadless` is the runner's best-effort headless determination (used by "auto").
+ * `log` defaults to console.warn. Best-effort: never throws.
+ */
+export function stubHeadlessScreenshots(
+  artifactsDir: string,
+  mode: HeadlessShotMode,
+  deviceHeadless: boolean,
+  log: (msg: string) => void = (m) => console.warn(m),
+): number {
+  if (mode === "keep") return 0;
+  if (mode === "auto" && !deviceHeadless) return 0;
+  let stubbed = 0;
+  try {
+    for (const name of readdirSync(artifactsDir)) {
+      // Every PNG in a run's artifact dir is a screenshot — both Maestro's auto
+      // `screenshot-*.png` (failure/WARNED captures) AND the flow's explicit
+      // `takeScreenshot: ${SHOT_PREFIX}<name>` outputs (named "<leaf>-<name>.png").
+      // Under auto/stub the isAllBlackPng decode guards against stubbing a real image;
+      // under "skip" the caller has explicitly opted into no-decode (assume black).
+      if (!/\.png$/i.test(name)) continue;
+      const png = join(artifactsDir, name);
+      let stat;
+      try { stat = statSync(png); } catch { continue; }
+      if (!stat.isFile()) continue;
+      // "skip" assumes black (no decode); otherwise decode-check.
+      if (mode !== "skip" && !isAllBlackPng(png)) continue;
+      const reason = mode === "skip"
+        ? "headless device (QA_HEADLESS_SCREENSHOTS=skip): screenshot not decoded — "
+          + "assumed black"
+        : "all-black screenshot from a headless device (-no-window) — useless image discarded";
+      const kb = (stat.size / 1024).toFixed(0);
+      try {
+        unlinkSync(png);
+        writeFileSync(
+          png.replace(/\.png$/i, ".BLACK.txt"),
+          `${reason}\n`
+          + `original: ${name} (${kb} KB)\n`
+          + `On this host the Android emulator boots -no-window -gpu swiftshader_indirect,\n`
+          + `so takeScreenshot returns all-black pixels. Boot WINDOWED to capture real shots,\n`
+          + `or set QA_HEADLESS_SCREENSHOTS=keep to retain the black PNGs.\n`,
+        );
+        stubbed++;
+        log(`⚠️  headless screenshot stubbed: ${name} (${kb} KB) — ${reason}`);
+      } catch { /* best-effort per file */ }
+    }
+  } catch { /* best-effort */ }
+  return stubbed;
 }

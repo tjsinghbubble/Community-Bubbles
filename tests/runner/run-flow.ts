@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources } from "./artifacts.js";
+import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources, headlessShotMode, stubHeadlessScreenshots } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS_ROOT = join(__dirname, "..");
@@ -100,6 +100,24 @@ function main(): void {
   flattenMaestroDebugOutput(runDir, leaf);
   // Maestro's last console line points at the .maestro/tests/<ts> dir the flatten just removed.
   console.log(`📁  debug output flattened into ${runDir} (any .maestro/tests path above is gone)`);
+
+  // T8: a headless emulator (-no-window) yields all-black screenshots. Replace those
+  // useless large PNGs with a tiny warning stub. Gated by QA_HEADLESS_SCREENSHOTS
+  // (auto|stub|keep|skip; default auto = stub black shots only on a headless device).
+  // android is the headless platform on this host; the decode-check ensures a real
+  // (non-black) image is never stubbed under "auto".
+  const shotMode = headlessShotMode(process.env.QA_HEADLESS_SCREENSHOTS);
+  const n = stubHeadlessScreenshots(runDir, shotMode, platform === "android");
+  if (n > 0) console.log(`🖤  ${n} black headless screenshot(s) replaced with .BLACK.txt stubs (QA_HEADLESS_SCREENSHOTS=${shotMode})`);
+
+  // T10: record the device this run actually used as the platform's last-used, so a later
+  // `manage_devices --resolve last-android` (or last-ios) points back at it. Side-effect
+  // only (no stdout id), best-effort — never fail the run on this.
+  if (platform !== "web" && (res.status ?? 1) === 0) {
+    const simId = sim || platform;
+    spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--mark-used", simId],
+      { stdio: "ignore" });
+  }
   process.exit(res.status ?? 1);
 }
 
