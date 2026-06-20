@@ -492,7 +492,7 @@ def _collect_recent_runs(window_h=RUNS_WINDOW_H):
             continue
         m = _summary_meta(d)
         fin = parse_iso(m.get("finishedAt")) if m else None
-        runtime = f"{(fin - started) / 3600:.1f}" if fin else "—"
+        runtime = f"{(fin - started) / 3600:.2f}" if fin else "—"
         driver, osv = _device_label(p.get("deviceId"))
         plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
             p.get("platform"), (p.get("platform") or "—").capitalize())
@@ -1628,7 +1628,7 @@ def fill_template(template_name, e, run, interactive):
 
 
 def cmd_create_prompt(e, run):
-    text = fill_template("testctl_prompt_template.md", e, run, sys.stdin.isatty())
+    text = fill_template("_testctl_prompt_template.md", e, run, sys.stdin.isatty())
     if text is None:
         return
     leaf = f"{e.id}-{short_role(e.role)}" if e.role else e.id
@@ -1640,7 +1640,7 @@ def cmd_create_prompt(e, run):
 
 
 def cmd_create_trello(e, run):
-    text = fill_template("testctl_trello_template.md", e, run, sys.stdin.isatty())
+    text = fill_template("_testctl_trello_template.md", e, run, sys.stdin.isatty())
     if text is None:
         return
     drafts = REPO / "tmp" / "trello-cards"
