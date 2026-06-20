@@ -924,7 +924,7 @@ def _ready_marker(d, row):
     lvl = row["compile_level"] if row else None
     baked = row["has_default_boot"] if row else None
     if lvl and baked:
-        return f"{lvl}/baked"
+        return f"baked/{lvl}"
     if baked:
         return "baked"
     if lvl:
@@ -963,24 +963,31 @@ def _relative_last_used(row):
         return tl.strftime("%Y-%m-%d %H:%M")
     days = (nl.date() - tl.date()).days
     if secs <= 50 * 60:
-        return "within the hour"
-    if secs <= 18 * 3600:
+        label = "within the hour"
+    elif secs <= 18 * 3600:
         h = tl.hour
         part = ("early morning" if h < 5 else "morning" if h < 12
                 else "afternoon" if h < 18 else "evening")
         if days == 0:
-            return "early this morning" if part == "early morning" else f"this {part}"
-        if part == "evening":
-            return "last evening"
-        return ("early yesterday morning" if part == "early morning"
-                else f"yesterday {part}")
-    if days == 0:
-        return "Today"
-    if days == 1:
-        return "Yesterday"
-    if days <= 6:
-        return tl.strftime("%A")
-    return tl.strftime("%Y-%m-%d %H:%M")
+            label = "early this morning" if part == "early morning" else f"this {part}"
+        elif part == "evening":
+            label = "last evening"
+        else:
+            label = ("early yesterday morning" if part == "early morning"
+                     else f"yesterday {part}")
+    elif days == 0:
+        label = "Today"
+    elif days == 1:
+        label = "Yesterday"
+    elif days <= 6:
+        label = tl.strftime("%A")
+    else:
+        return tl.strftime("%Y-%m-%d %H:%M")
+    # Within the last 24h, pin the coarse phrase to an exact local clock time (Travis): the
+    # relative bucket says roughly when, the appended (HH:MM) says exactly when.
+    if secs <= 24 * 3600:
+        label += f" ({tl.strftime('%H:%M')})"
+    return label
 
 def _headless_marker(d):
     """Cell for the HEADLESS column. Only a RUNNING android emulator can be probed;
@@ -1104,6 +1111,20 @@ def cmd_resolve(ident):
     plat = "iOS" if dev["kind"] == "ios" else "Android"
     rich = f'{plat}: name="{dev["name"]}", id={mid}'
     err(f"[ {', '.join(al)} ] {rich}" if al else rich)
+    return 0
+
+def cmd_kind_of(ident):
+    """Print a device's platform ('ios' or 'android') to stdout for an id/alias, WITHOUT
+    requiring it to be running (resolve_one is offline). The qa runner uses this to infer
+    --platform from --sim and to validate an explicit --platform against the sim's real
+    kind before booting anything."""
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"kind-of: {e}")
+        return 2
+    print(dev["kind"])  # bare: 'ios' | 'android'
     return 0
 
 def cmd_mark_used(ident):
@@ -1234,6 +1255,93 @@ def cmd_alias(ident, alias):
     print(f"alias {alias!r} -> {tgt}")
     return 0
 
+# System/computed aliases — not stored in `aliases`, so they can't (and mustn't) be renamed.
+INTERNAL_ALIASES = {"ios", "android", "last-ios", "last-android",
+                    "all", "all-ios", "all-android", "loop"}
+# avdmanager's AVD-name charset: letters, digits, dot, underscore, hyphen — no spaces.
+AVD_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+def cmd_rename(old, new):
+    """Rename an AVD name (case A) or a USER alias (case B).
+      --rename Small_Phone_copy_Lainey Pixel_9   → rename the AVD (android: moves the .avd
+                                                    dir, fixes its inis, migrates the DB udid)
+      --rename Lainey Janey                       → rename a user alias
+      --rename last-android McBoatFace            → error: internal aliases are computed
+    NEW is trimmed; an empty NEW is rejected. AVD names are charset-validated. A running
+    Android device must be shut down first (its identity files are in use)."""
+    sync()
+    new = (new or "").strip()
+    if not new:
+        err("rename: new name is empty")
+        return 2
+    if old.strip().lower() in INTERNAL_ALIASES:
+        err(f"rename: can't rename internal alias {old!r} — it's computed from device state, "
+            f"not a stored name")
+        return 2
+
+    # ── case B: a USER alias → rename the alias text only (device identity untouched) ──
+    arow = db().execute("SELECT alias, udid, kind FROM aliases WHERE alias=? COLLATE NOCASE",
+                        (old,)).fetchone()
+    if arow and arow["kind"] == "user":
+        if db().execute("SELECT 1 FROM aliases WHERE alias=? COLLATE NOCASE", (new,)).fetchone():
+            err(f"rename: alias {new!r} already in use")
+            return 2
+        with immediate() as c:
+            c.execute("UPDATE aliases SET alias=? WHERE alias=? COLLATE NOCASE", (new, arow["alias"]))
+        print(f"alias {arow['alias']!r} -> {new!r}")
+        return 0
+
+    # ── case A: OLD names a device → rename the device ──
+    try:
+        dev = resolve_one(old)
+    except ResolveError as e:
+        err(f"rename: {e}")
+        return 2
+
+    # iOS: udid is a stable UUID, so only the display name changes — no identity migration.
+    # Human aliases (pooled 'name' / 'user') are independent handles and keep their text.
+    if dev["kind"] == "ios":
+        run(["xcrun", "simctl", "rename", dev["id"], new], capture=False)
+        with immediate() as c:
+            c.execute("UPDATE devices SET display_name=? WHERE udid=?", (new, dev["id"]))
+        sync()
+        print(f"renamed iOS sim {dev['name']!r} -> {new!r}")
+        return 0
+
+    # Android: the AVD name IS the identity (udid). Validate, move on disk, migrate the DB.
+    if is_running(dev):
+        err(f"rename: {dev['name']} is running — shut it down first (--kill {old})")
+        return 2
+    if not AVD_NAME_RE.match(new):
+        err(f"rename: {new!r} is not a valid AVD name "
+            f"(allowed: letters, digits, '.', '_', '-'; no spaces)")
+        return 2
+    if (db().execute("SELECT 1 FROM devices WHERE udid=? COLLATE NOCASE", (new,)).fetchone()
+            or db().execute("SELECT 1 FROM aliases WHERE alias=? COLLATE NOCASE", (new,)).fetchone()):
+        err(f"rename: {new!r} already names a device or alias")
+        return 2
+
+    old_udid = dev["id"]
+    try:
+        rename_avd(old_udid, new)
+    except (FileExistsError, FileNotFoundError) as e:
+        err(f"rename: {e}")
+        return 2
+    # Migrate every DB reference from the old AVD-name identity to the new one. Human aliases
+    # (pooled 'name' like 'Lainey', plus 'user' aliases) KEEP their text — only their udid
+    # repoints — so `--rename <avd> <newavd>` leaves the human handles intact (Travis case A).
+    with immediate() as c:
+        c.execute("UPDATE devices SET udid=?, display_name=? WHERE udid=?", (new, new, old_udid))
+        c.execute("UPDATE aliases SET udid=? WHERE udid=?", (new, old_udid))
+        c.execute("UPDATE name_pool SET udid=? WHERE udid=?", (new, old_udid))
+        c.execute("UPDATE history SET udid=? WHERE udid=?", (new, old_udid))
+    for k in ("last_android", "last_ios"):
+        if kv_get(k) == old_udid:
+            kv_set(k, new)
+    sync()
+    print(f"renamed AVD {old_udid!r} -> {new!r}")
+    return 0
+
 def cmd_loop(name, csv):
     sync()
     idents = [x.strip() for x in csv.split(",") if x.strip()]
@@ -1337,14 +1445,22 @@ def _warm_estimate(dev):
             "(much longer on first-ever boot while it dexopts)")
 
 def warmup_one(dev, level=None):
+    """Boot a device and wait until it's responsive (optionally apply a compile level).
+    Returns True iff the device actually reached a ready state. A boot that times out
+    is a FAILURE, not a success: previously this still printed 'ready in Ns' and returned
+    0, so a caller (bench, CI) trusted a dead device and only discovered it later when the
+    e2e gate found no booted emulator. Now it's reported loudly and returns False."""
     narrate(f"warmup {dev['name']}: estimated {_warm_estimate(dev)}")
     t0 = time.time()
+    ok, fail_reason = True, None
     if dev["kind"] == "ios":
         if not is_running(dev):
             narrate("  booting simulator …")
             run(["xcrun", "simctl", "boot", dev["id"]], capture=False)
         narrate("  waiting for boot to complete (simctl bootstatus) …")
         run(["xcrun", "simctl", "bootstatus", dev["id"]], capture=False)
+        if not is_running(dev):
+            ok, fail_reason = False, "simulator did not reach a booted state (simctl bootstatus)"
         if level:
             narrate("  (compile levels are Android-only; iOS warmup is boot-only)")
     else:
@@ -1354,7 +1470,7 @@ def warmup_one(dev, level=None):
         narrate("  waiting for sys.boot_completed …")
         serial = _android_await_boot(dev)
         if not serial:
-            narrate("  device did not reach boot_completed in time; skipping optimize")
+            ok, fail_reason = False, "sys.boot_completed not reached (boot timed out)"
         else:
             dev["serial"] = serial
             narrate("  waiting for package manager (install/launch ready) …")
@@ -1368,18 +1484,26 @@ def warmup_one(dev, level=None):
                      "default_boot"], capture=False)
     ms = int((time.time() - t0) * 1000)
     cpu, load = host_load_sample(dev)
-    # detail carries the level (queryable); event stays the bare 'warmup'.
-    log_history(dev["id"], "warmup", detail=(f"warmup:{level}" if level else "warmup"),
+    # detail carries the level (queryable); a failed boot is tagged so --history shows it.
+    base = f"warmup:{level}" if level else "warmup"
+    log_history(dev["id"], "warmup", detail=(base if ok else base + ":FAILED"),
                 duration_ms=ms, sys_load=load, dev_load=cpu)
+    cpu_s = f"{cpu:.1f}% host cpu" if cpu is not None else "process gone"
+    load_s = f", load {load:.2f}" if load is not None else ""
+    if not ok:
+        # Do NOT record last_warmed_at / compile_level / has_default_boot — the device is not
+        # warm, and a level's snapshot was never saved. Touch is also skipped (it isn't usable).
+        err(f"✗ {dev['name']} NOT ready after {ms/1000:.0f}s — {fail_reason} "
+            f"({cpu_s}{load_s}); left running for inspection")
+        return False
     cols: "dict[str, object]" = {"last_warmed_at": now_iso()}
     if level:                       # a level also saves a default_boot snapshot above
         cols["compile_level"] = level
         cols["has_default_boot"] = 1
     _device_set(dev["id"], **cols)
     touch(dev)
-    cpu_s = f"{cpu:.1f}% host cpu" if cpu is not None else "process gone"
-    load_s = f", load {load:.2f}" if load is not None else ""
     narrate(f"{dev['name']} ready in {ms/1000:.0f}s ({cpu_s}{load_s})")
+    return True
 
 def cmd_warmup(ident, level=None):
     sync()
@@ -1388,9 +1512,12 @@ def cmd_warmup(ident, level=None):
     except ResolveError as e:
         err(f"warmup: {e}")
         return 2
+    all_ok = True
     for dev in devs:
-        warmup_one(dev, level)
-    return 0
+        all_ok = warmup_one(dev, level) and all_ok
+    # Non-zero exit when any device failed to warm, so a script (bench, CI) that warms a
+    # device and then runs tests against it can stop instead of trusting a dead device.
+    return 0 if all_ok else 1
 
 # ── monitor (periodic host-side sampler) ────────────────────────────────────────
 
@@ -1509,6 +1636,31 @@ def clone_avd(src, dst):
         cfg.write_text("\n".join(out) + "\n")
     shutil.rmtree(dst_dir / "snapshots", ignore_errors=True)
     _strip_runtime_state(dst_dir)
+
+def rename_avd(src, dst):
+    """Rename an AVD in place: move <src>.avd + <src>.ini to <dst> and fix the embedded
+    paths/ids. Unlike clone_avd this MOVES (no copy) and PRESERVES snapshots/runtime state —
+    a rename keeps the same device, just relabelled. Caller must ensure it isn't running."""
+    root = Path.home() / ".android" / "avd"
+    src_dir, dst_dir = root / f"{src}.avd", root / f"{dst}.avd"
+    src_ini, dst_ini = root / f"{src}.ini", root / f"{dst}.ini"
+    if not src_dir.exists() or not src_ini.exists():
+        raise FileNotFoundError(f"AVD {src!r} not found under {root}")
+    if dst_dir.exists() or dst_ini.exists():
+        raise FileExistsError(f"AVD {dst!r} already exists")
+    shutil.move(str(src_dir), str(dst_dir))
+    dst_ini.write_text(src_ini.read_text().replace(f"{src}.avd", f"{dst}.avd"))
+    src_ini.unlink()
+    cfg = dst_dir / "config.ini"
+    if cfg.exists():
+        out = []
+        for ln in cfg.read_text().splitlines():
+            if ln.startswith("AvdId="):
+                ln = f"AvdId={dst}"
+            elif ln.startswith("avd.ini.displayname="):
+                ln = f"avd.ini.displayname={dst}"
+            out.append(ln)
+        cfg.write_text("\n".join(out) + "\n")
 
 def sdkmanager_bin():
     h = android_home()
@@ -1769,6 +1921,9 @@ def main(argv=None):
     g.add_argument("--mark-used", dest="mark_used", metavar="ID",
                    help="record id/alias as last-ios/last-android (no stdout id); for a "
                         "manual qa:flow run to mark the device it ran on")
+    g.add_argument("--kind-of", dest="kind_of", metavar="ID",
+                   help="print a device's platform ('ios'/'android') for an id/alias "
+                        "(offline; the qa runner uses it to infer/validate --platform)")
     g.add_argument("--history", nargs="?", const="", metavar="ID",
                    help="dump warmup/bake/start/kill timings (all, or one id/alias)")
     g.add_argument("-s", "--start", metavar="ID", help="start device(s) with perf flags")
@@ -1797,6 +1952,8 @@ def main(argv=None):
                    metavar="SECONDS", help="periodically sample host-side load")
     g.add_argument("-a", "--alias", nargs=2, metavar=("ID", "ALIAS"),
                    help="create a user alias for device(s)")
+    g.add_argument("--rename", nargs=2, metavar=("OLD", "NEW"),
+                   help="rename an AVD name or a user alias (internal aliases are rejected)")
     g.add_argument("--loop", nargs=2, metavar=("NAME", "CSV"),
                    help="define an ordered loop from a comma list of ids/aliases")
     g.add_argument("-n", "--next", nargs="?", const=None, default=False,
@@ -1816,6 +1973,8 @@ def main(argv=None):
         return cmd_resolve(args.resolve)
     if args.mark_used:
         return cmd_mark_used(args.mark_used)
+    if args.kind_of:
+        return cmd_kind_of(args.kind_of)
     if args.history is not None:
         return cmd_history(args.history or None)
     if args.start:
@@ -1848,6 +2007,8 @@ def main(argv=None):
         return cmd_monitor(args.monitor)
     if args.alias:
         return cmd_alias(args.alias[0], args.alias[1])
+    if args.rename:
+        return cmd_rename(args.rename[0], args.rename[1])
     if args.loop:
         return cmd_loop(args.loop[0], args.loop[1])
     if args.next is not False:

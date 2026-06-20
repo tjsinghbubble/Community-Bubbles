@@ -38,16 +38,17 @@ function main(): void {
   let role = "";
   let envName = "local";
   let platform = "ios";
+  let platformExplicit = false;
   let sim = "";
   const extraEnv: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--role") role = argv[++i];
     else if (a === "--env") envName = argv[++i];
-    else if (a === "--platform") platform = argv[++i];
+    else if (a === "--platform") { platform = argv[++i]; platformExplicit = true; }
     else if (a === "--sim" || a === "--simulator") sim = argv[++i];
     else if (a === "-e") extraEnv.push(argv[++i]);
-    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [--sim <id>] [-e K=V ...]"); return; }
+    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [--sim <id> (implies --platform)] [-e K=V ...]"); return; }
     else if (!flowPath) flowPath = a;
     else console.warn(`(ignoring unknown arg: ${a})`);
   }
@@ -57,6 +58,22 @@ function main(): void {
 
   const envCfg = JSON.parse(readFileSync(join(TESTS_ROOT, "config/environments.json"), "utf8")).environments[envName];
   if (!envCfg) { console.error(`error: unknown env '${envName}'`); process.exit(2); }
+
+  // --sim implies its platform; --platform+--sim must agree (same rule as the qa runner).
+  // Without this, `--sim <android-avd>` kept platform=ios and ran iOS flows on the emulator.
+  if (sim && platform !== "web") {
+    const k = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--kind-of", sim], { encoding: "utf8" });
+    const kind = (k.stdout ?? "").trim();
+    if (k.status !== 0 || (kind !== "ios" && kind !== "android")) {
+      console.error(`error: --sim '${sim}' could not be resolved to a device: ${(k.stderr ?? "").trim() || "unknown"}`);
+      process.exit(2);
+    }
+    if (platformExplicit && platform !== kind) {
+      console.error(`error: --platform ${platform} conflicts with --sim '${sim}', which is an ${kind} device.`);
+      process.exit(2);
+    }
+    platform = kind;
+  }
 
   const flowName = sanitizeFileName(basename(flowPath).replace(/\.ya?ml$/, ""));
   const leaf = sanitizeFileName(role ? `${flowName}-${role}` : flowName);
@@ -91,6 +108,7 @@ function main(): void {
   // iOS flows on a booted Android emulator). Resolve the platform alias by default; web
   // has no device to pin.
   let resolvedDeviceId = "";
+  let resolvedDeviceName = "";
   if (platform !== "web") {
     const simId = sim || platform;
     const r = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--resolve", simId],
@@ -98,6 +116,9 @@ function main(): void {
     resolvedDeviceId = (r.stdout ?? "").trim();
     if (r.status === 0 && resolvedDeviceId) {
       args.unshift("--device", resolvedDeviceId);
+      // The stable device name (AVD/iOS name) — recorded below so testctl labels the run by
+      // device, not the reused adb serial.
+      resolvedDeviceName = (r.stderr ?? "").match(/name="([^"]+)"/)?.[1] ?? "";
       console.log(`🎯  ${resolvedDeviceId}  ${(r.stderr ?? "").trim()}`);
     } else {
       console.error(`error: could not resolve device '${simId}': ${(r.stderr ?? "").trim()}`);
@@ -110,7 +131,7 @@ function main(): void {
   writeFileSync(join(runDir, "run-params.json"), JSON.stringify({
     startedAt: startedAt.toISOString(),
     gitSha, env: envName, apiBaseUrl: envCfg.apiBaseUrl ?? "",
-    platform, deviceId: resolvedDeviceId,
+    platform, deviceId: resolvedDeviceId, sim, deviceName: resolvedDeviceName,
     roles: role ? [role] : [], layers: ["e2e"],
     selectedTestIds: [qaId], manual: true,
   }, null, 2) + "\n");

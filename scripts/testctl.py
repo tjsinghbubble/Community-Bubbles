@@ -390,7 +390,7 @@ def _fmt_started(epoch):
     today = datetime.now().date()
     delta_days = (today - dt.date()).days
     when = {0: "today", 1: "yesterday"}.get(delta_days, dt.strftime("%b %-d"))
-    return f"{when} {dt.strftime('%-I:%M%p').lower()}"
+    return f"{when} {dt.strftime('%H:%M')}"  # 24-hour local time
 
 
 def _summary_meta(run_dir):
@@ -445,20 +445,25 @@ def _run_result(run_dir):
     # ── bad news (RED) ──────────────────────────────────────────────────────
     if ran == 0:
         return "No tests ran", "red"
-    if new_fail / ran > 0.9:
-        return f"Nearly everything failed ({new_fail}/{ran})", "red"
 
-    # ── good news (GREEN, bold) ─────────────────────────────────────────────
-    if new_fail == 0:
-        if backlog == 0:
-            return "100% clear — all pass, no backlog", "green"
-        kb, fd = t.get("knownBugs", 0), t.get("findings", 0)
-        return f"Green — {kb}🐞 {fd}🔎 carried, 0 new", "green"
-
-    # ── mixed (no highlight) ────────────────────────────────────────────────
     pct = round(100 * passed / targeted) if targeted else 0
     carried = f" · {backlog} carried" if backlog else ""
-    return f"{pct}% pass ({passed}/{targeted}) · {new_fail}✗ new{carried}", ""
+
+    # ── good news (GREEN, bold) ─────────────────────────────────────────────
+    # No new failures. 100% with nothing carried is an unqualified Success; otherwise
+    # it's still a pass, with a plain carried-count (no 🐞/🔎 icons — Travis A/B/D).
+    if new_fail == 0:
+        if backlog == 0:
+            return f"Success: ({passed}/{targeted})", "green"
+        return f"Success: ({passed}/{targeted}){carried}", "green"
+
+    # ── 0% pass WITH real failures (RED) — the bench case ────────────────────
+    # Label it as the failure it is; the per-bucket breakdown lives in `inspect`.
+    if passed == 0:
+        return f"Fail: 0% pass (0/{targeted})", "red"
+
+    # ── mixed (no highlight) — spell out "new failures", drop the ✗ glyph ────
+    return f"{pct}% pass ({passed}/{targeted}) · {new_fail} new failures{carried}", ""
 
 
 def _hyperlink(label, path, width):
@@ -493,11 +498,34 @@ def _collect_recent_runs(window_h=RUNS_WINDOW_H):
         m = _summary_meta(d)
         fin = parse_iso(m.get("finishedAt")) if m else None
         runtime = f"{(fin - started) / 3600:.2f}" if fin else "—"
-        driver, osv = _device_label(p.get("deviceId"))
-        plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
-            p.get("platform"), (p.get("platform") or "—").capitalize())
-        platform = f"{plat} / {osv}" if osv else plat
-        flavor = "+".join(p.get("layers") or []) or "—"
+        layers = p.get("layers") or []
+        is_e2e = "e2e" in layers
+        if is_e2e:
+            # Prefer the stable device NAME (AVD name / iOS device name) the run recorded —
+            # the adb serial (deviceId, e.g. emulator-5556) is reused across back-to-back
+            # bench sims, so labelling by it collapses every android run to one alias. Fall
+            # back to --sim, then the serial, for pre-change runs that lack a name.
+            dev_key = p.get("deviceName") or p.get("sim") or p.get("deviceId")
+            driver, osv = _device_label(dev_key)
+            plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
+                p.get("platform"), (p.get("platform") or "—").capitalize())
+            platform = f"{plat} / {osv}" if osv else plat
+        else:
+            # Headless runs are host-side HTTP tests — no device, no platform. Don't claim one
+            # (the old code showed a phantom "iOS" with a "—" driver).
+            driver, platform = "—", "—"
+        # Flavor = layers + selection scope, so 'e2e' alone vs the full sweep are distinguishable
+        # (Travis F). Scope mirrors qa.ts: smoke tag → smoke; no tags+no areas → all; else the
+        # explicit tags/areas.
+        ptags, pareas = p.get("tags") or [], p.get("areas") or []
+        if "smoke" in ptags:
+            scope = "smoke"
+        elif not ptags and not pareas:
+            scope = "all"
+        else:
+            scope = ",".join(pareas or ptags)
+        layer_s = "+".join(layers)
+        flavor = f"{layer_s}/{scope}" if layer_s else "—"
         label, rstyle = _run_result(d)
         rows.append({
             "dir": d, "driver": driver or "—", "platform": platform,
@@ -528,7 +556,7 @@ def _recent_runs_table(rows=None, window_h=RUNS_WINDOW_H, numbered=False):
 
     numw = len(str(len(rows)))
     pad = (" " * (numw + 4)) if numbered else "  "  # "  {i}) " is numw+4 wide
-    print(f"\nQa runs in the past {window_h}h (driver = clickable link to artifacts):")
+    print(f"\nQA runs in the past {window_h}h (driver = clickable link to artifacts):")
     header = "  ".join(h.ljust(widths[k]) for k, h in cols)
     print(pad + header)
     print(pad + "  ".join("-" * widths[k] for k, _ in cols))
@@ -610,10 +638,7 @@ def cmd_status(as_json):
     # idle view + recent-runs table (it's the common leftover state).
     non_mcp_procs = [p for p in test_procs if p["kind"] != "maestro-mcp"]
     if not runs and not non_mcp_procs:
-        if test_procs:
-            print("✅  No tests in progress (a maestro MCP server is connected but idle).")
-        else:
-            print("✅  No tests in progress (no qa run, no maestro/vitest/newman/playwright processes).")
+        print("✅  No tests in progress.")
         if payload["panicMarker"]:
             print("⚠️   Stale PANIC marker present (tests/PANIC) — qa clears it on next start.")
         _recent_runs_table()
@@ -2000,7 +2025,7 @@ def recent_browser():
     while True:
         rows = _recent_runs_table(numbered=True)
         if not rows:
-            print(f"No qa runs in the past {RUNS_WINDOW_H}h.")
+            print(f"No QA runs in the past {RUNS_WINDOW_H}h.")
             return 0
         try:
             raw = input(f"\nSelect run (1-{len(rows)}; 'q' quits): ").strip()

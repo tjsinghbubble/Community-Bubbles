@@ -58,6 +58,12 @@ export interface RunParams {
   platform: string;
   /** Resolved e2e device id (UDID / adb serial) Maestro was pinned to; "" for non-e2e runs. */
   deviceId?: string;
+  /** The --sim id/alias the run requested (e.g. "JFK"); "" when only a platform alias was used. */
+  sim?: string;
+  /** Stable device name the run actually ran on (AVD name / iOS device name), parsed from the
+   *  e2e-device gate. Distinct from deviceId — the adb serial (emulator-5556) is reused across
+   *  sims, so it mislabels back-to-back bench runs; the name does not. "" for non-e2e runs. */
+  deviceName?: string;
   tags: string[];
   areas: string[];
   roles: string[];

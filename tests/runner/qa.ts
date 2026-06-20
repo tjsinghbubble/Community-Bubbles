@@ -46,6 +46,7 @@ interface Args {
   roles: string[];
   layers: Layer[];
   platform: string;
+  platformSet: boolean;   // true iff --platform was passed explicitly (vs the ios default)
   sim: string;
   env: string;
   gate: boolean;
@@ -59,7 +60,7 @@ interface Args {
 
 function parseArgs(argv: string[]): Args {
   const a: Args = {
-    tags: [], areas: [], all: false, roles: [], layers: [], platform: "ios", sim: "", env: "local",
+    tags: [], areas: [], all: false, roles: [], layers: [], platform: "ios", platformSet: false, sim: "", env: "local",
     gate: true, seed: true, includeUnverified: false, list: false, verbose: false, help: false,
     jobs: 5,
   };
@@ -72,7 +73,7 @@ function parseArgs(argv: string[]): Args {
       case "--all": a.all = true; break;
       case "--role": a.roles.push(...multi(argv[++i])); break;
       case "--layer": a.layers.push(...(multi(argv[++i]) as Layer[])); break;
-      case "--platform": a.platform = argv[++i]; break;
+      case "--platform": a.platform = argv[++i]; a.platformSet = true; break;
       case "--sim": case "--simulator": a.sim = argv[++i]; break;
       case "--env": a.env = argv[++i]; break;
       case "--no-gate": a.gate = false; break;
@@ -102,11 +103,14 @@ Selection:
   --all                 run every registered test, all layers (alias: --area all)
   --role <r,b>          restrict roles (role-user, role-bubble-admin, role-site-admin)
   --layer <e2e|headless>   run only the named layer(s) (default: both)
-  --platform <ios|android|web>  e2e platform (default: ios; android in scope)
+  --platform <ios|android|web>  e2e platform (default: ios). Optional when --sim is
+                        given (the platform is inferred from the sim); if both are
+                        passed they must agree or the run aborts.
   --sim, --simulator <id>  pin e2e to a specific device by id/alias (UDID, AVD,
-                        adb serial, or a manage_devices alias). Default: the
-                        platform alias ('ios'/'android'), which prefers the one
-                        running device and refuses if several are up.
+                        adb serial, or a manage_devices alias). Implies --platform.
+                        Without it, the platform alias ('ios'/'android') is used,
+                        which prefers the one running device and refuses if several
+                        are up.
   --include-unverified  include tests tagged 'unverified'
 
 Run control:
@@ -212,13 +216,45 @@ function setupAdbReverse(ports: number[], serial?: string): void {
  * `simId` is either an explicit --sim value or the platform alias ('ios'/'android').
  * Returns the bare maestro device id (UDID / adb serial) plus a human description.
  */
-function resolveE2eDevice(simId: string): { ok: boolean; deviceId: string; desc: string; message: string } {
+function resolveE2eDevice(simId: string): { ok: boolean; deviceId: string; name: string; desc: string; message: string } {
   const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--resolve", simId],
     { encoding: "utf8" });
   const deviceId = (res.stdout ?? "").trim();
   const desc = (res.stderr ?? "").trim();
-  if (res.status === 0 && deviceId) return { ok: true, deviceId, desc, message: `${deviceId}  ${desc}` };
-  return { ok: false, deviceId: "", desc, message: desc || `could not resolve device '${simId}'` };
+  // The rich desc carries the stable device name: `[ aliases ] Android: name="Small_Phone_copy_JFK"`.
+  // Capture it so the run records the AVD/device it ran on, not just the reused adb serial.
+  const name = desc.match(/name="([^"]+)"/)?.[1] ?? "";
+  if (res.status === 0 && deviceId) return { ok: true, deviceId, name, desc, message: `${deviceId}  ${desc}` };
+  return { ok: false, deviceId: "", name: "", desc, message: desc || `could not resolve device '${simId}'` };
+}
+
+/**
+ * Reconcile --platform and --sim BEFORE any device work (web has no sim, so skip it).
+ *  - --sim alone: infer the platform from the sim's real kind (manage_devices --kind-of,
+ *    offline so the sim need not be booted). The default platform 'ios' is NOT treated as
+ *    an explicit choice, so `--sim <android-avd>` correctly runs android.
+ *  - --platform + --sim: the sim's kind must match the explicit platform, else abort — a
+ *    mismatch means one of the two is wrong and silently trusting either hides the bug.
+ *  - --platform alone (no --sim): unchanged; resolveE2eDevice falls back to the platform
+ *    alias ('ios'/'android'), which prefers the one running device for that platform.
+ * Mutates args.platform to the reconciled value. Exits 2 on an unresolvable sim or a
+ * mismatch — both are bad-args, the same exit code as other arg errors.
+ */
+function reconcilePlatformSim(args: Args): void {
+  if (!args.sim || args.platform === "web") return;
+  const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--kind-of", args.sim],
+    { encoding: "utf8" });
+  const kind = (res.stdout ?? "").trim();   // 'ios' | 'android'
+  if (res.status !== 0 || (kind !== "ios" && kind !== "android")) {
+    console.error(`error: --sim '${args.sim}' could not be resolved to a device: ${(res.stderr ?? "").trim() || "unknown"}`);
+    process.exit(2);
+  }
+  if (args.platformSet && args.platform !== kind) {
+    console.error(`error: --platform ${args.platform} conflicts with --sim '${args.sim}', which is an ${kind} device.`);
+    console.error(`  drop --platform (it's inferred from --sim), or pass an ${args.platform} sim.`);
+    process.exit(2);
+  }
+  args.platform = kind;
 }
 
 function runMaestro(
@@ -320,6 +356,9 @@ function panicRequested(): boolean {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) { console.log(USAGE); return; }
+  // --sim implies its platform; --platform+--sim must agree. Do this before selection/gating
+  // so a mismatch aborts immediately (and a bench script can pass --sim alone for any platform).
+  reconcilePlatformSim(args);
   if (existsSync(PANIC_MARKER)) rmSync(PANIC_MARKER); // clear stale marker on start
 
   const env = resolveEnv(args.env);
@@ -398,8 +437,11 @@ async function main(): Promise<void> {
       process.exit(130);
     });
   }
-  // The resolved e2e device id (UDID / adb serial) that pins every Maestro invocation.
+  // The resolved e2e device id (UDID / adb serial) that pins every Maestro invocation,
+  // plus the stable device name it maps to (recorded so back-to-back runs on a reused serial
+  // are still distinguishable in testctl).
   let e2eDeviceId = "";
+  let e2eDeviceName = "";
   if (args.gate && selected.length > 0) {
     console.log("── Gating ─────────────────────────────");
     run.beat("gating");
@@ -453,7 +495,7 @@ async function main(): Promise<void> {
           name: "e2e-device", status: dev.ok ? "pass" : "fail", waited: false,
           message: dev.ok ? `🎯 ${dev.message}` : `test canceled: ${dev.message}`,
         });
-        if (dev.ok) e2eDeviceId = dev.deviceId;
+        if (dev.ok) { e2eDeviceId = dev.deviceId; e2eDeviceName = dev.name; }
       }
       // Standing rule: the app must be on the resolved device — run it if present, install it
       // from the built binary if not, fail if no binary exists.
@@ -510,7 +552,7 @@ async function main(): Promise<void> {
   const dbClass = (gates.find((g) => g.name === "production-guard") as any)?.classification ?? env.dbClass;
   run.writeParams({
     env: args.env, apiBaseUrl: env.apiBaseUrl, dbClassification: dbClass, platform: args.platform,
-    deviceId: e2eDeviceId,
+    deviceId: e2eDeviceId, sim: args.sim, deviceName: e2eDeviceName,
     tags, areas: args.areas, roles: roleFilter, layers,
     selectedTestIds: selected.map((t) => t.id),
   });
