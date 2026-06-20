@@ -10,6 +10,7 @@ devices, backed by a small SQLite database used as a test-time oracle.
                              for an id/alias; bare id on stdout, rich line on stderr
       --mark-used ID         record an id/alias as last-ios/last-android (no stdout id);
                              a manual qa:flow run calls this to mark the device it ran on
+      --history [ID]         dump warmup/bake/start/kill timings (all, or one id/alias)
   -s, --start ID             start device(s) with perf flags (software GPU, cores, …)
       --start:headless ID    start headless + read-only + perf flags (CI)
   -S, --start-basic ID       start device(s), legacy windowed behaviour
@@ -1122,6 +1123,52 @@ def cmd_mark_used(ident):
     err(f"marked {dev['name']} ({dev['id']}) as {plat}")
     return 0
 
+def _hist_name(udid):
+    a = db().execute("SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user') "
+                     "ORDER BY kind LIMIT 1", (udid,)).fetchone()
+    return a["alias"] if a else udid
+
+def cmd_history(ident=None, limit=80):
+    """Dump the device-manager event history (warmup/bake/start/kill timings) so the
+    overnight bench data is one command, not a hand-written SQL query. Optional ID/alias
+    filters to one device. Columns: When (local) · Device · Event · Detail · Dur(s) ·
+    CPU% (host-side) · Load. duration_ms on a 'warmup' row is boot-to-ready (or +dexopt
+    when detail carries a level)."""
+    udid = None
+    if ident:
+        try:
+            udid = resolve_one(ident)["id"]
+        except ResolveError as e:
+            err(f"history: {e}")
+            return 2
+    q = ("SELECT ts, udid, event, detail, duration_ms, dev_load, sys_load FROM history"
+         + (" WHERE udid=?" if udid else "") + " ORDER BY ts DESC LIMIT ?")
+    rows = db().execute(q, ([udid, limit] if udid else [limit])).fetchall()
+    if not rows:
+        print("No history" + (f" for {ident}" if ident else ""))
+        return 0
+    cells = []
+    for r in rows:
+        try:
+            when = datetime.fromisoformat(r["ts"]).astimezone().strftime("%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            when = (r["ts"] or "")[:19]
+        dur = f"{r['duration_ms'] / 1000:.1f}" if r["duration_ms"] is not None else ""
+        cpu = f"{r['dev_load']:.0f}" if r["dev_load"] is not None else ""
+        load = f"{r['sys_load']:.2f}" if r["sys_load"] is not None else ""
+        cells.append([when, _hist_name(r["udid"]), r["event"] or "", r["detail"] or "",
+                      dur, cpu, load])
+    headers = ["When", "Device", "Event", "Detail", "Dur(s)", "CPU%", "Load"]
+    widths = [len(h) for h in headers]
+    for row in cells:
+        for i, c in enumerate(row):
+            widths[i] = max(widths[i], len(c))
+    fmt = lambda row: "  ".join(c.ljust(widths[i]) for i, c in enumerate(row))
+    print(_c(fmt(headers), 1))
+    for row in cells:
+        print(fmt(row))
+    return 0
+
 def cmd_start(ident, mode="optimized"):
     """mode: 'basic' (legacy windowed), 'optimized' (perf flags), 'headless'."""
     sync()
@@ -1722,6 +1769,8 @@ def main(argv=None):
     g.add_argument("--mark-used", dest="mark_used", metavar="ID",
                    help="record id/alias as last-ios/last-android (no stdout id); for a "
                         "manual qa:flow run to mark the device it ran on")
+    g.add_argument("--history", nargs="?", const="", metavar="ID",
+                   help="dump warmup/bake/start/kill timings (all, or one id/alias)")
     g.add_argument("-s", "--start", metavar="ID", help="start device(s) with perf flags")
     g.add_argument("--start:headless", dest="start_headless", metavar="ID",
                    help="start headless + read-only + perf flags (CI)")
@@ -1767,6 +1816,8 @@ def main(argv=None):
         return cmd_resolve(args.resolve)
     if args.mark_used:
         return cmd_mark_used(args.mark_used)
+    if args.history is not None:
+        return cmd_history(args.history or None)
     if args.start:
         return cmd_start(args.start, "optimized")
     if args.start_headless:
