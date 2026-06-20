@@ -20,6 +20,24 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { inflateSync } from "node:zlib";
+import { spawnSync } from "node:child_process";
+import { platform } from "node:os";
+
+/**
+ * Stop iCloud Drive (+ Time Machine backup) from syncing a test-output dir. The repo lives under
+ * ~/Documents, which iCloud syncs; `com.apple.fileprovider.ignore` is the attribute that makes the
+ * iCloud FileProvider ignore a whole subtree (it's why node_modules never syncs). Setting it on
+ * tests/output (the parent) does NOT propagate to run dirs created afterward, so each run churned
+ * cloudd/bird — hence we stamp every run dir at creation. Matches scripts/icloud-ignore-churn.zsh
+ * exactly (`#P` = preserve-on-copy flag). macOS-only, idempotent, best-effort — never throws.
+ */
+export function excludeFromICloud(dir: string): void {
+  if (platform() !== "darwin") return;
+  try {
+    spawnSync("xattr", ["-w", "com.apple.fileprovider.ignore#P", "1", dir], { stdio: "ignore" });
+    spawnSync("xattr", ["-w", "com.apple.icloud.donotbackup", "1", dir], { stdio: "ignore" });
+  } catch { /* best-effort: exclusion is hygiene, not correctness */ }
+}
 
 // ── sanitizeFileName ─────────────────────────────────────────────────────────
 

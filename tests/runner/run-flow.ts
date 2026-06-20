@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources, headlessShotMode, stubHeadlessScreenshots } from "./artifacts.js";
+import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources, headlessShotMode, stubHeadlessScreenshots, excludeFromICloud } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS_ROOT = join(__dirname, "..");
@@ -80,6 +80,7 @@ function main(): void {
   const startedAt = new Date();
   const runDir = join(OUTPUT_ROOT, `run-manual-${flowName}-${utcStamp(startedAt)}`);
   mkdirSync(runDir, { recursive: true });
+  excludeFromICloud(runDir);   // keep manual-run artifacts out of iCloud sync (repo is in ~/Documents)
   copyFlowSources(flowPath, runDir, join(TESTS_ROOT, "e2e"));
 
   // qa-id / qa-reason from the flow header, so testctl reconstructs the source + names the

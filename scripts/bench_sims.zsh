@@ -26,6 +26,10 @@
 #   SETTLE=30     seconds to idle between sims (CPU calm + observer-effect settle)
 #   BENCH_PREP=0  1 = shut down ALL iOS sims + android emulators before starting
 #   SKIP_HEADLESS=0 / SKIP_E2E=0   drop a layer
+#   BENCH_SCOPE=all   'all' = --all (whole suite); 'smoke' = --tag smoke (fast subset)
+#   ZERO_ABANDON=3    abandon the whole bench after this many 0%-pass e2e runs
+#   LOAD_WARN=50      warn when 1-min load exceeds this; drop a sim if it won't fall below it
+#   LOAD_PAUSE=100    warn + pause 30s when 1-min load exceeds this before the quiesce wait
 #
 # NOTE: `e2e --all` on Android has been ~50-57 min/run here; 4 sims × 3 rounds ≈ 9-18h.
 # Tune ROUNDS / the sim list / swap --all for `--tag smoke` if that's too long.
@@ -52,6 +56,8 @@ BENCH_PREP=${BENCH_PREP:-0}
 SKIP_HEADLESS=${SKIP_HEADLESS:-0}
 SKIP_E2E=${SKIP_E2E:-0}
 ZERO_ABANDON=${ZERO_ABANDON:-3}   # abandon the whole bench after this many 0%-pass e2e runs
+BENCH_SCOPE=${BENCH_SCOPE:-all}   # 'all' = --all (whole suite); 'smoke' = --tag smoke
+if [[ $BENCH_SCOPE == smoke ]]; then SCOPE_ARGS=(--tag smoke); else SCOPE_ARGS=(--all); fi
 
 typeset -a DEAD_SIMS              # sims dropped mid-bench (failed to boot) — reported at the end
 typeset -i ZERO_RUNS=0           # running count of 0%-pass e2e runs (the abandon trigger)
@@ -79,20 +85,69 @@ PY
 run_qa() {                                   # $1=layer  $2=label  $3..=extra qa args
   local layer=$1 label=$2; shift 2
   local out=$LOGDIR/qa-$label.out
-  note "    qa $layer --all ($label) → $out"
+  note "    qa $layer $SCOPE_ARGS ($label) → $out"
   local t0=$EPOCHSECONDS
-  npm run qa -- --layer $layer --all "$@" >$out 2>&1
+  npm run qa -- --layer $layer $SCOPE_ARGS "$@" >$out 2>&1
   local rc=$? dt=$((EPOCHSECONDS - t0))
   local summary; summary=$(summarize_run $out); local src=$?
   RUN_ZERO=$(( src == 1 ))
   note "    qa $layer done rc=$rc wall=${dt}s — $summary"
 }
 
+# Integer 1-minute load average (host-side, cheap — sysctl, no guest probing).
+_load1() { sysctl -n vm.loadavg | awk '{print int($2)}' }
+
+# Intra-run host-load guard, run before each sim's turn. A bench that hammers the host into a
+# high load average produces ANR-contaminated, untrustworthy results (the SystemUI ANR at load
+# ~44–134 corrupted the e2e layer). Thresholds (Travis): warn >50; warn + pause 30s >100; if it
+# won't fall below 50 within 60s, kill + DROP the sim (its run wouldn't be trustworthy anyway).
+# Returns 0 = proceed, 1 = drop this sim.
+LOAD_WARN=${LOAD_WARN:-50}
+LOAD_PAUSE=${LOAD_PAUSE:-100}
+load_guard() {                               # $1 = sim (for messages)
+  local sim=$1 l=$(_load1)
+  (( l > LOAD_WARN )) && note "  ⚠️  1-min load ${l} > ${LOAD_WARN} (host busy)"
+  if (( l > LOAD_PAUSE )); then
+    note "  ⚠️  1-min load ${l} > ${LOAD_PAUSE} — pausing 30s to let the host settle"
+    sleep 30
+    l=$(_load1)
+  fi
+  if (( l >= LOAD_WARN )); then              # give it up to 60s to quiesce below the warn line
+    local waited=0
+    while (( l >= LOAD_WARN && waited < 60 )); do
+      sleep 10; waited=$((waited + 10)); l=$(_load1)
+    done
+    if (( l >= LOAD_WARN )); then
+      note "  ✗✗ 1-min load ${l} still ≥${LOAD_WARN} after ${waited}s — KILLING + DROPPING $sim (untrustworthy under load)"
+      python3 $MD --kill $sim >/dev/null 2>&1
+      return 1
+    fi
+    note "  1-min load settled to ${l} after ${waited}s — proceeding"
+  fi
+  return 0
+}
+
 preflight() {
-  note "preflight: qa:health (API + Metro reachable?)"
-  if ! npm run qa:health >$LOGDIR/qa-health.out 2>&1; then
-    note "✗ qa:health failed — start 'npm run qa:server' + 'npm run mobile:start' first."
-    note "  see $LOGDIR/qa-health.out"
+  note "preflight: API + Metro reachable? (health, ignoring iOS-sim-only gates)"
+  local j=$LOGDIR/qa-health.json
+  # Call testctl directly, not via `npm run` — npm prepends a banner that breaks JSON parsing.
+  python3 $TC health --json >$j 2>/dev/null
+  # A headless/android bench needs API + Metro + the bubble_test qa:server — NOT a booted iOS
+  # sim. qa:health includes iOS-sim gates that fail with the sim shut down; gate only on the
+  # checks this bench actually depends on (qa.ts re-gates the android device per run anyway).
+  if ! python3 -c "
+import json, sys
+try:
+    d = json.load(open('$j'))
+except Exception as e:
+    print(f'health output unreadable: {e}'); sys.exit(1)
+need = {'api-server', 'metro', 'qa-server-identity'}
+bad = [c['name'] for c in d.get('checks', []) if c['name'] in need and c['status'] != 'ok']
+if bad:
+    print('not ok: ' + ', '.join(bad)); sys.exit(1)
+"; then
+    note "✗ preflight: API/Metro/qa-server not ready — start 'npm run qa:server' + 'npm run mobile:start'."
+    note "  see $j"
     exit 1
   fi
   if [[ $BENCH_PREP == 1 ]]; then
@@ -117,6 +172,12 @@ for round in {1..$ROUNDS}; do
   (( ${#LIVE} )) || { note "no live sims left — stopping"; break; }
   for sim in $LIVE; do
     note "----- $sim : round $round -----"
+    # Host-load guard before any work — a busy host yields ANR-contaminated, untrustworthy runs.
+    if ! load_guard $sim; then
+      DEAD_SIMS+=($sim)
+      LIVE=(${LIVE:#$sim})
+      continue
+    fi
     # No platform assumption: each sim's platform comes from its own type. qa infers it from
     # --sim, but log it here so a mixed-platform bench is legible in the progress log.
     plat=$(python3 $MD --kind-of $sim 2>/dev/null) || plat="?"
@@ -152,7 +213,7 @@ for round in {1..$ROUNDS}; do
 done
 
 note "================= bench done ================="
-(( ${#DEAD_SIMS} )) && note "⚠️  DROPPED (failed to boot): ${DEAD_SIMS}"
+(( ${#DEAD_SIMS} )) && note "⚠️  DROPPED (boot failure or sustained high load): ${DEAD_SIMS}"
 [[ -n $abandoned ]] && note "🛑 BENCH ABANDONED EARLY: $abandoned"
 # Matrix: boot times + per-layer result counts + per-test speed + count-change analysis.
 python3 scripts/bench_report.py $LOGDIR 2>&1 | tee -a $PROGRESS

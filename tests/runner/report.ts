@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
-import { sanitizeFileName } from "./artifacts.js";
+import { sanitizeFileName, excludeFromICloud } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_ROOT = join(__dirname, "..", "output");
@@ -93,10 +93,14 @@ export class Run {
 
   constructor() {
     if (!existsSync(OUTPUT_ROOT)) mkdirSync(OUTPUT_ROOT, { recursive: true });
+    excludeFromICloud(OUTPUT_ROOT);   // keep the parent ignored (idempotent insurance)
     const nonce = randomBytes(3).toString("hex");
     this.id = `run-${utcStamp(new Date())}-${nonce}`;
     this.dir = join(OUTPUT_ROOT, this.id);
     mkdirSync(this.dir, { recursive: true });
+    // fileprovider.ignore doesn't propagate to children, so stamp each run dir at creation —
+    // otherwise every run's artifacts churn iCloud/cloudd (the repo is under ~/Documents).
+    excludeFromICloud(this.dir);
     this.writePlaceholderSummary();
     this.beat("starting");
   }
