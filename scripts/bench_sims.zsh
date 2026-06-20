@@ -32,15 +32,6 @@
 
 set -u
 cd ${0:A:h}/..                               # repo root
-MD=scripts/manage_devices.py
-TC=scripts/testctl.py
-
-SIMS=(${@:-RFKjr JoeJr JFK Kennedy})
-ROUNDS=${ROUNDS:-3}
-SETTLE=${SETTLE:-30}
-BENCH_PREP=${BENCH_PREP:-0}
-SKIP_HEADLESS=${SKIP_HEADLESS:-0}
-SKIP_E2E=${SKIP_E2E:-0}
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 LOGDIR=tmp/bench-$STAMP
@@ -48,6 +39,19 @@ mkdir -p $LOGDIR
 PROGRESS=$LOGDIR/progress.log
 
 note() { print -r -- "$(date +'%H:%M:%S')  $*" | tee -a $PROGRESS }
+
+MD=scripts/manage_devices.py
+TC=scripts/testctl.py
+
+# zsh `arr=(${@:-a b c})` does NOT field-split the default into elements (bash does),
+# so with no args SIMS became one value "RFKjr JoeJr JFK Kennedy". Use an explicit if/else.
+if (( $# )); then SIMS=("$@"); else SIMS=(RFKjr JoeJr JFK Kennedy); fi
+ROUNDS=${ROUNDS:-2}
+SETTLE=${SETTLE:-30}
+BENCH_PREP=${BENCH_PREP:-0}
+SKIP_HEADLESS=${SKIP_HEADLESS:-0}
+SKIP_E2E=${SKIP_E2E:-0}
+
 
 # qa output is large; keep it OUT of the progress log — one file per invocation, and the
 # real artifacts (summary.json etc.) land under tests/output/ as usual.
@@ -97,6 +101,8 @@ for round in {1..$ROUNDS}; do
 done
 
 note "================= bench done ================="
+# Matrix: boot times + per-layer result counts + per-test speed + count-change analysis.
+python3 scripts/bench_report.py $LOGDIR 2>&1 | tee -a $PROGRESS
 note "boot times : python3 $MD --history"
 note "run  times : python3 $TC inspect recent"
 note "logs       : $LOGDIR/"
