@@ -3,7 +3,7 @@
 manage_devices — one syntax to start / stop / list / loop / tune simulated
 devices, backed by a small SQLite database used as a test-time oracle.
 
-  -r, --running              list running devices (or "No running devices")
+  -r, --running [-v]         running (or mid-boot) devices, same table as --list filtered
   -l, --list [-v]            list ALL devices + aliases, grouped Running then Available,
                              each in platform order; -v dumps the full record (TSV)
       --resolve ID           print the maestro device id (android adb serial / iOS UDID)
@@ -148,7 +148,10 @@ def run(cmd, capture=True):
                           stderr=None, text=True)
 
 def pids_matching(pattern):
-    r = subprocess.run(["pgrep", "-f", pattern], stdout=subprocess.PIPE, text=True)
+    # A leading '-' in `pattern` would be read as a pgrep flag; callers strip it (we also
+    # silence stderr so a no-match / odd pattern doesn't print BSD pgrep's usage banner).
+    r = subprocess.run(["pgrep", "-f", pattern], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True)
     return [int(p) for p in r.stdout.split()] if r.returncode == 0 else []
 
 # ── database ───────────────────────────────────────────────────────────────────
@@ -345,10 +348,14 @@ def ios_devices():
         for d in devs:
             if not d.get("isAvailable", True):
                 continue
+            raw = d.get("state", "Unknown")
+            # Preserve a mid-boot sim as "Booting" (otherwise _norm_state hides it as
+            # Shutdown and it never shows in the running list — issue: started-not-shown).
+            state = "Booting" if raw == "Booting" else _norm_state(raw)
             out.append({"kind": "ios", "id": d["udid"], "serial": None,
                         "name": d.get("name", d["udid"]),
                         "os_version": ver,
-                        "state": _norm_state(d.get("state", "Unknown"))})
+                        "state": state})
     return out
 
 def ios_booted():
@@ -413,9 +420,28 @@ def android_running():
                     "name": name, "os_version": os_version, "state": "Running"})
     return out
 
+def android_booting_names():
+    """AVDs whose emulator (qemu) process is alive but which adb has NOT yet promoted to
+    'device' state — i.e. mid-boot. Lets a just-started emulator show in the running list
+    before it's fully up. One `ps` scan, WHOLE-TOKEN match on `-avd <name>` / `@<name>` so
+    e.g. 'Pixel_9_Pro_XL' does not falsely match 'Pixel_9_Pro_XL_copy_Lainey'."""
+    candidates = [n for n in android_avds()
+                  if n not in {d["id"] for d in android_running()}]
+    if not candidates:
+        return set()
+    r = subprocess.run(["ps", "-axo", "command"], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True)
+    cmds = r.stdout or ""
+    booting = set()
+    for name in candidates:
+        if re.search(rf"(?:-avd\s+|@){re.escape(name)}(?=\s|$)", cmds, re.M):
+            booting.add(name)
+    return booting
+
 def android_all():
     """AVDs (defined) merged with running emulators (serial attached)."""
     running = {d["id"]: d for d in android_running()}
+    booting = android_booting_names()
     out = []
     for name in android_avds():
         if name in running:
@@ -423,7 +449,7 @@ def android_all():
         else:
             out.append({"kind": "android", "id": name, "serial": None,
                         "name": name, "os_version": _avd_os_version(name),
-                        "state": "Shutdown"})
+                        "state": "Booting" if name in booting else "Shutdown"})
     out.extend(running.values())  # running but not in -list-avds (rare)
     return out
 
@@ -466,6 +492,21 @@ def looks_headless(dev):
 
 def is_running(dev):
     return dev["state"] in ("Booted", "Running")
+
+def is_booting(dev):
+    return dev.get("state") == "Booting"
+
+def is_live(dev):
+    """Running OR mid-boot — the membership test for the 'running' list/section."""
+    return is_running(dev) or is_booting(dev)
+
+def _state_label(dev):
+    """Display state for the STATE column: Running | Booting | Shutdown."""
+    if is_running(dev):
+        return "Running"
+    if is_booting(dev):
+        return "Booting"
+    return "Shutdown"
 
 def _android_await_boot(dev, tries=300):
     """Poll until THIS avd is attached AND sys.boot_completed==1. Returns its
@@ -811,31 +852,35 @@ def _maestro_id(dev):
         return dev.get("serial")
     return dev["id"]
 
-def _device_line(d, sysmap):
-    al = all_aliases_for(d["id"], sysmap)
-    prefix = f"[ {', '.join(al)} ]" if al else ""
-    ident = d["serial"] if (d["kind"] == "android" and d.get("serial")) else d["id"]
-    plat = "iOS" if d["kind"] == "ios" else "Android"
-    ver = f" {d['os_version']}" if d.get("os_version") else ""
-    hl = " [headless]" if looks_headless(d) else ""
-    return f"{prefix:<34}{d['name']} ({ident}) [{plat}{ver}] {d['state']}{hl}"
-
-def cmd_running():
+def cmd_running(verbose=False):
+    """Running (or mid-boot) devices only — same renderer + verbose behaviour as --list,
+    just filtered to the live set (issue: running must share list's output code)."""
     sync()
     host_profile()  # keep this machine's specs (table F) current
-    devices = ios_booted() + android_running()
-    if not devices:
+    devices = ios_devices() + android_all()
+    live = [d for d in devices if is_live(d)]
+    if not live:
         print("No running devices")
         return 0
     sysmap = _system_alias_map()
-    for d in devices:
-        print(_device_line(d, sysmap))
+    sections = [("RUNNING", live)]
+    if verbose:
+        _list_long(sections, sysmap)
+        return 0
+    _render_short(sections, live, sysmap)
     return 0
 
 # ── --list rendering ─────────────────────────────────────────────────────────────
 _USE_COLOR = sys.stdout.isatty()
-SHORT_HEADERS = ["ALIASES", "KIND", "DEVICE", "STATE", "HEADLESS", "READY", "LAST USED"]
+SHORT_HEADERS = ["Aliases", "Kind", "Device", "State", "Headless", "Ready", "Last Used"]
+DEVICE_COL = 2          # index of the Device column in _short_cells
+DEVICE_CAP = 28         # non-verbose cap for the Device name (verbose: uncapped)
+ALIAS_COLOR = (1, 31)   # bold red — same for Running and Available (Available's was nicer)
 PLATFORM_ORDER = ["iOS", "Android", "Genymotion"]
+
+def _cap(s, n=DEVICE_CAP):
+    """Truncate to n chars with a trailing … (U+2026). Non-verbose display only."""
+    return s if len(s) <= n else s[: n - 1] + "…"
 
 def _c(s, *codes):
     """ANSI-wrap s (no-op when stdout isn't a TTY, so pipes/captures stay clean)."""
@@ -871,17 +916,70 @@ def _display_short(d, row):
     name = (row["display_name"] if row else None) or d.get("name") or ""
     return name.split(" / ")[0].strip()
 
-def _ready_marker(row):
-    """Surface bake/warm readiness: compile level and whether a default_boot exists."""
-    if not row:
-        return ""
-    lvl, baked = row["compile_level"], row["has_default_boot"]
+def _ready_marker(d, row):
+    """Hybrid liveness + bake (Travis): the bake/warm marker (compile level + default_boot)
+    whenever it exists, else 'live' for a running-but-unbaked device, else blank. A running
+    device therefore never reads blank, without any per-device boot_completed probing."""
+    lvl = row["compile_level"] if row else None
+    baked = row["has_default_boot"] if row else None
     if lvl and baked:
         return f"{lvl}/baked"
-    return "baked" if baked else (lvl or "")
+    if baked:
+        return "baked"
+    if lvl:
+        return lvl
+    return "live" if is_running(d) else ""
 
-def _last_used_short(row):
-    return ((row["last_used"] if row else None) or "").replace("T", " ")[:16]
+def _relative_last_used(row):
+    """Coarse, human relative time for the Last Used column when the device was used
+    within the last 7 days; absolute (YYYY-MM-DD HH:MM) beyond that. Time-of-day phrasing
+    keys off the LOCAL clock at the time of use.
+
+      ≤ 50 min ago                  → "within the hour"
+      ≤ 18 h ago (same local day)   → "this morning/afternoon/evening", "early this morning"
+      ≤ 18 h ago (crossed midnight) → "last evening", "yesterday morning/afternoon", …
+      > 18 h ago, within 7 days     → "Today" / "Yesterday" / weekday name
+      > 7 days                      → absolute timestamp
+
+    NOTE (underspecified in the request, decided here): the 50–90 min band folds into the
+    "this <time-of-day>" bucket (no gap), and the dangling ">3 hours ago" rule is omitted
+    as it conflicts with the 18 h day-naming boundary."""
+    iso = (row["last_used"] if row else None)
+    if not iso:
+        return ""
+    try:
+        t = datetime.fromisoformat(iso)
+    except ValueError:
+        return iso.replace("T", " ")[:16]
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    secs = (now - t).total_seconds()
+    if secs < 0:
+        return "just now"
+    tl, nl = t.astimezone(), now.astimezone()        # local for clock-of-day + calendar day
+    if secs > 7 * 86400:
+        return tl.strftime("%Y-%m-%d %H:%M")
+    days = (nl.date() - tl.date()).days
+    if secs <= 50 * 60:
+        return "within the hour"
+    if secs <= 18 * 3600:
+        h = tl.hour
+        part = ("early morning" if h < 5 else "morning" if h < 12
+                else "afternoon" if h < 18 else "evening")
+        if days == 0:
+            return "early this morning" if part == "early morning" else f"this {part}"
+        if part == "evening":
+            return "last evening"
+        return ("early yesterday morning" if part == "early morning"
+                else f"yesterday {part}")
+    if days == 0:
+        return "Today"
+    if days == 1:
+        return "Yesterday"
+    if days <= 6:
+        return tl.strftime("%A")
+    return tl.strftime("%Y-%m-%d %H:%M")
 
 def _headless_marker(d):
     """Cell for the HEADLESS column. Only a RUNNING android emulator can be probed;
@@ -896,8 +994,8 @@ def _short_cells(d, sysmap):
     row = _device_row(d["id"])
     return [", ".join(all_aliases_for(d["id"], sysmap)),
             _flavor_label(d, row), _display_short(d, row),
-            _norm_state(d["state"]), _headless_marker(d),
-            _ready_marker(row), _last_used_short(row)]
+            _state_label(d), _headless_marker(d),
+            _ready_marker(d, row), _relative_last_used(row)]
 
 def _order_within(devs, plat, sysmap):
     """Within a platform, the default-alias holder (ios/last-ios, android/last-android)
@@ -933,21 +1031,16 @@ def _list_long(sections, sysmap):
                          (row["notes"] if row else "") or ""])
                 print("\t".join(str(v) for v in vals))
 
-def cmd_list(verbose=False):
-    """Every in-scope device (iOS sims + Android emulators), grouped Running then
-    Available, each in platform order (iOS, Android, Genymotion). Reminds testers
-    what's around. -v/--verbose dumps the full per-device record (tab-separated)."""
-    sync()
-    host_profile()
-    devices = ios_devices() + android_all()
-    sysmap = _system_alias_map()
-    sections = [("RUNNING", [d for d in devices if is_running(d)]),
-                ("AVAILABLE", [d for d in devices if not is_running(d)])]
-    if verbose:
-        _list_long(sections, sysmap)
-        return 0
-
-    plain = {d["id"]: _short_cells(d, sysmap) for d in devices}
+def _render_short(sections, universe, sysmap):
+    """Shared short-table renderer for `--list` and `--running` (issue: they must be the
+    same output code, just filtered). `universe` = every device shown (for column widths).
+    Caps the Device name at DEVICE_CAP with … (non-verbose only); aliases use one color for
+    all sections; widths size to the shown devices."""
+    plain = {}
+    for d in universe:
+        cells = _short_cells(d, sysmap)
+        cells[DEVICE_COL] = _cap(cells[DEVICE_COL])
+        plain[d["id"]] = cells
     widths = [len(h) for h in SHORT_HEADERS]
     for cells in plain.values():
         for i, c in enumerate(cells):
@@ -966,11 +1059,25 @@ def cmd_list(verbose=False):
                 continue
             print("    " + _c(header, 2))
             for d in _order_within(pdevs, plat, sysmap):
-                acolor = (1, 91) if is_running(d) else (1, 31)  # bold; bright-red vs red
                 cells = [c.ljust(widths[i]) for i, c in enumerate(plain[d["id"]])]
-                cells[0] = _c(cells[0], *acolor)
+                cells[0] = _c(cells[0], *ALIAS_COLOR)
                 print("    " + "  ".join(cells))
         print()
+
+def cmd_list(verbose=False):
+    """Every in-scope device (iOS sims + Android emulators), grouped Running then
+    Available, each in platform order (iOS, Android, Genymotion). Reminds testers
+    what's around. -v/--verbose dumps the full per-device record (tab-separated)."""
+    sync()
+    host_profile()
+    devices = ios_devices() + android_all()
+    sysmap = _system_alias_map()
+    sections = [("RUNNING", [d for d in devices if is_live(d)]),
+                ("AVAILABLE", [d for d in devices if not is_live(d)])]
+    if verbose:
+        _list_long(sections, sysmap)
+        return 0
+    _render_short(sections, devices, sysmap)
     return 0
 
 def cmd_resolve(ident):
@@ -1646,14 +1753,14 @@ def main(argv=None):
     g.add_argument("-n", "--next", nargs="?", const=None, default=False,
                    metavar="NAME", help="advance the loop cursor; print next device")
     p.add_argument("-v", "--verbose", action="store_true",
-                   help="with --list: dump the full per-device record (tab-separated)")
+                   help="with --list/--running: dump the full per-device record (tab-separated)")
     args = p.parse_args(argv)
 
     def _copy_args(lst):
         return (lst[0], lst[1] if len(lst) > 1 else None)
 
     if args.running:
-        return cmd_running()
+        return cmd_running(args.verbose)
     if args.list_all:
         return cmd_list(args.verbose)
     if args.resolve:
