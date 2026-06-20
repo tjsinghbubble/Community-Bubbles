@@ -17,7 +17,7 @@
  *                      platform alias 'ios'/'android' via manage_devices --resolve)
  *   -e KEY=VAL          extra Maestro env vars (repeatable)
  */
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -60,9 +60,18 @@ function main(): void {
 
   const flowName = sanitizeFileName(basename(flowPath).replace(/\.ya?ml$/, ""));
   const leaf = sanitizeFileName(role ? `${flowName}-${role}` : flowName);
-  const runDir = join(OUTPUT_ROOT, `run-manual-${flowName}-${utcStamp(new Date())}`);
+  const startedAt = new Date();
+  const runDir = join(OUTPUT_ROOT, `run-manual-${flowName}-${utcStamp(startedAt)}`);
   mkdirSync(runDir, { recursive: true });
   copyFlowSources(flowPath, runDir, join(TESTS_ROOT, "e2e"));
+
+  // qa-id / qa-reason from the flow header, so testctl reconstructs the source + names the
+  // test the same way it does for a qa-suite run (falls back to the flow filename).
+  const flowText = readFileSync(flowPath, "utf8");
+  const qaId = (flowText.match(/#\s*qa-id:\s*(\S+)/) || [])[1] || flowName;
+  const qaReason = (flowText.match(/#\s*qa-reason:\s*(.+)/) || [])[1]?.trim() || "";
+  const gitSha = (spawnSync("git", ["rev-parse", "--short", "HEAD"],
+    { cwd: REPO_ROOT, encoding: "utf8" }).stdout ?? "").trim();
 
   const args = ["test", flowPath,
     "-e", `APP_ID=${envCfg.appId}`,
@@ -81,19 +90,30 @@ function main(): void {
   // Pin the device so maestro doesn't auto-select among all connected devices (which ran
   // iOS flows on a booted Android emulator). Resolve the platform alias by default; web
   // has no device to pin.
+  let resolvedDeviceId = "";
   if (platform !== "web") {
     const simId = sim || platform;
     const r = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--resolve", simId],
       { encoding: "utf8" });
-    const deviceId = (r.stdout ?? "").trim();
-    if (r.status === 0 && deviceId) {
-      args.unshift("--device", deviceId);
-      console.log(`🎯  ${deviceId}  ${(r.stderr ?? "").trim()}`);
+    resolvedDeviceId = (r.stdout ?? "").trim();
+    if (r.status === 0 && resolvedDeviceId) {
+      args.unshift("--device", resolvedDeviceId);
+      console.log(`🎯  ${resolvedDeviceId}  ${(r.stderr ?? "").trim()}`);
     } else {
       console.error(`error: could not resolve device '${simId}': ${(r.stderr ?? "").trim()}`);
       process.exit(2);
     }
   }
+
+  // run-params.json so testctl lists this manual run (its recent-runs table skips dirs
+  // without one). Written BEFORE the run, so a crash still leaves the run discoverable.
+  writeFileSync(join(runDir, "run-params.json"), JSON.stringify({
+    startedAt: startedAt.toISOString(),
+    gitSha, env: envName, apiBaseUrl: envCfg.apiBaseUrl ?? "",
+    platform, deviceId: resolvedDeviceId,
+    roles: role ? [role] : [], layers: ["e2e"],
+    selectedTestIds: [qaId], manual: true,
+  }, null, 2) + "\n");
 
   console.log(`📁  ${runDir}`);
   const res = spawnSync("maestro", args, { cwd: REPO_ROOT, stdio: "inherit" });
@@ -118,6 +138,30 @@ function main(): void {
     spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--mark-used", simId],
       { stdio: "ignore" });
   }
+
+  // Minimal summary.json (new meta-nested shape) so testctl shows a real result/run-time
+  // and the per-test inspector works on a manual run exactly like a qa-suite one.
+  const finishedAt = new Date();
+  const passed = (res.status ?? 1) === 0;
+  writeFileSync(join(runDir, "summary.json"), JSON.stringify({
+    meta: {
+      runId: basename(runDir), startedAt: startedAt.toISOString(),
+      finishedAt: finishedAt.toISOString(), canceled: false,
+      totals: { total: 1, targeted: 1, passed: passed ? 1 : 0,
+        failed: passed ? 0 : 1, knownBugs: 0, findings: 0 },
+    },
+    gates: [],
+    results: [{
+      id: qaId, tool: "maestro", layer: "e2e", role: role || null,
+      tags: ["e2e", platform, ...(role ? [role] : [])],
+      status: passed ? "pass" : "fail",
+      durationMs: finishedAt.getTime() - startedAt.getTime(),
+      expectedFinding: false, knownBug: false,
+      reason: qaReason, artifactsDir: runDir,
+      message: "(manual qa:flow run)",
+    }],
+  }, null, 2) + "\n");
+
   process.exit(res.status ?? 1);
 }
 
