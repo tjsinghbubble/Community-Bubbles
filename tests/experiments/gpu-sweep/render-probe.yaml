@@ -1,0 +1,40 @@
+# Render-NAVIGATION probe for the -gpu sweep — experiment-only, FULLY SELF-CONTAINED.
+#
+# Drives the app to a known rendered screen (the login form) and asserts it is there,
+# proving FUNCTIONAL render (bundle loads, views in the a11y tree, tappable). It takes NO
+# screenshot and does NOT stop the app — the sweep runner captures pixels itself AFTER this
+# returns, two ways (guest `adb screencap` and host-side emulator capture), then force-stops.
+#
+# NO `env:` block and NO `-e`/`${...}` params anywhere — the earlier flow-env-defaults-
+# override-`-e` bug is therefore structurally impossible here. Metro is reached at the fixed
+# localhost:8081 via the runner's `adb reverse`. This is an EXPERIMENT copy: if you need a
+# different Metro target, edit this file (don't reintroduce env plumbing).
+appId: com.bubble.mobile
+---
+# Clean launch (Expo dev client): clearState wipes the stored Metro URL, so re-point it with
+# openLink immediately after; pre-grant notifications (clearState wipes permissions).
+- launchApp:
+    appId: com.bubble.mobile
+    clearState: true
+    permissions:
+      notifications: allow
+
+- openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081"
+
+- waitForAnimationToEnd:
+    timeout: 2500
+
+# Functional-render gate: a -gpu mode that does not render times out HERE — that timeout IS
+# the "fails to render" signal recorded by the sweep, not a harness bug.
+- extendedWaitUntil:
+    visible:
+      text: "Log In"
+    timeout: 60000
+
+- tapOn:
+    text: "Log In"
+
+# Confirm we reached the rendered login form (content-rich screen, good for black-vs-valid).
+- assertVisible:
+    id: input-email
+# No takeScreenshot, no stopApp — the runner captures guest + host-side next.
