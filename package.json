@@ -50,6 +50,7 @@
     "qa:panic": "tsx tests/runner/panic.ts",
     "qa:status": "python3 scripts/testctl.py status",
     "qa:health": "python3 scripts/testctl.py health",
+    "qa:driver-health": "python3 scripts/testctl.py driver-health",
     "qa:nuke": "python3 scripts/testctl.py nuke --nuke=them-all",
     "qa:inspect": "python3 scripts/testctl.py inspect",
     "qa:lint:selectors": "python3 scripts/check_brittle_selectors.py",

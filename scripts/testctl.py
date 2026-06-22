@@ -8,6 +8,8 @@ health scripts, humans, and the test scripts themselves.
   testctl.py status            what is running right now (test, step, runner, invoker, timings)
   testctl.py nuke LIST         stop test runners (known method first, else SIGQUIT → 2s → SIGKILL)
   testctl.py health            diagnose the local test environment
+  testctl.py driver-health     probe the Maestro Android driver: gRPC deviceInfo (aliveness+latency)
+                               if a live session holds :7001, else an lsof port-only check
   testctl.py inspect [last|all|recent|<N> [<B>]] [RUN_DIR]   artifact inspector
   testctl.py --json <cmd>      machine-readable output for any command
 
@@ -39,6 +41,7 @@ import json
 import os
 import plistlib
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -63,6 +66,20 @@ API_PORT = int(os.environ.get("API_PORT", "3000"))
 METRO_PORT = int(os.environ.get("METRO_PORT", "8081"))
 APP_ID = os.environ.get("QA_APP_ID", "com.bubble.mobile")
 LOAD_CEILING = float(os.environ.get("QA_LOAD_CEILING", "75"))
+
+# Maestro Android driver gRPC server (see driver-health / cmd_driver_health). The
+# maestro JVM serves `maestro_android.MaestroDriver` on host localhost:7001, opened
+# via a dadb tunnel (NOT `adb forward` — so `adb forward --list` is empty even when
+# up; lsof is the reliable presence check). The driver is EPHEMERAL: it exists only
+# during a live maestro test/studio/hierarchy session. There is no reflection or
+# standard health service, so the gRPC probe needs the schema via -protoset. The
+# `deviceInfo` RPC is the de-facto heartbeat (same call-path as the inputText
+# DEADLINE_EXCEEDED failure mode). Protoset is gitignored/regenerable.
+DRIVER_PORT = int(os.environ.get("MAESTRO_DRIVER_PORT", "7001"))
+DRIVER_SERVICE = "maestro_android.MaestroDriver"
+DRIVER_PROTOSET = Path(os.environ.get("MAESTRO_DRIVER_PROTOSET",
+                                      str(REPO / "tmp" / "maestro_android.protoset")))
+DRIVER_LATENCY_WARN_S = float(os.environ.get("QA_DRIVER_LATENCY_WARN_S", "2.0"))
 
 # ── small utils ───────────────────────────────────────────────────────────────
 
@@ -983,6 +1000,105 @@ def cmd_health(as_json):
             if c.get("fix"):
                 print(f"      ↳ {c['fix']}")
     return 0 if ok else 1
+
+
+# ── maestro driver health ───────────────────────────────────────────────────────
+# Health-probe the Maestro Android driver's gRPC server (localhost:7001).
+#   A. Live session  (:7001 LISTENing)  → gRPC `deviceInfo` probe: aliveness + latency.
+#   B. Otherwise (no listener)          → port-only check via lsof; driver is down/idle.
+# The driver is ephemeral (up only during maestro test/studio/hierarchy), opens its
+# socket via a dadb tunnel not `adb forward`, and serves no reflection/health RPC, so
+# the live probe needs `-protoset`. deviceInfo is the de-facto heartbeat.
+
+def driver_listener_pids():
+    """Procs LISTENing on the driver port. Empty list ⇒ no live session (case B)."""
+    out = subprocess.run(["lsof", "-nP", f"-iTCP:{DRIVER_PORT}", "-sTCP:LISTEN", "-Fpc"],
+                         capture_output=True, text=True).stdout
+    procs = []
+    pid, cmd = None, "?"
+    for line in out.splitlines():
+        if line.startswith("p"):
+            if pid is not None:
+                procs.append({"pid": pid, "cmd": cmd})
+            pid, cmd = int(line[1:]), "?"
+        elif line.startswith("c"):
+            cmd = line[1:]
+    if pid is not None:
+        procs.append({"pid": pid, "cmd": cmd})
+    return procs
+
+
+def grpc_device_info(timeout=10):
+    """Probe deviceInfo (the heartbeat). Returns (ok, latency_s, detail).
+    ok is None when we can't probe at all (no grpcurl / no protoset)."""
+    grpcurl = shutil.which("grpcurl")
+    if not grpcurl:
+        return None, None, "grpcurl not on PATH (`brew install grpcurl`) — can't gRPC-probe; port-only"
+    if not DRIVER_PROTOSET.exists():
+        rel = DRIVER_PROTOSET.relative_to(REPO) if DRIVER_PROTOSET.is_relative_to(REPO) else DRIVER_PROTOSET
+        return None, None, (f"protoset missing at {rel} (gitignored/regenerable — see memory "
+                            "project-maestro-android-driver-grpc-health) — port-only")
+    t0 = time.monotonic()
+    try:
+        proc = subprocess.run(
+            [grpcurl, "-plaintext", "-protoset", str(DRIVER_PROTOSET), "-d", "{}",
+             f"localhost:{DRIVER_PORT}", f"{DRIVER_SERVICE}/deviceInfo"],
+            capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, float(timeout), (f"deviceInfo DEADLINE — no response in {timeout}s "
+                                       "(driver wedged; same call-path as the inputText DEADLINE_EXCEEDED failure)")
+    dt = time.monotonic() - t0
+    if proc.returncode != 0:
+        msg = (proc.stderr or proc.stdout).strip()
+        last = msg.splitlines()[-1] if msg else f"exit {proc.returncode}"
+        return False, dt, f"deviceInfo failed in {dt:.2f}s: {last}"
+    try:
+        info = json.loads(proc.stdout)
+        shape = f"{info.get('widthPixels', '?')}×{info.get('heightPixels', '?')}px"
+    except json.JSONDecodeError:
+        shape = "(unparsable response)"
+    return True, dt, f"deviceInfo → {shape} in {dt:.2f}s"
+
+
+def check_driver_health():
+    listeners = driver_listener_pids()
+    if not listeners:
+        # Case B — no live session.
+        return {"name": "maestro-driver", "status": "ok", "live": False, "listening": False,
+                "responsive": None, "latency_s": None,
+                "detail": f"no live session — nothing LISTENing on :{DRIVER_PORT} "
+                          "(driver is ephemeral, up only during a maestro test/studio/hierarchy session)"}
+    # Case A — live session; gRPC-probe it.
+    who = ", ".join(f"{l.get('cmd', '?')}(pid {l['pid']})" for l in listeners)
+    base = f"live session — :{DRIVER_PORT} held by {who}"
+    ok, latency, gdetail = grpc_device_info()
+    if ok is None:  # listening but we can't fully probe
+        return {"name": "maestro-driver", "status": "warn", "live": True, "listening": True,
+                "responsive": None, "latency_s": None, "detail": f"{base}; {gdetail}"}
+    if not ok:
+        return {"name": "maestro-driver", "status": "fail", "live": True, "listening": True,
+                "responsive": False, "latency_s": round(latency, 3) if latency is not None else None,
+                "detail": f"{base}, but {gdetail}",
+                "fix": "driver unresponsive — recover with `python3 scripts/testctl.py nuke --nuke=maestro` "
+                       "(graceful SIGTERM→SIGKILL), then reinstall dev.mobile.maestro[.test] if instrumentation is stuck"}
+    latency = latency or 0.0  # ok path always carries a float; satisfy the type checker
+    status = "warn" if latency > DRIVER_LATENCY_WARN_S else "ok"
+    note = (f" ⚠ slow (>{DRIVER_LATENCY_WARN_S:.0f}s — UI may be mid-settle/under load; "
+            "healthy deviceInfo is ~0.15s)" if status == "warn" else "")
+    return {"name": "maestro-driver", "status": status, "live": True, "listening": True,
+            "responsive": True, "latency_s": round(latency, 3), "detail": f"{base}; {gdetail}{note}"}
+
+
+def cmd_driver_health(as_json):
+    c = check_driver_health()
+    if as_json:
+        print(json.dumps(c, indent=2))
+    else:
+        icons = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
+        print(f"{icons[c['status']]}  {c['name']}: {c['detail']}")
+        if c.get("fix"):
+            print(f"      ↳ {c['fix']}")
+    return 1 if c["status"] == "fail" else 0
 
 
 # ── inspect ───────────────────────────────────────────────────────────────────
@@ -2439,6 +2555,8 @@ def main():
     p_nuke.add_argument("--nuke", metavar="LIST",
                         help="same as the positional LIST (kept for npm qa:nuke compatibility)")
     p_health = sub.add_parser("health", help="diagnose the local test environment")
+    p_driver = sub.add_parser("driver-health",
+                              help="probe the Maestro Android driver (gRPC deviceInfo if live, else lsof :7001)")
     p_lock = sub.add_parser("lock", help="test-runner mutual-exclusion lock (acquire/release/status)")
     p_lock.add_argument("action", choices=["acquire", "release", "status"])
     p_lock.add_argument("--runner", default="?", help="runner name for the report (qa/qa:flow/…)")
@@ -2454,7 +2572,7 @@ def main():
                                 "and/or a run directory (default: current or newest run)")
     p_inspect.add_argument("--cmd", metavar="NAME",
                            help="run one menu command non-interactively (failure, code, run, …)")
-    for p in (p_status, p_nuke, p_health, p_inspect, p_lock):
+    for p in (p_status, p_nuke, p_health, p_driver, p_inspect, p_lock):
         p.add_argument("--json", action="store_true", dest="json_sub", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.json = args.json or args.json_sub
@@ -2468,6 +2586,8 @@ def main():
         return cmd_nuke(spec, args.json)
     if args.command == "health":
         return cmd_health(args.json)
+    if args.command == "driver-health":
+        return cmd_driver_health(args.json)
     if args.command == "lock":
         return cmd_lock(args.action, args)
     if args.command == "inspect":

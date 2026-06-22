@@ -65,6 +65,14 @@ DB_PATH = Path(os.environ.get("MANAGE_DEVICES_DB",
 STOP = "\U0001F6D1"  # 🛑
 END_OF_LIST = "end-of-list"
 
+# Grace before escalating a SIGQUIT to SIGKILL when stopping an emulator. An Android
+# emulator told to stop (`adb emu kill` / SIGQUIT) writes its quick-boot snapshot
+# (default_boot) on the way out — the window flickers/bounces while it serialises RAM
+# to disk. SIGKILL mid-save tears the snapshot (torn default_boot ⇒ false-ready / boot
+# failures next start). Doubled from 2s → 4s so the save finishes before we GTFO it.
+# Override with EMU_KILL_GRACE_S for slow hosts / large-RAM AVDs.
+EMU_KILL_GRACE_S = float(os.environ.get("EMU_KILL_GRACE_S", "4"))
+
 UUID_RE = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
                      r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
 
@@ -1127,6 +1135,21 @@ def cmd_kind_of(ident):
     print(dev["kind"])  # bare: 'ios' | 'android'
     return 0
 
+def cmd_headless_of(ident):
+    """Print a RUNNING device's screen mode to stdout: 'headless' | 'windowed' | 'unknown'.
+    'headless' = -no-window in the live emulator args (screenshots come back BLACK here);
+    'windowed' = a real screen; 'unknown' = iOS (always windowed enough for screenshots),
+    not running, or un-probeable. qa:flow --require-screen uses this to refuse a black run."""
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"headless-of: {e}")
+        return 2
+    h = looks_headless(dev)
+    print("unknown" if h is None else ("headless" if h else "windowed"))
+    return 0
+
 def cmd_mark_used(ident):
     """Record an id/alias as the platform's last-used device (kv last_ios/last_android +
     devices.last_used) WITHOUT printing a maestro id — so a manual `qa:flow` run can mark
@@ -1872,7 +1895,9 @@ def _quit_kill_ladder(label, list_running):
                     os.kill(pid, sig)
                 except ProcessLookupError:
                     pass
-        time.sleep(2)
+        # Longer grace after SIGQUIT so a quick-boot snapshot save can finish before
+        # the SIGKILL pass; cheap after SIGKILL (just a settle). See EMU_KILL_GRACE_S.
+        time.sleep(EMU_KILL_GRACE_S)
 
 def nuke_ios():
     narrate("iOS: Halting all running simulators")
@@ -1890,11 +1915,13 @@ def nuke_android():
     narrate("Android: Halting all running simulators")
     for dev in android_running():
         run([adb_bin(), "-s", dev["serial"], "emu", "kill"], capture=False)
-    time.sleep(2)
+    # `adb emu kill` is graceful: the emulator saves its quick-boot snapshot here. Give
+    # it the full grace window so the save completes before the SIGQUIT/SIGKILL ladder.
+    time.sleep(EMU_KILL_GRACE_S)
     for dev in android_running():
         narrate(f"Android: shutting down {dev['name']} ({dev['serial']})")
         run([adb_bin(), "-s", dev["serial"], "emu", "kill"], capture=False)
-    time.sleep(2)
+    time.sleep(EMU_KILL_GRACE_S)
     _quit_kill_ladder("Android", android_running)
     narrate("Android: some emulators survived 😱" if android_running()
             else f"Android: full stop. {STOP}")
@@ -1924,6 +1951,9 @@ def main(argv=None):
     g.add_argument("--kind-of", dest="kind_of", metavar="ID",
                    help="print a device's platform ('ios'/'android') for an id/alias "
                         "(offline; the qa runner uses it to infer/validate --platform)")
+    g.add_argument("--headless-of", dest="headless_of", metavar="ID",
+                   help="print a running device's screen mode ('headless'/'windowed'/"
+                        "'unknown'); qa:flow --require-screen uses it to refuse a black run")
     g.add_argument("--history", nargs="?", const="", metavar="ID",
                    help="dump warmup/bake/start/kill timings (all, or one id/alias)")
     g.add_argument("-s", "--start", metavar="ID", help="start device(s) with perf flags")
@@ -1975,6 +2005,8 @@ def main(argv=None):
         return cmd_mark_used(args.mark_used)
     if args.kind_of:
         return cmd_kind_of(args.kind_of)
+    if args.headless_of:
+        return cmd_headless_of(args.headless_of)
     if args.history is not None:
         return cmd_history(args.history or None)
     if args.start:
