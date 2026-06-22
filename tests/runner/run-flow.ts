@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources, headlessShotMode, stubHeadlessScreenshots, excludeFromICloud } from "./artifacts.js";
+import { sanitizeFileName, flattenMaestroDebugOutput, copyFlowSources, headlessShotMode, stubHeadlessScreenshots, excludeFromICloud, acquireRunnerLock } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS_ROOT = join(__dirname, "..");
@@ -40,6 +40,7 @@ function main(): void {
   let platform = "ios";
   let platformExplicit = false;
   let sim = "";
+  let requireScreen = false;
   const extraEnv: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -47,14 +48,21 @@ function main(): void {
     else if (a === "--env") envName = argv[++i];
     else if (a === "--platform") { platform = argv[++i]; platformExplicit = true; }
     else if (a === "--sim" || a === "--simulator") sim = argv[++i];
+    else if (a === "--require-screen") requireScreen = true;
     else if (a === "-e") extraEnv.push(argv[++i]);
-    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [--sim <id> (implies --platform)] [-e K=V ...]"); return; }
+    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [--sim <id> (implies --platform)] [--require-screen] [-e K=V ...]"); return; }
     else if (!flowPath) flowPath = a;
     else console.warn(`(ignoring unknown arg: ${a})`);
   }
   if (!flowPath) { console.error("error: no flow yaml given"); process.exit(2); }
   flowPath = resolve(flowPath);
   if (!existsSync(flowPath)) { console.error(`error: no such flow: ${flowPath}`); process.exit(2); }
+
+  // Mutual-exclusion gate: refuse to start if another test runner (qa / another qa:flow / a
+  // stray maestro) is already running — they collide on bubble_test/Metro and the device driver.
+  // (bench_flow.zsh and the testctl zsh wrappers go through qa:flow, so this covers them too.)
+  // Released on exit.
+  acquireRunnerLock(REPO_ROOT, "qa:flow", ["npm run qa:flow --", ...process.argv.slice(2)].join(" "));
 
   const envCfg = JSON.parse(readFileSync(join(TESTS_ROOT, "config/environments.json"), "utf8")).environments[envName];
   if (!envCfg) { console.error(`error: unknown env '${envName}'`); process.exit(2); }
@@ -124,6 +132,20 @@ function main(): void {
     } else {
       console.error(`error: could not resolve device '${simId}': ${(r.stderr ?? "").trim()}`);
       process.exit(2);
+    }
+
+    // --require-screen: refuse to run on a headless device. A -no-window Android emulator
+    // returns BLACK screenshots/recordings here (swiftshader), so a debug re-run that wants
+    // to SEE the screen (noisy/movie/cmd) must fail loudly rather than capture black frames.
+    if (requireScreen) {
+      const h = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--headless-of", simId],
+        { encoding: "utf8" });
+      const mode = (h.stdout ?? "").trim();
+      if (mode === "headless" || (mode === "unknown" && platform === "android")) {
+        console.error(`error: --require-screen: device '${simId}' is ${mode === "headless" ? "headless (-no-window)" : "not confirmed windowed"} — screenshots/recordings would be BLACK.`);
+        console.error(`       boot it WINDOWED first:  python3 scripts/manage_devices.py --kill ${simId} && python3 scripts/manage_devices.py --start ${simId}`);
+        process.exit(2);
+      }
     }
   }
 

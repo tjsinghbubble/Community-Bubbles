@@ -31,7 +31,7 @@ import {
 } from "./gating.js";
 import { makePool } from "../fixtures/journal.js";
 import { PANIC_MARKER } from "./panic.js";
-import { flattenMaestroDebugOutput, copyFlowSources, copyTestSource, headlessShotMode, stubHeadlessScreenshots } from "./artifacts.js";
+import { flattenMaestroDebugOutput, copyFlowSources, copyTestSource, headlessShotMode, stubHeadlessScreenshots, acquireRunnerLock } from "./artifacts.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TESTS_ROOT = join(__dirname, "..");
@@ -409,6 +409,11 @@ async function main(): Promise<void> {
     }
     return;
   }
+
+  // Mutual-exclusion gate: no second test runner may run concurrently (they collide on
+  // bubble_test/Metro and the device's singleton driver). Acquire AFTER the --help/--list/
+  // validation early-returns, BEFORE any gating/booting/running. Released on exit.
+  acquireRunnerLock(REPO_ROOT, "qa", ["npm run qa --", ...process.argv.slice(2)].join(" "));
 
   const run = new Run();
   console.log(`\n🏃  ${run.id}  (env=${args.env}, layers=${layers.join("+")}, tags=[${tags.join(",")}], areas=[${args.areas.join(",")}])`);

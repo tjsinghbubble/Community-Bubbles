@@ -31,6 +31,26 @@ import { platform } from "node:os";
  * cloudd/bird — hence we stamp every run dir at creation. Matches scripts/icloud-ignore-churn.zsh
  * exactly (`#P` = preserve-on-copy flag). macOS-only, idempotent, best-effort — never throws.
  */
+/**
+ * Test-runner mutual-exclusion lock. Correctness over speed: at most ONE test runner (qa /
+ * qa:flow / bench / maestro) may run at a time. Delegates the whole PID/PPID/stale protocol to
+ * `testctl.py lock` (one implementation, shared by the TS runners + zsh wrappers). On failure
+ * testctl has already printed why (held by whom, stray maestro, etc.) and we exit with its code.
+ * Registers a process-exit handler that releases the lock on any catchable exit (normal, cancel
+ * via process.exit, crash); SIGKILL can't be caught, but the lock self-heals then (dead pid →
+ * reclaimable on the next acquire).
+ */
+export function acquireRunnerLock(repoRoot: string, runner: string, cmd: string): void {
+  const tc = join(repoRoot, "scripts/testctl.py");
+  const r = spawnSync("python3", [tc, "lock", "acquire", "--runner", runner,
+    "--pid", String(process.pid), "--ppid", String(process.ppid), "--cmd", cmd],
+    { stdio: "inherit" });
+  if (r.status !== 0) process.exit(r.status ?? 1);   // refused — testctl printed the reason
+  process.on("exit", () => {
+    spawnSync("python3", [tc, "lock", "release", "--pid", String(process.pid)], { stdio: "ignore" });
+  });
+}
+
 export function excludeFromICloud(dir: string): void {
   if (platform() !== "darwin") return;
   try {

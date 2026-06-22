@@ -34,6 +34,7 @@ stdlib only; no third-party deps.
 """
 
 import argparse
+import fcntl
 import json
 import os
 import plistlib
@@ -52,6 +53,11 @@ REPO = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = REPO / "tests" / "output"
 HEARTBEAT = OUTPUT_ROOT / "current-run.json"
 PANIC_MARKER = REPO / "tests" / "PANIC"
+
+# Test-runner mutual-exclusion lock (see the "lock" subcommand / cmd_lock).
+LOCK_FILE = OUTPUT_ROOT / ".test-runner.lock"
+LOCK_GUARD = OUTPUT_ROOT / ".test-runner.lock.guard"
+LOCK_STALE_HOURS = 8
 
 API_PORT = int(os.environ.get("API_PORT", "3000"))
 METRO_PORT = int(os.environ.get("METRO_PORT", "8081"))
@@ -1442,14 +1448,18 @@ def cmd_show_images(e, run):
     open_with("images", imgs)
 
 
-def build_run_cmd(e, run):
+def build_run_cmd(e, run, flow_override=None, require_screen=False):
     params = run["params"]
     envname = params.get("env", "local")
     platform = params.get("platform", "ios")
     device_id = params.get("deviceId")
     if e.tool == "maestro":
-        src = find_source_by_qa_id(e.id, e.layer)
-        rel = src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
+        if flow_override is not None:
+            rel = flow_override.relative_to(REPO) \
+                if str(flow_override).startswith(str(REPO)) else flow_override
+        else:
+            src = find_source_by_qa_id(e.id, e.layer)
+            rel = src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
         cmd = f"npm run qa:flow -- {rel}"
         if e.role:
             cmd += f" --role {e.role}"
@@ -1463,6 +1473,11 @@ def build_run_cmd(e, run):
             tok = _sim_token(device_id, platform)
             if tok:
                 cmd += f" --sim {tok}"
+            # Debug re-runs (cmd/movie/noisy) want a visible screen; a headless sim yields
+            # BLACK screenshots/recordings, defeating the whole point. --require-screen makes
+            # qa:flow refuse to run on a headless device.
+            if require_screen:
+                cmd += " --require-screen"
         return cmd
     base = params.get("apiBaseUrl", f"http://localhost:{API_PORT}")
     if e.tool == "vitest":
@@ -1476,7 +1491,9 @@ def build_run_cmd(e, run):
 
 
 def cmd_run_cmd(e, run):
-    cmd = build_run_cmd(e, run)
+    # require_screen: a manual re-run is for watching/debugging — fail loudly on a headless
+    # sim rather than silently producing black frames.
+    cmd = build_run_cmd(e, run, require_screen=True)
     print(f"  {cmd}")
     if clipboard_copy(cmd):
         print("  📋 copied to the clipboard")
@@ -1515,7 +1532,8 @@ def cmd_run_movie(e, run):
   mkdir -p tmp/maestro
   local -a flow=(npm run qa:flow -- {rel}{env_arg})
   [[ -n "$role" ]] && flow+=(--role "$role")
-  flow+=(--platform "$platform" --sim "$device")
+  # --require-screen: a black (headless) recording is worthless, so make qa:flow refuse one.
+  flow+=(--platform "$platform" --sim "$device" --require-screen)
   if [[ "$platform" == android ]]; then
     print "movie[android]: screenrecord on $native (NB: -no-window emulator records BLACK on this host)"
     adb -s "$native" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local rec=$!
@@ -1545,6 +1563,13 @@ def cmd_show_params(e, run):
     print(f"  test     : {e.id}" + (f" [{e.role}]" if e.role else ""))
     print(f"  runner   : {e.tool} (layer {e.layer})")
     print(f"  status   : {e.status}" + (f"  ({(e.duration_ms or 0) / 1000:.4f}s)" if e.duration_ms else ""))
+    begin, end, fail = _maestro_log_times(e.artifacts)
+    if begin or end:
+        end_label = f"{end}" + ("   ⟵ error" if fail and fail == end else "")
+        print(f"  begin    : {begin or '?'}")
+        print(f"  end      : {end_label or '?'}")
+        if fail and fail != end:
+            print(f"  error at : {fail}")
     if e.tags:
         # Flows are iOS-authored, so an 'ios'/'android' tag is about the flow's origin,
         # NOT the platform this run executed on. Call it out to avoid the classic trap.
@@ -1677,7 +1702,48 @@ def cmd_create_trello(e, run):
     print("  Review it, then batch-file via the trello workflow (drafts are never auto-filed).")
 
 
-def cmd_internal_log(e, run):
+LOGVIEW = REPO / "scripts" / "maestro_logview.zsh"
+
+
+def _maestro_log_times(artifacts):
+    """(begin, end, fail) as HH:MM:SS read straight from a maestro internal log,
+    or (None, None, None) if there isn't one. `fail` is the first CommandFailed
+    (the actual error time), falling back to the last *FAILED* line."""
+    log = first_glob(artifacts, "internal-maestro-log*.log")
+    if not log:
+        return (None, None, None)
+    ts = re.compile(r"^(\d{2}:\d{2}:\d{2})\.\d{3} ")
+    begin = end = fail = last_failed = None
+    try:
+        for line in log.read_text(errors="replace").splitlines():
+            m = ts.match(line)
+            if not m:
+                continue
+            t = m.group(1)
+            if begin is None:
+                begin = t
+            end = t
+            if "CommandFailed" in line and fail is None:
+                fail = t
+            elif "FAILED" in line:
+                last_failed = t
+    except OSError:
+        return (None, None, None)
+    return (begin, end, fail or last_failed)
+
+
+def cmd_internal_log(e, run, verbose=False):
+    # Maestro: the time-focused lnav view (window highlighted, landing on the error).
+    # `/v` (verbose) bypasses that and opens the raw log in the configured viewer.
+    if not verbose and e.tool == "maestro" and first_glob(e.artifacts, "internal-maestro-log*.log"):
+        if not LOGVIEW.exists():
+            print(f"  ⚠️  {LOGVIEW.relative_to(REPO)} missing — falling back to raw log.")
+        else:
+            try:
+                subprocess.run(["zsh", str(LOGVIEW), str(e.artifacts), "--at-fail"], check=False)
+                return
+            except OSError as err:
+                print(f"  ⚠️  could not run the log viewer ({err}) — falling back to raw log.")
     log = first_glob(e.artifacts, "internal-maestro-log*.log", "detailed-log--*.json",
                      "vitest-results--*.json", "*.log", "*.json")
     if not log:
@@ -1736,6 +1802,195 @@ def _verbose_flow(text):
             n += 1
             out.append(f"{m.group(1)}- takeScreenshot: ${{SHOT_PREFIX}}verbose-step-{n:02d}")
     return "\n".join(out) + "\n"
+
+
+# ── noisy: flatten includes + screenshot every action ──────────────────────────
+# Maestro flows are line-oriented (no YAML lib here, same reason _verbose_flow is
+# line-based). `noisy` is the debug-decorator from the e2e-infra backlog: it inlines
+# every `runFlow: file:` include into one self-contained flow, then brackets each
+# action with before/after screenshots so a failed run leaves a frame-by-frame trail.
+
+# Commands that change what's on screen — these get bracketed with screenshots.
+# Asserts/waits only observe, so they aren't bracketed (the neighbouring shots cover them).
+NOISY_ACTIONS = {
+    "tapOn", "doubleTapOn", "longPressOn", "inputText", "inputRandomText", "eraseText",
+    "pasteText", "copyTextFrom", "scroll", "scrollUntilVisible", "swipe", "openLink",
+    "pressKey", "back", "hideKeyboard", "launchApp", "stopApp", "killApp",
+    "setLocation", "travel", "addMedia", "runScript", "clearState", "clearKeychain",
+}
+_STEP_RE = re.compile(r"^-\s")
+_CMD_RE = re.compile(r"^-\s+([A-Za-z_]\w*)")
+
+
+def _flow_header(text):
+    """Everything up to and including the first `---` doc separator (appId/tags/env)."""
+    out = []
+    for line in text.splitlines():
+        out.append(line)
+        if line.strip() == "---":
+            return "\n".join(out)
+    return "appId: com.bubble.mobile\n---"  # flow had no header; synthesise a minimal one
+
+
+def _flow_body(text):
+    """The step list — everything after the first `---` separator."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == "---":
+            return lines[i + 1:]
+    return lines  # no separator → whole file is the body (rare)
+
+
+def _iter_blocks(body_lines):
+    """Yield {'leading':[...comments/blanks], 'body':[...], 'cmd':name} per step.
+    A step starts at a column-0 `- ` and runs until the next column-0 `- ` or comment."""
+    blocks, pending, cur = [], [], None
+
+    def flush():
+        nonlocal cur
+        if cur is not None:
+            m = _CMD_RE.match(cur["body"][0])
+            blocks.append({"leading": cur["leading"], "body": cur["body"],
+                           "cmd": m.group(1) if m else None})
+            cur = None
+
+    for line in body_lines:
+        if _STEP_RE.match(line):
+            flush()
+            cur = {"leading": pending, "body": [line]}
+            pending = []
+        elif cur is not None and (line[:1] in (" ", "\t") or line.strip() == ""):
+            cur["body"].append(line)
+        else:  # column-0 comment or blank between steps → leads the next step
+            flush()
+            pending.append(line)
+    flush()
+    if pending:
+        blocks.append({"leading": pending, "body": [], "cmd": None})
+    return blocks
+
+
+def _parse_runflow(body):
+    """For a `runFlow` block, return (file_path_or_None, {env KEY: VALUE})."""
+    file_path, env, env_indent = None, {}, None
+    for line in body:
+        m = re.match(r"^\s+file:\s*(.+?)\s*$", line)
+        if m:
+            file_path = m.group(1).strip().strip("\"'")
+    for line in body:
+        if env_indent is None:
+            m = re.match(r"^(\s+)env:\s*$", line)
+            if m:
+                env_indent = len(m.group(1))
+            continue
+        if line.strip() == "":
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent > env_indent:
+            mm = re.match(r"^\s+([A-Za-z_]\w*):\s*(.*?)\s*$", line)
+            if mm:
+                env[mm.group(1)] = mm.group(2).strip().strip("\"'")
+        else:
+            break  # dedent ends the env block
+    return file_path, env
+
+
+def _subst_env(text, env_map):
+    """Single-pass ${KEY} substitution (no re-expansion). Vars absent from env_map
+    stay literal so the runner's -e values still resolve them at run time."""
+    if not env_map:
+        return text
+    return re.sub(r"\$\{(\w+)\}", lambda m: env_map.get(m.group(1), m.group(0)), text)
+
+
+def flatten_flow(path, env_map, seen, includes, depth=0):
+    """Return a flat list of step blocks with all `runFlow: file:` includes inlined.
+    Subflow headers are dropped; their env-mapped bodies are spliced at top level."""
+    path = path.resolve()
+    if path in seen:
+        return [{"leading": [f"# ⚠️ include cycle skipped: {path.name}"], "body": [], "cmd": None}]
+    seen = seen | {path}
+    try:
+        raw = path.read_text(errors="replace")
+    except OSError as err:
+        return [{"leading": [f"# ⚠️ could not read include {path}: {err}"], "body": [], "cmd": None}]
+    text = _subst_env(raw, env_map) if depth else raw
+    out = []
+    for blk in _iter_blocks(_flow_body(text)):
+        if blk["cmd"] == "runFlow":
+            sub_file, sub_env = _parse_runflow(blk["body"])
+            if sub_file:
+                sub_path = (path.parent / sub_file).resolve()
+                rel = sub_path.relative_to(REPO) if str(sub_path).startswith(str(REPO)) else sub_path
+                includes.append(rel)
+                # Map the child's incoming env values through our own substitution first.
+                child_env = {k: _subst_env(v, env_map) for k, v in sub_env.items()}
+                out.append({"leading": blk["leading"] + [f"# ── begin include: {rel} ──"],
+                            "body": [], "cmd": None})
+                out += flatten_flow(sub_path, child_env, seen, includes, depth + 1)
+                out.append({"leading": [f"# ── end include: {rel} ──"], "body": [], "cmd": None})
+                continue
+        out.append(blk)
+    return out
+
+
+def noisy_decorate(units):
+    """Emit the flattened body, bracketing every action with before/after screenshots."""
+    out = ["- takeScreenshot: ${SHOT_PREFIX}noisy-000-start"]
+    n = 0
+    for u in units:
+        out += u["leading"]
+        if not u["body"]:
+            continue
+        if u["cmd"] in NOISY_ACTIONS:
+            n += 1
+            out.append(f"- takeScreenshot: ${{SHOT_PREFIX}}noisy-{n:03d}-before-{u['cmd']}")
+            out += u["body"]
+            out.append(f"- takeScreenshot: ${{SHOT_PREFIX}}noisy-{n:03d}-after-{u['cmd']}")
+        else:
+            out += u["body"]
+    return "\n".join(out).rstrip() + "\n", n
+
+
+def cmd_noisy(e, run):
+    if e.tool != "maestro":
+        print("  'noisy' is for Maestro e2e flows; this is a headless test.")
+        return
+    files = flow_files(e)
+    src = files[0] if files else find_source_by_qa_id(e.id, e.layer)
+    if not src:
+        print("  No flow source found to decorate.")
+        return
+    includes = []
+    units = flatten_flow(src, {}, set(), includes)
+    header = _flow_header(src.read_text(errors="replace"))
+    body, n_actions = noisy_decorate(units)
+    leaf = f"{src.stem}-{short_role(e.role)}" if e.role else src.stem
+    out = e.artifacts / f"noisy-{leaf}.yaml"
+    hier_note = (
+        "# ── Hierarchy / focus capture ──────────────────────────────────────────\n"
+        "# Maestro has NO in-flow command to dump the view hierarchy or the focused\n"
+        "# element, so this flow can only screenshot. To capture the on-screen objects\n"
+        "# and the focused element (the `focused` attribute), run the parallel helper\n"
+        "#   scripts/maestro_hierarchy.zsh\n"
+        "# It shares the singleton on-device driver with `maestro test`, so run it while\n"
+        "# this flow is PAUSED/STOPPED, or point it at a second simulator.\n"
+    )
+    out.write_text(header + "\n" + hier_note + body)
+    try:
+        rel = out.relative_to(REPO)
+    except ValueError:
+        rel = out
+    print(f"  📣 noisy flow written: {rel}")
+    print(f"     inlined {len(includes)} include(s): "
+          + (", ".join(str(i) for i in dict.fromkeys(includes)) or "none"))
+    print(f"     bracketed {n_actions} action(s) with before/after screenshots "
+          f"(+ a noisy-000-start frame)")
+    print(f"     hierarchy/focus: scripts/maestro_hierarchy.zsh (no in-flow dump exists)")
+    # Reuse build_run_cmd so the noisy re-run keeps the ORIGINAL run's platform + sim (an
+    # android run must re-run on android, not iOS) and forces a visible screen.
+    print(f"  ▶ run it:  {build_run_cmd(e, run, flow_override=out, require_screen=True)}")
+    _editor_open([out])
 
 
 def _write_run_script(e, run, manual):
@@ -1847,13 +2102,17 @@ INSPECT_COMMANDS = [
     ("dir",      ["go to directory", "directory", "dir", "open dir", "finder"],
      "Open the artifact directory in the directory viewer", cmd_go_dir, "SHOW"),
     ("log",      ["show runner internal log", "internal log", "log", "logs", "internal"],
-     "Open the runner's detailed internal log", cmd_internal_log, "SHOW"),
+     "Open the runner's detailed internal log at the time of the error. /v to see everything",
+     cmd_internal_log, "SHOW"),
     ("cmd",      ["cmd", "run cmd", "run command", "run", "show run cmd", "show run", "create run cmd"],
      "Command to run just this test again, with the original parameters (auto-copied)", cmd_run_cmd, "RUN"),
     ("movie",    ["movie", "run as a movie", "run movie", "record"],
      "Re-run that also records an MP4 of the device screen", cmd_run_movie, "RUN"),
     ("edit",     ["edit", "edit script", "manual"],
      "Edit a generated copy of the original script", cmd_edit, "RUN"),
+    ("noisy",    ["noisy", "decorate", "verbose flow", "screenshot every step"],
+     "Flatten all includes + screenshot before/after every action (debug decorator)",
+     cmd_noisy, "RUN"),
     ("wizard",   ["wizard", "wiz", "suggest"],
      "Get debugging suggestions (WIP)", cmd_wizard, "DIG DEEPER"),
     ("prompt",   ["prompt", "create prompt"],
@@ -1879,6 +2138,21 @@ def match_command(inp):
             return c
     pref = [c for c in INSPECT_COMMANDS if any(norm_input(a).startswith(n) for a in c[1])]
     return pref[0] if len(pref) == 1 else None
+
+
+def split_verbose(raw):
+    """('log/v' | 'log /v') → ('log', True); anything else → (raw, False).
+    The `/v` suffix asks a command to bypass its default view (today: `log`)."""
+    m = re.match(r"^(.*\S)\s*/\s*v(?:erbose)?\s*$", raw.strip(), re.I)
+    return (m.group(1).strip(), True) if m else (raw, False)
+
+
+def dispatch_command(cmd, e, run, verbose=False):
+    """Invoke an INSPECT_COMMANDS entry; only `log` honours the verbose bypass."""
+    if cmd[0] == "log":
+        cmd_internal_log(e, run, verbose=verbose)
+    else:
+        cmd[3](e, run)
 
 
 def print_command_menu(with_desc=True):
@@ -1947,12 +2221,13 @@ def inspect_command_loop(e, run):
             except (KeyboardInterrupt, EOFError):
                 print("\n  (canceled)")
             continue
-        cmd = match_command(raw)
+        base, verbose = split_verbose(raw)
+        cmd = match_command(base)
         if cmd is None:
             print(f"  ❓ unknown command {raw!r} — type 'h' for the menu")
             continue
         try:
-            cmd[3](e, run)
+            dispatch_command(cmd, e, run, verbose)
         except (KeyboardInterrupt, EOFError):
             print("\n  (canceled)")
         except Exception as err:  # an inspector command must never kill the session
@@ -2125,11 +2400,12 @@ def cmd_inspect(spec_args, one_cmd, as_json):
         if norm in ("c", "config", "configure"):
             cmd_configure(selected, run)
             return 0
-        cmd = match_command(run_item)
+        base, verbose = split_verbose(run_item)
+        cmd = match_command(base)
         if cmd is None:
             print_command_menu()
             return 2
-        cmd[3](selected, run)
+        dispatch_command(cmd, selected, run, verbose)
         if not interactive:
             return 0
 
@@ -2163,6 +2439,14 @@ def main():
     p_nuke.add_argument("--nuke", metavar="LIST",
                         help="same as the positional LIST (kept for npm qa:nuke compatibility)")
     p_health = sub.add_parser("health", help="diagnose the local test environment")
+    p_lock = sub.add_parser("lock", help="test-runner mutual-exclusion lock (acquire/release/status)")
+    p_lock.add_argument("action", choices=["acquire", "release", "status"])
+    p_lock.add_argument("--runner", default="?", help="runner name for the report (qa/qa:flow/…)")
+    p_lock.add_argument("--pid", type=int, default=0, help="the runner's own pid (owner)")
+    p_lock.add_argument("--ppid", type=int, default=0, help="the runner's parent pid")
+    p_lock.add_argument("--cmd", default="", help="invocation string for the report")
+    p_lock.add_argument("--retries", type=int, default=3, help="acquire attempts before giving up")
+    p_lock.add_argument("--interval", type=int, default=15, help="seconds between acquire attempts")
     p_inspect = sub.add_parser("inspect", help="artifact inspector for a run's tests")
     p_inspect.add_argument("spec", nargs="*", metavar="ARG",
                            help="last | all | recent | <N> [<B>] | a forgiving test name "
@@ -2170,7 +2454,7 @@ def main():
                                 "and/or a run directory (default: current or newest run)")
     p_inspect.add_argument("--cmd", metavar="NAME",
                            help="run one menu command non-interactively (failure, code, run, …)")
-    for p in (p_status, p_nuke, p_health, p_inspect):
+    for p in (p_status, p_nuke, p_health, p_inspect, p_lock):
         p.add_argument("--json", action="store_true", dest="json_sub", help=argparse.SUPPRESS)
     args = ap.parse_args()
     args.json = args.json or args.json_sub
@@ -2184,8 +2468,216 @@ def main():
         return cmd_nuke(spec, args.json)
     if args.command == "health":
         return cmd_health(args.json)
+    if args.command == "lock":
+        return cmd_lock(args.action, args)
     if args.command == "inspect":
         return cmd_inspect(args.spec, args.cmd, args.json)
+    return 2
+
+
+# ── test-runner mutual-exclusion lock ───────────────────────────────────────────
+# Correctness over speed: AT MOST ONE test runner (qa / qa:flow / bench / maestro) runs at a
+# time. The lock is a JSON flag file; the read-decide-write is serialized by an flock guard so
+# two would-be runners can't both seize it ("two trying to grab at once"). The record carries
+# pid/ppid/boottime so a lock left by a crash, `kill -9`, or reboot self-heals on the next
+# acquire. Policy (Travis): NEVER auto-kill — a live genuine runner always refuses; passing
+# LOCK_STALE_HOURS only escalates the report to "looks hung, clear with nuke". Stray maestro
+# (test/studio launched outside our runners) is detected and refused, not killed.
+RUNNER_CMD_RE = re.compile(
+    r"tests/runner/(qa|run-flow)\.(ts|js)|maestro\s+(test|studio)|"
+    r"bench_flow|bench_sims|qa:flow|npm(\s+\S+)*\s+qa\b", re.I)
+
+
+def _pid_alive(pid):
+    if not pid or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:          # exists but owned by another user
+        return True
+    except OSError:
+        return False
+
+
+def _pid_cmd(pid):
+    if not _pid_alive(pid):
+        return ""
+    try:
+        return subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                              capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _boottime():
+    """Host boot time (epoch int) — a reboot changes it, invalidating any recorded pid."""
+    try:
+        out = subprocess.run(["sysctl", "-n", "kern.boottime"], capture_output=True,
+                             text=True, timeout=5).stdout
+        m = re.search(r"sec\s*=\s*(\d+)", out)          # macOS: "{ sec = 1782..., usec = .. }"
+        if m:
+            return int(m.group(1))
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        for line in Path("/proc/stat").read_text().splitlines():   # linux fallback
+            if line.startswith("btime"):
+                return int(line.split()[1])
+    except OSError:
+        pass
+    return 0
+
+
+def _stray_maestro(exclude):
+    """Live `maestro test`/`maestro studio` PIDs not in `exclude` — untracked test runners."""
+    found = []
+    try:
+        out = subprocess.run(["ps", "-axo", "pid=,command="], capture_output=True,
+                             text=True, timeout=5).stdout
+    except (OSError, subprocess.SubprocessError):
+        return found
+    for line in out.splitlines():
+        m = re.match(r"\s*(\d+)\s+(.*)", line)
+        if not m:
+            continue
+        pid, cmd = int(m.group(1)), m.group(2)
+        if pid in exclude or "testctl" in cmd:
+            continue
+        if re.search(r"\bmaestro\b.*\b(test|studio)\b", cmd):
+            found.append((pid, cmd))
+    return found
+
+
+def _read_lock():
+    try:
+        return json.loads(LOCK_FILE.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def _write_lock(rec):
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    tmp = LOCK_FILE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(rec, indent=2) + "\n")
+    os.replace(tmp, LOCK_FILE)                          # atomic publish
+
+
+def _short(s, n=100):
+    s = (s or "").replace("\n", " ")
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def _age_hours(rec):
+    return (time.time() - rec.get("startedEpoch", 0)) / 3600.0
+
+
+def _lock_holder_state(rec):
+    """Classify the current holder. Returns (reclaimable: bool, reason)."""
+    bt = _boottime()
+    if rec.get("boottime") and bt and rec["boottime"] != bt:
+        return True, "host rebooted since the lock was taken (its pids are gone)"
+    pid, ppid = rec.get("pid", 0), rec.get("ppid", 0)
+    if not _pid_alive(pid):                             # cases A & C: owner gone
+        if _pid_alive(ppid):
+            return True, f"owner pid {pid} dead, parent {ppid} ({_short(_pid_cmd(ppid))!r}) alive"
+        return True, f"owner pid {pid} and parent {ppid} both dead"
+    # owner pid alive — is it a genuine runner, or a recycled pid now belonging to something else?
+    if not (RUNNER_CMD_RE.search(_pid_cmd(pid)) or RUNNER_CMD_RE.search(_pid_cmd(ppid))):
+        return True, f"pid {pid} alive but not a test runner ({_short(_pid_cmd(pid))!r}) — pid recycled"
+    return False, ""                                    # live genuine runner → HELD
+
+
+def _acquire_once(runner, pid, ppid, cmd):
+    """One acquire attempt under the flock guard. Returns (ok, message)."""
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    gfd = os.open(str(LOCK_GUARD), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(gfd, fcntl.LOCK_EX)                 # serialize the decision across processes
+        rec = _read_lock()
+        if rec is not None:
+            reclaimable, reason = _lock_holder_state(rec)
+            if not reclaimable:
+                age = _age_hours(rec)
+                hung = (f"\n    ⚠️ older than {LOCK_STALE_HOURS}h — looks HUNG; clear with "
+                        "`python3 scripts/testctl.py nuke all`") if age >= LOCK_STALE_HOURS else ""
+                return False, (f"a test runner is already running:\n"
+                               f"    runner={rec.get('runner')} pid={rec.get('pid')} age={age:.1f}h\n"
+                               f"    cmd: {rec.get('cmd')}\n"
+                               f"    proc: {_pid_cmd(rec.get('pid', 0)) or '(gone)'}{hung}")
+            grab_reason = f"reclaimed stale lock ({reason})"
+        else:
+            grab_reason = ""
+        # About to grab — refuse if an untracked maestro test/studio is live (it's a runner too).
+        stray = _stray_maestro(exclude={pid, ppid, os.getpid(), os.getppid(),
+                                         (rec or {}).get("pid", 0)})
+        if stray:
+            lines = "\n".join(f"    pid={p}: {c}" for p, c in stray[:5])
+            return False, ("an untracked maestro session is running (not under our lock); stop it "
+                           "first (`python3 scripts/testctl.py nuke maestro,mcp`):\n" + lines)
+        _write_lock({
+            "runner": runner, "pid": pid, "ppid": ppid, "cmd": cmd,
+            "pidCmd": _pid_cmd(pid), "host": socket.gethostname(), "boottime": _boottime(),
+            "startedAt": datetime.now().astimezone().isoformat(), "startedEpoch": int(time.time()),
+        })
+        return True, grab_reason
+    finally:
+        fcntl.flock(gfd, fcntl.LOCK_UN)
+        os.close(gfd)
+
+
+def cmd_lock(action, args):
+    if action == "status":
+        rec = _read_lock()
+        if args.json:
+            print(json.dumps(rec or {}, indent=2))
+            return 0
+        if not rec:
+            print("test-runner lock: FREE")
+            return 0
+        reclaimable, reason = _lock_holder_state(rec)
+        print(f"test-runner lock: {'STALE/reclaimable' if reclaimable else 'HELD'}")
+        print(f"  runner={rec.get('runner')} pid={rec.get('pid')} ppid={rec.get('ppid')} "
+              f"age={_age_hours(rec):.1f}h  host={rec.get('host')}")
+        print(f"  cmd: {rec.get('cmd')}")
+        if reclaimable:
+            print(f"  (reclaimable: {reason})")
+        return 0
+    if action == "release":
+        gfd = os.open(str(LOCK_GUARD), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(gfd, fcntl.LOCK_EX)
+            rec = _read_lock()
+            if rec and rec.get("pid") == args.pid:
+                try:
+                    LOCK_FILE.unlink()
+                except OSError:
+                    pass
+                print(f"🔓 lock released (pid {args.pid})", file=sys.stderr)
+            elif rec:
+                print(f"lock NOT released — owned by pid {rec.get('pid')}, not {args.pid}", file=sys.stderr)
+            return 0
+        finally:
+            fcntl.flock(gfd, fcntl.LOCK_UN)
+            os.close(gfd)
+    if action == "acquire":
+        attempts = max(1, args.retries)
+        for i in range(1, attempts + 1):
+            ok, msg = _acquire_once(args.runner, args.pid, args.ppid, args.cmd)
+            if ok:
+                extra = f" — {msg}" if msg else ""
+                print(f"🔒 test-runner lock acquired ({args.runner} pid={args.pid}){extra}",
+                      file=sys.stderr)
+                return 0
+            print(f"⛔ cannot start test runner (attempt {i}/{attempts}):\n{msg}", file=sys.stderr)
+            if i < attempts:
+                print(f"   retrying in {args.interval}s…", file=sys.stderr)
+                time.sleep(args.interval)
+        print("✗ giving up — another test runner holds the lock (correctness guard: only one at a time).",
+              file=sys.stderr)
+        return 1
     return 2
 
 
