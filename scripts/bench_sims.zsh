@@ -1,10 +1,9 @@
 #!/usr/bin/env zsh
-# bench_sims.zsh — overnight Android bench across baked sims.
+# bench_sims.zsh — bench across one or more sims/emulators (any platform).
 #
-# Per sim, per round: timed boot (→ device-manager history), then `qa --layer headless
-# --all` (host baseline) and `qa --layer e2e --all` (the real per-level signal), then kill
-# + settle. Sequential by design — iOS+Android share bubble_test/Metro and collide if run
-# concurrently.
+# Per sim, per round: timed boot (→ device-manager history), then the selected test scope,
+# then kill + settle. Sequential by design — iOS+Android share bubble_test/Metro and collide
+# if run concurrently.
 #
 # This script ONLY orchestrates + logs progress. The DATA lives in two places, read back
 # with one command each AFTER the run:
@@ -12,76 +11,203 @@
 #   run times  : python3 scripts/testctl.py inspect recent     (Run Time col; per-test
 #                durationMs is in each tests/output/run-*/summary.json)
 #
-# Defaults match the current baked copies (override by passing sims as args):
-#   RFKjr=low  JoeJr=medium  JFK=hot  Kennedy=none(baseline)
-#
-# Usage:
+# Usage (all options are SWITCHES; no positional/env args):
 #   # start the API + Metro first (separate terminals), THEN:
-#   ROUNDS=3 zsh scripts/bench_sims.zsh                 # all 4, 3 rounds
-#   zsh scripts/bench_sims.zsh RFKjr JFK                # just two sims
-#   BENCH_PREP=1 zsh scripts/bench_sims.zsh             # shut down stray sims first
+#   zsh scripts/bench_sims.zsh                              # default: --smoke, last-ios, 2 rounds
+#   zsh scripts/bench_sims.zsh --all --sims JFK,Kennedy --rounds 3
+#   zsh scripts/bench_sims.zsh --e2e --sims last-android
+#   zsh scripts/bench_sims.zsh --flow tests/e2e/auth/auth-0100-signin-smoke.yaml --sims Ryder
 #
-# Env:
-#   ROUNDS=3      rounds (samples per sim, for averaging + variability)
-#   SETTLE=30     seconds to idle between sims (CPU calm + observer-effect settle)
-#   BENCH_PREP=0  1 = shut down ALL iOS sims + android emulators before starting
-#   SKIP_HEADLESS=0 / SKIP_E2E=0   drop a layer
-#   BENCH_SCOPE=all   'all' = --all (whole suite); 'smoke' = --tag smoke (fast subset)
-#   ZERO_ABANDON=3    abandon the whole bench after this many 0%-pass e2e runs
-#   LOAD_WARN=50      warn when 1-min load exceeds this; drop a sim if it won't fall below it
-#   LOAD_PAUSE=100    warn + pause 30s when 1-min load exceeds this before the quiesce wait
+# Switches:
+#   --rounds N        samples per sim (averaging + variability).      default 2
+#   --settle N        seconds idle between sims (CPU calm).           default 30
+#   --abort-after N   give up the WHOLE bench after N runs that signal a BROKEN test
+#                     environment (0% pass / 0 tests started / no result at all — e.g. DB
+#                     down on a full disk, API or Metro crashed, all AVDs corrupted). The
+#                     point: stop wasting hours once tests have stopped meaning anything.
+#                     Startup health is checked separately by preflight and isn't counted.
+#                     default 3
+#   --sims LIST       comma- or space-separated sim ids/aliases; any
+#                     format/platform manage_devices.py recognizes
+#                     (e.g. Jane,last-android,Pixel_9_Pro_XL,<UDID>). default last-ios
+#   --prep            shut down ALL stray iOS sims + Android emulators first (clean host).
+#   --dry-run         print scope/sims/time-estimate and exit (no preflight, no runs).
+#   -y, --yes         confirm long runs up front (REQUIRED for non-interactive/overnight
+#                     long runs — otherwise a piped/detached long run aborts as a safety guard).
+#   Scope (mutually exclusive; pick one):
+#     --smoke         smoke-tagged subset, headless + e2e.            (DEFAULT)
+#     --all           whole suite, headless + e2e.
+#     --e2e           e2e layer only (whole layer).
+#     --headless      headless layer only (whole layer).
+#     --flow FLOW     run a single flow via qa:flow (FLOW = yaml path).
 #
-# NOTE: `e2e --all` on Android has been ~50-57 min/run here; 4 sims × 3 rounds ≈ 9-18h.
-# Tune ROUNDS / the sim list / swap --all for `--tag smoke` if that's too long.
+# Env overrides (rarely needed) live in the CONFIG block below.
+#
+# Long-run confirmation & how launch method affects it (keys off STDIN, not stdout):
+#   A run whose ESTIMATE ≥ WARN_MINUTES (default 60) needs confirmation. What you get:
+#     • plain interactive run            → y/N prompt (asked on /dev/tty)
+#     • output redirected/piped          → STILL prompts on the terminal even though stdout/
+#       (`> log 2>&1`, `| tee log`)        stderr go to the file (stdin is still your terminal)
+#     • stdin redirected (`< /dev/null`),→ NO terminal to ask → ABORTS unless you pass -y
+#       piped-in, or `nohup` (detaches      (this is the guard against accidental hours-long runs)
+#       stdin to /dev/null)
+#   Runs estimated UNDER WARN_MINUTES never prompt and never abort — they just run.
+#   ⇒ For a detached/overnight run, pass -y:  nohup zsh scripts/bench_sims.zsh --all -y ... &
 
 set -u
 cd ${0:A:h}/..                               # repo root
+zmodload zsh/datetime 2>/dev/null            # $EPOCHSECONDS
+
+# ════════════════════════ CONFIG (all tunables in one place) ════════════════════════
+# Switch defaults
+DEFAULT_ROUNDS=2
+DEFAULT_SETTLE=30                            # seconds idle between sims (observer-effect calm)
+DEFAULT_ABORT_AFTER=3                        # zero-pass runs before abandoning the whole bench
+DEFAULT_SCOPE=smoke                          # smoke | all | e2e | headless | flow
+DEFAULT_SIMS=(last-ios)
+
+# Intra-run host-load guard (env-overridable). A bench that hammers the host into a high load
+# average produces ANR-contaminated, untrustworthy results (the SystemUI ANR at load ~44–134
+# corrupted the e2e layer). Thresholds (Travis): warn >LOAD_WARN; warn + pause 30s >LOAD_PAUSE;
+# if load won't fall below LOAD_WARN within 60s, kill + DROP the sim (its run is untrustworthy).
+: ${LOAD_WARN:=50}                           # warn when 1-min load exceeds this
+: ${LOAD_PAUSE:=100}                         # warn + pause 30s when 1-min load exceeds this
+
+# Long-run guard: if the estimate ≥ this many minutes, ask for confirmation on a TTY.
+: ${WARN_MINUTES:=60}
+
+# Rough wall-clock cost PER SIM-ROUND, in minutes, by scope. These are estimates for the
+# confirmation prompt ONLY (real numbers: manage_devices --history + testctl inspect recent).
+# Grounded in project history: android `e2e --all` ≈ 50–57 min/run; smoke is the fast subset.
+typeset -A TIME_COST_MIN=( smoke 12  all 62  e2e 55  headless 6  flow 3 )
+BOOT_SETTLE_OVERHEAD_MIN=5                   # cold boot + settle, added per sim-round
+# ════════════════════════════════════════════════════════════════════════════════════
+
+SELF=${0:A}                                  # captured here: inside a function $0 is the fn name
+usage() { sed -n '2,40p' $SELF; }
+
+# ──────────────────────────── arg parsing (switches only) ────────────────────────────
+ROUNDS=$DEFAULT_ROUNDS
+SETTLE=$DEFAULT_SETTLE
+ABORT_AFTER=$DEFAULT_ABORT_AFTER
+SCOPE=$DEFAULT_SCOPE
+SIMS=($DEFAULT_SIMS)
+PREP=0
+ASSUME_YES=0
+DRY_RUN=0
+FLOW=""
+typeset -i scope_set=0
+
+set_scope() {                                # enforce mutual exclusivity
+  (( scope_set )) && { print -u2 "error: pick only one scope switch (got --$SCOPE and --$1)"; exit 2; }
+  SCOPE=$1; scope_set=1
+}
+
+while (( $# )); do
+  case $1 in
+    --rounds)              ROUNDS=$2; shift 2;;
+    --settle)              SETTLE=$2; shift 2;;
+    --abort-after|--abort_after) ABORT_AFTER=$2; shift 2;;
+    --smoke)               set_scope smoke; shift;;
+    --all)                 set_scope all; shift;;
+    --e2e)                 set_scope e2e; shift;;
+    --headless)            set_scope headless; shift;;
+    --flow)                set_scope flow; shift
+                           FLOW=${1:?--flow needs a FLOW yaml path}; shift
+                           [[ $FLOW == qa:flow ]] && { FLOW=${1:?}; shift; }  # tolerate `--flow qa:flow <path>`
+                           ;;
+    --sims)                shift; SIMS=()
+                           while (( $# )) && [[ $1 != -* ]]; do
+                             SIMS+=(${(s:,:)1}); shift  # split commas → individual ids
+                           done
+                           (( ${#SIMS} )) || { print -u2 "error: --sims needs at least one id"; exit 2; }
+                           ;;
+    --prep)                PREP=1; shift;;
+    --dry-run|--plan)      DRY_RUN=1; shift;;
+    -y|--yes)              ASSUME_YES=1; shift;;
+    -h|--help)             usage; exit 0;;
+    *)                     print -u2 "unknown arg: $1  (see --help)"; exit 2;;
+  esac
+done
+
+# numeric validation
+for pair in "rounds:$ROUNDS" "settle:$SETTLE" "abort-after:$ABORT_AFTER"; do
+  [[ ${pair#*:} == <-> ]] || { print -u2 "error: --${pair%%:*} must be a non-negative integer (got '${pair#*:}')"; exit 2; }
+done
+[[ $SCOPE == flow && ! -f $FLOW ]] && { print -u2 "error: --flow file not found: $FLOW"; exit 2; }
+
+MD=scripts/manage_devices.py
+TC=scripts/testctl.py
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 LOGDIR=tmp/bench-$STAMP
 mkdir -p $LOGDIR
 PROGRESS=$LOGDIR/progress.log
-
 note() { print -r -- "$(date +'%H:%M:%S')  $*" | tee -a $PROGRESS }
 
-MD=scripts/manage_devices.py
-TC=scripts/testctl.py
+# Validate every sim id up front (a typo shouldn't surface 50 minutes into an overnight run).
+typeset -a BAD_SIMS
+for s in $SIMS; do python3 $MD --kind-of $s >/dev/null 2>&1 || BAD_SIMS+=($s); done
+(( ${#BAD_SIMS} )) && { print -u2 "error: manage_devices does not recognize: ${BAD_SIMS}"; exit 2; }
 
-# zsh `arr=(${@:-a b c})` does NOT field-split the default into elements (bash does),
-# so with no args SIMS became one value "RFKjr JoeJr JFK Kennedy". Use an explicit if/else.
-if (( $# )); then SIMS=("$@"); else SIMS=(RFKjr JoeJr JFK Kennedy); fi
-ROUNDS=${ROUNDS:-2}
-SETTLE=${SETTLE:-30}
-BENCH_PREP=${BENCH_PREP:-0}
-SKIP_HEADLESS=${SKIP_HEADLESS:-0}
-SKIP_E2E=${SKIP_E2E:-0}
-ZERO_ABANDON=${ZERO_ABANDON:-3}   # abandon the whole bench after this many 0%-pass e2e runs
-BENCH_SCOPE=${BENCH_SCOPE:-all}   # 'all' = --all (whole suite); 'smoke' = --tag smoke
-if [[ $BENCH_SCOPE == smoke ]]; then SCOPE_ARGS=(--tag smoke); else SCOPE_ARGS=(--all); fi
+# scope → qa args. headless/e2e/flow run the WHOLE layer (--all); smoke is the tagged subset.
+if [[ $SCOPE == smoke ]]; then SCOPE_ARGS=(--tag smoke); else SCOPE_ARGS=(--all); fi
 
-typeset -a DEAD_SIMS              # sims dropped mid-bench (failed to boot) — reported at the end
-typeset -i ZERO_RUNS=0           # running count of 0%-pass e2e runs (the abandon trigger)
+typeset -a DEAD_SIMS              # sims dropped mid-bench (boot fail / sustained load)
+typeset -i BROKEN_RUNS=0         # running count of broken-environment runs (the abandon trigger)
+RUN_BROKEN=0
 
-# Read the just-finished run's summary.json from a qa .out file and print a one-line result
-# (e.g. "31/37 pass · 6 failed · 29 carried"). Exit status: 0 = had ≥1 pass; 1 = ZERO passes
-# with real failures (the signal the abandon-counter watches); 2 = no readable summary.
+# ──────────────────────────── time estimate + confirm ────────────────────────────
+per=${TIME_COST_MIN[$SCOPE]:-30}
+total_min=$(( (per + BOOT_SETTLE_OVERHEAD_MIN) * ROUNDS * ${#SIMS} ))
+note "scope=$SCOPE${FLOW:+ ($FLOW)}  sims=(${SIMS})  rounds=$ROUNDS  settle=${SETTLE}s"
+note "estimated wall-clock: ~${total_min} min  (≈${per}min/run + ${BOOT_SETTLE_OVERHEAD_MIN}min boot/settle × ${ROUNDS} rounds × ${#SIMS} sims)"
+note "  (estimate only — real per-run times: $TC inspect recent; boot: $MD --history)"
+(( DRY_RUN )) && { note "--dry-run: plan only — exiting before preflight/runs"; exit 0; }
+if (( total_min >= WARN_MINUTES )); then
+  note "⚠️  this is a long/expensive run (~$((total_min/60))h$((total_min%60))m)."
+  if (( ASSUME_YES )); then
+    note "  (-y/--yes: proceeding without prompt)"
+  elif [[ -t 0 ]]; then
+    # STDIN is a real terminal. Prompt/read on /dev/tty (the controlling terminal) so the
+    # question is visible and answerable EVEN IF stdout/stderr are redirected to a file.
+    print -n -- "  Continue? [y/N] " >/dev/tty
+    read -r ans </dev/tty
+    [[ $ans == [yY]* ]] || { note "aborted by user before start"; exit 0; }
+  else
+    # No terminal on STDIN (stdin redirected/piped-in, or detached via nohup, which points
+    # stdin at /dev/null): there's no one to ask, so refuse a long run unless -y was given.
+    # This is what stops an accidental detached invocation from silently burning hours.
+    note "  🛑 refusing a long run with no terminal on stdin and no -y/--yes (guard against accidental hours-long runs)."
+    note "     for an intentional detached/overnight bench, add -y:  nohup zsh scripts/bench_sims.zsh ... -y &"
+    exit 0
+  fi
+fi
+
+# ──────────────────────────── helpers ────────────────────────────
+# Read the just-finished run's summary.json and print a one-line result. Exit status encodes
+# whether the run looks like a BROKEN ENVIRONMENT (the abandon signal):
+#   0 = healthy   (≥1 test passed)
+#   1 = broken    (0 passed with real failures, OR 0 tests were even started/targeted)
+#   2 = broken    (no readable summary at all — the run likely crashed: API/Metro/DB down)
+# Both 1 and 2 increment the abort-after counter.
 summarize_run() {                            # $1 = qa .out file
   local out=$1
   local rundir="$(grep -oE '/[^ ]*/tests/output/run-[A-Za-z0-9_-]+' $out | tail -1)"
-  if [[ -z $rundir || ! -f $rundir/summary.json ]]; then print -r -- "(no summary)"; return 2; fi
+  if [[ -z $rundir || ! -f $rundir/summary.json ]]; then print -r -- "(no result — run produced no summary)"; return 2; fi
   python3 - "$rundir/summary.json" <<'PY'
 import json, sys
 t = (json.load(open(sys.argv[1])).get("meta") or {}).get("totals") or {}
 p, tg = t.get("passed", 0), t.get("targeted") or t.get("total", 0)
 f, carried = t.get("failed", 0), t.get("knownBugs", 0) + t.get("findings", 0)
-print(f"{p}/{tg} pass · {f} failed · {carried} carried")
-sys.exit(1 if (p == 0 and f > 0) else 0)
+print(f"{p}/{tg} pass · {f} failed · {carried} carried" if tg else "0 tests started")
+# Broken-environment signals: nothing ran, or everything that ran failed.
+sys.exit(1 if (tg == 0 or (p == 0 and f > 0)) else 0)
 PY
 }
 
-# qa output is large; keep it OUT of the progress log — one file per invocation, and the
-# real artifacts (summary.json etc.) land under tests/output/ as usual. Echoes the run's
-# result summary line. Sets RUN_ZERO=1 iff this was a 0%-pass run with real failures.
+# qa output is large; keep it OUT of the progress log — one file per invocation. Echoes the
+# result summary. Sets RUN_BROKEN=1 iff this run signals a broken environment (see summarize_run).
 run_qa() {                                   # $1=layer  $2=label  $3..=extra qa args
   local layer=$1 label=$2; shift 2
   local out=$LOGDIR/qa-$label.out
@@ -90,20 +216,38 @@ run_qa() {                                   # $1=layer  $2=label  $3..=extra qa
   npm run qa -- --layer $layer $SCOPE_ARGS "$@" >$out 2>&1
   local rc=$? dt=$((EPOCHSECONDS - t0))
   local summary; summary=$(summarize_run $out); local src=$?
-  RUN_ZERO=$(( src == 1 ))
+  RUN_BROKEN=$(( src == 1 || src == 2 ))
   note "    qa $layer done rc=$rc wall=${dt}s — $summary"
+}
+
+# Single-flow run via qa:flow (the --flow scope). Pins the sim; qa:flow infers --platform.
+run_flow() {                                 # $1=label  $2=sim
+  local label=$1 sim=$2 out=$LOGDIR/qa-$label.out
+  note "    qa:flow $FLOW --sim $sim ($label) → $out"
+  local t0=$EPOCHSECONDS
+  npm run qa:flow -- $FLOW --sim $sim >$out 2>&1
+  local rc=$? dt=$((EPOCHSECONDS - t0))
+  local summary; summary=$(summarize_run $out); local src=$?
+  RUN_BROKEN=$(( src == 1 || src == 2 ))
+  note "    qa:flow done rc=$rc wall=${dt}s — $summary"
+}
+
+# Run the selected scope for one sim-round. e2e/flow get --sim; headless is host-side. For the
+# combined scopes (smoke/all) e2e runs LAST so RUN_BROKEN reflects the e2e (primary) result.
+run_scope() {                                # $1=sim  $2=label-base
+  local sim=$1 base=$2
+  case $SCOPE in
+    smoke|all) run_qa headless "$base-headless"; run_qa e2e "$base-e2e" --sim $sim;;
+    e2e)       run_qa e2e "$base-e2e" --sim $sim;;
+    headless)  run_qa headless "$base-headless";;
+    flow)      run_flow "$base-flow" $sim;;
+  esac
 }
 
 # Integer 1-minute load average (host-side, cheap — sysctl, no guest probing).
 _load1() { sysctl -n vm.loadavg | awk '{print int($2)}' }
 
-# Intra-run host-load guard, run before each sim's turn. A bench that hammers the host into a
-# high load average produces ANR-contaminated, untrustworthy results (the SystemUI ANR at load
-# ~44–134 corrupted the e2e layer). Thresholds (Travis): warn >50; warn + pause 30s >100; if it
-# won't fall below 50 within 60s, kill + DROP the sim (its run wouldn't be trustworthy anyway).
-# Returns 0 = proceed, 1 = drop this sim.
-LOAD_WARN=${LOAD_WARN:-50}
-LOAD_PAUSE=${LOAD_PAUSE:-100}
+# Intra-run host-load guard, run before each sim's turn. Returns 0 = proceed, 1 = drop this sim.
 load_guard() {                               # $1 = sim (for messages)
   local sim=$1 l=$(_load1)
   (( l > LOAD_WARN )) && note "  ⚠️  1-min load ${l} > ${LOAD_WARN} (host busy)"
@@ -132,9 +276,8 @@ preflight() {
   local j=$LOGDIR/qa-health.json
   # Call testctl directly, not via `npm run` — npm prepends a banner that breaks JSON parsing.
   python3 $TC health --json >$j 2>/dev/null
-  # A headless/android bench needs API + Metro + the bubble_test qa:server — NOT a booted iOS
-  # sim. qa:health includes iOS-sim gates that fail with the sim shut down; gate only on the
-  # checks this bench actually depends on (qa.ts re-gates the android device per run anyway).
+  # The bench needs API + Metro + the bubble_test qa:server — NOT a booted iOS sim. qa:health
+  # includes iOS-sim gates that fail with the sim shut down; gate only on what the bench needs.
   if ! python3 -c "
 import json, sys
 try:
@@ -150,19 +293,18 @@ if bad:
     note "  see $j"
     exit 1
   fi
-  if [[ $BENCH_PREP == 1 ]]; then
-    note "BENCH_PREP=1: shutting down stray iOS sims + Android emulators for a clean host"
+  if (( PREP )); then
+    note "--prep: shutting down stray iOS sims + Android emulators for a clean host"
     xcrun simctl shutdown all >/dev/null 2>&1
     adb devices | awk '/emulator-/{print $1}' | while read s; do adb -s $s emu kill >/dev/null 2>&1; done
   fi
 }
 
-zmodload zsh/datetime 2>/dev/null            # $EPOCHSECONDS
+# ──────────────────────────── run ────────────────────────────
 preflight
-note "bench start: sims=(${SIMS}) rounds=$ROUNDS settle=${SETTLE}s log=$LOGDIR"
+note "bench start: log=$LOGDIR"
 
-# Sims that fail to boot are dropped for the REST of the bench (don't waste rounds retrying a
-# dead device). LIVE shrinks as sims die; DEAD_SIMS is reported loudly at the end.
+# Sims that fail to boot are dropped for the REST of the bench. LIVE shrinks as sims die.
 typeset -a LIVE; LIVE=($SIMS)
 abandoned=""
 
@@ -172,38 +314,30 @@ for round in {1..$ROUNDS}; do
   (( ${#LIVE} )) || { note "no live sims left — stopping"; break; }
   for sim in $LIVE; do
     note "----- $sim : round $round -----"
-    # Host-load guard before any work — a busy host yields ANR-contaminated, untrustworthy runs.
     if ! load_guard $sim; then
-      DEAD_SIMS+=($sim)
-      LIVE=(${LIVE:#$sim})
-      continue
+      DEAD_SIMS+=($sim); LIVE=(${LIVE:#$sim}); continue
     fi
-    # No platform assumption: each sim's platform comes from its own type. qa infers it from
-    # --sim, but log it here so a mixed-platform bench is legible in the progress log.
     plat=$(python3 $MD --kind-of $sim 2>/dev/null) || plat="?"
     note "  platform=$plat  (per-sim; qa infers --platform from --sim)"
     note "  timed boot (--warmup → history)"
     if ! python3 $MD --warmup $sim >$LOGDIR/warmup-$sim-r$round.out 2>&1; then
       note "  ✗✗ $sim FAILED TO BOOT — DROPPING it from all remaining rounds"
       note "      (see $LOGDIR/warmup-$sim-r$round.out)"
-      DEAD_SIMS+=($sim)
-      LIVE=(${LIVE:#$sim})                   # remove this sim from future rounds
-      continue
+      DEAD_SIMS+=($sim); LIVE=(${LIVE:#$sim}); continue
     fi
-    # headless is host-side (no device) — keep it platform/sim-free.
-    [[ $SKIP_HEADLESS == 1 ]] || run_qa headless "$sim-r$round-headless"
-    if [[ $SKIP_E2E != 1 ]]; then
-      run_qa e2e "$sim-r$round-e2e" --sim $sim      # --platform inferred from the sim
-      if (( RUN_ZERO )); then
-        ZERO_RUNS+=1
-        note "  ⚠️  0%-pass e2e run ($ZERO_RUNS / $ZERO_ABANDON before abandon)"
-        if (( ZERO_RUNS >= ZERO_ABANDON )); then
-          abandoned="$ZERO_RUNS e2e runs returned 0% pass — the subject is broken, not the bench; "
-          abandoned+="continuing would burn hours producing no comparable signal"
-          note "  🛑 ABANDONING BENCH: $abandoned"
-          python3 $MD --kill $sim >/dev/null 2>&1
-          break
-        fi
+
+    run_scope $sim "$sim-r$round"
+
+    if (( RUN_BROKEN )); then
+      BROKEN_RUNS+=1
+      note "  ⚠️  broken-environment run — 0% pass / 0 tests / no result ($BROKEN_RUNS / $ABORT_AFTER before abandon)"
+      if (( BROKEN_RUNS >= ABORT_AFTER )); then
+        abandoned="$BROKEN_RUNS runs signaled a broken test environment (0% pass, 0 tests started, or "
+        abandoned+="no result) — the environment is broken (DB/API/Metro/AVDs), not just the subject; "
+        abandoned+="continuing would burn hours producing no usable signal"
+        note "  🛑 ABANDONING BENCH: $abandoned"
+        python3 $MD --kill $sim >/dev/null 2>&1
+        break
       fi
     fi
     note "  kill $sim + settle ${SETTLE}s"
