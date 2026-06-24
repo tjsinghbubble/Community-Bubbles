@@ -1143,6 +1143,16 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     return 'Next';
   };
 
+  const isStepValid = (() => {
+    if (step === 1) {
+      return !!selectedBubble && title.trim().length >= 3 && description.trim().length > 0;
+    }
+    if (step === 2) {
+      return !!date && !!startTime;
+    }
+    return true;
+  })();
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.secondary} />
@@ -1175,6 +1185,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               title={getBottomButtonLabel()}
               onPress={handleNext}
               loading={loading}
+              disabled={!isStepValid}
               testID="button-next"
             />
           )}
