@@ -97,8 +97,6 @@ export function registerSocialAuthRoutes(app: Express) {
           `google_${googleId}_${Date.now()}`,
           10,
         );
-        const encryptedEmail = encryptField(email);
-        const emailHash = hashField(email);
         user = await storage.createUser({
           name: name || "New User",
           email,
