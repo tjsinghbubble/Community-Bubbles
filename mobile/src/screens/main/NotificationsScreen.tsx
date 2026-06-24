@@ -123,6 +123,9 @@ export default function NotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchNotifications();
+      return () => {
+        apiService.markAllNotificationsRead().catch(() => {});
+      };
     }, [fetchNotifications])
   );
 

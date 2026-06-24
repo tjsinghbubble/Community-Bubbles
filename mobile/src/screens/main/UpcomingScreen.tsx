@@ -143,10 +143,7 @@ export default function UpcomingScreen() {
   };
 
   const handleEventPress = (event: UpcomingEvent) => {
-    navigation.navigate('Explore', {
-      screen: 'EventDetails',
-      params: { eventId: event.id, event, source: 'upcoming' },
-    });
+    (navigation as any).navigate('EventDetails', { eventId: event.id, event, source: 'upcoming' });
   };
 
   const displayEvents = showCampusOnly
@@ -156,7 +153,7 @@ export default function UpcomingScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           {isCampusVerified ? (
             <TouchableOpacity
@@ -173,7 +170,7 @@ export default function UpcomingScreen() {
           <Text style={styles.headerTitle}>Upcoming Events</Text>
           <TouchableOpacity
             style={styles.bellButton}
-            onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}
+            onPress={() => (navigation as any).navigate('Notifications')}
             testID="button-notifications"
             accessibilityLabel="Notifications"
           >
@@ -188,7 +185,7 @@ export default function UpcomingScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         {isCampusVerified ? (
           <TouchableOpacity
@@ -205,7 +202,7 @@ export default function UpcomingScreen() {
         <Text style={styles.headerTitle}>Upcoming Events</Text>
         <TouchableOpacity
           style={styles.bellButton}
-          onPress={() => (navigation as any).navigate('Explore', { screen: 'Notifications' })}
+          onPress={() => (navigation as any).navigate('Notifications')}
           testID="button-notifications"
           accessibilityLabel="Notifications"
         >
