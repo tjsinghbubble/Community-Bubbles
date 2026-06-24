@@ -68,7 +68,15 @@
       "@sentry/react-native",
       "expo-image",
       "expo-sharing",
-      "./plugins/withSoLoaderInit"
+      "./plugins/withSoLoaderInit",
+      "expo-secure-store",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REVERSED_CLIENT_ID"
+        }
+      ]
     ],
     "extra": {
       "eas": {
