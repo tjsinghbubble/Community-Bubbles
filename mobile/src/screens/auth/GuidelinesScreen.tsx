@@ -68,7 +68,7 @@ const WARNING = {
 
 export default function GuidelinesScreen({ navigation, route }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const { signup } = useAuth();
+  const { signup, loginWithSocialToken, user: authUser } = useAuth();
 
   const uploadProfilePhoto = async (profilePhotoUri: string) => {
     const photoResponse = await fetch(profilePhotoUri);
@@ -111,13 +111,33 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
   const handleAgree = async () => {
     setIsLoading(true);
     try {
-      const { name, email, password, interests, profilePhotoUri } = route.params;
-      await signup(name, email, password, interests);
-      setIsLoading(false);
-      if (profilePhotoUri) {
-        uploadProfilePhoto(profilePhotoUri).catch((photoErr) =>
-          console.log('Profile photo upload failed (non-blocking):', photoErr)
-        );
+      const { name, email, password, interests, profilePhotoUri, isSocialSignup, socialToken } = route.params;
+
+      if (isSocialSignup && socialToken) {
+        // Social sign-up: update interests on the already-created account
+        await fetch(`${API_URL}/api/users/me`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${socialToken}`,
+          },
+          body: JSON.stringify({ interests }),
+        });
+        // Finalize the local session — merge in updated interests and clear the pending flag
+        await loginWithSocialToken(socialToken, {
+          ...(authUser ?? {}),
+          interests,
+          socialAuthPending: false,
+        } as any);
+        setIsLoading(false);
+      } else {
+        await signup(name, email, password, interests);
+        setIsLoading(false);
+        if (profilePhotoUri) {
+          uploadProfilePhoto(profilePhotoUri).catch((photoErr) =>
+            console.log('Profile photo upload failed (non-blocking):', photoErr)
+          );
+        }
       }
     } catch (error: any) {
       setIsLoading(false);

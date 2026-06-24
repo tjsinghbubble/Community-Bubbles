@@ -51,6 +51,13 @@ jest.mock('../../services/cometchat.service', () => ({
   },
 }));
 
+jest.mock('expo-secure-store', () => ({
+  __esModule: true,
+  getItemAsync: jest.fn().mockResolvedValue(null),
+  setItemAsync: jest.fn().mockResolvedValue(undefined),
+  deleteItemAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
