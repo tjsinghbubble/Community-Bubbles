@@ -72,6 +72,10 @@ export function registerSocialAuthRoutes(app: Express) {
         return res.status(400).json({ error: "Google token missing required fields" });
       }
 
+      if (!payload.email_verified) {
+        return res.status(400).json({ error: "Google account email is not verified" });
+      }
+
       const googleId = payload.sub as string;
       const email = payload.email as string;
       const name = (payload.name as string) || (payload.given_name as string) || "";

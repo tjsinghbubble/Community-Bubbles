@@ -18,6 +18,7 @@ import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import { Colors } from '../../styles/theme';
 import BubbleButton from '../../components/BubbleButton';
 import { BubbleLogoIcon } from '../../components/icons';
+import { Ionicons } from '@expo/vector-icons';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { API_URL } from '../../config/api';
@@ -303,26 +304,8 @@ const iconStyles = StyleSheet.create({
 });
 
 function AppleIcon() {
-  return (
-    <View style={appleIconStyles.container}>
-      <Text style={appleIconStyles.text}></Text>
-    </View>
-  );
+  return <Ionicons name="logo-apple" size={22} color="#000000" />;
 }
-
-const appleIconStyles = StyleSheet.create({
-  container: {
-    width: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    fontSize: 20,
-    color: '#000000',
-    lineHeight: 24,
-  },
-});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.brand.skyWhite },
