@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import WelcomeScreen from '../screens/auth/WelcomeScreen';
+import WelcomeAuthScreen from '../screens/auth/WelcomeAuthScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import EmailVerificationScreen from '../screens/auth/EmailVerificationScreen';
@@ -10,18 +10,20 @@ import TermsOfServiceScreen from '../screens/auth/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '../screens/auth/PrivacyPolicyScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+import SocialProfileScreen from '../screens/auth/SocialProfileScreen';
 
 export type AuthStackParamList = {
-  Welcome: undefined;
-  Signup: undefined;
-  Login: undefined;
+  WelcomeAuth: undefined;
+  Signup: { prefillEmail?: string } | undefined;
+  Login: { email?: string } | undefined;
   EmailVerification: { email: string; name: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string };
-  Interests: { name: string; email: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string };
-  Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[]; profilePhotoUri?: string };
+  Interests: { name: string; email: string; password: string; gender: string; dateOfBirth: string; profilePhotoUri?: string; isSocialSignup?: boolean; socialToken?: string };
+  Guidelines: { name: string; email: string; password: string; gender: string; dateOfBirth: string; interests: string[]; profilePhotoUri?: string; isSocialSignup?: boolean; socialToken?: string };
   TermsOfService: undefined;
   PrivacyPolicy: undefined;
   ForgotPassword: undefined;
   ResetPassword: { email: string };
+  SocialProfile: { token: string; prefillName: string; provider: 'google' | 'apple' };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -34,9 +36,9 @@ export default function AuthNavigator() {
         animation: 'slide_from_right',
         gestureEnabled: true,
       }}
-      initialRouteName="Welcome"
+      initialRouteName="WelcomeAuth"
     >
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="WelcomeAuth" component={WelcomeAuthScreen} />
       <Stack.Screen name="Signup" component={SignupScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
@@ -46,6 +48,7 @@ export default function AuthNavigator() {
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+      <Stack.Screen name="SocialProfile" component={SocialProfileScreen} />
     </Stack.Navigator>
   );
 }

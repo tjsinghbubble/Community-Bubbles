@@ -99,6 +99,11 @@ import { count, avg, max } from "drizzle-orm";
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  getUserByAppleId(appleId: string): Promise<User | undefined>;
+  linkGoogleId(userId: string, googleId: string): Promise<void>;
+  linkAppleId(userId: string, appleId: string): Promise<void>;
+  completeSocialProfile(userId: string, data: { name: string; gender: string; dateOfBirth: string }): Promise<void>;
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<void>;
   suspendUser(id: string, reason: string): Promise<void>;
@@ -398,6 +403,62 @@ export class DatabaseStorage implements IStorage {
     if (!row) return undefined;
     const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
     return decryptUserEmails({ ...row.users, ...profileFields } as User);
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [row] = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.googleId, googleId))
+      .limit(1);
+    if (!row) return undefined;
+    const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+    return decryptUserEmails({ ...row.users, ...profileFields } as User);
+  }
+
+  async getUserByAppleId(appleId: string): Promise<User | undefined> {
+    const [row] = await db
+      .select()
+      .from(users)
+      .leftJoin(userProfiles, eq(userProfiles.userId, users.id))
+      .where(eq(users.appleId, appleId))
+      .limit(1);
+    if (!row) return undefined;
+    const { userId: _uid, ...profileFields } = row.user_profiles ?? {};
+    return decryptUserEmails({ ...row.users, ...profileFields } as User);
+  }
+
+  async linkGoogleId(userId: string, googleId: string): Promise<void> {
+    await db.update(users).set({ googleId }).where(eq(users.id, userId));
+  }
+
+  async linkAppleId(userId: string, appleId: string): Promise<void> {
+    await db.update(users).set({ appleId }).where(eq(users.id, userId));
+  }
+
+  async completeSocialProfile(
+    userId: string,
+    data: { name: string; gender: string; dateOfBirth: string },
+  ): Promise<void> {
+    await db.update(users).set({
+      name: data.name,
+      gender: data.gender,
+      dateOfBirth: data.dateOfBirth,
+      socialAuthPending: false,
+      updatedAt: new Date(),
+      updatedBy: userId,
+    }).where(eq(users.id, userId));
+
+    // Keep user_profiles in sync
+    await db.insert(userProfiles).values({
+      userId,
+      name: data.name,
+      interests: [],
+    }).onConflictDoUpdate({
+      target: userProfiles.userId,
+      set: { name: data.name },
+    });
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

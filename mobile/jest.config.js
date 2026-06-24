@@ -25,6 +25,7 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
+    '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
     '^react$': '<rootDir>/../node_modules/react',
     '^react/jsx-runtime$': '<rootDir>/../node_modules/react/jsx-runtime',
     '^react/jsx-dev-runtime$': '<rootDir>/../node_modules/react/jsx-dev-runtime',

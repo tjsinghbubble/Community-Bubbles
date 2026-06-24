@@ -25,8 +25,11 @@ import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 
+import { RouteProp } from '@react-navigation/native';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
+  route: RouteProp<AuthStackParamList, 'Signup'>;
 };
 
 // Must match the min() constraint in shared/schema.ts insertUserSchema
@@ -49,9 +52,9 @@ const DEFAULT_PICKER_DATE = (() => {
   return d;
 })();
 
-export default function SignupScreen({ navigation }: Props) {
+export default function SignupScreen({ navigation, route }: Props) {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route?.params?.prefillEmail ?? '');
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');

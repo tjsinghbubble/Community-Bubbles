@@ -121,6 +121,7 @@ isValidation = true
 stack = "MOCKUP_JS"
 mockupState = "FULLSTACK"
 integrations = ["javascript_object_storage:2.0.0"]
+expertMode = true
 
 [userenv]
 
@@ -139,7 +140,11 @@ EXPO_PUBLIC_COMETCHAT_REGION = "us"
 
 [userenv.production]
 SEED_SECRET = "002d8cd4f38e61402233e5d2b0a3f59f80a1c8b5472203c36dab03314d514c99"
+PROD_IMPORT_OVERWRITE = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000
+
+[objectStorage]
+defaultBucketID = "replit-objstore-96ba6dae-e1d8-4871-8e0c-ccbf5a0d68b5"

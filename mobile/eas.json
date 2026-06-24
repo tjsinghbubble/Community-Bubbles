@@ -16,7 +16,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://community-bubbles.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io",
         "EXPO_PUBLIC_COMETCHAT_APP_ID": "1673948f1ffba3646",
         "EXPO_PUBLIC_COMETCHAT_REGION": "us"
       }
@@ -26,7 +26,7 @@
       "distribution": "store",
       "env": {
         "APP_ENV": "testflight-staging",
-        "EXPO_PUBLIC_API_URL": "https://community-bubbles.replit.app",
+        "EXPO_PUBLIC_API_URL": "https://trybubble.io",
         "EXPO_PUBLIC_COMETCHAT_APP_ID": "1673948f1ffba3646",
         "EXPO_PUBLIC_COMETCHAT_REGION": "us"
       }
