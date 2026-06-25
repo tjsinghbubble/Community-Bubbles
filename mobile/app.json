@@ -3,7 +3,7 @@
     "name": "Bubble",
     "slug": "bubble-mobile",
     "version": "0.2.0",
-    "buildNumber": "2",
+    "buildNumber": "3",
     "scheme": "bubble",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
