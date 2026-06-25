@@ -21,7 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
@@ -816,7 +815,6 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelect={handleLocationSelect}
-        apiKey={GOOGLE_PLACES_API_KEY}
       />
     </ScrollView>
   );

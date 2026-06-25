@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
-import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
+import { API_URL } from '../../config/api';
 import { resolveMediaUrl } from '../../utils/mediaUrl';
 import { useAuth } from '../../context/AuthContext';
 import cometChatService from '../../services/cometchat.service';
@@ -735,7 +735,6 @@ export default function CreateBubbleScreen({ navigation }: Props) {
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelect={handleLocationSelect}
-        apiKey={GOOGLE_PLACES_API_KEY}
       />
     </View>
   );

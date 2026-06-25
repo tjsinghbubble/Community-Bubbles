@@ -23,7 +23,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
-import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
@@ -525,7 +524,6 @@ export default function EditBubbleScreen({ navigation, route }: Props) {
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelect={handleLocationSelect}
-        apiKey={GOOGLE_PLACES_API_KEY}
       />
     </View>
   );

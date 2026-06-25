@@ -25,7 +25,7 @@ import { CalendarIcon, LocationPinIcon, ChevronDownIcon, ChevronUpIcon, ClockIco
 import ImageCarousel from '../../components/ImageCarousel';
 import { EventDetailsSkeleton } from '../../components/SkeletonLoader';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../../styles/theme';
-import { API_URL, GOOGLE_PLACES_API_KEY } from '../../config/api';
+import { API_URL } from '../../config/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTENT_PADDING = Spacing.xl;

@@ -94,7 +94,6 @@ jest.mock('../../../styles/theme', () => ({
 
 jest.mock('../../../config/api', () => ({
   API_URL: 'http://localhost:5000',
-  GOOGLE_PLACES_API_KEY: '',
 }));
 
 jest.mock('../../../context/AuthContext', () => ({
