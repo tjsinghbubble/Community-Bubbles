@@ -585,7 +585,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -601,7 +601,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (conversations.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -622,7 +622,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         {hamburgerButton}
         <Text style={styles.headerTitle}>Messages</Text>

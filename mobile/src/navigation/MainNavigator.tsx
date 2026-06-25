@@ -5,10 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Typography, Spacing, CardShadow } from '../styles/theme';
 import { useFocusEffect } from '@react-navigation/native';
 import ExploreNavigator from './ExploreNavigator';
+import UpcomingNavigator from './UpcomingNavigator';
 import BubblesNavigator from './BubblesNavigator';
 import MessagesNavigator from './MessagesNavigator';
 import ProfileNavigator from './ProfileNavigator';
-import UpcomingScreen from '../screens/main/UpcomingScreen';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
@@ -114,7 +114,7 @@ export default function MainNavigator() {
       />
       <Tab.Screen
         name="Upcoming"
-        component={UpcomingScreen}
+        component={UpcomingNavigator}
         options={{
           tabBarTestID: 'tab-upcoming',
           tabBarAccessibilityLabel: 'Upcoming',
