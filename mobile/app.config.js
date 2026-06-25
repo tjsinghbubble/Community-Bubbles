@@ -45,6 +45,7 @@ runtimeVersion: {
       }),
     './plugins/withCxx20',
     './plugins/withGradleWrapper',
+    './plugins/withModularHeaders',
   ],
   extra: {
     sentryDsn: process.env.SENTRY_DSN ?? '',
