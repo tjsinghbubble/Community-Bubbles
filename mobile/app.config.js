@@ -27,7 +27,10 @@ function loadDotEnv() {
 loadDotEnv();
 
 const appVersion = baseConfig.expo.version;
-const buildNumber = process.env.EAS_BUILD_BUILD_NUMBER ?? '';
+// Single source of truth: buildNumber in app.json drives iOS buildNumber,
+// Android versionCode, and the in-app display (extra.buildNumber).
+// EAS_BUILD_BUILD_NUMBER can override it during EAS cloud builds if needed.
+const buildNumber = process.env.EAS_BUILD_BUILD_NUMBER || baseConfig.expo.buildNumber || '1';
 const releaseSlug = buildNumber ? `${appVersion}+${buildNumber}` : appVersion;
 
 // Derive the iOS URL scheme from the iOS client ID env var.
@@ -48,13 +51,23 @@ function buildGoogleIosUrlScheme() {
 module.exports = {
   ...baseConfig.expo,
 
-updates: {
-  url: 'https://u.expo.dev/87aa84ba-0626-4ec1-b569-7276843813d9',
-},
-runtimeVersion: {
-  policy: 'appVersion',
-},
-  
+  updates: {
+    url: 'https://u.expo.dev/87aa84ba-0626-4ec1-b569-7276843813d9',
+  },
+  runtimeVersion: {
+    policy: 'appVersion',
+  },
+
+  ios: {
+    ...baseConfig.expo.ios,
+    buildNumber: String(buildNumber),
+  },
+
+  android: {
+    ...baseConfig.expo.android,
+    versionCode: parseInt(buildNumber, 10),
+  },
+
   plugins: [
     ...baseConfig.expo.plugins
       .filter((p) => p !== '@sentry/react-native')

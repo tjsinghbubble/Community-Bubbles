@@ -3,6 +3,7 @@
     "name": "Bubble",
     "slug": "bubble-mobile",
     "version": "0.2.0",
+    "buildNumber": "2",
     "scheme": "bubble",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,7 +31,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "io.trybubble.app",
-      "versionCode": 2,
       "intentFilters": [
         {
           "action": "VIEW",
