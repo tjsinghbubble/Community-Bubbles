@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, unstable_batchedUpdates } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
 import { setSentryUser, clearSentryUser, logAppEvent, reportError, withBackgroundTask } from '../utils/crashReporter';
@@ -209,8 +209,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithSocialToken = async (socialToken: string, socialUser: User) => {
     apiService.setToken(socialToken);
     apiService.setOnTokenRevoked(() => clearLocalAuth());
-    setToken(socialToken);
-    setUser(socialUser);
+    // Use unstable_batchedUpdates to guarantee both state updates commit in a
+    // single render. Without this, a render between setToken and setUser could
+    // briefly produce token=truthy + user=null → isAuthenticated=true, causing
+    // RootNavigator to flip to the Main stack before we can navigate to SocialProfile.
+    unstable_batchedUpdates(() => {
+      setToken(socialToken);
+      setUser(socialUser);
+    });
 
     if (!socialUser.socialAuthPending) {
       // Fully authenticated — persist and start session

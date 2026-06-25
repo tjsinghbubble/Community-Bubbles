@@ -1,0 +1,54 @@
+Updating 93b5fd2..0d8e2d3
+error: Your local changes to the following files would be overwritten by merge:
+	.replit
+	client/public/opengraph.jpg
+	mobile/app.config.js
+	mobile/app.json
+	mobile/eas.json
+	mobile/jest.config.js
+	mobile/package-lock.json
+	mobile/package.json
+	mobile/src/context/AuthContext.tsx
+	mobile/src/context/__tests__/AuthContext.test.tsx
+	mobile/src/navigation/AuthNavigator.tsx
+	mobile/src/navigation/RootNavigator.tsx
+	mobile/src/screens/auth/GuidelinesScreen.tsx
+	mobile/src/screens/auth/InterestsScreen.tsx
+	mobile/src/screens/auth/LoginScreen.tsx
+	mobile/src/screens/auth/SignupScreen.tsx
+	package-lock.json
+	package.json
+	scripts/seed-test-data.ts
+	server/db.ts
+	server/index.ts
+	server/routes.ts
+	server/storage.ts
+	shared/schema.ts
+Please commit your changes or stash them before you merge.
+error: The following untracked working tree files would be overwritten by merge:
+	.agents/memory/MEMORY.md
+	.agents/memory/deploy-shell-quote-firewall.md
+	.agents/memory/encryption-key-setup.md
+	.agents/memory/mobile-api-url-migration.md
+	.agents/memory/object-storage-repl-move.md
+	.agents/memory/prod-real-data-import.md
+	.agents/memory/prod-staging-seed.md
+	.gitattributes
+	attached_assets/Pasted-Index-Naming-Convention-Your-current-pattern-is-good-id_1781336371759.txt
+	attached_assets/Pasted-Index-Naming-Convention-Your-current-pattern-is-good-id_1781385989050.txt
+	attached_assets/Pasted-Index-Naming-Convention-Your-current-pattern-is-good-id_1781386976423.txt
+	attached_assets/Pasted-cd-Community-Bubbles-mobile-ls-la-env-echo-cat-env-env-_1781332268352.txt
+	attached_assets/Pasted-cd-Community-Bubbles-mobile-ls-la-env-echo-cat-env-env-_1781332296427.txt
+	attached_assets/Screenshot_2026-06-21_at_9.49.17_PM_1782104327771.png
+	attached_assets/image_1781333748784.png
+	migrations/0009_add_social_auth_fields.sql
+	mobile/__mocks__/expo-secure-store.js
+	mobile/src/screens/auth/SocialProfileScreen.tsx
+	mobile/src/screens/auth/WelcomeAuthScreen.tsx
+	mobile/src/screens/main/__tests__/MyBubblesScreen.navigation.test.tsx
+	scripts/run-prod-import.ts
+	server/normalize-object-urls.ts
+	server/prod-import.ts
+	server/social-auth-handler.ts
+Please move or remove them before you merge.
+Aborting

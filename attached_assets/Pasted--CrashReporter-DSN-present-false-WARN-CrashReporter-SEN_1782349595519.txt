@@ -1,0 +1,50 @@
+  [CrashReporter] DSN present: false
+ WARN  [CrashReporter] SENTRY_DSN not configured — Sentry disabled
+ LOG  [API] Request: GET https://trybubble.io/api/config/share-base-url
+ ERROR  Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+[React] 'Invalid hook call. Hooks can only be called inside of the body of a function component. This could
+happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer
+(such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of
+React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this
+problem.', { [Stack] name: 'Stack' }
+[React] 'Invalid hook call. Hooks can only be called inside of the body of a function component. This could
+happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer
+(such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of
+React in the same app\nSee https://react.dev/link/invalid-hook-call for tips about how to debug and fix this
+problem.', { [Stack] name: 'Stack' }
+ ERROR  Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+ ERROR  [TypeError: Cannot read property 'useContext' of null]
+[React] { [TypeError: Cannot read property 'useContext' of null]
+componentStack: '\n    at Text
+(http://localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:218808:31)\n
+at Icon
+(http://localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybubble.app&transform.routerRoot=app&transform.engine=hermes&transform.bytecode=1&unstable_transformProfile=hermes-stable:157318:37)\n
+at AppleIcon (<anonymous>)\n    at RCTView (<anonymous>)\n    at View
+(http://localhost:8081/index.bundle//&platform=ios&dev=true&lazy=true&minify=false&inlineSourceMap=false&modulesOnly=false&runModule=true&excludeSource=true&sourcePaths=url-server&app=io.trybub<…>
+[React] '[CrashReporter] FATAL in App: Cannot read property \'useContext\' of null', { [Stack] name: 'Stack' }
+[UIKitCore] RCTScrollViewComponentView implements focusItemsInRect: - caching for linear focus movement is
+limited as long as this view is on screen.
+ ERROR  [CrashReporter] FATAL in App: Cannot read property 'useContext' of null
+[UIKitCore] RCTScrollViewComponentView implements focusItemsInRect: - caching for linear focus movement is
+limited as long as this view is on screen.
+[UIKitCore] RCTScrollViewComponentView implements focusItemsInRect: - caching for linear focus movement is
+limited as long as this view is on screen.
+[UIKitCore] RCTScrollViewComponentView implements focusItemsInRect: - caching for linear focus movement is
+limited as long as this view is on screen.
+ LOG  [API] Response /api/config/share-base-url (status 200): {"baseUrl":"https://trybubble.io"}
+ LOG  [API] GET /api/config/share-base-url completed in 288 ms
+ ERROR  [Error: Uncaught (in promise, id: 0): "Error: RNGoogleSignin: failed to determine clientID - GoogleService-Info.plist was not found and iosClientId was not provided. To fix this error:
+If you use Firebase, download GoogleService-Info.plist file from Firebase and place it into the project. Read the iOS guide / Expo guide to learn more.
+Otherwise pass 'iosClientId' option to configure()."]
+[React] [Error: Uncaught (in promise, id: 0): "Error: RNGoogleSignin: failed to determine clientID -
+GoogleService-Info.plist was not found and iosClientId was not provided. To fix this error:
+If you use Firebase, download GoogleService-Info.plist file from Firebase and place it into the project. Read
+the iOS guide / Expo guide to learn more.

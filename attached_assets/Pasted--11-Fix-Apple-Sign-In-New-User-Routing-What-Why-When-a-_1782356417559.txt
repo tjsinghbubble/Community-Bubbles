@@ -1,0 +1,26 @@
+#11 - Fix Apple Sign-In New User Routing
+What & Why
+When a brand-new Apple ID signs in for the first time, the app should route the user to the sign-up profile completion screen (SocialProfile). Instead, the user stalls on the welcome/login screen with a "Sign In" button visible, and is never taken into the app or prompted to complete registration.
+
+Done looks like
+A first-time Apple Sign-In user is taken directly to the SocialProfile screen to complete their name, gender, and date of birth
+Returning Apple users are taken directly into the main app
+No stalling or "Sign In" button appearing after Apple auth completes
+Works against production (trybubble.io), not just local dev
+Out of scope
+Google Sign-In routing (separate issue)
+Changes to the SocialProfile completion screen itself
+Steps
+Audit loginWithSocialToken in AuthContext — Verify it does NOT set isAuthenticated: true when the user has socialAuthPending: true. If it does, fix it so isAuthenticated stays false until socialAuthPending is cleared. This is the most likely root cause: RootNavigator flips to the Main stack before WelcomeAuthScreen can navigate to SocialProfile.
+
+Audit the isNewUser routing in WelcomeAuthScreen — Confirm the check if (data.isNewUser || data.user.socialAuthPending) runs AFTER loginWithSocialToken resolves and before any navigation stack switch can occur. If the timing is wrong, restructure so the navigation.navigate('SocialProfile', ...) call happens before or instead of setting auth state.
+
+Confirm /api/auth/apple is deployed and reachable in production — If the route returns HTML (a < character JSON parse error) in production, the entire flow fails silently. Check that the apple auth route exists in the deployed production server at trybubble.io. If not, deploy it.
+
+Add a fallback error state — If the /api/auth/apple call fails for any reason (network, missing route, token error), show a clear error message rather than silently resetting to a stalled state with a "Sign In" button visible.
+
+Relevant files
+mobile/src/screens/auth/WelcomeAuthScreen.tsx
+mobile/src/context/AuthContext.tsx
+mobile/src/navigation/RootNavigator.tsx
+server/social-auth-handler.ts
