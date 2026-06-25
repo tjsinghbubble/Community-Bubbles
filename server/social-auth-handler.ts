@@ -175,12 +175,14 @@ export function registerSocialAuthRoutes(app: Express) {
         return res.status(401).json({ error: "Invalid Apple token" });
       }
 
-      if (!applePayload?.sub || !applePayload?.email) {
+      if (!applePayload?.sub) {
         return res.status(400).json({ error: "Apple token missing required fields" });
       }
 
       const appleId = applePayload.sub as string;
-      const email = applePayload.email as string;
+      // Apple only includes email on the very first sign-in for an app.
+      // On subsequent attempts the field is absent — look up by Apple ID instead.
+      const email = applePayload.email as string | undefined;
 
       // Apple only sends name on first sign-in
       const givenName = fullName?.givenName ?? "";
@@ -189,7 +191,7 @@ export function registerSocialAuthRoutes(app: Express) {
 
       // Try to find existing user by Apple ID first, then by email
       let user = await storage.getUserByAppleId(appleId);
-      if (!user) {
+      if (!user && email) {
         user = await storage.getUserByEmail(email);
       }
 
@@ -202,7 +204,13 @@ export function registerSocialAuthRoutes(app: Express) {
           user = { ...user, appleId };
         }
       } else {
-        // New user — create a pending social account
+        // New user — email is required to create an account
+        if (!email) {
+          console.error("[apple-auth] New user but Apple did not provide email");
+          return res.status(400).json({
+            error: "Apple did not share your email. Please sign out of Bubble in your iPhone Settings > Apple ID > Password & Security > Apps Using Apple ID, then try again.",
+          });
+        }
         isNewUser = true;
         const placeholderPassword = await bcrypt.hash(
           `apple_${appleId}_${Date.now()}`,

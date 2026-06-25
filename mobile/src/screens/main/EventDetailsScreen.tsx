@@ -845,11 +845,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
   const bubbleDisplayTitle = routeBubbleTitle || bubble?.title || '';
 
   const handleBackPress = () => {
-    if (source === 'upcoming') {
-      navigation.navigate('Upcoming' as any);
-    } else {
-      navigation.goBack();
-    }
+    navigation.goBack();
   };
 
   const eventImages = event.images?.length > 0
