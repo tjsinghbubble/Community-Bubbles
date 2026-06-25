@@ -86,7 +86,7 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
-      const userInfo = await GoogleSignin.signIn();
+      await GoogleSignin.signIn();
       const { idToken } = await GoogleSignin.getTokens();
       if (!idToken) throw new Error('No Google ID token received');
 
@@ -95,19 +95,35 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken }),
       });
-      const data = await res.json();
+
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Server returned an unexpected response. Please try again.');
+      }
       if (!res.ok) throw new Error(data.error || 'Google Sign In failed');
 
-      await loginWithSocialToken(data.token, data.user);
-
       if (data.isNewUser || data.user.socialAuthPending) {
+        // New user: dispatch navigation BEFORE updating auth state.
+        // loginWithSocialToken calls setToken+setUser inside
+        // unstable_batchedUpdates (see AuthContext), guaranteeing both
+        // updates commit in a single render. But to be doubly safe, we
+        // navigate first so the SocialProfile route is already queued before
+        // any render could re-evaluate isAuthenticated.
         navigation.navigate('SocialProfile', {
           token: data.token,
           prefillName: data.googleName || data.user.name || '',
           provider: 'google',
         });
+        // Store pending social user in context so authUser is populated by
+        // the time the user reaches GuidelinesScreen (which does
+        // loginWithSocialToken({ ...authUser, interests, pending: false })).
+        await loginWithSocialToken(data.token, data.user);
+      } else {
+        // Existing user: full social login — RootNavigator switches to Main.
+        await loginWithSocialToken(data.token, data.user);
       }
-      // If existing user, loginWithSocialToken handles navigation via AuthContext
     } catch (err: any) {
       if (err.code !== 'SIGN_IN_CANCELLED' && err.code !== -5) {
         Alert.alert('Google Sign In Failed', err.message || 'Please try again.');
@@ -135,17 +151,29 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
           fullName: credential.fullName,
         }),
       });
-      const data = await res.json();
+
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error('Server returned an unexpected response. Please try again.');
+      }
       if (!res.ok) throw new Error(data.error || 'Apple Sign In failed');
 
-      await loginWithSocialToken(data.token, data.user);
-
       if (data.isNewUser || data.user.socialAuthPending) {
+        // New user: dispatch navigation BEFORE updating auth state.
+        // Same two-step approach as handleGoogle: navigate first so the
+        // SocialProfile route is queued, then call loginWithSocialToken to
+        // populate authUser in context (needed by GuidelinesScreen).
         navigation.navigate('SocialProfile', {
           token: data.token,
           prefillName: data.appleName || data.user.name || '',
           provider: 'apple',
         });
+        await loginWithSocialToken(data.token, data.user);
+      } else {
+        // Existing user: full social login — RootNavigator switches to Main.
+        await loginWithSocialToken(data.token, data.user);
       }
     } catch (err: any) {
       if (err.code !== 'ERR_REQUEST_CANCELED') {
