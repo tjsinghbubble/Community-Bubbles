@@ -14,13 +14,25 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Pin core React packages to the mobile copy to prevent duplicate-React
-// crashes caused by the root node_modules having a different React version.
-config.resolver.extraNodeModules = {
-  react: path.resolve(projectRoot, 'node_modules/react'),
-  'react/jsx-runtime': path.resolve(projectRoot, 'node_modules/react/jsx-runtime'),
-  'react/jsx-dev-runtime': path.resolve(projectRoot, 'node_modules/react/jsx-dev-runtime'),
-  'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
+// Force ALL React/React-Native imports — from any package, at any depth —
+// to resolve to the single copy inside mobile/node_modules.
+// This prevents "Invalid hook call / useContext of null" crashes that occur
+// when the root-level node_modules contains a different React version.
+const mobileReact = path.resolve(projectRoot, 'node_modules/react');
+const mobileReactNative = path.resolve(projectRoot, 'node_modules/react-native');
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'react') {
+    return { filePath: path.join(mobileReact, 'index.js'), type: 'sourceFile' };
+  }
+  if (moduleName.startsWith('react/')) {
+    const rest = moduleName.slice('react/'.length);
+    return { filePath: path.join(mobileReact, rest + '.js'), type: 'sourceFile' };
+  }
+  if (moduleName === 'react-native') {
+    return { filePath: path.join(mobileReactNative, 'index.js'), type: 'sourceFile' };
+  }
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = withNativeWind(config, { input: './global.css' });
