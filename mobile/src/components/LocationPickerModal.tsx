@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../styles/theme';
+import { API_URL } from '../config/api';
 
 type LocationData = {
   name: string;
@@ -26,10 +27,9 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSelect: (location: LocationData) => void;
-  apiKey: string;
 };
 
-export default function LocationPickerModal({ visible, onClose, onSelect, apiKey }: Props) {
+export default function LocationPickerModal({ visible, onClose, onSelect }: Props) {
   const ref = useRef<any>(null);
 
   const handleSelect = (data: any, details: any) => {
@@ -66,8 +66,11 @@ export default function LocationPickerModal({ visible, onClose, onSelect, apiKey
             placeholder="Search for a place..."
             fetchDetails={true}
             onPress={handleSelect}
+            requestUrl={{
+              useOnPlatform: 'all',
+              url: `${API_URL}/api/places`,
+            }}
             query={{
-              key: apiKey,
               language: 'en',
             }}
             styles={{

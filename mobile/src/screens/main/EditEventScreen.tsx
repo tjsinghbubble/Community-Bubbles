@@ -20,7 +20,6 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import apiService from '../../services/api.service';
 import SuccessModal from '../../components/SuccessModal';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import BubbleButton from '../../components/BubbleButton';
@@ -448,7 +447,6 @@ export default function EditEventScreen({ navigation, route }: Props) {
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelect={handleLocationSelect}
-        apiKey={GOOGLE_PLACES_API_KEY}
       />
 
       <SuccessModal
