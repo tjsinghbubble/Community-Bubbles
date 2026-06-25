@@ -4720,5 +4720,36 @@ export async function registerRoutes(
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // GET /api/places/autocomplete/json
+  // GET /api/places/details/json
+  // Server-side proxy for Google Places API — keeps the API key off the device.
+  // ---------------------------------------------------------------------------
+  const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? process.env.GOOGLE_PLACES_API_KEY ?? '';
+
+  app.get("/api/places/autocomplete/json", async (req: any, res: any) => {
+    if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
+    try {
+      const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Places autocomplete failed" });
+    }
+  });
+
+  app.get("/api/places/details/json", async (req: any, res: any) => {
+    if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
+    try {
+      const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Places details failed" });
+    }
+  });
+
   return httpServer;
 }
