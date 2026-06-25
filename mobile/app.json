@@ -30,6 +30,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "io.trybubble.app",
+      "versionCode": 2,
       "intentFilters": [
         {
           "action": "VIEW",
