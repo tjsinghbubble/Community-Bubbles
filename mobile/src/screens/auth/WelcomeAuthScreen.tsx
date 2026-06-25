@@ -136,12 +136,14 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
   const handleApple = useCallback(async () => {
     setAppleLoading(true);
     try {
+      console.log('[Apple] Starting sign-in...');
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
+      console.log('[Apple] Credential received, hasToken:', !!credential.identityToken, 'hasEmail:', !!credential.email, 'fullName:', JSON.stringify(credential.fullName));
 
       const res = await fetch(`${API_URL}/api/auth/apple`, {
         method: 'POST',
@@ -152,19 +154,18 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
         }),
       });
 
+      console.log('[Apple] Server response status:', res.status);
       let data: any;
       try {
         data = await res.json();
       } catch {
         throw new Error('Server returned an unexpected response. Please try again.');
       }
+      console.log('[Apple] Server response data:', JSON.stringify(data));
       if (!res.ok) throw new Error(data.error || 'Apple Sign In failed');
 
+      console.log('[Apple] isNewUser:', data.isNewUser, 'socialAuthPending:', data.user?.socialAuthPending);
       if (data.isNewUser || data.user.socialAuthPending) {
-        // New user: dispatch navigation BEFORE updating auth state.
-        // Same two-step approach as handleGoogle: navigate first so the
-        // SocialProfile route is queued, then call loginWithSocialToken to
-        // populate authUser in context (needed by GuidelinesScreen).
         navigation.navigate('SocialProfile', {
           token: data.token,
           prefillName: data.appleName || data.user.name || '',
@@ -172,13 +173,17 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
         });
         await loginWithSocialToken(data.token, data.user);
       } else {
-        // Existing user: full social login — RootNavigator switches to Main.
         await loginWithSocialToken(data.token, data.user);
       }
     } catch (err: any) {
-      if (err.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Apple Sign In Failed', err.message || 'Please try again.');
-      }
+      console.log('[Apple] Error code:', err.code, 'message:', err.message);
+      // Only suppress the user-cancelled case — show everything else
+      if (err.code === 'ERR_REQUEST_CANCELED') return;
+      Alert.alert(
+        'Apple Sign In Failed',
+        err.message || 'Please try again.',
+        [{ text: 'OK' }],
+      );
     } finally {
       setAppleLoading(false);
     }
