@@ -53,6 +53,29 @@ export async function createEvent(
   return res.json.id;
 }
 
+/** Join `member` into a non-Public bubble and approve them as `admin` (the bubble owner
+ *  or a site admin). Returns once the membership is approved with the default 'member'
+ *  role (NOT admin) — the actor a "non-admin member" authz test needs. Only meaningful
+ *  for "Request to Join"/"Private" bubbles, where /join yields a pending request. */
+export async function joinBubbleAsApprovedMember(
+  member: RoleSession,
+  admin: RoleSession,
+  bubbleId: string,
+): Promise<void> {
+  const joined = await request("POST", `/api/bubbles/${bubbleId}/join`, { token: member.token });
+  if (joined.status !== 200 || joined.json?.status !== "pending") {
+    throw new Error(`fixture: join ${bubbleId} → ${joined.status} ${joined.text.slice(0, 200)} (expected pending)`);
+  }
+  const approved = await request(
+    "POST",
+    `/api/bubbles/${bubbleId}/join-requests/${member.userId}/approve`,
+    { token: admin.token },
+  );
+  if (approved.status !== 200) {
+    throw new Error(`fixture: approve member ${member.userId} in ${bubbleId} → ${approved.status} ${approved.text.slice(0, 200)}`);
+  }
+}
+
 /** Best-effort bubble teardown (soft delete; owner or site admin token). */
 export async function deleteBubble(id: string | undefined, token: string): Promise<void> {
   if (!id) return;

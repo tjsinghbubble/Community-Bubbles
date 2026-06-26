@@ -1,0 +1,23 @@
+# ⚠️ DRAFT subflow for events-1500 (location-input matrix). Not a standalone test.
+#
+# Types one QUERY into the open Google Places picker, screenshots the result, then asserts
+# the NON-FREEZE invariant: the picker header is still shown and the search field is still
+# editable (i.e. a garbage/empty query did not wedge the app). Clears the field on the way
+# out so the caller can run the next class in the same picker session.
+#
+# env in: QUERY (string to type), CLASS (label for the screenshot), SHOT_PREFIX.
+appId: com.bubble.mobile
+---
+- tapOn:
+    text: "Search for a place..."
+- inputText: ${QUERY}
+# Give the 300ms debounce + network round-trip time to either render rows or settle empty.
+- extendedWaitUntil:
+    visible:
+      text: "Search Location"   # header must survive the query — primary non-freeze proof
+    timeout: 8000
+- takeScreenshot: ${SHOT_PREFIX}location-${CLASS}
+# The field must still accept input after the query (a frozen app fails the next erase/type).
+- eraseText
+- assertVisible:
+    text: "Search Location"

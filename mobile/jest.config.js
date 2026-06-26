@@ -8,6 +8,9 @@ module.exports = {
     // for this RN version. Re-enable once test environment is updated.
     'UpcomingScreen.navigation.test',
     'EventDetailsScreen.navigation.test',
+    // Spec for the LocationPicker error-handling fix (Trello c/hqJLRSwU) + blocked by the same
+    // RN 0.83.x render-env issue above. Remove this line once both are addressed.
+    'LocationPickerModal.errors.test',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   modulePaths: ['<rootDir>/node_modules'],
