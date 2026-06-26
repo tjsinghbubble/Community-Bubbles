@@ -290,7 +290,7 @@ export async function registerRoutes(
       applinks: {
         apps: [],
         details: [{
-          appID: "762F5X3N9L.io.trybubble.app",
+          appID: `${teamId ?? "762F5X3N9L"}.io.trybubble.app`,
           paths: ["/b/*", "/e/*"],
         }],
       },
