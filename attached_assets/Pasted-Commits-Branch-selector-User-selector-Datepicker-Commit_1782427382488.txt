@@ -1,0 +1,211 @@
+Commits
+Branch selector
+User selector
+Datepicker
+Commit History
+Commits on Jun 25, 2026
+Update application build number for upcoming release
+replit-agent
+replit-agent
+committed
+1 hour ago
+·
+Establish single source of truth for app versioning
+replit-agent
+replit-agent
+committed
+1 hour ago
+Add version number display to the application
+replit-agent
+replit-agent
+committed
+1 hour ago
+Update app configuration with a new version code
+replit-agent
+replit-agent
+committed
+2 hours ago
+Commits on Jun 24, 2026
+Improve app configuration to correctly load environment variables
+replit-agent
+replit-agent
+committed
+15 hours ago
+Improve Apple sign-in error handling and logging
+replit-agent
+replit-agent
+committed
+16 hours ago
+feat: Google Places API server-side proxy — remove key from mobile binary
+replit-agent
+replit-agent
+committed
+16 hours ago
+·
+Published your App
+replit-agent
+replit-agent
+committed
+17 hours ago
+Update example screenshots for environment variables
+replit-agent
+replit-agent
+committed
+17 hours ago
+·
+Saved progress at the end of the loop
+replit-agent
+replit-agent
+committed
+17 hours ago
+Improve Apple sign-in by only requiring email for new users
+replit-agent
+replit-agent
+committed
+17 hours ago
+Fix back navigation to correctly return to the previous screen
+replit-agent
+replit-agent
+committed
+17 hours ago
+Add screenshot of a reversed pull request merge configuration
+replit-agent
+replit-agent
+committed
+18 hours ago
+Add screenshot of a reversed pull request merge configuration
+replit-agent
+replit-agent
+committed
+18 hours ago
+·
+Remove hidden-conversation toasts and bump version to 0.2.0
+replit-agent
+replit-agent
+committed
+18 hours ago
+Remove distracting notifications and improve empty state for conversations
+replit-agent
+replit-agent
+committed
+18 hours ago
+Published your App
+replit-agent
+replit-agent
+committed
+18 hours ago
+Task #10: Push broken-LFS fix to GitHub
+replit-agent
+replit-agent
+committed
+18 hours ago
+Add instructions for downloading and applying commit archive
+replit-agent
+replit-agent
+committed
+18 hours ago
+Update screenshot for improved visual representation of application features
+replit-agent
+replit-agent
+committed
+19 hours ago
+·
+Fix Apple and Google Sign-In new user routing (race condition + authUser)
+author
+neetrandhawa
+committed
+19 hours ago
+Published your App
+replit-agent
+replit-agent
+committed
+20 hours ago
+Transitioned from Plan to Build mode
+replit-agent
+replit-agent
+committed
+20 hours ago
+Add screenshots documenting app functionality and fixes
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Improve app stability by resolving React version conflicts
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Fix crash by ensuring consistent React version
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Add plugin to automatically apply modular headers for iOS builds
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Fix crashes related to React version conflicts and Google Sign-In configuration
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Remove broken Git LFS object that prevents merging
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Discard local changes and pull the latest updates from the main branch
+replit-agentrdsouza-ui
+replit-agent
+authored and
+rdsouza-ui
+committed
+20 hours ago
+Merge pull request #67 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+yesterday
+·
+Verified
+Merge pull request #66 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+yesterday
+·
+Verified
+Commits on Jun 23, 2026
+Merge pull request #64 from tjsinghbubble/bug/AlphaPlus-4-fixes
+admin-nr
+admin-nr
+authored
+2 days ago
+·
+Verified
+Merge pull request #65 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+2 days ago
+·
+Verified
+Fix 4 mobile bugs: Next button state, extra rectangle, tab focus, notification badge
+replit-agent
+replit-agent
+committed
+2 days ago
+·
