@@ -75,5 +75,25 @@
     "yaml": "^2.9.0",
     "shell-quote": "1.8.4"
   },
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo-secure-store",
+        "expo-sharing",
+        "expo-apple-authentication",
+        "expo-asset",
+        "expo-document-picker",
+        "expo-file-system",
+        "expo-haptics",
+        "expo-image",
+        "expo-image-picker",
+        "expo-linear-gradient",
+        "expo-linking",
+        "expo-notifications",
+        "expo-status-bar",
+        "babel-preset-expo"
+      ]
+    }
+  },
   "private": true
 }

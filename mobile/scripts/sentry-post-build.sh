@@ -69,7 +69,8 @@ fi
 # 2. Finalise the release
 # --------------------------------------------------------------------------
 echo "sentry-post-build: finalising release $RELEASE_SLUG"
-npx sentry-cli releases finalize "$RELEASE_SLUG"
+npx sentry-cli releases finalize "$RELEASE_SLUG" \
+  || echo "sentry-post-build: finalize failed (release may not exist yet — non-fatal)"
 
 # --------------------------------------------------------------------------
 # 3. Record a production deploy
