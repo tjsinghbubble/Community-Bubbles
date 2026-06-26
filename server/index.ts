@@ -261,6 +261,13 @@ app.use((req, res, next) => {
       startEventReminderScheduler();
       startSlowCallPrunerScheduler();
       startFatalCrashSpikeScheduler();
+      // Final readiness banner — printed only here, after routes + static/Vite setup and the
+      // listen succeed, so it is a true "setup complete" signal. The launching flow declares
+      // its mode via BUBBLE_SERVER_MODE (dev | qa | prod); fall back to NODE_ENV otherwise.
+      const mode = process.env.BUBBLE_SERVER_MODE
+        || (process.env.NODE_ENV === "production" ? "prod" : "dev");
+      const label = mode === "prod" ? "prod" : mode === "qa" ? "QA" : "dev";
+      log(`API/${label} server ready`);
     },
   );
 })();

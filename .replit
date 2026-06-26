@@ -45,7 +45,7 @@ PORT = "5000"
 [deployment]
 deploymentTarget = "gce"
 build = ["npm", "run", "build"]
-run = ["node", "./dist/index.cjs"]
+run = ["sh", "-c", "BUBBLE_SERVER_MODE=prod node ./dist/index.cjs"]
 
 [workflows]
 runButton = "Project"
