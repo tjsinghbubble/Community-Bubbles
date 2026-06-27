@@ -536,7 +536,7 @@ async function main(): Promise<void> {
         // Restart over-age sims before Metro/warmup so the cold start lands on a fresh boot.
         gates.push(await gateSimulatorAge());
       } else if (args.platform === "android") {
-        gates.push(await gateAndroidEmulatorBooted());
+        gates.push(await gateAndroidEmulatorBooted({ flavor: args.flavor }));
       }
       // Resolve the ONE target device (after the booted gate, so an Android emulator has its
       // adb serial) and pin every Maestro invocation to it. This closes the routing bug where

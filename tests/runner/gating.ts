@@ -7,7 +7,7 @@
  */
 import os from "node:os";
 import { join } from "node:path";
-import { execSync, spawnSync } from "node:child_process";
+import { execFileSync, execSync, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync } from "node:fs";
 import type pg from "pg";
 import { classify, currentDbName, type DbClass } from "../fixtures/journal.js";
@@ -275,20 +275,29 @@ function androidAdb(): string {
   return existsSync(p) ? `"${p}"` : "adb";
 }
 
-// Android counterpart to gateSimulatorBooted: an emulator must be attached in
+// Android counterpart to gateSimulatorBooted: a device must be attached in
 // `device` state AND past sys.boot_completed (layer-2 readiness — `device` alone
-// races the framework). Physical/Genymotion devices are out of scope for now.
-export async function gateAndroidEmulatorBooted(opts: { timeoutMs?: number } = {}): Promise<GateResult> {
-  const adb = androidAdb();
+// races the framework). Flavor-aware: a `simulated` run matches an `emulator-*`
+// serial (which still has booting to do); a `real` run matches a physical serial
+// (a non-`emulator-*` serial in `device` state — already booted, this is just a
+// presence/readiness check). An explicit deviceSerial pins the match exactly.
+export async function gateAndroidEmulatorBooted(
+  opts: { timeoutMs?: number; flavor?: string; deviceSerial?: string } = {},
+): Promise<GateResult> {
+  const adbBin = androidAdb().replace(/^"|"$/g, "");
+  const wantReal = opts.flavor === "real";
+  const matchSerial = (serial: string) =>
+    opts.deviceSerial ? serial === opts.deviceSerial
+      : wantReal ? !serial.startsWith("emulator-") : serial.startsWith("emulator-");
   const booted = () =>
     Promise.resolve(
       (() => {
         try {
-          const out = execSync(`${adb} devices`, { encoding: "utf8" });
+          const out = execFileSync(adbBin, ["devices"], { encoding: "utf8" });
           const row = out.split("\n").map((l) => l.trim().split(/\s+/))
-            .find((p) => p.length >= 2 && p[1] === "device" && p[0].startsWith("emulator-"));
+            .find((p) => p.length >= 2 && p[1] === "device" && matchSerial(p[0]));
           if (!row) return false;
-          const bc = execSync(`${adb} -s ${row[0]} shell getprop sys.boot_completed`,
+          const bc = execFileSync(adbBin, ["-s", row[0], "shell", "getprop", "sys.boot_completed"],
             { encoding: "utf8" }).trim();
           return bc === "1";
         } catch {
@@ -296,14 +305,15 @@ export async function gateAndroidEmulatorBooted(opts: { timeoutMs?: number } = {
         }
       })(),
     );
+  const label = wantReal ? "Android device" : "Android emulator";
   const { ok, waited } = await pollUntil(booted, {
     timeoutMs: opts.timeoutMs ?? 120_000,
     intervalMs: 4_000,
-    waitingMsg: "Waiting for Android emulator to finish booting...",
+    waitingMsg: `Waiting for ${label} to be ready...`,
   });
   return ok
-    ? { name: "android-emulator", status: "pass", message: "Android emulator booted", waited }
-    : { name: "android-emulator", status: "fail", message: "test canceled: no booted Android emulator", waited };
+    ? { name: "android-emulator", status: "pass", message: `${label} booted`, waited }
+    : { name: "android-emulator", status: "fail", message: `test canceled: no booted ${label}`, waited };
 }
 
 /** Newest sim .app (DerivedData or mobile/ios/build) whose bundle id matches appId. */
