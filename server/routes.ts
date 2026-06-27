@@ -4753,12 +4753,11 @@ export async function registerRoutes(
     }
   };
 
-  // react-native-google-places-autocomplete appends /maps/api/place/... to requestUrl.url
-  app.get("/maps/api/place/autocomplete/json", placesAutocomplete);
-  app.get("/maps/api/place/details/json", placesDetails);
-  // Legacy paths kept for compatibility
-  app.get("/api/places/autocomplete/json", placesAutocomplete);
-  app.get("/api/places/details/json", placesDetails);
+  // react-native-google-places-autocomplete with requestUrl.url = API_URL calls:
+  //   GET ${API_URL}/place/autocomplete/json
+  //   GET ${API_URL}/place/details/json
+  app.get("/place/autocomplete/json", placesAutocomplete);
+  app.get("/place/details/json", placesDetails);
 
   return httpServer;
 }
