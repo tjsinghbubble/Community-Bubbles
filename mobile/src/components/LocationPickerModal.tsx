@@ -68,7 +68,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
             onPress={handleSelect}
             requestUrl={{
               useOnPlatform: 'all',
-              url: `${API_URL}/api/places`,
+              url: API_URL,
             }}
             query={{
               language: 'en',

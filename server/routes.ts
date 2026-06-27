@@ -4721,13 +4721,15 @@ export async function registerRoutes(
   });
 
   // ---------------------------------------------------------------------------
-  // GET /api/places/autocomplete/json
-  // GET /api/places/details/json
-  // Server-side proxy for Google Places API — keeps the API key off the device.
+  // Google Places proxy — keeps the API key server-side, never in the app.
+  // react-native-google-places-autocomplete calls:
+  //   GET /maps/api/place/autocomplete/json
+  //   GET /maps/api/place/details/json
+  // (it appends the Google path to whatever requestUrl.url is set to)
   // ---------------------------------------------------------------------------
-  const PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? process.env.GOOGLE_PLACES_API_KEY ?? '';
+  const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
 
-  app.get("/api/places/autocomplete/json", async (req: any, res: any) => {
+  const placesAutocomplete = async (req: any, res: any) => {
     if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
     try {
       const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
@@ -4737,9 +4739,9 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(500).json({ error: "Places autocomplete failed" });
     }
-  });
+  };
 
-  app.get("/api/places/details/json", async (req: any, res: any) => {
+  const placesDetails = async (req: any, res: any) => {
     if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
     try {
       const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
@@ -4749,7 +4751,14 @@ export async function registerRoutes(
     } catch (err: any) {
       res.status(500).json({ error: "Places details failed" });
     }
-  });
+  };
+
+  // react-native-google-places-autocomplete appends /maps/api/place/... to requestUrl.url
+  app.get("/maps/api/place/autocomplete/json", placesAutocomplete);
+  app.get("/maps/api/place/details/json", placesDetails);
+  // Legacy paths kept for compatibility
+  app.get("/api/places/autocomplete/json", placesAutocomplete);
+  app.get("/api/places/details/json", placesDetails);
 
   return httpServer;
 }
