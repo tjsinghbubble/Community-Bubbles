@@ -75,7 +75,7 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
             }}
             styles={{
               container: {
-                flex: 0,
+                flex: 1,
               },
               textInputContainer: {
                 backgroundColor: Colors.neutral.cloudGrey,
@@ -182,9 +182,10 @@ const styles = StyleSheet.create({
     width: 40,
   },
   searchContainer: {
+    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 16,
-    zIndex: 1,
+    zIndex: 10,
   },
   searchIcon: {
     justifyContent: 'center',
