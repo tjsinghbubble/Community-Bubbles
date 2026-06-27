@@ -47,10 +47,13 @@ interface Args {
   layers: Layer[];
   platform: string;
   platformSet: boolean;   // true iff --platform was passed explicitly (vs the ios default)
-  sim: string;
+  sim: string;            // -d/--device/--dev (id/alias; real or simulated). Legacy: --sim
+  flavor: string;         // 'real' | 'simulated' — inferred from the device in reconcile
   env: string;
   gate: boolean;
   seed: boolean;
+  noInstall: boolean;     // don't build/install the app (test the already-installed build)
+  releaseMode: string;    // '' | 'prod' | 'staging' — Mode B: test a TestFlight/store build
   includeUnverified: boolean;
   list: boolean;
   verbose: boolean;
@@ -60,8 +63,8 @@ interface Args {
 
 function parseArgs(argv: string[]): Args {
   const a: Args = {
-    tags: [], areas: [], all: false, roles: [], layers: [], platform: "ios", platformSet: false, sim: "", env: "local",
-    gate: true, seed: true, includeUnverified: false, list: false, verbose: false, help: false,
+    tags: [], areas: [], all: false, roles: [], layers: [], platform: "ios", platformSet: false, sim: "", flavor: "", env: "local",
+    gate: true, seed: true, noInstall: false, releaseMode: "", includeUnverified: false, list: false, verbose: false, help: false,
     jobs: 5,
   };
   const multi = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
@@ -74,11 +77,18 @@ function parseArgs(argv: string[]): Args {
       case "--role": a.roles.push(...multi(argv[++i])); break;
       case "--layer": a.layers.push(...(multi(argv[++i]) as Layer[])); break;
       case "--platform": a.platform = argv[++i]; a.platformSet = true; break;
-      case "--sim": case "--simulator": a.sim = argv[++i]; break;
+      case "-d": case "--device": case "--dev": a.sim = argv[++i]; break;
+      case "--sim": case "--simulator":
+        a.sim = argv[++i];
+        console.error("note: --sim/--simulator is deprecated; use -d/--device/--dev "
+          + "(a device may be real or simulated).");
+        break;
       case "--env": a.env = argv[++i]; break;
       case "--no-gate": a.gate = false; break;
       case "--no-seed": a.seed = false; break;
       case "--seed": a.seed = true; break;
+      case "--no-install": a.noInstall = true; break;
+      case "--release-mode": a.releaseMode = argv[++i]; break;
       case "--include-unverified": a.includeUnverified = true; break;
       case "--list": a.list = true; break;
       case "--verbose": case "-v": a.verbose = true; break;
@@ -106,11 +116,12 @@ Selection:
   --platform <ios|android|web>  e2e platform (default: ios). Optional when --sim is
                         given (the platform is inferred from the sim); if both are
                         passed they must agree or the run aborts.
-  --sim, --simulator <id>  pin e2e to a specific device by id/alias (UDID, AVD,
-                        adb serial, or a manage_devices alias). Implies --platform.
-                        Without it, the platform alias ('ios'/'android') is used,
-                        which prefers the one running device and refuses if several
-                        are up.
+  -d, --device, --dev <id>  pin e2e to a specific device by id/alias — REAL or
+                        simulated (UDID, AVD, adb serial, or a manage_devices alias,
+                        incl. 'mine'/'real'). Implies --platform (inferred from the
+                        device). Without it, the platform alias ('ios'/'android') is
+                        used, which prefers the one running device and refuses if
+                        several are up.  (--sim/--simulator: deprecated alias for -d.)
   --include-unverified  include tests tagged 'unverified'
 
 Run control:
@@ -118,6 +129,12 @@ Run control:
   --no-gate             skip pre-flight gates (load, API, DB, simulator, driver warmup)
   --no-seed             do not (re)seed the test DB
   --seed                force seeding (default on)
+  --no-install          do not build/install the app — test the already-installed build
+  --release-mode <prod|staging>  Mode B: test a manually-installed TestFlight/store
+                        build. Implies --no-install + --no-seed, selects ONLY flows
+                        tagged 'safe_for_<prod|staging>' (clears the default 'smoke'),
+                        and skips the seeded-account gate. Author release-safe flows
+                        (no seeded login, no prod-polluting writes) and tag them.
   --list                print the selected tests and exit
   --jobs <N>            headless tests per parallel batch (default 5; e2e always serial)
   -v, --verbose         stream seed + Maestro substep output live (default: quiet, captured)
@@ -250,11 +267,16 @@ function reconcilePlatformSim(args: Args): void {
     process.exit(2);
   }
   if (args.platformSet && args.platform !== kind) {
-    console.error(`error: --platform ${args.platform} conflicts with --sim '${args.sim}', which is an ${kind} device.`);
-    console.error(`  drop --platform (it's inferred from --sim), or pass an ${args.platform} sim.`);
+    console.error(`error: --platform ${args.platform} conflicts with -d '${args.sim}', which is an ${kind} device.`);
+    console.error(`  drop --platform (it's inferred from the device), or pass an ${args.platform} device.`);
     process.exit(2);
   }
   args.platform = kind;
+  // Flavor (real vs simulated) drives the build/install guard below. Offline query.
+  const fres = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--flavor-of", args.sim],
+    { encoding: "utf8" });
+  const flavor = (fres.stdout ?? "").trim();
+  if (flavor === "real" || flavor === "simulated") args.flavor = flavor;
 }
 
 function runMaestro(
@@ -359,6 +381,20 @@ async function main(): Promise<void> {
   // --sim implies its platform; --platform+--sim must agree. Do this before selection/gating
   // so a mismatch aborts immediately (and a bench script can pass --sim alone for any platform).
   reconcilePlatformSim(args);
+  // Mode B (release build): test a manually-installed TestFlight/store build. Don't
+  // overwrite it (--no-install), don't seed (release data isn't ours to seed), and run
+  // only flows proven safe against that environment.
+  if (args.releaseMode) {
+    if (args.releaseMode !== "prod" && args.releaseMode !== "staging") {
+      console.error(`error: --release-mode must be 'prod' or 'staging' (got '${args.releaseMode}')`);
+      process.exit(2);
+    }
+    if (args.seed) {
+      console.error("note: --release-mode implies --no-seed (a release build must not depend on seeded data).");
+      args.seed = false;
+    }
+    args.noInstall = true;  // never overwrite the installed release build
+  }
   if (existsSync(PANIC_MARKER)) rmSync(PANIC_MARKER); // clear stale marker on start
 
   const env = resolveEnv(args.env);
@@ -384,7 +420,14 @@ async function main(): Promise<void> {
     console.error(`valid areas: all, ${Array.from(AREA_TAGS).sort().join(", ")}`);
     process.exit(2);
   }
-  const tags = args.tags.length > 0 ? args.tags : args.all || args.areas.length > 0 ? [] : ["smoke"];
+  let tags = args.tags.length > 0 ? args.tags : args.all || args.areas.length > 0 ? [] : ["smoke"];
+  if (args.releaseMode) {
+    // AND-filter to release-safe flows only; drop the default 'smoke' (smoke AND
+    // safe_for_X would select nothing — selectTests ANDs tags).
+    tags = tags.filter((t) => t !== "smoke");
+    const safe = `safe_for_${args.releaseMode}`;
+    if (!tags.includes(safe)) tags.push(safe);
+  }
   const includeUnverified = args.includeUnverified || args.areas.length > 0 || args.all;
   const layers: Layer[] = args.layers.length > 0 ? args.layers : ["e2e", "headless"];
   const roleFilter = args.roles.length > 0 ? args.roles : ALL_ROLES;
@@ -396,6 +439,12 @@ async function main(): Promise<void> {
   // "Tests written" = every (test, role) pair in the repo, role-expanded the same way the job
   // list is, so Run/Written compares like with like.
   const testsWritten = allTests.reduce((n, t) => n + Math.max(t.roles.length, 1), 0);
+
+  if (args.releaseMode && selected.length === 0) {
+    console.error(`error: --release-mode ${args.releaseMode}: no flows tagged 'safe_for_${args.releaseMode}' were found.`);
+    console.error(`  author release-safe flows (no seeded-login dependency, no prod-polluting writes) and tag them 'safe_for_${args.releaseMode}'.`);
+    process.exit(2);
+  }
 
   if (args.list) {
     // Layer/platform tags are run dimensions, not test semantics — show them in their own group.
@@ -504,10 +553,14 @@ async function main(): Promise<void> {
       }
       // Standing rule: the app must be on the resolved device — run it if present, install it
       // from the built binary if not, fail if no binary exists.
-      if (args.platform !== "web" && !gates.some((g) => g.status === "fail")) {
+      if (args.platform !== "web" && !args.noInstall && !gates.some((g) => g.status === "fail")) {
         gates.push(await gateAppInstalled({
           platform: args.platform, deviceId: e2eDeviceId, appId: env.appId, repoRoot: REPO_ROOT,
+          flavor: args.flavor,
         }));
+      } else if (args.noInstall && args.platform !== "web") {
+        gates.push({ name: "app-installed", status: "pass", waited: false,
+          message: "skipped (--no-install: testing the already-installed build)" });
       }
       // Forward emulator localhost → host so the same localhost Metro/API config reaches the
       // host (the emulator's own localhost would otherwise dead-end). Target the resolved serial.
@@ -591,7 +644,9 @@ async function main(): Promise<void> {
 
   // ── Phase A.5: API↔DB consistency (must run after seed) ───────────────────
   // Verify the API actually serves the DB we seeded by logging in a should-exist account.
-  if (args.gate && needsApi) {
+  if (args.gate && needsApi && !args.releaseMode) {
+    // Mode B skips this: it logs in a SEEDED account, which doesn't exist on a
+    // prod/staging release environment (release flows self-provision instead).
     const g = await gateSeededAccount(env.apiBaseUrl, creds["role-user"]);
     gates.push(g);
     console.log("── Gating (post-seed) ─────────────────");

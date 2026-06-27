@@ -341,13 +341,22 @@ function findAndroidApk(repoRoot: string): string | null {
  */
 export async function gateAppInstalled(opts: {
   platform: string; deviceId: string; appId: string; repoRoot: string;
+  flavor?: string;   // 'real' | 'simulated' — picks the build/install path
 }): Promise<GateResult> {
-  const { platform, deviceId, appId, repoRoot } = opts;
+  const { platform, deviceId, appId, repoRoot, flavor } = opts;
   if (platform === "web") {
     return { name: "app-installed", status: "pass", waited: false, message: "no app to install (web)" };
   }
   if (!deviceId) {
     return { name: "app-installed", status: "fail", waited: false, message: "test canceled: no resolved device to check app install on" };
+  }
+  // iOS real-device install is out of scope (no DEVELOPMENT_TEAM / signing; baked
+  // EXPO_PUBLIC_API_URL). The simulator path below (simctl) cannot target a real phone,
+  // so fail with a clear message rather than a confusing simctl error.
+  if (platform === "ios" && flavor === "real") {
+    return { name: "app-installed", status: "fail", waited: false,
+      message: "test canceled: iOS real-device install not supported (signing unresolved); "
+        + "listing/abstraction only. Use a simulator, or an Android real device." };
   }
   if (platform === "ios") {
     let installed = false;

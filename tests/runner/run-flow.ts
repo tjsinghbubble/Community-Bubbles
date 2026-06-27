@@ -47,10 +47,14 @@ function main(): void {
     if (a === "--role") role = argv[++i];
     else if (a === "--env") envName = argv[++i];
     else if (a === "--platform") { platform = argv[++i]; platformExplicit = true; }
-    else if (a === "--sim" || a === "--simulator") sim = argv[++i];
+    else if (a === "-d" || a === "--device" || a === "--dev") sim = argv[++i];
+    else if (a === "--sim" || a === "--simulator") {
+      sim = argv[++i];
+      console.error("note: --sim/--simulator is deprecated; use -d/--device/--dev (real or simulated).");
+    }
     else if (a === "--require-screen") requireScreen = true;
     else if (a === "-e") extraEnv.push(argv[++i]);
-    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [--sim <id> (implies --platform)] [--require-screen] [-e K=V ...]"); return; }
+    else if (a === "--help" || a === "-h") { console.log("usage: npm run qa:flow -- <flow.yaml> [--role role-*] [--env local] [--platform ios|android|web] [-d|--device <id> (real or simulated; implies --platform)] [--require-screen] [-e K=V ...]"); return; }
     else if (!flowPath) flowPath = a;
     else console.warn(`(ignoring unknown arg: ${a})`);
   }

@@ -1,0 +1,39 @@
+# qa-id: release-0100
+# qa-reason: Release-safe smoke — the app launches and the Welcome screen renders (no auth, no writes)
+#
+# Mode B PILOT (release-build testing). This flow is SAFE to run against a manually-installed
+# TestFlight / App-Store build because it:
+#   - does NOT log in (no seeded account dependency),
+#   - does NOT write any data (no prod/staging pollution),
+#   - does NOT reconnect Metro (a release build is bundled — no dev server).
+# Selected only when you ask for it:  npm run qa -- --release-mode prod|staging
+# (Mode B clears the default `smoke` tag and AND-filters `safe_for_<env>`.)
+#
+# NOTE: appId here is the dev bundle. Targeting the prod bundle (io.trybubble.app) needs the
+# deferred per-flow appId templating; what this pilot proves today is the release-mode
+# selection + gating path (no-install, no-seed, safe-tag filtering, seeded-gate skip).
+appId: com.bubble.mobile
+tags:
+  - e2e
+  - safe_for_staging
+  - safe_for_prod
+# role-agnostic on purpose (no login) — runs once, not once per role.
+---
+- assertTrue:
+    condition: ${typeof SHOT_PREFIX === 'string'}
+    label: "release pilot requires SHOT_PREFIX (the qa runner sets it)"
+
+# Launch the already-installed build. No clearState (don't wipe the installed app's state),
+# no Metro reconnect (release builds are bundled).
+- launchApp
+
+# Welcome screen marker. Generous timeout absorbs a cold first render.
+- extendedWaitUntil:
+    visible:
+      text: "Log In"
+    timeout: 60000
+
+- assertVisible:
+    text: "Log In"
+
+- takeScreenshot: ${SHOT_PREFIX}release-welcome
