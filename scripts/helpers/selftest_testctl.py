@@ -12,6 +12,9 @@ Usage: python3 scripts/helpers/selftest_testctl.py
 import contextlib
 import io
 import os
+import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -146,11 +149,89 @@ def test_heartbeat(tmp):
     check("read_heartbeat sees live runner", hb.get("runnerAlive") is True and hb.get("abandoned") is False)
 
 
+def _zsh_syntax_ok(text):
+    """zsh -n: parse-only (no execution) syntax check of generated shell."""
+    with tempfile.NamedTemporaryFile("w", suffix=".zsh", delete=False) as f:
+        f.write(text)
+        path = f.name
+    try:
+        p = subprocess.run(["zsh", "-n", path], capture_output=True, text=True)
+        return p.returncode == 0, p.stderr.strip()
+    finally:
+        os.unlink(path)
+
+
+# Variables that are legitimately external/special in generated shell, so referencing
+# them without a local assignment is fine (NOT a "used-but-undefined" smell).
+_SAFE_VARS = {"DEBUG_MOVIE", "REPLY", "PROJ_ROOT", "HOME"}
+
+
+def _undefined_vars(body):
+    """Heuristic: names referenced as $name/${name} that are never assigned in the body.
+    Catches the class of bug where a rename leaves a stale reference (e.g. $rec after the
+    var became $recorder_PID, or $native after it became $native_ID). zsh -n can't see these
+    — an unset var is valid syntax."""
+    assigned = set(re.findall(r"(?:^|\s|;|\()(\w+)=", body))            # name=value
+    assigned |= set(re.findall(r"\bfor\s+(\w+)\s+in\b", body))         # for name in …
+    assigned |= set(re.findall(r'\bread\b[^\n]*?"?(\w+)\?', body))     # read -q "REPLY?…"
+    assigned |= set(re.findall(r"\blocal\s+(?:-\w+\s+)?(\w+)\b", body))  # local [-a] name
+    refd = set(re.findall(r"\$\{?(\w+)", body))                        # $name / ${name…}
+    return {v for v in refd if v not in assigned and v not in _SAFE_VARS and not v.isdigit()}
+
+
+def test_generated_shell_lints():
+    """Lint the shell that the inspect RUN commands emit: movie (zsh function), cmd /
+    noisy (re-run command line), edit (written .zsh). zsh -n for syntax + an
+    undefined-var scan for the rename-left-a-stale-ref class."""
+    if not shutil.which("zsh"):
+        check("zsh present for shell lints", True)  # skip gracefully where zsh is absent
+        return
+
+    # hermetic: no clipboard, editor, or device-DB side effects; a clean flow path
+    t.find_source_by_qa_id = lambda *a, **k: t.REPO / "tests/e2e/auth/auth-0100-signin-smoke.yaml"
+    t.clipboard_copy = lambda *a, **k: False
+    t._device_aliases = lambda *a, **k: []
+    t._device_label = lambda *a, **k: ("dev", "ios")
+
+    e = t.Entry(id="auth-0100", tool="maestro", layer="e2e", role="role-bubble-admin")
+    run = {"params": {"platform": "android", "deviceId": None, "env": "local"}}
+
+    # cmd → a single re-run command line
+    cmd_ok, cmd_err = _zsh_syntax_ok(t.build_run_cmd(e, run, require_screen=True))
+    check(f"cmd output is valid zsh{'' if cmd_ok else ' — ' + cmd_err}", cmd_ok)
+
+    # movie → the re-runnable zsh function (the bug-prone one)
+    body = t._movie_function_body("movie_run_x", "auth_0100", "android", "last-android",
+                                  "role-bubble-admin", "tests/e2e/auth/auth-0100-signin-smoke.yaml", "")
+    mv_ok, mv_err = _zsh_syntax_ok(body)
+    check(f"movie output is valid zsh{'' if mv_ok else ' — ' + mv_err}", mv_ok)
+    undef = _undefined_vars(body)
+    check(f"movie output has no stale/undefined vars{'' if not undef else ' — ' + ','.join(sorted(undef))}",
+          not undef)
+
+    # noisy → the re-run command it prints (flow_override path)
+    noisy_cmd = t.build_run_cmd(e, run, flow_override=t.REPO / "tests/output/noisy-x.yaml",
+                                require_screen=True)
+    n_ok, n_err = _zsh_syntax_ok(noisy_cmd)
+    check(f"noisy re-run output is valid zsh{'' if n_ok else ' — ' + n_err}", n_ok)
+
+    # edit → a written .zsh script (manual must live under REPO for relative_to to work)
+    editdir = t.REPO / "tests" / "output"
+    editdir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=str(editdir), prefix="selftest_edit_") as d:
+        manual = Path(d) / "auth-0100.yaml"
+        manual.write_text("# stub flow\n")
+        out = t._write_run_script(e, run, manual)
+        e_ok, e_err = _zsh_syntax_ok(out.read_text())
+        check(f"edit output is valid zsh{'' if e_ok else ' — ' + e_err}", e_ok)
+
+
 def main():
     test_time_parsers()
     test_classify_runner()
     test_expand_targets()
     test_small_helpers()
+    test_generated_shell_lints()
     with tempfile.TemporaryDirectory(prefix="selftest_testctl_") as d:
         test_lock_lifecycle(Path(d))
         test_heartbeat(Path(d))

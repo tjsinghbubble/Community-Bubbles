@@ -1726,6 +1726,58 @@ def cmd_run_cmd(e, run):
 
 
 
+def _movie_function_body(fn, fn_leaf, platform, dev, role, rel, env_arg):
+    """The re-runnable zsh function emitted by `movie`, extracted so check_tooling can
+    lint the generated shell (`zsh -n` + undefined-variable scan).
+
+    A zsh FUNCTION (not a one-shot line): optional $1 platform, $2 device alias, $3 role.
+    The device alias is resolved to a native id at call time (simctl/adb). Warmup is still
+    recorded (trim deferred); the mp4 name is computed at call time under tmp/maestro.
+    NB: every literal `{`/`}` and `${var}` below is doubled for the f-string — a single
+    `{DEBUG_MOVIE}` here would be read as a Python field and raise NameError.
+    FIXMEs: no genymotion support; implicit cwd is $PROJ_ROOT (unverified); the natural
+    step delays make slow viewing (could speed up with ffprobe/ffmpeg).
+    """
+    return f"""{fn}() {{
+  emulate -L zsh
+  local platform="${{1:-{platform}}}" device="${{2:-{dev}}}" role="${{3:-{role}}}"
+  set -k   # -k: permit trailing comments mid-command; zsh needs this
+  [[ -n "${{DEBUG_MOVIE}}" ]] && set -x
+  : platform is $platform, device is $device, role is $role
+  local native_ID
+  native_ID="$(manage_devices.py --resolve "$device")" || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
+  mkdir -p tmp/maestro
+  local mp4_file="tmp/maestro/movie-{fn_leaf}-$(date +%Y%m%dt%H%M%S).mp4"
+  local -a flow=(npm run qa:flow -- {rel}{env_arg})
+  [[ -n "$role" ]] && flow+=(--role "$role")
+  # a headless/no-screen recording is worthless, so make qa:flow require a working screen.
+  flow+=(--platform "$platform" --device "$device" --require-screen)
+  # on either platform, start the recording in the background, then stop it after the tests finish
+  if [[ "$platform" == android ]]; then
+    print "movie[android]: screenrecord on device $device ($native_ID)"
+    adb -s "$native_ID" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local recorder_PID=$!
+    "${{flow[@]}}"
+    adb -s "$native_ID" shell pkill -INT screenrecord 2>/dev/null; wait $recorder_PID 2>/dev/null
+    adb -s "$native_ID" pull /sdcard/{fn_leaf}.mp4 "$mp4_file" && adb -s "$native_ID" shell rm -f /sdcard/{fn_leaf}.mp4
+  else
+    print "movie[ios]: simctl recordVideo on device $device ($native_ID)"
+    xcrun simctl io "$native_ID" recordVideo --codec h264 --force "$mp4_file" & local recorder_PID=$!
+    "${{flow[@]}}"
+    kill -INT $recorder_PID; wait $recorder_PID 2>/dev/null
+  fi
+  print "movie location: $mp4_file"
+  movie_q="Do you want to see the movie in the default viewer right now?"
+  read -q "REPLY?$movie_q [y/N] "
+  print
+  if [[ $REPLY == "Y" || $REPLY == "y" ]]; then
+    open $mp4_file
+  fi
+  set +x
+}}
+alias action={fn}
+"""
+
+
 def cmd_run_movie(e, run):
     """
     Given a specific e2e test flow, run the test again (same device, same args) while recording the entire session.
@@ -1756,53 +1808,7 @@ def cmd_run_movie(e, run):
     fn = f"movie_run_{fn_leaf}"
     dev = _sim_token(device_id, platform) or platform
     role = e.role or ""
-    # Create a re-runnable zsh function for user to re-run:
-    # arguments are $1 platform, $2 device-ID, $3 role -- all optional.
-    # The device-ID is resolved to a native-ID to communicate with
-    # command invokers (simctl, adb)
-    # Warmup is still recorded (trim deferred).
-    # Movie mp4 filename is computed at call time, and stored under $PROJ_ROOT/tmp/maestro
-    # FIXME: no support for genymotion
-    # FIXME: implicit cwd is $PROJ_ROOT, not verified on run or used with file paths
-    # FIXME: the natural delays in script execution make for painful, slow viewing. we can automate with ffprobe/ffmpeg.
-    body = f"""{fn}() {{
-  emulate -L zsh
-  local platform="${{1:-{platform}}}" device="${{2:-{dev}}}" role="${{3:-{role}}}"
-  set -k   # -k: permit comments; zsh is weird
-  [[ ! -z "${DEBUG_MOVIE} ]] && set -x
-  : platform is $platform, device is $device, role is $role
-  local native_ID; 
-  native_ID="$( manage_devices.py --resolve "$device")" || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
-  mkdir -p tmp/maestro
-  local mp4_file="tmp/maestro/movie-{fn_leaf}-$(date +%Y%m%dt%H%M%S).mp4"
-  local -a flow=(npm run qa:flow -- {rel}{env_arg})
-  [[ -n "$role" ]] && flow+=(--role "$role")
-  # a headless/no-screen recording is worthless, so make qa:flow require a working screen.
-  flow+=(--platform "$platform" --device "$device" --require-screen)
-  # on either platform, start the recording as a background process, then terminate it after the tests finish
-  if [[ "$platform" == android ]]; then
-    print "movie[android]: screenrecord on device $device ($native_ID)"
-    adb -s "$native_ID" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local recorder_PID=$!
-    "${{flow[@]}}"
-    adb -s "$native_ID" shell pkill -INT screenrecord 2>/dev/null; wait $recorder_PID 2>/dev/null
-    adb -s "$native_ID" pull /sdcard/{fn_leaf}.mp4 "$mp4_file" && adb -s "$native" shell rm -f /sdcard/{fn_leaf}.mp4
-  else
-    print "movie[ios]: simctl recordVideo on device $device ($native_ID)"
-    xcrun simctl io "$native_ID" recordVideo --codec h264 --force "$mp4_file" & local recorder_PID=$!
-    "${{flow[@]}}"
-    kill -INT $rec; wait $recorder_PID 2>/dev/null
-  fi
-  print "movie location: $mp4_file"
-  movie_q="Do you want to see the movie in the default viewer right now?"
-  read -q "REPLY?$movie_q [y/N] "
-  print
-  if [[ $REPLY == "Y" || $REPLY == "y" ]]; then
-    open $mp4_file
-  fi
-  set +x
-}}
-alias action={fn}
-"""
+    body = _movie_function_body(fn, fn_leaf, platform, dev, role, rel, env_arg)
     print(body)
 
     if clipboard_copy(body):
