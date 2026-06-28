@@ -14,7 +14,6 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Radius, Typography, CardShadow } from '../styles/theme';
 import { API_URL } from '../config/api';
-
 type LocationData = {
   name: string;
   address: string;
@@ -22,16 +21,13 @@ type LocationData = {
   longitude?: number;
   placeId?: string;
 };
-
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSelect: (location: LocationData) => void;
 };
-
 export default function LocationPickerModal({ visible, onClose, onSelect }: Props) {
   const ref = useRef<any>(null);
-
   const handleSelect = (data: any, details: any) => {
     const location: LocationData = {
       name: data.structured_formatting?.main_text || data.description,
@@ -43,7 +39,6 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
     onSelect(location);
     onClose();
   };
-
   return (
     <Modal
       visible={visible}
@@ -59,7 +54,6 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
           <Text style={styles.headerTitle}>Search Location</Text>
           <View style={styles.placeholder} />
         </View>
-
         <View style={styles.searchContainer}>
           <GooglePlacesAutocomplete
             ref={ref}
@@ -140,7 +134,6 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
             )}
           />
         </View>
-
         <View style={styles.tipContainer}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.neutral.coolMist} />
           <Text style={styles.tipText}>
@@ -151,7 +144,6 @@ export default function LocationPickerModal({ visible, onClose, onSelect }: Prop
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
