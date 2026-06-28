@@ -1,8 +1,9 @@
 #!/usr/bin/env zsh
 # check_tooling.zsh — internal regression guard for the dev tooling itself.
 # Cheap checks first (syntax/import), then behavioural smoke. Re-run after each
-# change to scripts/manage_devices.py or scripts/helpers/*. See the native-device
-# plan (Phase 9). NOT the app test suite — this exercises the TOOLS.
+# change to scripts/manage_devices.py, scripts/testctl.py, or scripts/helpers/*.
+# See the native-device plan (Phase 9). NOT the app test suite — this exercises
+# the TOOLS.
 #
 # Usage: zsh scripts/check_tooling.zsh
 # DB isolation: every check sets MANAGE_DEVICES_DB to a throwaway temp path
@@ -13,6 +14,7 @@ emulate -L zsh
 SCRIPT_DIR=${0:A:h}
 REPO=${SCRIPT_DIR:h}
 MD="$SCRIPT_DIR/manage_devices.py"
+TC="$SCRIPT_DIR/testctl.py"
 fail=0
 pass=0
 
@@ -23,7 +25,7 @@ bad()  { print -r -- "  ❌ $1"; (( fail++ )) }
 # --- 1. syntax (py_compile) -------------------------------------------------
 note "▶ syntax / py_compile"
 typeset -a pyfiles
-pyfiles=("$MD")
+pyfiles=("$MD" "$TC")
 [[ -d "$SCRIPT_DIR/helpers" ]] && pyfiles+=("$SCRIPT_DIR"/helpers/*.py(N))
 for f in $pyfiles; do
   if python3 -m py_compile "$f" 2>/tmp/check_tooling.err; then
@@ -42,6 +44,11 @@ else
   bad "import manage_devices"; cat /tmp/check_tooling.err
 fi
 rm -f "$tmpdb"*(N) 2>/dev/null
+if python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR'); import testctl" 2>/tmp/check_tooling.err; then
+  ok "import testctl"
+else
+  bad "import testctl"; cat /tmp/check_tooling.err
+fi
 
 # --- 3. native-functionality logic self-tests (temp DB) ---------------------
 note "▶ native logic self-tests"
@@ -52,6 +59,14 @@ else
   bad "selftest_manage_devices"
 fi
 rm -f "$selfdb"*(N) 2>/dev/null
+
+# testctl logic + lock/heartbeat self-tests (lock state redirected to a temp dir
+# inside the selftest, so it never touches the real tests/output/ lock).
+if python3 "$SCRIPT_DIR/helpers/selftest_testctl.py"; then
+  ok "selftest_testctl"
+else
+  bad "selftest_testctl"
+fi
 
 # --- 4. migration idempotency on a simulated PRE-EXISTING DB -----------------
 note "▶ migration on a pre-existing DB"

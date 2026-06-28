@@ -81,9 +81,71 @@ DRIVER_PROTOSET = Path(os.environ.get("MAESTRO_DRIVER_PROTOSET",
                                       str(REPO / "tmp" / "maestro_android.protoset")))
 DRIVER_LATENCY_WARN_S = float(os.environ.get("QA_DRIVER_LATENCY_WARN_S", "2.0"))
 
+# FIXME: the `Event` structure is not formally defined. In practice, it is dynamically created
+# by whatever is written into the per-test results that appear in the summary.json, so it's
+# not locked down at the moment.
+#
+# The informal definition is that each Event is a dictionary with about a dozen entries, many of which
+# also appear as arguments to "npm run qa" or "npm run qa:flow". The dictionary is dynamically created by
+# iterating over the Results
+#
+# * id - a string identifier for the test, e.g, "bubble-admin-0600"
+# * reason -- what does it test?  why does the test exist?
+# * tool - a string identifier for the testing tool: maestro FIXME
+# * role - which specific role will be set up for the logged in user: role-user, role-bubble-admin, role-site-admin
+# * tags - a set of string identifiers taken from the test definition
+# * status - either "success" or "fail". older tests have more meanings.
+# * durationMs - the length of the test in milliseconds.
+# * expectedFinding - true or false
+# * knownBug - true or false
+# * artifactsDir = where all the snapshots, params, logs will be stored for each test run.
+#
+#     {
+#       "id": 
+#       "tool": "maestro",
+#       "layer": "e2e",
+#       "role": "role-bubble-admin",
+#       "tags": [
+#         "e2e",
+#         "android",
+#         "role-bubble-admin"
+#       ],
+#       "status": "fail",
+#       "durationMs": 150776,
+#       "expectedFinding": false,
+#       "knownBug": false,
+#       "reason": "Bubble-admin creates a new bubble end-to-end (UC 129)",
+#       "artifactsDir": "/Users/traviswinfrey/Documents/src/bubble/Bubble/tests/output/run-manual-bubble-admin-0600-create-bubble-smoke-20260628t004342Z",
+#       "message": "(manual qa:flow run)"
+#     }
+#   ]
+# }
+
+
+
+
+
 # ── small utils ───────────────────────────────────────────────────────────────
 
-def humanize(seconds):
+def interval_into_string(seconds):
+    """
+    Turn a time interval into a more human-friendly format, where only necessary info is broken out.
+
+    Args:
+        seconds: integer, or parsable into one
+
+    Returns:
+        returns one of three formats: "HH h MM m SS s", or "MM m SS s", or "SS s"
+
+    Raises:
+        ValueError: If `seconds` cannot be forced into an integer format
+
+    Example:
+        >>> interval_into_string(87)
+        1m 27s
+        >>> interval_into_string(3*3600 + 28*60 + 59)
+        3h 28m 59s
+    """
     if seconds is None:
         return "?"
     seconds = int(seconds)
@@ -96,8 +158,16 @@ def humanize(seconds):
     return f"{s}s"
 
 
-def parse_etime(etime):
-    """ps etime: [[dd-]hh:]mm:ss → seconds."""
+def parse_elapsedtime_into_seconds(etime):
+    """
+    Turn a time interval in several formats into seconds
+
+    Args:
+        etime: [[dd-]hh:]mm:ss shows the three formats. Only mm:ss is required.
+
+    Returns
+        seconds of that interval
+    """
     days = 0
     if "-" in etime:
         d, etime = etime.split("-", 1)
@@ -109,7 +179,25 @@ def parse_etime(etime):
     return days * 86400 + h * 3600 + m * 60 + s
 
 
-def parse_iso(ts):
+def convert_iso_timestamp(ts):
+    """
+    Turn a timestamp in ISO 8601 format with a "Zulu" timezone into a timestamp with a UTC offset
+
+    Args:
+        ts: string timestamp
+
+    Returns:
+        same timestamp, but with UTC+0 offset
+
+    Raises:
+        ValueError: If `seconds` cannot be forced into an integer format
+
+    Example:
+        >>> convert_iso_timestamp("2025-06-10T19:49:00.000Z")
+        2025-06-10T19:49:00.000Z+00:00
+        >>> convert_iso("I like cheese")
+        throws ValueError
+    """
     try:
         return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
     except (ValueError, AttributeError):
@@ -155,7 +243,7 @@ def ps_snapshot():
             "pid": pid,
             "ppid": int(m.group(2)),
             "tty": m.group(3),
-            "etime_s": parse_etime(m.group(4)),
+            "etime_s": parse_elapsedtime_into_seconds(m.group(4)),
             "cmd": m.group(5),
         }
     return procs
@@ -515,11 +603,11 @@ def _collect_recent_runs(window_h=RUNS_WINDOW_H):
             p = json.loads(params.read_text())
         except Exception:
             continue
-        started = parse_iso(p.get("startedAt"))
+        started = convert_iso_timestamp(p.get("startedAt"))
         if not started or (now - started) > window_h * 3600:
             continue
         m = _summary_meta(d)
-        fin = parse_iso(m.get("finishedAt")) if m else None
+        fin = convert_iso_timestamp(m.get("finishedAt")) if m else None
         runtime = f"{(fin - started) / 3600:.2f}" if fin else "—"
         layers = p.get("layers") or []
         is_e2e = "e2e" in layers
@@ -600,7 +688,7 @@ def cmd_status(as_json):
 
     runs = []
     if hb and (hb["runnerAlive"] or hb["abandoned"]):
-        started = parse_iso(hb.get("startedAt"))
+        started = convert_iso_timestamp(hb.get("startedAt"))
         run = {
             "runId": hb.get("runId"),
             "state": hb.get("state"),
@@ -614,7 +702,7 @@ def cmd_status(as_json):
         if hb.get("pid") in procs:
             run["invoker"], _ = invoker_chain(hb["pid"], procs)
         for job in hb.get("active") or []:
-            jstart = parse_iso(job.get("startedAt"))
+            jstart = convert_iso_timestamp(job.get("startedAt"))
             entry = {
                 "test": job.get("id"),
                 "tool": job.get("tool"),
@@ -672,23 +760,23 @@ def cmd_status(as_json):
             print(f"🚨🚨🚨😵🪦🪦  qa run {run['runId']}  state={run['state']}")
         else:
             print(f"🏃  qa run {run['runId']}  state={run['state']}  invoker={run['invoker'] or '?'}")
-        print(f"    run elapsed {humanize(run['totalElapsedS'])}, "
+        print(f"    run elapsed {interval_into_string(run['totalElapsedS'])}, "
               f"jobs {run['completed']}/{run['totalJobs'] if run['totalJobs'] is not None else '?'} done")
         for j in run["active"]:
             role = f"  role={j['role']}" if j.get("role") else ""
             tags = f"  tags=[{', '.join(j['tags'])}]" if j.get("tags") else ""
-            print(f"    ▶ {j['test']} ({j['tool']}){role}{tags}  — in test {humanize(j['testElapsedS'])}")
+            print(f"    ▶ {j['test']} ({j['tool']}){role}{tags}  — in test {interval_into_string(j['testElapsedS'])}")
             if j.get("step"):
-                print(f"      step: {j['step']}  ({humanize(j['stepElapsedS'])} in step)")
+                print(f"      step: {j['step']}  ({interval_into_string(j['stepElapsedS'])} in step)")
     if adhoc_step:
         print(f"▶   Ad-hoc maestro flow step: {adhoc_step['step']} "
-              f"({humanize(adhoc_step['stepElapsedS'])} in step)\n    log: {adhoc_step['log']}")
+              f"({interval_into_string(adhoc_step['stepElapsedS'])} in step)\n    log: {adhoc_step['log']}")
     if payload["processes"]:
         print("\nTest processes:")
         for p in payload["processes"]:
             chain = f" [{p['invokerChain']}]" if p["invokerChain"] else ""
             print(f"  {p['pid']:>7}  {p['kind']:<16} invoker={p['invoker']:<7}{chain} "
-                  f"up {humanize(p['elapsedS'])}")
+                  f"up {interval_into_string(p['elapsedS'])}")
     if payload["panicMarker"]:
         print("\n⚠️   PANIC marker present (tests/PANIC).")
     return 0
@@ -706,7 +794,7 @@ NUKE_ALIASES = {
 TARGET_TO_KINDS = {
     "qa": ["qa-runner"],
     "cli": ["maestro-cli"],
-    "mcp": ["maestro-mcp"],
+   # FIXME: mcp is disabled because of test interference. "mcp": ["maestro-mcp"],
     "xcodebuild": ["xcuitest-driver"],
     "vitest": ["vitest"],
     "newman": ["newman"],
@@ -905,7 +993,7 @@ def booted_sims():
         ver = runtime.rsplit(".", 1)[-1].replace("iOS-", "").replace("-", ".")
         for d in devs:
             sims.append({"udid": d["udid"], "name": d["name"], "runtime": ver,
-                         "bootedAt": parse_iso(d.get("lastBootedAt"))})
+                         "bootedAt": convert_iso_timestamp(d.get("lastBootedAt"))})
     return sims
 
 
@@ -975,7 +1063,7 @@ def check_sim_binary():
     except (OSError, plistlib.InvalidFileException):
         pass
     mtime = (exe if exe and exe.exists() else Path(app_path)).stat().st_mtime
-    age = humanize(time.time() - mtime)
+    age = interval_into_string(time.time() - mtime)
     sdk_ver = re.sub(r"[^0-9.]", "", sdk)
     mismatch = sdk_ver and not (sim["runtime"].startswith(sdk_ver) or sdk_ver.startswith(sim["runtime"]))
     if mismatch:
@@ -1565,6 +1653,28 @@ def cmd_show_images(e, run):
 
 
 def build_run_cmd(e, run, flow_override=None, require_screen=False):
+    """
+    Constructs a command string to execute a specified run configuration, in support of the
+      movie, noisy, and
+
+
+    Args:
+        e (Any): The execution environment containing attributes such as tool,
+                 id, layer, and role.
+        run (Dict): The run configuration dictionary. This must include the "params"
+                key with run-specific parameters such as "env", "platform",
+                and "deviceId".
+        flow_override (Path, optional): An optional path to override the default
+                                    flow YAML location. Default is None.
+    require_screen (bool): A flag indicating whether the command should enforce
+                           the requirement for a visible screen. Default is False.
+
+    Returns:
+    str: A formatted command string based on the provided inputs.
+
+    Raises:
+    None
+    """
     params = run["params"]
     envname = params.get("env", "local")
     platform = params.get("platform", "ios")
@@ -1588,10 +1698,10 @@ def build_run_cmd(e, run, flow_override=None, require_screen=False):
         if platform != "web":
             tok = _sim_token(device_id, platform)
             if tok:
-                cmd += f" --sim {tok}"
-            # Debug re-runs (cmd/movie/noisy) want a visible screen; a headless sim yields
-            # BLACK screenshots/recordings, defeating the whole point. --require-screen makes
-            # qa:flow refuse to run on a headless device.
+                cmd += f" --device {tok}"
+            # Debug re-runs (cmd/movie/noisy) must have a visible screen.
+            # A headless sim yields BLACK screenshots/recordings, defeating the whole point.
+            # when `--require-screen` is present, then "qa" and "qa:flow" refuse to run on a headless device.
             if require_screen:
                 cmd += " --require-screen"
         return cmd
@@ -1615,10 +1725,21 @@ def cmd_run_cmd(e, run):
         print("  📋 copied to the clipboard")
 
 
+
 def cmd_run_movie(e, run):
+    """
+    Given a specific e2e test flow, run the test again (same device, same args) while recording the entire session.
+
+    This works for simulator/emulators as well for real native devices. The "run again" is achieved by writing
+	a small function that replicates the original conditions.
+
+    Args: 
+		e 
+
+    """
     if e.tool != "maestro":
         base = build_run_cmd(e, run)
-        print("  Headless test — there is no screen to record; plain re-run command instead:")
+        print("  This was a Headless test — no screen, no movie. Use this re-run command instead")
         print(f"  {base}")
         if clipboard_copy(base):
             print("  📋 copied to the clipboard")
@@ -1635,40 +1756,62 @@ def cmd_run_movie(e, run):
     fn = f"movie_run_{fn_leaf}"
     dev = _sim_token(device_id, platform) or platform
     role = e.role or ""
-    # A re-runnable zsh FUNCTION (not a one-shot one-liner): optional $1 platform, $2 device
-    # alias, $3 role. The device alias is resolved to a native id at call time via
-    # manage_devices (Travis: $() to map alias → native recorder). iOS=simctl, Android=adb.
-    # Warmup is still recorded (trim deferred). Output name is computed at call time.
+    # Create a re-runnable zsh function for user to re-run:
+    # arguments are $1 platform, $2 device-ID, $3 role -- all optional.
+    # The device-ID is resolved to a native-ID to communicate with
+    # command invokers (simctl, adb)
+    # Warmup is still recorded (trim deferred).
+    # Movie mp4 filename is computed at call time, and stored under $PROJ_ROOT/tmp/maestro
+    # FIXME: no support for genymotion
+    # FIXME: implicit cwd is $PROJ_ROOT, not verified on run or used with file paths
+    # FIXME: the natural delays in script execution make for painful, slow viewing. we can automate with ffprobe/ffmpeg.
     body = f"""{fn}() {{
   emulate -L zsh
   local platform="${{1:-{platform}}}" device="${{2:-{dev}}}" role="${{3:-{role}}}"
-  local native; native="$(python3 scripts/manage_devices.py --resolve "$device")" \\
-      || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
-  local out="tmp/maestro/movie-{fn_leaf}-$(date -u +%Y%m%dt%H%M%S).mp4"
+  set -k   # -k: permit comments; zsh is weird
+  [[ ! -z "${DEBUG_MOVIE} ]] && set -x
+  : platform is $platform, device is $device, role is $role
+  local native_ID; 
+  native_ID="$( manage_devices.py --resolve "$device")" || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
   mkdir -p tmp/maestro
+  local mp4_file="tmp/maestro/movie-{fn_leaf}-$(date +%Y%m%dt%H%M%S).mp4"
   local -a flow=(npm run qa:flow -- {rel}{env_arg})
   [[ -n "$role" ]] && flow+=(--role "$role")
-  # --require-screen: a black (headless) recording is worthless, so make qa:flow refuse one.
-  flow+=(--platform "$platform" --sim "$device" --require-screen)
+  # a headless/no-screen recording is worthless, so make qa:flow require a working screen.
+  flow+=(--platform "$platform" --device "$device" --require-screen)
+  # on either platform, start the recording as a background process, then terminate it after the tests finish
   if [[ "$platform" == android ]]; then
-    print "movie[android]: screenrecord on $native (NB: -no-window emulator records BLACK on this host)"
-    adb -s "$native" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local rec=$!
+    print "movie[android]: screenrecord on device $device ($native_ID)"
+    adb -s "$native_ID" shell screenrecord --bit-rate 4000000 /sdcard/{fn_leaf}.mp4 & local recorder_PID=$!
     "${{flow[@]}}"
-    adb -s "$native" shell pkill -INT screenrecord 2>/dev/null; wait $rec 2>/dev/null
-    adb -s "$native" pull /sdcard/{fn_leaf}.mp4 "$out" && adb -s "$native" shell rm -f /sdcard/{fn_leaf}.mp4
+    adb -s "$native_ID" shell pkill -INT screenrecord 2>/dev/null; wait $recorder_PID 2>/dev/null
+    adb -s "$native_ID" pull /sdcard/{fn_leaf}.mp4 "$mp4_file" && adb -s "$native" shell rm -f /sdcard/{fn_leaf}.mp4
   else
-    print "movie[ios]: simctl recordVideo on $native"
-    xcrun simctl io "$native" recordVideo --codec h264 --force "$out" & local rec=$!
+    print "movie[ios]: simctl recordVideo on device $device ($native_ID)"
+    xcrun simctl io "$native_ID" recordVideo --codec h264 --force "$mp4_file" & local recorder_PID=$!
     "${{flow[@]}}"
-    kill -INT $rec; wait $rec 2>/dev/null
+    kill -INT $rec; wait $recorder_PID 2>/dev/null
   fi
-  print "movie: $out"
-}}"""
+  print "movie location: $mp4_file"
+  movie_q="Do you want to see the movie in the default viewer right now?"
+  read -q "REPLY?$movie_q [y/N] "
+  print
+  if [[ $REPLY == "Y" || $REPLY == "y" ]]; then
+    open $mp4_file
+  fi
+  set +x
+}}
+alias action={fn}
+"""
     print(body)
-    copied = clipboard_copy(body)
-    print(f"\n  {'📋 function copied — paste into your shell, then call:' if copied else 'paste into your shell, then call:'}")
-    print(f"     {fn}                          # defaults: {platform} / {dev} / {short_role(e.role) or 'no role'}")
-    print(f"     {fn} ios June role-user       # override platform / device / role")
+
+    if clipboard_copy(body):
+        print("\n  📋 The function is in your cut/paste buffer now. Paste into a shell, then call:")
+    else:
+        print("\n  📋 Copy the function above, then paste into a shell, then call:")
+    print(f"       {fn}                          # defaults: {platform} / {dev} / {short_role(e.role) or 'no role'}")
+    print(f"       {fn} ios June role-user       # override platform / device / role\n")
+    print(f"     The alias \"action\" is linked to the function, for convenience")
 
 
 def cmd_show_params(e, run):
@@ -2124,7 +2267,7 @@ def _write_run_script(e, run, manual):
     if _looks_headless(device_id, platform):
         alias = _device_label(device_id)[0]
         headless_note = ("# ⚠️ headless device: the screen is BLACK here. To watch it, boot windowed first:\n"
-                         f"#    python3 scripts/manage_devices.py --start {alias}\n")
+                         f"#    manage_devices --start {alias}\n")
     out = manual.with_name(f"run-{manual.stem}.zsh")
     body = f"""#!/usr/bin/env zsh
 # Generated by testctl 'edit' for {e.id}{(' [' + e.role + ']') if e.role else ''} — manual debugging copy.
@@ -2135,13 +2278,13 @@ cd {REPO}
 # Preferred: drive through the qa runner (resolves the device, sets METRO/SHOT_PREFIX, seeds).
 npm run qa:flow -- {rel}{role_arg}{plat_arg}{env_arg} --sim {tok}
 
-# Alternatives (uncomment one):
+# CHOOSE your preferences by uncommenting one of these lines:
 # Bare Maestro (SHOT_PREFIX must stay under tmp/maestro/ per CLAUDE.md):
 #   mkdir -p tmp/maestro
-#   maestro --device "$(python3 scripts/manage_devices.py --resolve {tok})" test \\
+#   maestro --device "$( manage_devices --resolve {tok} )" test \\
 #     -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/ {rel}
 # Maestro Studio (interactive selector inspector):
-#   maestro --device "$(python3 scripts/manage_devices.py --resolve {tok})" studio
+#   maestro --device "$( manage_devices --resolve {tok} )" studio
 """
     out.write_text(body)
     out.chmod(0o755)
@@ -2150,7 +2293,7 @@ npm run qa:flow -- {rel}{role_arg}{plat_arg}{env_arg} --sim {tok}
 
 def cmd_edit(e, run):
     if e.tool != "maestro":
-        print("  'edit' is for Maestro e2e flows; this is a headless test — use 'test'/'cmd'.")
+        print("  'edit' is for Maestro e2e flows. This is a headless test — use 'test'/'cmd'.")
         return
     p = run["params"]
     platform = p.get("platform", "ios")
@@ -2158,9 +2301,9 @@ def cmd_edit(e, run):
     if _looks_headless(device_id, platform):
         alias = _device_label(device_id)[0]
         print("  ⚠️  This device is headless. You can't see progress on the screen and "
-              "screenshots may not work (black frames on this host).")
+              "screenshots will probably not work (you will only collect solid black images).")
         print(f"      To watch the flow, boot a visible {platform} screen first, e.g.:")
-        print(f"      python3 scripts/manage_devices.py --start {alias}   (default emulator boot is -no-window)")
+        print(f"       manage_devices --start {alias}   (default emulator boot is -no-window)")
     # Prefer the artifact's flow copy (its subflows sit beside it, so runFlow: ../common/…
     # paths resolve, and it lives under gitignored tests/output/). Fall back to the repo src.
     files = flow_files(e)
@@ -2223,11 +2366,11 @@ INSPECT_COMMANDS = [
     ("cmd",      ["cmd", "run cmd", "run command", "run", "show run cmd", "show run", "create run cmd"],
      "Command to run just this test again, with the original parameters (auto-copied)", cmd_run_cmd, "RUN"),
     ("movie",    ["movie", "run as a movie", "run movie", "record"],
-     "Re-run that also records an MP4 of the device screen", cmd_run_movie, "RUN"),
+     "Generates a re-run command that also records an MP4 of the device screen", cmd_run_movie, "RUN"),
     ("edit",     ["edit", "edit script", "manual"],
-     "Edit a generated copy of the original script", cmd_edit, "RUN"),
+     "A generated copy of the original script is created to use directly with Maestro or Maestro Studio", cmd_edit, "RUN"),
     ("noisy",    ["noisy", "decorate", "verbose flow", "screenshot every step"],
-     "Flatten all includes + screenshot before/after every action (debug decorator)",
+     "Generates a 'noisy' re-run command. It takes screenshots before and after every action in the Maestro script.",
      cmd_noisy, "RUN"),
     ("wizard",   ["wizard", "wiz", "suggest"],
      "Get debugging suggestions (WIP)", cmd_wizard, "DIG DEEPER"),
@@ -2285,7 +2428,8 @@ def print_command_menu(with_desc=True):
             print(f"  {i:>2}) {key}")
 
 
-TEST_FILTER_TITLE = {"fails": "Failing / non-OK tests", "passes": "Passing tests",
+TEST_FILTER_TITLE = {"fails": "Failing / non-OK tests",
+                     "passes": "Passing tests",
                      "all": "All tests in this run"}
 
 
@@ -2736,7 +2880,7 @@ def _acquire_once(runner, pid, ppid, cmd):
         if stray:
             lines = "\n".join(f"    pid={p}: {c}" for p, c in stray[:5])
             return False, ("an untracked maestro session is running (not under our lock); stop it "
-                           "first (`python3 scripts/testctl.py nuke maestro,mcp`):\n" + lines)
+                           "first (`testctl.py nuke maestro,mcp`):\n" + lines)
         _write_lock({
             "runner": runner, "pid": pid, "ppid": ppid, "cmd": cmd,
             "pidCmd": _pid_cmd(pid), "host": socket.gethostname(), "boottime": _boottime(),
