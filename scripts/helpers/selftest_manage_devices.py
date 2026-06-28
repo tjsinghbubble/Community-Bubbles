@@ -7,6 +7,8 @@ the syntax/import checks. Pure-logic assertions only (no real device required).
 
 Usage: MANAGE_DEVICES_DB=<tmp> python3 scripts/helpers/selftest_manage_devices.py
 """
+import contextlib
+import io
 import os
 import sys
 from pathlib import Path
@@ -70,9 +72,13 @@ def main():
     check("is_real True for real row", m.is_real({"id": "SER-A"}) is True)
     check("is_real False for sim row", m.is_real({"id": "SIM-1"}) is False)
 
-    # refuse_on_real returns True (and would print) for a real device
-    check("refuse_on_real True for real", m.refuse_on_real({"id": "SER-A", "name": "Pixel 8"}, "start") is True)
-    check("refuse_on_real False for sim", m.refuse_on_real({"id": "SIM-1", "name": "iPhone 17"}, "start") is False)
+    # refuse_on_real returns True for a real device AND prints a refusal to stderr; suppress
+    # that expected message so the self-test output stays clean (it's not an error).
+    with contextlib.redirect_stderr(io.StringIO()):
+        refused_real = m.refuse_on_real({"id": "SER-A", "name": "Pixel 8"}, "start")
+        refused_sim = m.refuse_on_real({"id": "SIM-1", "name": "iPhone 17"}, "start")
+    check("refuse_on_real True for real", refused_real is True)
+    check("refuse_on_real False for sim", refused_sim is False)
 
     # claim_state transitions
     row = c.execute("SELECT * FROM devices WHERE udid='SER-A'").fetchone()
