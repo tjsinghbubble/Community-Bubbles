@@ -38,7 +38,8 @@ appId: com.bubble.mobile
 - extendedWaitUntil:
     visible:
       text: "Log In"
-    timeout: 30000
+    timeout: 60000   # android dev build has no bundle/driver pre-warm (iOS-only in qa.ts), so the
+                     # FIRST cold-Metro welcome render rides the ~30s edge and flakes; 60s absorbs it
 - tapOn:
     text: "Log In"
 
@@ -47,10 +48,17 @@ appId: com.bubble.mobile
 - tapOn:
     id: input-email
 - inputText: ${EMAIL}
+# Android: the soft keyboard covers the password field below — input-password drops out of the
+# queryable hierarchy ("element not found"). Dismiss it to reveal the lower form. (hw.keyboard=yes +
+# show_ime_with_hard_keyboard=0 did NOT suppress the soft IME on this emulator, so handle it in-flow.)
+# Safe on iOS: no-op when nothing needs hiding; the next tap re-opens the field's keyboard.
+- hideKeyboard
 
 - tapOn:
     id: input-password
 - inputText: ${PASSWORD}
+# Same reason: reveal the Log In button the keyboard now covers.
+- hideKeyboard
 
 - tapOn:
     id: button-log-in
@@ -71,4 +79,4 @@ appId: com.bubble.mobile
 - extendedWaitUntil:
     visible:
       id: button-create-fab
-    timeout: 30000
+    timeout: 60000   # post-login Explore load is likewise slow under any host pressure on android

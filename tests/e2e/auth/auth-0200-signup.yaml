@@ -28,10 +28,25 @@ tags:
       METRO_HOST: ${METRO_HOST}
       METRO_PORT: ${METRO_PORT}
 
-# Welcome → Signup
+# Welcome → Signup.
+## TLW: Fast-fail if scroll is required to see sign-up button or if button is not attributed
+# Wait out the cold JS-bundle pull from Metro after reconnect-metro's clearState relaunch:
+# a fresh Android dev-build bundle download + Hermes parse + Fabric mount can exceed
+# Maestro's default ~17s assert wait (observed blank screen at 17.2s on a loaded host).
+- extendedWaitUntil:
+    visible:
+      id: button-sign-up
+    timeout: 45000
+- assertVisible:
+    id: button-sign-up
 - tapOn:
     id: button-sign-up
 - waitForAnimationToEnd
+# Signup form transition after tapping sign-up.
+- extendedWaitUntil:
+    visible:
+      id: input-name
+    timeout: 15000
 - assertVisible:
     id: input-name
 
@@ -40,6 +55,10 @@ tags:
 - inputText: "QA Signup User"
 
 # Gender picker (select the first option).
+## TLW: add resiliency with scroll downward
+- scrollUntilVisible:
+    element:
+      id: button-select-gender
 - tapOn:
     id: button-select-gender
 - tapOn:
@@ -50,18 +69,34 @@ tags:
     optional: true
 
 # Date-of-birth picker (accept the default and confirm).
+## TLW: add resiliency with scroll downward
+- scrollUntilVisible:
+    element:
+      id: button-select-dob
 - tapOn:
     id: button-select-dob
 - tapOn:
     id: button-confirm-date
 
+## TLW: add resiliency with scroll downward
+- scrollUntilVisible:
+    element:
+      id: input-email
 - tapOn:
     id: input-email
 - inputText: "signup-0200@bubble.test"
+## TLW: add resiliency with scroll downward
+- scrollUntilVisible:
+    element:
+      id: input-password
 - tapOn:
     id: input-password
 - inputText: "Passw0rd!23"
 
+## TLW: add resiliency with scroll downward
+- scrollUntilVisible:
+    element:
+      id: checkbox-terms
 - tapOn:
     id: checkbox-terms
 
@@ -76,6 +111,12 @@ tags:
 - waitForAnimationToEnd
 
 # Success is reaching the authenticated Explore FAB.
+## TLW: FIXME is this the right success criteria
+# Reaching Explore involves the signup network round-trip + onboarding + navigation.
+- extendedWaitUntil:
+    visible:
+      id: button-create-fab
+    timeout: 20000
 - assertVisible:
     id: button-create-fab
 - takeScreenshot: ${SHOT_PREFIX}signup-complete
