@@ -25,6 +25,7 @@ import {
   gateAppInstalled,
   gateBrittleSelectors,
   gateMetro,
+  gateMetroBundle,
   gateDriverWarmup,
   gateLoadAverage,
   type GateResult,
@@ -568,6 +569,13 @@ async function main(): Promise<void> {
         setupAdbReverse([env.metroPort, Number(new URL(env.apiBaseUrl).port || 3000)], e2eDeviceId);
       }
       gates.push(await gateMetro(env.metroHost, env.metroPort));
+      // Metro listening != Metro can build. Fetch the actual platform bundle to (a) warm Metro's
+      // cache so the first dev-client launch doesn't pay the cold-build cost inside its 60s window
+      // (the blank-screen-on-test-1 failure), and (b) catch a broken JS graph (e.g. a bad merge)
+      // as a clear 500 here rather than an opaque blank screen on-device.
+      if ((args.platform === "android" || args.platform === "ios") && !gates.some((g) => g.status === "fail")) {
+        gates.push(await gateMetroBundle(env.metroHost, env.metroPort, args.platform));
+      }
       // Warm the XCUITest driver only once the simulator + Metro are confirmed up, so the cold
       // start is absorbed here (load-scaled budget) rather than failing the first real test. On
       // success, tighten the per-test driver timeout — the warm driver is reused by later runs.

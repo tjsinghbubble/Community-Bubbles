@@ -522,6 +522,45 @@ export async function gateMetro(
 }
 
 /**
+ * Metro bundle-build gate (native e2e). `gateMetro` only proves Metro is *listening* (GET /status);
+ * it does NOT prove Metro can BUILD a bundle for the target platform. The first dev-client launch
+ * pays the full cold-build cost (observed ~27s for android) inside the flow's 60s "Log In" window —
+ * if the build + dev-client reconnect overrun that window the app renders blank and the first test
+ * fails for reasons unrelated to the app. This gate fetches the actual platform bundle, which:
+ *   1) WARMS Metro's cache so the first real launch gets a fast bundle (fixes blank-screen-on-test-1),
+ *   2) catches a broken JS graph early — a syntax/import error in the (merged) code returns 500 HERE,
+ *      before any device work, turning an opaque blank-screen failure into a clear gate failure,
+ *   3) records the cold-build time for visibility.
+ * Skip for web (no Metro bundle). A non-2xx (e.g. 500 = build error) FAILS the gate.
+ */
+export async function gateMetroBundle(
+  host: string,
+  port: number,
+  platform: "ios" | "android",
+  opts: { timeoutMs?: number } = {},
+): Promise<GateResult> {
+  const url = `http://${host}:${port}/index.bundle?platform=${platform}&dev=true&minify=false`;
+  const startedAt = Date.now();
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(opts.timeoutMs ?? 120_000) });
+    const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
+    if (res.ok) {
+      return { name: "metro-bundle", status: "pass", waited: true,
+        message: `${platform} bundle built + warmed in ${secs}s (HTTP ${res.status})` };
+    }
+    // Non-2xx: surface Metro's error head so a broken merge is obvious in the gate output.
+    const body = (await res.text().catch(() => "")).replace(/\s+/g, " ").slice(0, 300);
+    return { name: "metro-bundle", status: "fail", waited: true,
+      message: `test canceled: ${platform} bundle build failed — HTTP ${res.status} after ${secs}s${body ? ` — ${body}` : ""}` };
+  } catch (err) {
+    const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
+    const msg = err instanceof Error ? err.message : String(err);
+    return { name: "metro-bundle", status: "fail", waited: true,
+      message: `test canceled: ${platform} bundle did not build within ${secs}s (${msg})` };
+  }
+}
+
+/**
  * Driver-warmup gate (iOS e2e only). Absorbs the XCUITest driver cold start in a dedicated,
  * consequence-free launch so it can't fail the *first* real test for reasons unrelated to the
  * app. The startup-timeout budget is scaled by the current 1-min load — higher load buys a
