@@ -1,0 +1,27 @@
+# maestro-failtime.lnav — report the actual failure time of a Maestro flow
+# from its internal-maestro-log.log (e.g. auth-0100).
+#
+# Requires the maestro_internal_log format (install once with:
+#   lnav -i ~/.lnav/formats/installed/maestro_internal.json )
+#
+# Batch usage (no TUI):
+#   lnav -n -f scripts/lnav/maestro-failtime.lnav \
+#     tests/output/<run>/e2e/<flow>/internal-maestro-log.log
+#
+# window_start  = first line Maestro emitted (process start)
+# failure_time  = first ERROR CommandFailed; falls back to the last *FAILED* line
+# failure_reason= the assertion/command that failed
+
+;SELECT
+   (SELECT min(log_time) FROM maestro_internal_log)                          AS window_start,
+   coalesce(
+     (SELECT log_time FROM maestro_internal_log
+        WHERE log_level = 'error' AND log_body LIKE '%CommandFailed%'
+        ORDER BY log_time LIMIT 1),
+     (SELECT log_time FROM maestro_internal_log
+        WHERE log_body LIKE '%FAILED%'
+        ORDER BY log_time DESC LIMIT 1)
+   )                                                                         AS failure_time,
+   (SELECT log_body FROM maestro_internal_log
+      WHERE log_level = 'error' AND log_body LIKE '%CommandFailed%'
+      ORDER BY log_time LIMIT 1)                                             AS failure_reason
