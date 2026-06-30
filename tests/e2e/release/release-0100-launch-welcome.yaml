@@ -27,13 +27,20 @@ tags:
 # no Metro reconnect (release builds are bundled).
 - launchApp
 
-# Welcome screen marker. Generous timeout absorbs a cold first render.
+# Welcome screen marker. Generous timeout absorbs a cold first render of the release binary.
+# Anchor = the section header "Log in or sign up" (the merged social-auth WelcomeAuth screen; the
+# old dev-client flows assert a bare "Log In" that no longer exists — the copy changed to
+# "Log in or sign up" / "Continue" / "Continue with Google" when Google/Apple sign-in landed).
 - extendedWaitUntil:
     visible:
-      text: "Log In"
+      text: "Log in or sign up"
     timeout: 60000
 
 - assertVisible:
-    text: "Log In"
+    text: "Log in or sign up"
+
+# Belt-and-suspenders: the merge's Google sign-in entry point must render from the embedded bundle.
+- assertVisible:
+    text: "Continue with Google"
 
 - takeScreenshot: ${SHOT_PREFIX}release-welcome
