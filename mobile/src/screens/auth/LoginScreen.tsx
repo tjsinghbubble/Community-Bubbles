@@ -19,12 +19,15 @@ import { NavHeader } from '../../components/ScreenHeader';
 import { EyeIcon, EyeOffIcon } from '../../components/icons';
 import BubbleButton from '../../components/BubbleButton';
 
+import { RouteProp } from '@react-navigation/native';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
+  route: RouteProp<AuthStackParamList, 'Login'>;
 };
 
-export default function LoginScreen({ navigation }: Props) {
-  const [email, setEmail] = useState('');
+export default function LoginScreen({ navigation, route }: Props) {
+  const [email, setEmail] = useState(route.params?.email ?? '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

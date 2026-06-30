@@ -141,6 +141,19 @@ export const PageHeader = {
   titleColor: Colors.text.primary,
 };
 
+/**
+ * PageBody — standard tokens for the scrollable content area below the header.
+ *
+ * Use ScreenBody (ScrollBody / FlatBody) from components/ScreenBody.tsx instead of
+ * rolling custom container/content styles in individual screens.
+ *
+ * paddingHorizontal : outer gutter for every screen
+ * paddingTop        : breathing room immediately below the header border
+ * paddingBottom     : tail room above the safe-area bottom edge
+ *                     (SafeAreaView handles the home-indicator inset separately)
+ * sectionGap        : vertical gap between named sections on a screen
+ */
+
 export const Spacing = {
   xxs: 2,
   xs: 4,
@@ -154,18 +167,6 @@ export const Spacing = {
   huge: 48,
 };
 
-/**
- * PageBody — standard tokens for the scrollable content area below the header.
- *
- * Use ScreenBody (ScrollBody / FlatBody) from components/ScreenBody.tsx instead of
- * rolling custom container/content styles in individual screens.
- *
- * paddingHorizontal : outer gutter for every screen
- * paddingTop        : breathing room immediately below the header border
- * paddingBottom     : tail room above the safe-area bottom edge
- *                     (SafeAreaView handles the home-indicator inset separately)
- * sectionGap        : vertical gap between named sections on a screen
- */
 export const PageBody = {
   paddingHorizontal: Spacing.md,  // 12
   paddingTop: Spacing.sm,         // 8

@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "2SD8bcOVRs4HWtbN-9338"
+uri = "file://sync-commits.tar.gz"
+type = "unspecified"
+title = "sync-commits.tar.gz — extract and apply on your Mac"

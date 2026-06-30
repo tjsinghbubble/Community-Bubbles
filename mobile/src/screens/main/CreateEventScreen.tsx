@@ -21,7 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import { GOOGLE_PLACES_API_KEY } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import MultiImagePicker from '../../components/MultiImagePicker';
 import BubbleButton from '../../components/BubbleButton';
@@ -816,7 +815,6 @@ export default function CreateEventScreen({ navigation, route }: Props) {
         visible={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
         onSelect={handleLocationSelect}
-        apiKey={GOOGLE_PLACES_API_KEY}
       />
     </ScrollView>
   );
@@ -1143,6 +1141,16 @@ export default function CreateEventScreen({ navigation, route }: Props) {
     return 'Next';
   };
 
+  const isStepValid = (() => {
+    if (step === 1) {
+      return !!selectedBubble && title.trim().length >= 3 && description.trim().length > 0;
+    }
+    if (step === 2) {
+      return !!date && !!startTime;
+    }
+    return true;
+  })();
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.secondary} />
@@ -1175,6 +1183,7 @@ export default function CreateEventScreen({ navigation, route }: Props) {
               title={getBottomButtonLabel()}
               onPress={handleNext}
               loading={loading}
+              disabled={!isStepValid}
               testID="button-next"
             />
           )}

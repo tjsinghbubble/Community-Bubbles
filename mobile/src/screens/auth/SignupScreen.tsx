@@ -25,8 +25,11 @@ import BubbleButton from '../../components/BubbleButton';
 import { EyeIcon, EyeOffIcon, ChevronDownIcon } from '../../components/icons';
 import { requestPhotoLibraryAccess } from '../../utils/permissions';
 
+import { RouteProp } from '@react-navigation/native';
+
 type Props = {
   navigation: NativeStackNavigationProp<AuthStackParamList, 'Signup'>;
+  route: RouteProp<AuthStackParamList, 'Signup'>;
 };
 
 // Must match the min() constraint in shared/schema.ts insertUserSchema
@@ -43,9 +46,15 @@ const MAX_DOB_DATE = (() => {
 
 const MIN_DOB_DATE = new Date(1910, 0, 1);
 
-export default function SignupScreen({ navigation }: Props) {
+const DEFAULT_PICKER_DATE = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 22);
+  return d;
+})();
+
+export default function SignupScreen({ navigation, route }: Props) {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route?.params?.prefillEmail ?? '');
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -61,7 +70,7 @@ export default function SignupScreen({ navigation }: Props) {
   const [emailBlurred, setEmailBlurred] = useState(false);
   const emailError = emailBlurred && (email.length === 0 || !EMAIL_REGEX.test(email));
 
-  const [pickerDate, setPickerDate] = useState(MAX_DOB_DATE);
+  const [pickerDate, setPickerDate] = useState(DEFAULT_PICKER_DATE);
 
   const isFormValid = !!(name && email && password.length >= PASSWORD_MIN_LENGTH && gender && dateOfBirth && termsAccepted);
 

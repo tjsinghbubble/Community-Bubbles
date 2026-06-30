@@ -4,13 +4,14 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     // These navigation tests require native module mocking incompatible with RN 0.83.x
-    // jest-expo preset does not mock __fbBatchedBridgeConfig / StyleSheet.create correctly
+    // jest-expo preset does not mock __fbBatchedBridgeConfig / NativeDeviceInfo correctly
     // for this RN version. Re-enable once test environment is updated.
     'UpcomingScreen.navigation.test',
     'EventDetailsScreen.navigation.test',
     // Spec for the LocationPicker error-handling fix (Trello c/hqJLRSwU) + blocked by the same
     // RN 0.83.x render-env issue above. Remove this line once both are addressed.
     'LocationPickerModal.errors.test',
+    'MyBubblesScreen.navigation.test',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
   modulePaths: ['<rootDir>/node_modules'],
@@ -27,6 +28,7 @@ module.exports = {
     ],
   },
   moduleNameMapper: {
+    '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
     '^react$': '<rootDir>/../node_modules/react',
     '^react/jsx-runtime$': '<rootDir>/../node_modules/react/jsx-runtime',
     '^react/jsx-dev-runtime$': '<rootDir>/../node_modules/react/jsx-dev-runtime',

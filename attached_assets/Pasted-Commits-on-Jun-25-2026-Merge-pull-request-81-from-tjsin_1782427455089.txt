@@ -1,0 +1,206 @@
+Commits on Jun 25, 2026
+Merge pull request #81 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+11 minutes ago
+Verified
+Merge pull request #80 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+12 minutes ago
+·
+Verified
+Merge pull request #78 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+1 hour ago
+·
+Verified
+Merge pull request #79 from tjsinghbubble/sync/replit-googleAppleSignIn
+admin-nr
+admin-nr
+authored
+1 hour ago
+Verified
+Update application build number for upcoming release
+replit-agent
+replit-agent
+committed
+1 hour ago
+·
+Establish single source of truth for app versioning
+replit-agent
+replit-agent
+committed
+1 hour ago
+Add version number display to the application
+replit-agent
+replit-agent
+committed
+2 hours ago
+Update app configuration with a new version code
+replit-agent
+replit-agent
+committed
+2 hours ago
+Commits on Jun 24, 2026
+Improve app configuration to correctly load environment variables
+replit-agent
+replit-agent
+committed
+15 hours ago
+Improve Apple sign-in error handling and logging
+replit-agent
+replit-agent
+committed
+16 hours ago
+Merge pull request #77 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+16 hours ago
+·
+Verified
+Merge pull request #76 from tjsinghbubble/sync/replit-googleAppleSignIn
+admin-nr
+admin-nr
+authored
+16 hours ago
+·
+Verified
+feat: Google Places API server-side proxy — remove key from mobile binary
+replit-agent
+replit-agent
+committed
+16 hours ago
+·
+Published your App
+replit-agent
+replit-agent
+committed
+17 hours ago
+Merge pull request #75 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+17 hours ago
+Verified
+Merge pull request #74 from tjsinghbubble/sync/replit-googleAppleSignIn
+admin-nr
+admin-nr
+authored
+17 hours ago
+·
+Verified
+Update example screenshots for environment variables
+replit-agent
+replit-agent
+committed
+17 hours ago
+·
+Saved progress at the end of the loop
+replit-agent
+replit-agent
+committed
+17 hours ago
+Improve Apple sign-in by only requiring email for new users
+replit-agent
+replit-agent
+committed
+17 hours ago
+Fix back navigation to correctly return to the previous screen
+replit-agent
+replit-agent
+committed
+17 hours ago
+Merge pull request #73 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+18 hours ago
+Verified
+Add screenshot of a reversed pull request merge configuration
+replit-agent
+replit-agent
+committed
+18 hours ago
+Merge pull request #72 from tjsinghbubble/sync/replit-googleAppleSignIn
+admin-nr
+admin-nr
+authored
+18 hours ago
+·
+Verified
+Add screenshot of a reversed pull request merge configuration
+replit-agent
+replit-agent
+committed
+18 hours ago
+·
+Remove hidden-conversation toasts and bump version to 0.2.0
+replit-agent
+replit-agent
+committed
+18 hours ago
+Remove distracting notifications and improve empty state for conversations
+replit-agent
+replit-agent
+committed
+18 hours ago
+Published your App
+replit-agent
+replit-agent
+committed
+18 hours ago
+Merge pull request #71 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+18 hours ago
+·
+Verified
+Merge pull request #70 from tjsinghbubble/develop
+admin-nr
+admin-nr
+authored
+18 hours ago
+·
+Verified
+Task #10: Push broken-LFS fix to GitHub
+replit-agent
+replit-agent
+committed
+18 hours ago
+Merge pull request #69 from tjsinghbubble/main
+admin-nr
+admin-nr
+authored
+18 hours ago
+·
+Verified
+Merge pull request #68 from tjsinghbubble/sync/replit-googleAppleSignIn
+admin-nr
+admin-nr
+authored
+18 hours ago
+·
+Verified
+Add instructions for downloading and applying commit archive
+replit-agent
+replit-agent
+committed
+19 hours ago
+Update screenshot for improved visual representation of application features
+replit-agent
+replit-agent
+committed
+19 hours ago
+·
+Fix Apple and Google Sign-In new user routing (race condition + authUser)
+author
+neetrandhawa
+committed
+19 hours ago

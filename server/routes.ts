@@ -15,6 +15,7 @@ import { registerReportsRoute } from "./reports-handler";
 import { registerCrashReportRoute } from "./crash-report-handler";
 import { registerPasswordResetRoutes } from "./password-reset-handler";
 import { registerSuspendUserRoutes } from "./suspend-user-handler";
+import { registerSocialAuthRoutes } from "./social-auth-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
 import { seedBulletinPostTypes } from "./seed-bulletin-post-types";
@@ -280,12 +281,16 @@ export async function registerRoutes(
   //       e.g. "ABC123DEF4"  →  appID becomes "ABC123DEF4.io.bubble.app"
   // ---------------------------------------------------------------------------
   app.get("/.well-known/apple-app-site-association", (_req, res) => {
+    const teamId = process.env.APPLE_TEAM_ID;
+    if (!teamId) {
+      console.warn("[AASA] APPLE_TEAM_ID is not set — iOS Universal Links will not work");
+    }
     res.setHeader("Content-Type", "application/json");
     res.json({
       applinks: {
         apps: [],
         details: [{
-          appID: "APPLE_TEAM_ID.io.bubble.app",
+          appID: "762F5X3N9L.io.trybubble.app",
           paths: ["/b/*", "/e/*"],
         }],
       },
@@ -294,19 +299,21 @@ export async function registerRoutes(
 
   // ---------------------------------------------------------------------------
   // App Links (Android) — Google fetches this to verify domain ownership.
-  //
-  // TODO: replace ANDROID_SHA256_FINGERPRINT with the SHA-256 cert fingerprint.
-  //       Get it by running:  eas credentials  (select Android → Production)
-  //       or from Google Play Console → App Integrity → App signing key cert.
-  //       Format: "AA:BB:CC:DD:..." (colon-separated hex pairs)
+  // Set ANDROID_SHA256_FINGERPRINT in Replit Secrets.
+  // Get it by running:  cd mobile && eas credentials --platform android
+  // Format: "AA:BB:CC:DD:..." (colon-separated hex pairs)
   // ---------------------------------------------------------------------------
   app.get("/.well-known/assetlinks.json", (_req, res) => {
+    const fingerprint = process.env.ANDROID_SHA256_FINGERPRINT;
+    if (!fingerprint) {
+      console.warn("[assetlinks] ANDROID_SHA256_FINGERPRINT is not set — Android App Links will not work");
+    }
     res.json([{
       relation: ["delegate_permission/common.handle_all_urls"],
       target: {
         namespace: "android_app",
-        package_name: "com.bubble.mobile",
-        sha256_cert_fingerprints: ["ANDROID_SHA256_FINGERPRINT"],
+        package_name: "io.trybubble.app",
+        sha256_cert_fingerprints: fingerprint ? [fingerprint] : [],
       },
     }]);
   });
@@ -358,6 +365,8 @@ export async function registerRoutes(
     generateCode: generateVerificationCode,
     sendEmail: sendVerificationEmail,
   });
+
+  registerSocialAuthRoutes(app);
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {
     try {
@@ -645,7 +654,12 @@ export async function registerRoutes(
       const bubbles = await storage.getPublicBubbles();
       const enriched = await enrichBubblesCategory(bubbles);
       res.json(enriched.map((b: any) => {
-        const { rules, images, attachments, ...rest } = absoluteMediaUrls(b, baseUrl);
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        const { rules, images, attachments, ...rest } = resolved;
+        // Keep coverImage in sync with images[0] so Explore and Details show the same photo
+        if (Array.isArray(images) && images.length > 0) {
+          rest.coverImage = images[0];
+        }
         return rest;
       }));
     } catch (error: any) {
@@ -662,7 +676,13 @@ export async function registerRoutes(
         return { ...m.bubble, members: realCount, role: m.role };
       }));
       const enriched = await enrichBubblesCategory(bubblesWithCounts);
-      res.json(enriched.map((b: any) => absoluteMediaUrls(b, baseUrl)));
+      res.json(enriched.map((b: any) => {
+        const resolved = absoluteMediaUrls(b, baseUrl);
+        if (Array.isArray(resolved.images) && resolved.images.length > 0) {
+          resolved.coverImage = resolved.images[0];
+        }
+        return resolved;
+      }));
     } catch (error: any) {
       serverError(res, error);
     }
@@ -4286,7 +4306,7 @@ export async function registerRoutes(
       <button class="btn-open" onclick="openApp()">Open in Bubble App</button>
       <div class="store-row">
         <a class="btn-store" href="https://apps.apple.com/app/id6741453696" target="_blank">📱 App Store</a>
-        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.bubble.mobile" target="_blank">🤖 Google Play</a>
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=io.trybubble.app" target="_blank">🤖 Google Play</a>
       </div>
       <div id="status"></div>
       <div class="hint">Don't have Bubble yet? Download it free above.</div>
@@ -4397,7 +4417,7 @@ export async function registerRoutes(
       <button class="btn-open" onclick="openApp()">Open in Bubble App</button>
       <div class="store-row">
         <a class="btn-store" href="https://apps.apple.com/app/id6741453696" target="_blank">&#128241; App Store</a>
-        <a class="btn-store" href="https://play.google.com/store/apps/details?id=com.bubble.mobile" target="_blank">&#129302; Google Play</a>
+        <a class="btn-store" href="https://play.google.com/store/apps/details?id=io.trybubble.app" target="_blank">&#129302; Google Play</a>
       </div>
       <div id="status"></div>
       <div class="hint">Don't have Bubble yet? Download it free above.</div>
@@ -4701,6 +4721,45 @@ export async function registerRoutes(
       serverError(res, error);
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Google Places proxy — keeps the API key server-side, never in the app.
+  // react-native-google-places-autocomplete calls:
+  //   GET /maps/api/place/autocomplete/json
+  //   GET /maps/api/place/details/json
+  // (it appends the Google path to whatever requestUrl.url is set to)
+  // ---------------------------------------------------------------------------
+  const PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY ?? process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ?? '';
+
+  const placesAutocomplete = async (req: any, res: any) => {
+    if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
+    try {
+      const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Places autocomplete failed" });
+    }
+  };
+
+  const placesDetails = async (req: any, res: any) => {
+    if (!PLACES_API_KEY) return res.status(503).json({ error: "Places API not configured" });
+    try {
+      const params = new URLSearchParams({ ...(req.query as any), key: PLACES_API_KEY });
+      const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?${params}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err: any) {
+      res.status(500).json({ error: "Places details failed" });
+    }
+  };
+
+  // react-native-google-places-autocomplete with requestUrl.url = API_URL calls:
+  //   GET ${API_URL}/place/autocomplete/json
+  //   GET ${API_URL}/place/details/json
+  app.get("/place/autocomplete/json", placesAutocomplete);
+  app.get("/place/details/json", placesDetails);
 
   return httpServer;
 }

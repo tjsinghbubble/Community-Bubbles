@@ -24,7 +24,6 @@ import { MessagesStackParamList } from '../../navigation/MessagesNavigator';
 import { Colors, Spacing, Radius, Typography, NotificationBadge, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import unreadEvents from '../../utils/unreadEvents';
-import { showToast } from '../../components/Toast';
 
 type Conversation = {
   conversationId: string;
@@ -209,15 +208,6 @@ export default function MessagesScreen({ navigation, route }: Props) {
     }
     if (deletedBubbles.size > 0) {
       setDeletedContactBubbleIds(prev => new Set([...prev, ...deletedBubbles]));
-      const count = deletedBubbles.size;
-      showToast({
-        message:
-          count === 1
-            ? '1 conversation hidden — that bubble no longer exists'
-            : `${count} conversations hidden — those bubbles no longer exist`,
-        type: 'info',
-        duration: 5000,
-      });
     }
   };
 
@@ -267,18 +257,6 @@ export default function MessagesScreen({ navigation, route }: Props) {
       // Update the ref for next comparison (full set, including membership-filtered ones,
       // so we can detect if they later disappear from CometChat too).
       prevDmGuidsRef.current = currentAllDmGuids;
-
-      const totalHidden = hiddenByMembership + hiddenByDelta;
-      if (totalHidden > 0) {
-        showToast({
-          message:
-            totalHidden === 1
-              ? '1 conversation hidden — you\'re no longer a member of that bubble'
-              : `${totalHidden} conversations hidden — you\'re no longer a member of those bubbles`,
-          type: 'info',
-          duration: 5000,
-        });
-      }
 
       setConversations(convs);
       setHasMore(more);
@@ -585,7 +563,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -601,7 +579,7 @@ export default function MessagesScreen({ navigation, route }: Props) {
 
   if (conversations.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           {hamburgerButton}
           <Text style={styles.headerTitle}>Messages</Text>
@@ -622,13 +600,29 @@ export default function MessagesScreen({ navigation, route }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         {hamburgerButton}
         <Text style={styles.headerTitle}>Messages</Text>
         {bellIcon}
       </View>
       {renderFilterMenu()}
+
+      {filteredConversations.length === 0 && (
+        <View style={styles.empty}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="chatbubbles-outline" size={40} color={Colors.brand.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>No conversations here</Text>
+          <Text style={styles.emptySubtitle}>
+            {activeFilter === 'bubbles'
+              ? 'Join some bubbles to start group chats.'
+              : activeFilter === 'dms'
+              ? 'Start a direct message from a bubble.'
+              : 'Join bubbles or send a DM to start chatting.'}
+          </Text>
+        </View>
+      )}
 
       <FlatList
         data={filteredConversations}

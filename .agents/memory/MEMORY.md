@@ -1,0 +1,6 @@
+- [ENCRYPTION_KEY setup](encryption-key-setup.md) — key must live in BOTH Replit dev env (server) and gitignored `.env` (seed scripts); seed inserts plaintext emails, login uses a fallback.
+- [shell-quote deploy block](deploy-shell-quote-firewall.md) — deploy npm install 403s on shell-quote@1.8.3 (firewall); pin 1.8.4 override in root+mobile package.json and lockfiles.
+- [mobile API URL after move](mobile-api-url-migration.md) — repl move changes the .replit.app subdomain; stale eas.json URL makes TestFlight show no data. Use trybubble.io, then rebuild.
+- [prod real-data import](prod-real-data-import.md) — prod loads user's REAL data via guarded one-time in-app import on prod boot (flag + PROD_IMPORT_OVERWRITE gates); demo seed removed, fails closed.
+- [prod staging seed](prod-staging-seed.md) — SUPERSEDED: prod no longer auto-seeds Seinfeld demo; history of why old prod DBs were full of demo data (non-destructive, never wiped user data).
+- [object storage after repl move](object-storage-repl-move.md) — move leaves bucket behind → "no allowed resources" on read AND write; fix = setup_object_storage + re-upload + redeploy; store image URLs relative.

@@ -1,0 +1,23 @@
+Waiting for submission to complete. You can press Ctrl+C to exit.
+✖ Something went wrong when submitting your app to Google Play Store.
+
+Fastlane supply failed
+We couldn't figure out what went wrong. See logs to learn more.
+
+[logs] Start phase: SPIN_UP_SUBMISSION_WORKER
+[logs] Creating new worker instance
+[logs] End phase: SPIN_UP_SUBMISSION_WORKER
+
+[logs] Start phase: SUBMIT_TO_PLAY_STORE
+[logs] Starting the submit process
+[logs] Downloading archive
+[logs] Preparing artifact
+[logs] Submitting Android app to Play Store...
+[logs] Submitting the app with fastlane supply
+
+
+Google Api Error: PERMISSION_DENIED: Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Retrying...
+[logs] Google Api Error: PERMISSION_DENIED: Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Retrying...
+[logs] Google Api Error: PERMISSION_DENIED: Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Retrying...
+[logs] Google Api Error: PERMISSION_DENIED: Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Retrying...
+[logs] Google Api Error: PERMISSION_DENIED: Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublisher.googleapis.com/overview?project=464891265534 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry. - Google Play Android Developer API has not been used in project 464891265534 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/androidpublishe

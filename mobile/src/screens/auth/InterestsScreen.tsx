@@ -52,7 +52,7 @@ const PROGRESS_STEP = 0.75;
 
 export default function InterestsScreen({ navigation, route }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
-  const { name, email, password, gender, dateOfBirth, profilePhotoUri } = route.params;
+  const { name, email, password, gender, dateOfBirth, profilePhotoUri, isSocialSignup, socialToken } = route.params;
 
   const toggleInterest = (id: string) => {
     setSelected(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -64,6 +64,8 @@ export default function InterestsScreen({ navigation, route }: Props) {
         name, email, password, gender, dateOfBirth,
         interests: selected,
         profilePhotoUri,
+        isSocialSignup,
+        socialToken,
       });
     }
   };

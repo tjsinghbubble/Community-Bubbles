@@ -2,7 +2,8 @@
   "expo": {
     "name": "Bubble",
     "slug": "bubble-mobile",
-    "version": "0.1.12",
+    "version": "0.2.0",
+    "buildNumber": "3",
     "scheme": "bubble",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +30,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bubble.mobile",
+      "package": "io.trybubble.app",
       "intentFilters": [
         {
           "action": "VIEW",
@@ -52,7 +53,6 @@
           ]
         }
       ],
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.READ_MEDIA_IMAGES",
@@ -69,7 +69,15 @@
       "@sentry/react-native",
       "expo-image",
       "expo-sharing",
-      "./plugins/withSoLoaderInit"
+      "./plugins/withSoLoaderInit",
+      "expo-secure-store",
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REVERSED_CLIENT_ID"
+        }
+      ]
     ],
     "extra": {
       "eas": {

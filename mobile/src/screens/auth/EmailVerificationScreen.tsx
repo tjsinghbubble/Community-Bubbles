@@ -35,15 +35,24 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
   const isCodeComplete = code.every(digit => digit !== '');
 
   const handleCodeChange = (value: string, index: number) => {
-    if (value.length > 1) {
-      value = value.charAt(value.length - 1);
+    const digits = value.replace(/\D/g, '');
+
+    if (digits.length > 1) {
+      const newCode = [...code];
+      digits.split('').forEach((d, i) => {
+        if (index + i < 6) newCode[index + i] = d;
+      });
+      setCode(newCode);
+      const lastFilled = Math.min(index + digits.length - 1, 5);
+      inputRefs.current[lastFilled]?.focus();
+      return;
     }
-    
+
     const newCode = [...code];
-    newCode[index] = value;
+    newCode[index] = digits;
     setCode(newCode);
 
-    if (value && index < 5) {
+    if (digits && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -140,7 +149,6 @@ export default function EmailVerificationScreen({ navigation, route }: Props) {
               onChangeText={(value) => handleCodeChange(value, index)}
               onKeyPress={(e) => handleKeyPress(e, index)}
               keyboardType="number-pad"
-              maxLength={1}
               selectTextOnFocus
               testID={`input-otp-${index}`}
               accessibilityLabel={`Verification code digit ${index + 1}`}

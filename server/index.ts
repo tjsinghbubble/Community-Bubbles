@@ -14,7 +14,8 @@ import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { seedStaging } from "./seed-staging";
+import { importProdData } from "./prod-import";
+import { normalizeObjectUrls } from "./normalize-object-urls";
 import { autoMigrate } from "./auto-migrate";
 import { assertEncryptionKey } from "./encryption";
 
@@ -143,7 +144,7 @@ app.use((req, res, next) => {
 
   // Ensure all team super admins exist on staging and production.
   // If the account already exists it is promoted; if not, it is created.
-  if (process.env.NODE_ENV !== "development") (async () => {
+  const ensureSuperAdmins = async () => {
     const superAdmins = [
       { name: "George Costanza",  email: "george@seinfeld.com" },
       { name: "M Mand",           email: "mmand@trybubble.io" },
@@ -167,11 +168,29 @@ app.use((req, res, next) => {
         }
       } catch (e) { console.error(`[startup] super admin seed failed for ${admin.email}:`, e); }
     }
-  })();
+  };
 
-  // One-time: seed staging with Seinfeld test data (production only)
   if (process.env.NODE_ENV === "production") {
-    seedStaging().catch(e => console.error("[seed-staging] Fatal error:", e));
+    // Production data path (runs in the background so it never blocks startup):
+    //  1. One-time import of the real data from the source DB (OLD_DATABASE_URL).
+    //  2. Ensure the team super admins exist.
+    // Production never seeds demo data — it serves only the user's real data.
+    (async () => {
+      const realData = await importProdData();
+      await normalizeObjectUrls();
+      await ensureSuperAdmins();
+      // Fail closed: production uses the user's REAL imported data only. We never
+      // seed demo/staging data here — if the import didn't run (e.g. source
+      // unreachable), leave the database as-is rather than polluting prod.
+      if (!realData) {
+        console.warn(
+          "[startup] Production real-data import did not run — leaving database unchanged (no demo seed in prod).",
+        );
+      }
+    })().catch(e => console.error("[startup] production init failed:", e));
+  } else if (process.env.NODE_ENV !== "development") {
+    // Staging (and any other non-dev environment): ensure super admins only.
+    ensureSuperAdmins().catch(e => console.error("[startup] super admin seed failed:", e));
   }
 
   // Clean up stale device push tokens on startup (tokens not refreshed in 90+ days)

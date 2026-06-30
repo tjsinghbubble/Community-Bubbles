@@ -1,5 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { NavigationContext } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, Radius } from '../styles/theme';
 import { reportFatalError } from '../utils/crashReporter';
 
@@ -14,6 +16,8 @@ interface State {
 }
 
 export class ErrorBoundary extends Component<Props, State> {
+  static contextType = NavigationContext;
+
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -32,12 +36,23 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, error: null });
   };
 
+  private handleGoBack = (): void => {
+    const navigation = this.context as any;
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+    } else {
+      this.handleReset();
+    }
+  };
+
   render(): ReactNode {
     if (!this.state.hasError) {
       return this.props.children;
     }
 
     const isDev = __DEV__;
+    const navigation = this.context as any;
+    const canGoBack = navigation?.canGoBack?.();
 
     return (
       <View style={styles.container} testID="error-boundary-screen">
@@ -71,6 +86,18 @@ export class ErrorBoundary extends Component<Props, State> {
           >
             <Text style={styles.buttonText}>Try Again</Text>
           </TouchableOpacity>
+
+          {canGoBack ? (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={this.handleGoBack}
+              testID="error-boundary-back-button"
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={18} color={Colors.brand.primary} />
+              <Text style={styles.backButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     );
@@ -89,6 +116,8 @@ interface ScreenErrorBoundaryState {
 }
 
 export class ScreenErrorBoundary extends Component<ScreenErrorBoundaryProps, ScreenErrorBoundaryState> {
+  static contextType = NavigationContext;
+
   constructor(props: ScreenErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -106,6 +135,15 @@ export class ScreenErrorBoundary extends Component<ScreenErrorBoundaryProps, Scr
     this.setState({ hasError: false, error: null });
   };
 
+  private handleGoBack = (): void => {
+    const navigation = this.context as any;
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+    } else {
+      this.handleReset();
+    }
+  };
+
   render(): ReactNode {
     if (!this.state.hasError) {
       return this.props.children;
@@ -113,27 +151,56 @@ export class ScreenErrorBoundary extends Component<ScreenErrorBoundaryProps, Scr
 
     const isDev = __DEV__;
     const message = this.props.message ?? 'Something went wrong — tap to retry';
+    const navigation = this.context as any;
+    const canGoBack = navigation?.canGoBack?.();
 
     return (
       <View style={screenStyles.container} testID={`screen-error-boundary-${this.props.context}`}>
         <View style={screenStyles.card}>
-          <Text style={screenStyles.icon}>⚠️</Text>
+          {canGoBack ? (
+            <TouchableOpacity
+              style={screenStyles.topBackButton}
+              onPress={this.handleGoBack}
+              testID={`screen-error-back-${this.props.context}`}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="arrow-back" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+          ) : null}
+
+          <Ionicons name="alert-circle-outline" size={40} color={Colors.status.error} style={screenStyles.icon} />
+
           <Text style={screenStyles.message} testID={`screen-error-message-${this.props.context}`}>
             {message}
           </Text>
+
           {isDev && this.state.error ? (
             <ScrollView style={screenStyles.debugBox} testID={`screen-error-debug-${this.props.context}`}>
               <Text style={screenStyles.debugText}>{this.state.error.message}</Text>
             </ScrollView>
           ) : null}
-          <TouchableOpacity
-            style={screenStyles.retryButton}
-            onPress={this.handleReset}
-            testID={`screen-error-retry-${this.props.context}`}
-            activeOpacity={0.8}
-          >
-            <Text style={screenStyles.retryText}>Try Again</Text>
-          </TouchableOpacity>
+
+          <View style={screenStyles.buttonRow}>
+            {canGoBack ? (
+              <TouchableOpacity
+                style={[screenStyles.retryButton, screenStyles.outlineButton]}
+                onPress={this.handleGoBack}
+                testID={`screen-error-goback-${this.props.context}`}
+                activeOpacity={0.8}
+              >
+                <Text style={screenStyles.outlineButtonText}>Go Back</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={[screenStyles.retryButton, canGoBack && screenStyles.retryButtonFlex]}
+              onPress={this.handleReset}
+              testID={`screen-error-retry-${this.props.context}`}
+              activeOpacity={0.8}
+            >
+              <Text style={screenStyles.retryText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -216,12 +283,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    marginBottom: Spacing.sm,
   },
   buttonText: {
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.bold,
     color: '#FFFFFF',
     letterSpacing: -0.3,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+  },
+  backButtonText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.primary,
   },
 });
 
@@ -245,8 +325,12 @@ const screenStyles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
+  topBackButton: {
+    alignSelf: 'flex-start',
+    padding: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
   icon: {
-    fontSize: 32,
     marginBottom: Spacing.md,
   },
   message: {
@@ -270,6 +354,11 @@ const screenStyles = StyleSheet.create({
     color: Colors.status.error,
     fontFamily: 'monospace',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    width: '100%',
+  },
   retryButton: {
     height: 40,
     paddingHorizontal: Spacing.xl,
@@ -277,11 +366,27 @@ const screenStyles = StyleSheet.create({
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
+    flex: 1,
+  },
+  retryButtonFlex: {
+    flex: 1,
+  },
+  outlineButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: Colors.brand.primary,
+    flex: 1,
   },
   retryText: {
     fontSize: Typography.sizes.sm,
     fontWeight: Typography.weights.bold,
     color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  outlineButtonText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: Typography.weights.bold,
+    color: Colors.brand.primary,
     letterSpacing: -0.2,
   },
 });
