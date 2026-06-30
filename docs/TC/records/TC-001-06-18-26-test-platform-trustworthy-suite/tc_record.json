@@ -1,0 +1,557 @@
+{
+  "tc_id": "TC-001-06-18-26-test-platform-trustworthy-suite",
+  "parent_tc": null,
+  "title": "Trustworthy e2e suite: routing fix, gating, A/B/C failure fixes, device + testctl tooling",
+  "status": "in_progress",
+  "priority": "high",
+  "created": "2026-06-18T16:43:34+00:00",
+  "updated": "2026-06-19T16:33:44+00:00",
+  "created_by": "Claude",
+  "project": "Bubble",
+  "description": {
+    "summary": "Make the Maestro/headless test suite produce trustworthy failures: fix device routing, add per-test timeout + brittle-selector gate, fix sec-0200/auth-0110/ba-0600, expand manage_devices + testctl.",
+    "motivation": "Spurious/infra failures are actively harmful (CEO disputes bug count); the suite must fail only for real reasons before scaling coverage.",
+    "scope": "feature",
+    "detailed_design": null,
+    "breaking_changes": [],
+    "dependencies": []
+  },
+  "files_affected": [
+    {
+      "path": "tests/runner/qa.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/runner/gating.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "scripts/check_brittle_selectors.py",
+      "action": "created",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "scripts/manage_devices.py",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "scripts/testctl.py",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/fixtures/seed.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/headless/security/sec-0200-role-authz-matrix.headless.test.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/e2e/auth/auth-0110-signin-wrong-password.yaml",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/e2e/bubble-admin/bubble-admin-0600-create-bubble-smoke.yaml",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/e2e/events/events-0500-create-event-smoke.yaml",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "scripts/testctl.py",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/runner/report.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    },
+    {
+      "path": "tests/runner/qa.ts",
+      "action": "modified",
+      "description": null,
+      "lines_added": null,
+      "lines_removed": null
+    }
+  ],
+  "revision_history": [
+    {
+      "revision_id": "R1",
+      "timestamp": "2026-06-18T16:43:34+00:00",
+      "author": "Claude",
+      "summary": "TC record created",
+      "field_changes": [
+        {
+          "field": "status",
+          "action": "set",
+          "new_value": "planned",
+          "reason": "initial creation"
+        }
+      ]
+    },
+    {
+      "revision_id": "R2",
+      "timestamp": "2026-06-18T16:46:44+00:00",
+      "author": "Claude",
+      "summary": "status: planned -> in_progress",
+      "field_changes": [
+        {
+          "field": "status",
+          "action": "changed",
+          "old_value": "planned",
+          "new_value": "in_progress",
+          "reason": "Session work landed across 11 commits; recording handoff"
+        }
+      ]
+    },
+    {
+      "revision_id": "R3",
+      "timestamp": "2026-06-18T16:46:44+00:00",
+      "author": "Claude",
+      "summary": "+file tests/runner/qa.ts (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/runner/qa.ts",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R4",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file tests/runner/gating.ts (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/runner/gating.ts",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R5",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file scripts/check_brittle_selectors.py (created)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "scripts/check_brittle_selectors.py",
+            "action": "created"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R6",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file scripts/manage_devices.py (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "scripts/manage_devices.py",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R7",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file scripts/testctl.py (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "scripts/testctl.py",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R8",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file tests/fixtures/seed.ts (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/fixtures/seed.ts",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R9",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file tests/headless/security/sec-0200-role-authz-matrix.headless.test.ts (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/headless/security/sec-0200-role-authz-matrix.headless.test.ts",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R10",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file tests/e2e/auth/auth-0110-signin-wrong-password.yaml (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/e2e/auth/auth-0110-signin-wrong-password.yaml",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R11",
+      "timestamp": "2026-06-18T16:46:45+00:00",
+      "author": "Claude",
+      "summary": "+file tests/e2e/bubble-admin/bubble-admin-0600-create-bubble-smoke.yaml (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/e2e/bubble-admin/bubble-admin-0600-create-bubble-smoke.yaml",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R12",
+      "timestamp": "2026-06-18T16:46:46+00:00",
+      "author": "Claude",
+      "summary": "+file tests/e2e/events/events-0500-create-event-smoke.yaml (modified)",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/e2e/events/events-0500-create-event-smoke.yaml",
+            "action": "modified"
+          },
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R13",
+      "timestamp": "2026-06-18T16:47:44+00:00",
+      "author": "Claude",
+      "summary": "handoff: updated progress_summary; handoff: +next_step 'Decide testctl RESULT wording (mine: 'FAIL \u00b7 118/144 pass \u00b7 3 fail' vs your '% completion') and iterate columns / per-artifact links'; handoff: +next_step 'Bulk-annotate (# brittle-ok:) or id-ify the 46 RISKY text/index selectors (mostly tab/modal labels) to quiet warnings'; handoff: +next_step 'events-0500 iOS: once team instruments CreateEventScreen/LocationPicker (Trello 4Ivuvgkl), replace the coordinate swipe with a selector and drop the annotation'; handoff: +next_step 'Optional: re-run sequential --all chain (tmp/all-chain-ios-then-android.zsh) for a clean post-fix baseline (A/B/C green; events-0500 lone iOS red)'; handoff: +next_step 'Run /reload-plugins so the newly installed engineering skills are active in the UI'; handoff: +blocker 'events-0500 iOS RED: upstream a11y gap \u2014 new Replit-authored CreateEventScreen/LocationPicker lack testIDs on the date/time spinner + location search; local can only work around. Tracked Trello 4Ivuvgkl'; handoff: +context; handoff: +context; handoff: +context; handoff: +context; handoff: +context",
+      "field_changes": [
+        {
+          "field": "session_context.handoff.progress_summary",
+          "action": "changed",
+          "old_value": "",
+          "new_value": "11 commits on create_test_platform. Device-routing bug FIXED+validated both platforms (e2e pins maestro --device to a resolved sim/emulator; was auto-selecting the Android emulator for iOS runs). Per-test timeout added (QA_MAESTRO_TIMEOUT_MS, default 360s, SIGKILL) after a hung test wedged --all 4h+. Brittle-selector gate added (gateBrittleSelectors / scripts/check_brittle_selectors.py): ERROR=coordinate/relative/css/traits fails the gate, RISKY=text/index-used-to-locate warns. The 3 --all failures fixed by priority: A sec-0200 (false authz failure = e2e cross-layer membership contamination; beforeAll forces role-user non-membership), B auth-0110 (assert native 'Login Failed' alert instead of a flaky form field; both platforms), C ba-0600 (seed categories + rewrite flow to walk the new category-first 5-step wizard; both platforms). manage_devices: readiness columns, --list overhaul + -v, fixed --copy double-naming, Android os_version populated. testctl status shows a recent-runs table when idle. Full --all chain ran 144/144 both platforms (no hang).",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Decide testctl RESULT wording (mine: 'FAIL \u00b7 118/144 pass \u00b7 3 fail' vs your '% completion') and iterate columns / per-artifact links",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Bulk-annotate (# brittle-ok:) or id-ify the 46 RISKY text/index selectors (mostly tab/modal labels) to quiet warnings",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "events-0500 iOS: once team instruments CreateEventScreen/LocationPicker (Trello 4Ivuvgkl), replace the coordinate swipe with a selector and drop the annotation",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Optional: re-run sequential --all chain (tmp/all-chain-ios-then-android.zsh) for a clean post-fix baseline (A/B/C green; events-0500 lone iOS red)",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Run /reload-plugins so the newly installed engineering skills are active in the UI",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.blockers",
+          "action": "added",
+          "new_value": "events-0500 iOS RED: upstream a11y gap \u2014 new Replit-authored CreateEventScreen/LocationPicker lack testIDs on the date/time spinner + location search; local can only work around. Tracked Trello 4Ivuvgkl",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "Run platforms SEQUENTIALLY: concurrent qa --all share bubble_test DB + Metro + heartbeat and collide (one died 'seed failed'). Use tmp/all-chain-ios-then-android.zsh",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "Android emulator (Lainey/emulator-5554) uses -gpu swiftshader_indirect + -no-window -> screenshots are BLACK; diagnose via a11y/logs, boot windowed for real pixels",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "manage_devices --resolve is the ONLY output the qa runner parses (bare id on stdout); --list format is free to change. The ambiguous 'last' alias was removed (use last-ios/last-android)",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "Brittle-selector gate marker is '# brittle-ok:' ('# blind-tap-ok:' still honored). lint-staged runs tsc --noEmit on commit; git commit commits the whole staged index",
+          "reason": null
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "iOS 'Open in Bubble?' dialog is stale SpringBoard cruft from repeated openurl, NOT a per-run obstacle; reboot the sim to clear; baseline reconnect-metro needs no dialog tap",
+          "reason": null
+        }
+      ]
+    },
+    {
+      "revision_id": "R14",
+      "timestamp": "2026-06-19T16:33:44+00:00",
+      "author": "Claude",
+      "summary": "+file scripts/testctl.py (modified); +file tests/runner/report.ts (modified); +file tests/runner/qa.ts (modified); handoff: updated progress_summary; handoff: +next_step 'Decide inspect <N> <B>: B is currently the per-test MENU ITEM number (reuses match_command), not a literal artifact file \u2014 change if literal-file open was intended'; handoff: +next_step 'Commit docs/TC/ (currently untracked \u2014 won't survive a fresh clone)'; handoff: +next_step 'Optional: trend arrow vs previous run + newly-green/promote detector for the Result summarizer (deferred ideas)'; handoff: +next_step 'Historical runs still show old 'expected finding' text + 'No summary'; only NEW runs get 'unverified'/'Crashed-incomplete'/'Canceled by user''; handoff: +context; handoff: +context; note appended; +tag testctl; +tag inspect; +tag reporting",
+      "field_changes": [
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "scripts/testctl.py",
+            "action": "modified"
+          },
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/runner/report.ts",
+            "action": "modified"
+          },
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "files_affected",
+          "action": "added",
+          "new_value": {
+            "path": "tests/runner/qa.ts",
+            "action": "modified"
+          },
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.progress_summary",
+          "action": "changed",
+          "old_value": "11 commits on create_test_platform. Device-routing bug FIXED+validated both platforms (e2e pins maestro --device to a resolved sim/emulator; was auto-selecting the Android emulator for iOS runs). Per-test timeout added (QA_MAESTRO_TIMEOUT_MS, default 360s, SIGKILL) after a hung test wedged --all 4h+. Brittle-selector gate added (gateBrittleSelectors / scripts/check_brittle_selectors.py): ERROR=coordinate/relative/css/traits fails the gate, RISKY=text/index-used-to-locate warns. The 3 --all failures fixed by priority: A sec-0200 (false authz failure = e2e cross-layer membership contamination; beforeAll forces role-user non-membership), B auth-0110 (assert native 'Login Failed' alert instead of a flaky form field; both platforms), C ba-0600 (seed categories + rewrite flow to walk the new category-first 5-step wizard; both platforms). manage_devices: readiness columns, --list overhaul + -v, fixed --copy double-naming, Android os_version populated. testctl status shows a recent-runs table when idle. Full --all chain ran 144/144 both platforms (no hang).",
+          "new_value": "testctl inspect is now a menu app with CLI deep-links (RUNS\u2192RUN\u2192TEST); recent-runs table shared by status + 'inspect recent' (72h, no cap, Title Case, Run Time decimal-hours col, numbered when browsed). Result column moved from PASS/FAIL to a novelty/incompleteness decision table (GREEN: 100% clear / Green-with-carryover; RED: Failed gating, Canceled by user, Crashed/incomplete, No tests ran, Nearly everything failed; NEUTRAL: % pass + new/carried). Pass-rate denominator is now 'targeted' (tests\u00d7roles). report.ts persists totals.targeted; qa.ts adds SIGINT/SIGQUIT finalize(cancelReason=user) and surfaces 'unverified' instead of 'expected finding'. Committed 852db49 and pushed (34 commits fast-forwarded to origin/create_test_platform).",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Decide inspect <N> <B>: B is currently the per-test MENU ITEM number (reuses match_command), not a literal artifact file \u2014 change if literal-file open was intended",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Commit docs/TC/ (currently untracked \u2014 won't survive a fresh clone)",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Optional: trend arrow vs previous run + newly-green/promote detector for the Result summarizer (deferred ideas)",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.next_steps",
+          "action": "added",
+          "new_value": "Historical runs still show old 'expected finding' text + 'No summary'; only NEW runs get 'unverified'/'Crashed-incomplete'/'Canceled by user'",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "Decisions locked with Travis: (A) pass-rate denominator = targeted (jobs the run set out to do), not ran; (B) added user-cancel SIGINT/SIGQUIT handler so a deliberate Ctrl-C is distinguishable from a crash; (C) surface the word 'unverified' (field name expectedFinding kept); (D) GREEN/RED/NEUTRAL decision table, dup label + &emdash typo fixed; (E) runs-table keyword = 'inspect recent'.",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "session_context.handoff.key_context",
+          "action": "added",
+          "new_value": "Canonical test number = index in summary.json results[] (execution order); filters (all/fails/passes) hide rows but never renumber, so 'inspect 3' is stable.",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "notes",
+          "action": "added",
+          "new_value": "Verified live against real run dirs: numbered recent table aligns, inspect 5 1 ran failure view on canonical test 5, inspect all=144/144, out-of-range gives \ud83d\udd34\ud83e\udd7a error, py_compile + pre-commit tsc --noEmit clean.",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "tags",
+          "action": "added",
+          "new_value": "testctl",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "tags",
+          "action": "added",
+          "new_value": "inspect",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        },
+        {
+          "field": "tags",
+          "action": "added",
+          "new_value": "reporting",
+          "reason": "testctl inspect rework + novelty-based run summaries (commit 852db49, pushed)"
+        }
+      ]
+    }
+  ],
+  "sub_tcs": [],
+  "test_cases": [],
+  "approval": {
+    "approved": false,
+    "approved_by": null,
+    "approved_date": null,
+    "approval_notes": "",
+    "test_coverage_status": "none"
+  },
+  "session_context": {
+    "current_session": {
+      "session_id": "session-1781801014-39780",
+      "platform": "claude_code",
+      "model": "unknown",
+      "started": "2026-06-18T16:43:34+00:00",
+      "last_active": "2026-06-19T16:33:44+00:00"
+    },
+    "handoff": {
+      "progress_summary": "testctl inspect is now a menu app with CLI deep-links (RUNS\u2192RUN\u2192TEST); recent-runs table shared by status + 'inspect recent' (72h, no cap, Title Case, Run Time decimal-hours col, numbered when browsed). Result column moved from PASS/FAIL to a novelty/incompleteness decision table (GREEN: 100% clear / Green-with-carryover; RED: Failed gating, Canceled by user, Crashed/incomplete, No tests ran, Nearly everything failed; NEUTRAL: % pass + new/carried). Pass-rate denominator is now 'targeted' (tests\u00d7roles). report.ts persists totals.targeted; qa.ts adds SIGINT/SIGQUIT finalize(cancelReason=user) and surfaces 'unverified' instead of 'expected finding'. Committed 852db49 and pushed (34 commits fast-forwarded to origin/create_test_platform).",
+      "next_steps": [
+        "Decide testctl RESULT wording (mine: 'FAIL \u00b7 118/144 pass \u00b7 3 fail' vs your '% completion') and iterate columns / per-artifact links",
+        "Bulk-annotate (# brittle-ok:) or id-ify the 46 RISKY text/index selectors (mostly tab/modal labels) to quiet warnings",
+        "events-0500 iOS: once team instruments CreateEventScreen/LocationPicker (Trello 4Ivuvgkl), replace the coordinate swipe with a selector and drop the annotation",
+        "Optional: re-run sequential --all chain (tmp/all-chain-ios-then-android.zsh) for a clean post-fix baseline (A/B/C green; events-0500 lone iOS red)",
+        "Run /reload-plugins so the newly installed engineering skills are active in the UI",
+        "Decide inspect <N> <B>: B is currently the per-test MENU ITEM number (reuses match_command), not a literal artifact file \u2014 change if literal-file open was intended",
+        "Commit docs/TC/ (currently untracked \u2014 won't survive a fresh clone)",
+        "Optional: trend arrow vs previous run + newly-green/promote detector for the Result summarizer (deferred ideas)",
+        "Historical runs still show old 'expected finding' text + 'No summary'; only NEW runs get 'unverified'/'Crashed-incomplete'/'Canceled by user'"
+      ],
+      "blockers": [
+        "events-0500 iOS RED: upstream a11y gap \u2014 new Replit-authored CreateEventScreen/LocationPicker lack testIDs on the date/time spinner + location search; local can only work around. Tracked Trello 4Ivuvgkl"
+      ],
+      "key_context": [
+        "Run platforms SEQUENTIALLY: concurrent qa --all share bubble_test DB + Metro + heartbeat and collide (one died 'seed failed'). Use tmp/all-chain-ios-then-android.zsh",
+        "Android emulator (Lainey/emulator-5554) uses -gpu swiftshader_indirect + -no-window -> screenshots are BLACK; diagnose via a11y/logs, boot windowed for real pixels",
+        "manage_devices --resolve is the ONLY output the qa runner parses (bare id on stdout); --list format is free to change. The ambiguous 'last' alias was removed (use last-ios/last-android)",
+        "Brittle-selector gate marker is '# brittle-ok:' ('# blind-tap-ok:' still honored). lint-staged runs tsc --noEmit on commit; git commit commits the whole staged index",
+        "iOS 'Open in Bubble?' dialog is stale SpringBoard cruft from repeated openurl, NOT a per-run obstacle; reboot the sim to clear; baseline reconnect-metro needs no dialog tap",
+        "Decisions locked with Travis: (A) pass-rate denominator = targeted (jobs the run set out to do), not ran; (B) added user-cancel SIGINT/SIGQUIT handler so a deliberate Ctrl-C is distinguishable from a crash; (C) surface the word 'unverified' (field name expectedFinding kept); (D) GREEN/RED/NEUTRAL decision table, dup label + &emdash typo fixed; (E) runs-table keyword = 'inspect recent'.",
+        "Canonical test number = index in summary.json results[] (execution order); filters (all/fails/passes) hide rows but never renumber, so 'inspect 3' is stable."
+      ],
+      "files_in_progress": [],
+      "decisions_made": []
+    },
+    "session_history": []
+  },
+  "tags": [
+    "testctl",
+    "inspect",
+    "reporting"
+  ],
+  "related_tcs": [],
+  "notes": "[2026-06-19T16:33:44+00:00] Verified live against real run dirs: numbered recent table aligns, inspect 5 1 ran failure view on canonical test 5, inspect all=144/144, out-of-range gives \ud83d\udd34\ud83e\udd7a error, py_compile + pre-commit tsc --noEmit clean.",
+  "metadata": {
+    "project": "Bubble",
+    "created_by": "Claude",
+    "last_modified_by": "Claude",
+    "last_modified": "2026-06-19T16:33:44+00:00",
+    "estimated_effort": null
+  }
+}
