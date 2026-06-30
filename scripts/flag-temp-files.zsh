@@ -27,7 +27,10 @@ VERBOSE_FLAG=0
 this_program="$0"
 
 warn()  { echo "${this_program}  ⚠  $1" >&2; }
-debug() { [ ${VERBOSE_FLAG} -gt 0 ] && echo "${this_program}: $*" >&2 }
+# NB: keep `return 0` — under `set -e`, a bare `debug ...` call whose `[ ]` test
+# is false (VERBOSE_FLAG=0) would otherwise return 1 and abort the whole script
+# (this silently failed every `npm install` postinstall).
+debug() { [ ${VERBOSE_FLAG} -gt 0 ] && echo "${this_program}: $*" >&2; return 0; }
 
 debug "Removing build directories from backups and indexing"
 
