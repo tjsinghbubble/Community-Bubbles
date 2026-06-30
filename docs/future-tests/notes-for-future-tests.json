@@ -1,0 +1,67 @@
+{
+  "_README": "Opportunistic notes for FUTURE test work, captured while reading code (not a backlog of committed tests). Each entry: where it came from, what was observed, why it matters, and candidate tests. Append-only; promote items into tests/plan/backlog.tsv when scheduled.",
+  "schema_version": 1,
+  "notes": [
+    {
+      "id": "ft-0001",
+      "area": "auth/social-login",
+      "captured": "2026-06-30",
+      "source": "merge of origin/develop social-auth (AuthContext, WelcomeAuth/SocialProfile screens, server/social-auth-handler.ts)",
+      "observation": "Google + Apple sign-in were added with no test coverage. New users land in a social_auth_pending state and must complete a SocialProfileScreen (gender, date_of_birth) before the account is usable.",
+      "why_it_matters": "OAuth/native sign-in is hard to automate (system webviews, real accounts) but the pending->complete transition and the server token exchange ARE testable at the API layer.",
+      "candidate_tests": [
+        "headless: social-auth-handler accepts a valid (mocked) Google idToken and creates a user with google_id set, social_auth_pending=true",
+        "headless: completing the social profile (gender + dob) flips social_auth_pending=false and issues a usable JWT",
+        "headless: an Apple idToken without email is accepted only for an existing apple_id (matches develop commit dbd7011)",
+        "e2e (entry-point only): the Google and Apple buttons render and are reachable on WelcomeAuthScreen"
+      ]
+    },
+    {
+      "id": "ft-0002",
+      "area": "compliance/app-store",
+      "captured": "2026-06-30",
+      "source": "implication of adding Apple Sign In",
+      "observation": "Adding 'Sign in with Apple' triggers App Store review requirements the app may not yet satisfy: (a) Apple's 'Hide My Email' relay must be handled (email may be a privaterelay.appleid.com address), (b) where any third-party login exists Apple requires Sign in with Apple be offered too (satisfied), (c) App Store now mandates in-app account deletion.",
+      "why_it_matters": "These are reviewer-blocking, not optional. The relay-email case affects emailHash uniqueness and any email-based dedup (server uses email_hash unique).",
+      "candidate_tests": [
+        "headless: a privaterelay.appleid.com email is stored/hashed without colliding and without breaking duplicate-email detection",
+        "headless/e2e: in-app account deletion exists and actually deletes (or anonymizes) the user"
+      ]
+    },
+    {
+      "id": "ft-0003",
+      "area": "db/schema-integrity",
+      "captured": "2026-06-30",
+      "source": "qa:provision drizzle-kit push during the merge reconcile",
+      "observation": "migrations/0009_add_social_auth_fields.sql creates PARTIAL unique indexes (users_google_id_unique ... WHERE google_id IS NOT NULL), but shared/schema.ts declares googleId/appleId with .unique() (a FULL unique constraint). drizzle-kit push therefore sees drift and wants to add a full constraint (prompting to truncate users).",
+      "why_it_matters": "The migration and the ORM schema definition disagree, so `drizzle-kit push` is not a no-op against a migration-built DB. This is a latent footgun for anyone using db:push and for the schema-drift gate baseline.",
+      "candidate_tests": [
+        "infra: assert the migration-built schema and a drizzle-push schema converge (no pending drift) for the users uniqueness constraints",
+        "decision needed: standardize on partial vs full unique for google_id/apple_id and make migration + schema.ts agree"
+      ]
+    },
+    {
+      "id": "ft-0004",
+      "area": "offline/resilience",
+      "captured": "2026-06-30",
+      "source": "mobile/src reading during recon (ExploreScreen, api.service.ts, AuthContext, crashReporter)",
+      "observation": "App assumes connectivity for all user data. Only the crash reporter has a NetInfo offline queue; there is no offline cache/queue for bubbles, events, or images. On network failure ExploreScreen renders a generic empty state (no offline messaging/retry) and images silently blank. AuthContext.refreshUser is the one graceful path (keeps cached profile).",
+      "why_it_matters": "User-reported: app is largely non-functional offline (bubbles you belong to vanish, icons missing). Out of scope to FIX now (characterize-state PR); these document current behavior so a fix can be regression-tested.",
+      "candidate_tests": [
+        "characterization e2e/unit: with the network down, ExploreScreen shows an offline-distinct state (currently it does NOT) — mark known-fail until fixed",
+        "unit: api.service surfaces a typed offline error rather than a bare throw"
+      ]
+    },
+    {
+      "id": "ft-0005",
+      "area": "e2e/platform-parity",
+      "captured": "2026-06-30",
+      "source": "tests/e2e/auth/auth-0200-signup.yaml (this branch) vs the new signup screens",
+      "observation": "auth-0200 was updated to drive gender/DOB picker steps (button-select-gender, button-select-dob) that correspond to the new social-signup fields, but those testIDs are unverified against the merged WelcomeAuth/SocialProfile screens (native e2e deferred this session).",
+      "why_it_matters": "If the new screens lack those testIDs, the flow fails on selectors, not logic — exactly the 'mainly bad-selectors' category to triage when native e2e runs.",
+      "candidate_tests": [
+        "verify (Maestro MCP) that button-select-gender / button-select-dob / input-name exist on the merged signup path before counting auth-0200 as a real failure"
+      ]
+    }
+  ]
+}
