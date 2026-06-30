@@ -62,6 +62,30 @@
       "candidate_tests": [
         "verify (Maestro MCP) that button-select-gender / button-select-dob / input-name exist on the merged signup path before counting auth-0200 as a real failure"
       ]
+    },
+    {
+      "id": "ft-0006",
+      "area": "mobile/type-safety",
+      "captured": "2026-06-30",
+      "source": "P5 native-build sanity (`npm run type-check`) during the test-platform->develop merge",
+      "observation": "Root `tsc --noEmit` is GREEN; the mobile half (`cd mobile && tsc --noEmit`) FAILS. mobile/src/utils/crashReporter.ts is IDENTICAL to origin/develop (verified: no diff develop..HEAD; last touched by develop commits 864c62a + 1e3d6f1), so the errors are pre-existing on develop, NOT introduced by the merge. Errors are @sentry/react-native API drift: `Sentry.configureScope` was removed, `autoSessionTracking` renamed to `enableAutoSessionTracking`, plus a SpanExpiryEvent missing sessionId in crashReporter.test.ts. CI does not catch these (CI typechecks server/shared/client only, not mobile).",
+      "why_it_matters": "Type errors do not block Metro/native builds (Babel strips types), so the iOS/Android dev builds still compile; but the mobile app has untyped/incorrect Sentry calls that will no-op or throw at runtime (configureScope is undefined on the installed SDK). This is a develop bug surfaced by, not caused by, the merge.",
+      "candidate_tests": [
+        "fix (separate PR against develop): migrate crashReporter.ts off removed Sentry APIs (configureScope -> Sentry.getCurrentScope()/withScope; autoSessionTracking -> enableAutoSessionTracking) and add sessionId to the test's SpanExpiryEvent fixtures",
+        "ci-gap: add a mobile `tsc --noEmit` job (allowed-to-fail or gated) so mobile type regressions are visible in CI"
+      ]
+    },
+    {
+      "id": "ft-0007",
+      "area": "tooling/testctl-nuke",
+      "captured": "2026-06-30",
+      "source": "stopping the P6 android e2e run with `python3 scripts/testctl.py nuke --nuke=qa,maestro,cli` during the test-platform->develop merge",
+      "observation": "`nuke --help` advertises `mcp` as a valid kill target (qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all), but nuke does not handle it: the command printed `Unknown nuke target(s) ignored: mcp` even though `mcp` was NOT in the list passed (qa,maestro,cli). Two distinct defects: (1) the `mcp` target is documented but unimplemented in the dispatch, so there is no working `testctl` way to kill a stray `maestro mcp` session; (2) a phantom `mcp` appeared in the 'ignored' warning when it was never requested, suggesting the target list is mis-parsed/expanded (likely `maestro` fans out to `maestro`+`mcp`, then `mcp` falls through as unknown). The qa runner's automatic kill of `maestro mcp` before iOS e2e still works; only the manual escape hatch is broken.",
+      "why_it_matters": "CLAUDE.md's standing rule is that MCP Maestro and a CLI `maestro test` run fight over the singleton on-device XCUITest driver. The mitigation depends on being able to kill MCP. If an MCP session wedges a driver, an operator currently cannot clear it through the sanctioned tool (`testctl nuke mcp` is a no-op). Low urgency (auto-kill path covers iOS e2e), but a real gap in the documented tooling contract.",
+      "candidate_tests": [
+        "fix: wire `mcp` into testctl nuke dispatch (pgrep/pkill the `maestro mcp` process) and reconcile target parsing so the 'ignored' warning only fires for genuinely unrequested targets",
+        "testctl self-test: assert every nuke target advertised in --help is actually handled (no documented-but-ignored targets)"
+      ]
     }
   ]
 }
