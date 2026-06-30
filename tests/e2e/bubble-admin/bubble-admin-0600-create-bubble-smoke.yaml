@@ -16,6 +16,12 @@ tags:
     condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
     label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
 
+# Seed a device location (Jack London's cabin, Oakland) as a hint for any
+# downstream geo/location lookups in the create-bubble flow.
+- setLocation:
+    latitude: 37.7942
+    longitude: -122.2747
+
 - runFlow:
     file: ../common/login-as.yaml
     env:
@@ -34,10 +40,27 @@ tags:
 # events-0500 header — so the FAB tap "completes" but the wizard never opens. The My Bubbles
 # route is the reliable one, mirroring how events-0500 reaches create-event.)
 # Bottom tabs expose their LABELS, not testIDs, so tap the tab by text.
+# FIXME: add test-ids
+# FIXME: "My bubbles" doesn't actually appear in the copy.
 - tapOn:
     text: "My Bubbles"
+
+# Screen shows contents for the "My Bubbles page". 
+# Assert that both of the upper UI features are there
+- assertVisible: "My Bubbles"
+- assertVisible:
+    id: "button-notifications"
+
+# FIXME: unknown behavior for the create/plus-mark button if 
+# an account had like 10 bubbles or was on a tiny phone. The create-bubble
+# button might be visible or not.
+- scrollUntilVisible:
+    element:
+        id: button-create-bubble-fab
 - tapOn:
     id: button-create-bubble-fab
+
+# Sliding animation from the right.
 - waitForAnimationToEnd
 
 # Create-a-Bubble is a 5-step wizard (CreateBubbleScreen): 0 Category → 1 Details →
@@ -48,6 +71,7 @@ tags:
 # Step 0 — Category. Wait out the async /api/categories load (a spinner shows until then;
 # the prompt text appears only once loaded), then pick the first subcategory card, which
 # sets `category` and enables Next.
+# FIXME: add ids, this is not robust
 - extendedWaitUntil:
     visible:
       text: "What category will your bubble be in?"
@@ -56,11 +80,24 @@ tags:
 - tapOn:
     id: "button-category-.*"
     index: 0
+# FIXME: could check for icon in theory. In practice, the icons appear
+# to Maestro as Unicode chars in the "private use area" of the 
+# multi-lingual plane of unicode. Maybe that's how they're looking 
+# up the icons??
+# - assertVisible: "" Coffee category, no checkmark
+# - assertVisible: "" Dining Out category, checkmark
+# FIXME: should have variants with checking all visible, check-uncheck
+
+- scrollUntilVisible:
+    element:
+      id: "button-next"
 - tapOn:
     id: button-next
 - waitForAnimationToEnd
 
-# Step 1 — Details (title + description are required to advance).
+# Step 1 — Bubble Details (title + description are required to advance).
+# FIXME: add negative tests for missing Title, Description
+# FIXME: add out-of-scope negative tests for trust & safety concerns
 - assertVisible:
     id: input-title
 - tapOn:
@@ -68,11 +105,30 @@ tags:
 - inputText: "QA E2E Bubble"
 - tapOn:
     id: input-tagline
-- inputText: "Created by qa runner"
+- inputText: "This is the greatest bubble"
+
+- scrollUntilVisible:
+    element:
+      id: "input-description"
 - tapOn:
     id: input-description
 - inputText: "Deterministic bubble created by the qa e2e suite."
 - takeScreenshot: ${SHOT_PREFIX}create-step1-filled
+
+- scrollUntilVisible:
+    element:
+      id: "button-location-picker"
+- tapOn:
+    id: "button-location-picker"
+- inputText: "Morcom Rose Garden"
+
+# FIXME: add variants: different mile ranges, cover photos
+# FIXME: trust & safety issues with picture
+# FIXME: check interaction with headless tests
+
+- takeScreenshot: ${SHOT_PREFIX}create-step1-location
+- assertVisible: "Bubble Details"
+
 # Dismiss the keyboard so the sticky footer's Next button (rendered OUTSIDE the
 # KeyboardAvoidingView, so the keyboard covers it) is tappable. Tapping a static label
 # dismisses the keyboard because the form list uses keyboardShouldPersistTaps="handled".
