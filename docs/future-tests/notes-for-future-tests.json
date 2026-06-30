@@ -86,6 +86,19 @@
         "fix: wire `mcp` into testctl nuke dispatch (pgrep/pkill the `maestro mcp` process) and reconcile target parsing so the 'ignored' warning only fires for genuinely unrequested targets",
         "testctl self-test: assert every nuke target advertised in --help is actually handled (no documented-but-ignored targets)"
       ]
+    },
+    {
+      "id": "ft-0008",
+      "area": "e2e/android-dev-client-reconnect",
+      "captured": "2026-06-30",
+      "source": "P6 native android e2e smoke (two runs) during the test-platform->develop merge; failure screenshots in tests/output/run-20260630t08{3001Z-566dd8,4519Z-dee674}",
+      "observation": "EVERY android smoke test fails at login-as.yaml step 1: after `reconnect-metro.yaml` runs (launchApp clearState -> openLink com.bubble.mobile://expo-development-client/?url=http://localhost:8081 -> wait), the `Assert \"Log In\" is visible` (60s) fails because the app never renders. Run 1 screenshot = blank white. Run 2 screenshot = the React Native RedBox: 'Unable to load script. Make sure you're running Metro or that your bundle index.android.bundle is packaged correctly for release', stack = loadJSBundleFromAssets -> loadScriptFromAssets -> loadJSBundle. So the dev client, after clearState wipes its stored Metro URL, is NOT reconnecting to Metro via the openLink deep link — it falls back to loading the bundle from ASSETS, which a dev build does not contain. Verified NOT caused by: (a) cold bundle build — a new metro-bundle gate pre-warmed it (HTTP 200 in 0.1s) and the failure persisted; (b) adb reverse — `adb reverse --list` shows tcp:8081 and tcp:3000 both forwarded; (c) the merge — root tsc green, ios `expo export` + android `index.bundle` both build clean, and headless/API smoke is 23/23.",
+      "why_it_matters": "This blocks ALL android native e2e (all flows start with login-as), so the 6/7 android baseline cannot currently be reproduced on this emulator. It is an Expo-dev-client reconnect fragility (the documented clearState-wipes-URL hazard), NOT a merge regression. The robust fix is release/embedded-bundle 'Mode B' (the bundle ships in assets, so loadJSBundleFromAssets succeeds and there is no Metro dependency or reconnect step at all).",
+      "candidate_tests": [
+        "BUILD Mode B (native-device-tooling plan Phase 8): expo run:android --variant release with the embedded bundle; release flows in tests/e2e/release/ that DROP reconnect-metro.yaml; verify release-0100-launch-welcome passes where the dev-client smoke blanks",
+        "dev-mode investigation (if keeping dev client): does the openLink expo-development-client deep link actually set the dev-server URL on android? try re-issuing openLink with autoVerify, adding a post-openLink retry/poll for a known first-screen element, or asserting the dev-server URL was registered before proceeding",
+        "gate idea: after reconnect-metro, assert NOT the RedBox text 'Unable to load script' (fail fast + distinct message) instead of timing out 60s on the 'Log In' assert"
+      ]
     }
   ]
 }

@@ -13,6 +13,40 @@ Remaining: **native build proofs**, **native e2e smoke**, and **P7 housekeeping*
   [[project_e2e_flows_ios_tuned]], [[project_android_e2e_handoff]], [[project_qa_server]],
   [[project_testctl]], [[project_ios_smoke_baseline_2026-06-17]]
 
+## Update — session 2 continuation (2026-06-30, P5/P6/P7)
+
+Picked up the resume list. Net: **P7 done, P5 proven, P6 blocked by a pre-existing dev-client
+fragility (not the merge)**. New commits on the branch (newest first):
+
+- `563beae` feat(qa): **metro-bundle gate** — warm Metro + catch a broken JS graph (500) before e2e
+- `a056f8b` docs(future-tests): ft-0006 (mobile Sentry tsc gap) + ft-0007 (testctl nuke `mcp` gap)
+- `420ee0a`..`a18e042` **P7 housekeeping** — all 17 untracked drafts filed in 4 clean commits
+  (docs/TC tc-tracker+handoffs, docs/research+ASTF+signup-genius, docs/script analysis JSONs, tooling zsh helpers)
+
+**P5 — build proofs: PASS (honest, efficient).** Root `tsc` GREEN. The merge has **zero native-dep
+changes** (`mobile/package.json` delta is script-only: `flag-temp-files.sh`→`.zsh`), so the existing
+`mobile/ios`+`mobile/android` dirs stay valid — a full `expo run:*` recompile re-proves nothing.
+Metro one-shot `expo export` bundled the **full merged module graph** → Hermes bytecode, 0 errors.
+Mobile `tsc` fails on **pre-existing develop** Sentry-API drift (ft-0006), not the merge. Gaps not
+attempted (as planned): iOS signing/certs, `eas build --local` (unconfigured), EAS cloud.
+
+**P6 — android e2e smoke: BLOCKED, root-caused.** Ran twice on `Charlotte` (Pixel_10, google_apis,
+not Play). All 10 gates green incl. schema-drift=`cb3f965e`, seeded-account auth, app-installed.
+But **every** test fails at `login-as` step 1: after `reconnect-metro` (clearState→openLink), the app
+renders the RN RedBox **"Unable to load script … loadJSBundleFromAssets"** — the dev client does NOT
+reconnect to Metro after clearState wipes its URL, and falls back to an absent embedded bundle.
+Ruled out: cold-build (new metro-bundle gate pre-warmed it, HTTP 200 0.1s, failure persisted),
+adb reverse (8081+3000 forwarded), and the merge (all non-dev-client layers green). **This is the
+documented Expo dev-client reconnect hazard, NOT a merge regression.** Full detail = **ft-0008**.
+
+**Robust fix = Mode B (release/embedded bundle)** per the native-device-tooling plan Phase 8 — the
+bundle ships in assets so there's no Metro/reconnect step. Recommended next action for native e2e.
+
+**Remaining before PR-ready:** decide Mode-B-vs-dev-client-fix for native e2e (ft-0008); the merge
+itself is validated at every layer that doesn't depend on the dev-client reconnect.
+
+---
+
 ## Done this session (P0–P4 + merge + API smoke)
 
 7 new commits on the branch (newest first):
