@@ -26,7 +26,11 @@ watchman -j <<EOT
     ["anyof",
       ["match", "mobile/android/**", "wholename"],
       ["match", "mobile/ios/**", "wholename"],
-      ["match", ".expo/**", "wholename"]
+      ["match", ".expo/**", "wholename"],
+      ["match", "tests/output/**", "wholename"],
+      ["match", ".maestro/output/**", "wholename"],
+      ["match", "dist/**", "wholename"],
+      ["match", "tmp/**", "wholename"]
     ]
   ],
   "command": ["bash", "${HANDLER}"],
