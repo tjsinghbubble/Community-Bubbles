@@ -1,0 +1,74 @@
+{
+  "objective": {
+    "name": "classify_screenshot.py",
+    "path": "$PROJ_ROOT/scripts/classify_screenshot.py",
+    "purpose": "Classify a PNG screenshot as VALID (rendered content) or BLACK (no-signal readback). Stdlib-only histogram analysis: counts pixels whose max(R,G,B) exceeds a threshold, divides by total, compares to a minimum fraction. Built to distinguish valid Android-emulator renders from all-zero captures produced by certain GPU modes. Requires a PNG path argument (no no-arg default — errors without one).",
+    "script_category": "Internal",
+    "side_effects": "Read-only. Reads the PNG, prints a one-line verdict (or JSON). No file writes. Exit codes: 0=VALID, 10=BLACK, 2=error.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (struct, zlib, json, argparse, sys) — PNG decoder is hand-rolled (no Pillow/numpy)",
+    "invoked_languages": [],
+    "invoked_programs": [],
+    "path_assumptions": [
+      "Expects a PNG path as the first positional arg; cwd-relative or absolute"
+    ],
+    "host_requirements": [
+      "Python 3 with zlib (stdlib); OS-agnostic"
+    ],
+    "invocation_methods": [
+      "Direct CLI: python3 scripts/classify_screenshot.py <path.png> [flags]",
+      "Called by GPU-sweep automation (scripts/sweep_gpu_modes.zsh / tests/experiments/gpu-sweep)"
+    ],
+    "switches": [
+      {
+        "flag": "--threshold",
+        "args": "int (default 8)",
+        "effect": "Channel value above which a pixel counts as 'lit' (guards against near-black noise)"
+      },
+      {
+        "flag": "--min-frac",
+        "args": "float (default 0.01)",
+        "effect": "Minimum lit fraction to classify VALID (rejects stray non-zero artifacts)"
+      },
+      {
+        "flag": "--json",
+        "args": "none",
+        "effect": "Emit a JSON object with all metrics instead of the one-liner"
+      }
+    ],
+    "required_arguments": "One positional: the PNG file path",
+    "has_tests": false,
+    "explicit_env_checks": "false — no environment dependencies; classification thresholds are explicit CLI parameters",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Invoked by the GPU-sweep harness to auto-verdict each captured frame; occasionally run by a developer to spot-check whether a screenshot is a real render or a black readback.",
+    "invocation_change_recommendation": "None. Clean positional+flags CLI. No verb form, no 'python3 < file' pattern.",
+    "linux_changes_needed": "None. Fully portable stdlib (struct/zlib PNG decode). Runs unchanged in an Ubuntu container — in fact preferable on Linux/CI where Pillow may be absent.",
+    "macos_dependency": {
+      "value": false,
+      "notes": "No macOS dependency; deliberately avoids sips/Pillow."
+    },
+    "typical_runtime": "Sub-second per image (zlib inflate + one linear histogram pass).",
+    "slow_switch_warning": "None. No switch exceeds 2 minutes.",
+    "dry_run_recommendation": "Not applicable — read-only.",
+    "destructive_steps": "None.",
+    "rewrite_language_recommendation": "No. The hand-rolled stdlib PNG decoder is the whole point (zero-dependency portability for CI). A Pillow rewrite would add a heavy dependency for no functional gain.",
+    "merge_recommendation": "Likely a single consumer today (GPU sweep), but keep standalone: it is a clean reusable verdict CLI and a natural building block for other visual-validation tests. Do not fold into the sweep script.",
+    "rename_recommendation": "Optional/low value. Internal tool invoked by path; dropping .py buys little.",
+    "relocate_recommendation": "Defensible to move under scripts/experiments/ or tests/experiments/gpu-sweep/ since it is purpose-built for that domain; weigh against keeping general visual utilities together in scripts/.",
+    "improvement_suggestions": "Add unit tests (synthesize a black PNG and a lit PNG in-memory, assert verdicts/exit codes — trivial and high-value for a function other tests gate on). Consider a --batch mode to classify many files in one process and avoid per-image interpreter startup.",
+    "requirements_check_completeness": "explicit and complete (thresholds parameterized; OSError/ValueError/zlib.error handled → stderr + exit 2); no environment requirements to check.",
+    "external_dependency_score": 0,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 0 + programs 0 (no subprocess) + sim 0 + apps 0 = 0.",
+    "change_score": 1,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux portable 0. No tests (very testable, and it gates other tests) +1. Total 1.",
+    "quality_score": 68,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 18; Tests /20: 0 (no self-tests); Structure/clarity /20: 17; Documentation /15: 13; Portability + explicit requirement checks /20: 20. Total 68. Clean zero-dependency hand-rolled PNG decoder with full filter support, explicit threshold/min-frac params, and proper exit codes; fully portable. Only the missing (and easy) test suite holds it back."
+  }
+}

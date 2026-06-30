@@ -1,0 +1,145 @@
+{
+  "objective": {
+    "name": "bench_sims.zsh",
+    "path": "$PROJ_ROOT/scripts/bench_sims.zsh",
+    "purpose": "Switch-driven benchmark harness: run a chosen test scope (smoke/all/e2e/headless/single-flow) for multiple rounds across one or more iOS simulators and/or Android emulators, sequentially, then produce a comparison matrix (boot times, per-layer results, per-test speed). No-arg behavior: a default smoke run on last-ios, 2 rounds, 30s inter-sim settle.",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "Creates tmp/bench-<TIMESTAMP>/ (progress.log, qa-*.out, warmup-*.out). Reads back per-round tests/output/run-*/summary.json. Boots/kills devices via manage_devices.py. Invokes npm run qa (and npm run qa:flow for --flow). Runs bench_report.py for the final matrix.",
+    "main_language": "zsh",
+    "language_packages": "zsh datetime module (EPOCHSECONDS)",
+    "invoked_languages": [
+      "python3 (manage_devices.py, testctl.py, bench_report.py, inline JSON parsing)",
+      "node/tsx (npm run qa, npm run qa:flow)"
+    ],
+    "invoked_programs": [
+      "python3",
+      "npm",
+      "sysctl (vm.loadavg, macOS)",
+      "xcrun (simctl shutdown all, macOS)",
+      "adb (Android emulator enum + emu kill)"
+    ],
+    "path_assumptions": [
+      "cd ${0:A:h}/.. sets cwd to repo root",
+      "manage_devices.py, testctl.py, bench_report.py live in scripts/",
+      "node/npm on PATH"
+    ],
+    "host_requirements": [
+      "macOS (xcrun, sysctl vm.loadavg)",
+      "Python 3",
+      "node + npm",
+      "adb on PATH for Android",
+      "zsh",
+      "one or more iOS sims and/or Android emulators",
+      "bubble_test DB available (via qa)",
+      "ample free disk (author stress-tested on i7-9750H)"
+    ],
+    "invocation_methods": [
+      "zsh scripts/bench_sims.zsh (default smoke / last-ios / 2 rounds)",
+      "zsh scripts/bench_sims.zsh --all --sims JFK,Kennedy --rounds 3",
+      "zsh scripts/bench_sims.zsh --e2e --sims last-android",
+      "zsh scripts/bench_sims.zsh --flow tests/e2e/auth/auth-0100-signin-smoke.yaml --sims Ryder",
+      "nohup zsh scripts/bench_sims.zsh --all -y &  (detached; -y required)"
+    ],
+    "switches": [
+      {
+        "flag": "--smoke",
+        "args": "none",
+        "effect": "Smoke-tagged subset, headless+e2e layers (default scope; mutually exclusive)"
+      },
+      {
+        "flag": "--all",
+        "args": "none",
+        "effect": "Whole suite, headless+e2e layers"
+      },
+      {
+        "flag": "--e2e",
+        "args": "none",
+        "effect": "e2e layer only (whole layer)"
+      },
+      {
+        "flag": "--headless",
+        "args": "none",
+        "effect": "headless layer only"
+      },
+      {
+        "flag": "--flow",
+        "args": "FLOW.yaml",
+        "effect": "Run a single flow via qa:flow; path validated to exist"
+      },
+      {
+        "flag": "--sims",
+        "args": "LIST (comma/space)",
+        "effect": "Device ids/aliases per manage_devices (default last-ios); each validated up front via --kind-of to catch typos early"
+      },
+      {
+        "flag": "--rounds",
+        "args": "int (default 2)",
+        "effect": "Samples per sim (averaging/variability)"
+      },
+      {
+        "flag": "--settle",
+        "args": "int seconds (default 30)",
+        "effect": "Idle time between sims to let host CPU calm"
+      },
+      {
+        "flag": "--abort-after",
+        "args": "int (default 3)",
+        "effect": "Abandon the whole bench after N broken-environment runs (0% pass / 0 started / no result); startup preflight not counted"
+      },
+      {
+        "flag": "--prep",
+        "args": "none",
+        "effect": "Shut down ALL stray iOS sims + Android emulators first for a clean host"
+      },
+      {
+        "flag": "--dry-run, --plan",
+        "args": "none",
+        "effect": "Print scope/sims/rounds/settle + wall-clock estimate and exit, before any preflight or device activity"
+      },
+      {
+        "flag": "-y, --yes",
+        "args": "none",
+        "effect": "Pre-confirm long runs (>= WARN_MINUTES); REQUIRED for non-interactive/detached/nohup runs"
+      },
+      {
+        "flag": "-h, --help",
+        "args": "none",
+        "effect": "Print usage and exit"
+      }
+    ],
+    "required_arguments": "None (minimal valid call: zsh scripts/bench_sims.zsh, uses defaults)",
+    "has_tests": false,
+    "explicit_env_checks": "true (comprehensive) — broken-environment detection (per-run summary.json status), non-tty guard ([[ -t 0 ]]), load guard (sysctl vm.loadavg with LOAD_WARN/LOAD_PAUSE), and up-front --sims validation",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Run manually (often detached via nohup with -y) by the developer doing test-platform performance work, to compare boot/run times and pass rates across simulators and compile levels.",
+    "invocation_change_recommendation": "None needed — already a clean switch-driven CLI with mutually-exclusive scopes, numeric validation, and config via env tunables. This is the house-style model the other scripts should move toward.",
+    "linux_changes_needed": "Not currently portable. macOS-specific: xcrun (iOS, --prep) and sysctl vm.loadavg (load guard — Linux uses /proc/loadavg). zsh and adb exist on Linux. A Linux port would need a load-average shim and to skip/replace the iOS path; Android-only benchmarking is otherwise feasible.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True: xcrun (iOS + --prep) and sysctl vm.loadavg (load guard). Android-only use would still need a Linux load-average shim."
+    },
+    "typical_runtime": "Wildly variable by scope x sims x rounds. A default smoke run is tens of minutes; --all across multiple sims with several rounds can exceed 10-12 hours (e.g. --all x 4 sims x 3 rounds ~= 12.4 h).",
+    "slow_switch_warning": "Yes, and it is already handled. --all and --e2e across many --sims/--rounds are inherently long (hours). The script estimates wall-clock up front, warns at >= WARN_MINUTES (default 60), prompts on /dev/tty when interactive, and REFUSES to start a long detached/non-tty run unless -y is given — a deliberate guard against accidental 12+ hour runs.",
+    "dry_run_recommendation": "Already implemented (--dry-run / --plan): prints scope/sims/estimate and exits before any device activity.",
+    "destructive_steps": "Boots and kills simulators/emulators via manage_devices (--warmup/--kill), --prep shuts down ALL sims/emulators, and each qa session resets the bubble_test database. Destructive to device/DB state but not to project files, and well-guarded.",
+    "rewrite_language_recommendation": "Keep zsh (matches project preference and the orchestration is shell-shaped). No rewrite needed.",
+    "merge_recommendation": "Keep standalone. It legitimately orchestrates manage_devices + qa + bench_report; folding it into any one of them would muddy responsibilities.",
+    "rename_recommendation": "Optional — could drop .zsh for a cleaner command name, but the extension signals the shell correctly. Low priority.",
+    "relocate_recommendation": "Defensible to move under scripts/bench/ alongside bench_report.py to group the benchmarking tools; otherwise fine in scripts/.",
+    "improvement_suggestions": "Add a Linux load-average shim (/proc/loadavg) and an OS guard so Android-only benchmarking can run in a container. Consider persisting bench runs to a small index (it currently relies on tmp/ + reading run dirs) so historical comparisons survive tmp cleanup. testctl is not yet aware a bench is running (per memory) — emit a bench heartbeat for status visibility.",
+    "requirements_check_completeness": "explicit and (near-)complete — broken-env detection, non-tty guard, load guard, and up-front sim validation; relies on the downstream qa runner's own gating for API/Metro/DB/driver health rather than re-checking them here.",
+    "external_dependency_score": 32,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 3 + programs 4 (python3, npm, xcrun, adb) + sim 5 (the benchmark subject) + apps 20 (Xcode 10 + Postgres 10 via qa; Android SDK +10 when benchmarking Android) = 32. (sysctl ships, not counted; down from 33.)",
+    "change_score": 6,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (xcrun + sysctl vm.loadavg). Bench-not-visible-to-testctl + tmp-only persistence +1. No tests +1. Total 6. Already exemplary on invocation/dry-run/guards (0).",
+    "quality_score": 67,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 22; Tests /20: 0 (no self-tests); Structure/clarity /20: 18; Documentation /15: 12; Portability + explicit requirement checks /20: 15. Total 67. Mature switch-driven CLI with a load-adaptive guard, broken-environment detection, TTY-aware long-run prompts, and an existing --dry-run; docked mainly for the macOS-bound load/iOS paths and no self-tests."
+  }
+}

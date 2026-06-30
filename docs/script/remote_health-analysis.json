@@ -1,0 +1,123 @@
+{
+  "objective": {
+    "name": "remote_health.py",
+    "path": "$PROJ_ROOT/scripts/remote_health.py",
+    "purpose": "Health check for the remotely-hosted Expo Go staging server. Fetches the QR-code page from https://bubble-mobile.replit.app/qr-code, validates the HTML contains an exp:// URL, and (optionally) opens that URL in an iOS simulator, Android emulator, Genymotion device, or browser. Caches ETag/timestamp in ~/.remote_health_state.json to detect unchanged builds (HTTP 304). No-arg behavior: fetch the remote page and print whether the build is new (200) or unchanged (304).",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "HTTP GETs to bubble-mobile.replit.app and the GitHub API. Writes ~/.remote_health_state.json. May download/cache Expo Go assets in ~/.expo_go_cache and install/uninstall the Expo Go app on a sim/emulator. Opens URLs in a sim/emulator/browser.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (argparse, hashlib, json, re, socket, subprocess, shutil, tarfile, tempfile, urllib, webbrowser, datetime, pathlib)",
+    "invoked_languages": [
+      "AppleScript (osascript, best-effort emulator window foreground)"
+    ],
+    "invoked_programs": [
+      "xcrun (iOS simulator)",
+      "adb (Android)",
+      "gmtool (Genymotion)",
+      "osascript (macOS window foreground)"
+    ],
+    "path_assumptions": [
+      "xcrun on PATH (for -i)",
+      "adb on PATH (for -a / -g)",
+      "gmtool on PATH (for -g)",
+      "runs from any cwd; state lives in $HOME"
+    ],
+    "host_requirements": [
+      "Network reachability to bubble-mobile.replit.app and api.github.com",
+      "macOS for osascript window-foreground and xcrun (iOS)",
+      "A booted iOS sim / Android emulator / Genymotion device only when an --ios/--android/--genymotion open is requested"
+    ],
+    "invocation_methods": [
+      "No args: python3 scripts/remote_health.py (fetch + status)",
+      "Open targets: -i/--ios, -a/--android, -g/--genymotion, -w/--web",
+      "Source selection: --remote (default), --local, --exp_url URL",
+      "Modifiers: -v/--verbose, -r/--reinstall, --expo-sdk VERSION"
+    ],
+    "switches": [
+      {
+        "flag": "-v, --verbose",
+        "args": "none",
+        "effect": "Timestamped logs for fetch/redirects/response time/parse/install"
+      },
+      {
+        "flag": "-i, --ios",
+        "args": "none",
+        "effect": "Open the exp:// URL in a booted iOS simulator (xcrun; auto-installs Expo Go if missing)"
+      },
+      {
+        "flag": "-a, --android",
+        "args": "none",
+        "effect": "Open in a running Android emulator (adb; auto-installs Expo Go)"
+      },
+      {
+        "flag": "-g, --genymotion",
+        "args": "none",
+        "effect": "Open in a Genymotion device (gmtool + adb)"
+      },
+      {
+        "flag": "-w, --web",
+        "args": "none",
+        "effect": "Open in the default browser (exp:// → https://)"
+      },
+      {
+        "flag": "-r, --reinstall",
+        "args": "none",
+        "effect": "Uninstall Expo Go first, forcing a fresh install"
+      },
+      {
+        "flag": "--expo-sdk",
+        "args": "VERSION (e.g. 55)",
+        "effect": "Pin the Expo Go release to a matching SDK version when installing"
+      },
+      {
+        "flag": "--remote",
+        "args": "none",
+        "effect": "Fetch exp:// from the remote staging server (default; mutually exclusive with --local/--exp_url)"
+      },
+      {
+        "flag": "--local",
+        "args": "none",
+        "effect": "Skip remote fetch; use exp://localhost:8081"
+      },
+      {
+        "flag": "--exp_url",
+        "args": "URL",
+        "effect": "Use the supplied exp:// URL directly"
+      }
+    ],
+    "required_arguments": "None",
+    "has_tests": false,
+    "explicit_env_checks": "false — no env-var checks; URLs are hard-coded constants. Validates HTTP status, Content-Type, exp:// presence, and device availability before opening",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Run manually by a developer to confirm the Replit-hosted Expo Go build is live and to push it onto a sim/emulator for a quick look. Note: per project memory, Expo Go is effectively broken for SDK 55, so this tool's open-in-Expo-Go path is of limited current use.",
+    "invocation_change_recommendation": "Switch form is already used and fine. Lower-priority: the interactive multi-device numbered prompt could gain a --device flag so it can run non-interactively in scripts.",
+    "linux_changes_needed": "Core health check (fetch + 304 detection) is fully portable. macOS-specific bits to guard for Linux: osascript window-foreground (drop / make best-effort no-op) and xcrun/iOS (skip; Linux has no iOS sim). Android (adb) and browser (webbrowser) paths work on Linux. So: portable for --remote/--local/--web; --ios unavailable on Linux.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True for full feature set (osascript foreground, xcrun iOS open). False for the core remote/local/web health check, which is stdlib-portable."
+    },
+    "typical_runtime": "A few seconds for a plain fetch (10s page timeout, 15s GitHub API timeout, warns if >4s). Longer only when it downloads/installs Expo Go assets (network-bound, one-time per tag).",
+    "slow_switch_warning": "No switch reliably exceeds 2 minutes; -r/--reinstall plus a cold Expo Go download is the slowest path but is network-bound, not inherently long.",
+    "dry_run_recommendation": "Yes — a --dry-run that performs the fetch/validation and reports what it WOULD install/open, without uninstalling/installing apps or launching anything. The install/uninstall steps are the ones worth previewing.",
+    "destructive_steps": "Uninstalls the Expo Go app (xcrun simctl uninstall / adb uninstall) on -r/--reinstall, and installs APK/IPA assets. These mutate device state but not project files. The failure-path message suggests deleting ~/.remote_health_state.json.",
+    "rewrite_language_recommendation": "No. Python stdlib HTTP + subprocess is appropriate.",
+    "merge_recommendation": "Keep standalone for now. Given Expo Go SDK-55 breakage, candidate for deprecation rather than merging; revisit when Expo Go support returns.",
+    "rename_recommendation": "Optional — name is accurate. Could drop .py if standardizing command names.",
+    "relocate_recommendation": "Defensible to move to a scripts/dev/ or scripts/expo/ area since it serves the (currently broken) Expo Go path and is used less than the core runners.",
+    "improvement_suggestions": "Lift the hard-coded URLs (TARGET_URL, GitHub releases API, Replit login) into env vars or config/environments.json so non-default deployments are testable. Add a --device selector to avoid the interactive prompt in automation. Add a --dry-run. Consider a non-zero exit on 'build unchanged when change expected' for CI gating.",
+    "requirements_check_completeness": "explicit and incomplete — checks HTTP status/Content-Type/exp:// presence and device existence, but network failure handling is narrow (gaierror/URLError) and there are no env-var or tool-presence preflights.",
+    "external_dependency_score": 3,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 0 (URLs hard-coded, not env) + programs 3 (xcrun, adb, gmtool) + sim 0 + apps 0 = 3. (osascript ships with macOS, not counted.) A --ios/--android open adds an effective +5 sim and +10 app on that path.",
+    "change_score": 9,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (iOS/osascript blocked; core+android+web portable). Invocation (add --device for non-interactive) +1. Missing --dry-run +1. Destructive app uninstall/install +1. Gating incomplete +1. Hard-coded-URLs improvement +1. Total 9.",
+    "quality_score": 54,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 18; Tests /20: 0 (no self-tests); Structure/clarity /20: 15; Documentation /15: 10; Portability + explicit requirement checks /20: 11. Total 54. Good ETag/SHA256 caching and redirect tracking; docked for hard-coded URLs, narrow network error handling, a blocking interactive device prompt, and no tests. Serves a currently-broken Expo Go path."
+  }
+}

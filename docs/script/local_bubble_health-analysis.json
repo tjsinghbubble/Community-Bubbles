@@ -1,0 +1,71 @@
+{
+  "objective": {
+    "name": "local_bubble_health",
+    "path": "$PROJ_ROOT/scripts/local_bubble_health",
+    "purpose": "Check the health of the local dev environment: iOS simulators (xcrun), Android emulators (adb), optional Genymotion (gmtool), the API server on port 3000, the Metro bundler on port 8081, the PostgreSQL database (psql), and the presence of required secrets in .env files. No arguments — runs all checks sequentially and prints colored ✅/❌ status. Always exits 0.",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "Read-only. Prints colored status and detail to stdout/stderr. Makes HTTP requests to localhost:3000 and localhost:8081, runs psql, and git-greps tracked files for secret usage. Writes nothing.",
+    "main_language": "zsh (shebang #!/usr/bin/env zsh)",
+    "language_packages": "none (native shell)",
+    "invoked_languages": [],
+    "invoked_programs": [
+      "xcrun (iOS, macOS-only)",
+      "adb (Android)",
+      "gmtool (Genymotion, optional)",
+      "psql (PostgreSQL client)",
+      "curl",
+      "git"
+    ],
+    "path_assumptions": [
+      "Resolves repo root via ${0:A:h:h} (parent's parent of the script)",
+      "xcrun/adb/psql/gmtool/curl/git discoverable on PATH if present"
+    ],
+    "host_requirements": [
+      "macOS (xcrun)",
+      "Xcode CLI tools (xcrun)",
+      "Android SDK (adb)",
+      "PostgreSQL client (psql)",
+      "Genymotion optional (gmtool — gracefully skipped if absent)"
+    ],
+    "invocation_methods": [
+      "Direct (executable): ./scripts/local_bubble_health (requires chmod +x)",
+      "Explicit interpreter: zsh scripts/local_bubble_health",
+      "Sourced by another script (uncommon)"
+    ],
+    "switches": [],
+    "required_arguments": "None",
+    "has_tests": false,
+    "explicit_env_checks": "true (partial) — reads DATABASE_URL (hard-coded personal default), API_PORT (default 3000), METRO_PORT (default 8081); secrets section explicitly verifies required .env keys",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Run manually by the developer at the CLI to sanity-check that local services and secrets are in place before starting work or tests. Not part of an automated pipeline.",
+    "invocation_change_recommendation": "It takes no switches. Add at least --json (machine-readable) and a real exit code (see below) so it can be a programmatic gate; optionally --verbose (a stub exists). No verb form to migrate.",
+    "linux_changes_needed": "Mostly portable: adb, psql, curl, git work on Linux; zsh is available. Guard the macOS-only xcrun (iOS) block behind an OS check, and verify any BSD-vs-GNU grep regex differences in the secrets section. The hard-coded DATABASE_URL default (a personal username) should not ship to a container.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True only for the iOS/xcrun check and possible BSD grep regex assumptions; the rest is Linux-portable."
+    },
+    "typical_runtime": "A few seconds, but curl/psql calls are synchronous with no explicit timeouts, so an unreachable server/DB can stall the run on default client timeouts.",
+    "slow_switch_warning": "No switches. No inherently long operation, but a hung curl/psql against a dead service can make it feel slow — add explicit short timeouts.",
+    "dry_run_recommendation": "Not applicable — already read-only.",
+    "destructive_steps": "None.",
+    "rewrite_language_recommendation": "Keep zsh (matches the project's stated preference for zsh shell scripts). No rewrite needed.",
+    "merge_recommendation": "Keep standalone, but consider consolidating with the testctl 'health' subcommand, which overlaps (API/Metro/DB/sim checks). Long-term, one health surface (testctl health for the test platform, this for the dev env) with shared check logic would reduce drift.",
+    "rename_recommendation": "No — it already has no extension, so the language is appropriately hidden and the name reads as a command.",
+    "relocate_recommendation": "Keep in scripts/. It is a commonly-used dev convenience.",
+    "improvement_suggestions": "Add explicit short timeouts to curl/psql; replace the hard-coded personal DATABASE_URL default with an env/.env-derived value; add --json and a meaningful exit code (non-zero when a critical check fails) instead of the unconditional exit 0, so it can gate CI/pre-commit; resolve the several FIXME markers; finish the --verbose stub.",
+    "requirements_check_completeness": "mixed — explicit and complete for the secrets checks; implicit for service health (relies on HTTP status / command exit codes with no explicit guards or timeouts).",
+    "external_dependency_score": 7,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 3 + programs 4 (xcrun, adb, gmtool, psql) + sim 0 (tolerates absent sims) + apps 0 = 7. (curl and git ship with macOS/CLT, not counted; down from 9.)",
+    "change_score": 8,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (xcrun + possible BSD grep regex). Invocation (add --json + a real exit code) +1. Gating mixed (service checks implicit) +1. Improvements (hard-coded personal DB default, FIXMEs, no timeouts) +1. No tests +1. Total 8.",
+    "quality_score": 49,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 14; Tests /20: 0 (no self-tests); Structure/clarity /20: 14; Documentation /15: 11; Portability + explicit requirement checks /20: 10. Total 49. Commented and tolerant of missing tools, but unconditional exit 0 means it cannot serve as a programmatic gate, plus a hard-coded personal DATABASE_URL default, no curl/psql timeouts, outstanding FIXMEs, and no tests."
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "objective": {
+    "name": "testctl.py",
+    "path": "$PROJ_ROOT/scripts/testctl.py",
+    "purpose": "Control script for the test platform: report what is running (status), diagnose environment health (health), probe the Maestro Android driver (driver-health), kill runners with a signal ladder (nuke), serialize runners with a file lock (lock), and browse run artifacts interactively (inspect). Reads the qa runner's live heartbeat (tests/output/current-run.json). The default/most common entry is `status`.",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "Writes/reads the runner lock flag-file and PANIC marker; reads the heartbeat JSON; kills processes via SIGQUIT->2s->SIGKILL; probes HTTP/TCP/gRPC; prints text or JSON; opens external viewers/editors and may write manual flow copies / re-run scripts from `inspect`.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (no third-party deps, per the module docstring)",
+    "invoked_languages": [
+      "zsh (log viewer + generated re-run scripts)"
+    ],
+    "invoked_programs": [
+      "ps",
+      "lsof",
+      "xcrun",
+      "simctl",
+      "adb",
+      "grpcurl (optional)",
+      "sysctl (macOS)",
+      "pbcopy (macOS)",
+      "open (macOS)",
+      "zsh",
+      "maestro (version)",
+      "lnav (via maestro_logview.zsh)"
+    ],
+    "path_assumptions": [
+      "REPO root computed from script location",
+      "tests/output/ writable",
+      "PATH includes ps/lsof/xcrun/adb (maestro/grpcurl optional)",
+      "optional ~/.config/testctl/viewers.json"
+    ],
+    "host_requirements": [
+      "macOS for sysctl kern.boottime, xcrun/simctl, pbcopy, and `open` viewers (Linux has a /proc/stat boottime fallback; viewers degrade)",
+      "grpcurl optional (driver-health degrades to port-only)",
+      "a booted sim only for the sim health checks (optional)"
+    ],
+    "invocation_methods": [
+      "Direct: python3 scripts/testctl.py <cmd> [args]",
+      "npm aliases: qa:status, qa:health, qa:driver-health, qa:nuke, qa:inspect",
+      "Internal: qa.ts / run-flow.ts acquire & release the lock around runs",
+      "Interactive: the `inspect` REPL (RUNS -> RUN -> TEST -> menu)"
+    ],
+    "switches": [
+      {
+        "flag": "status [--json]",
+        "args": "none",
+        "effect": "Process table + heartbeat (qaRuns, ad-hoc maestro step, panic-marker flag); default command"
+      },
+      {
+        "flag": "health [--json]",
+        "args": "none",
+        "effect": "6 checks: load-average, api-server, qa-server-identity (DB name), metro, sim-app-binary, sim-boot-age; each (name, ok/warn/fail, detail, fix)"
+      },
+      {
+        "flag": "driver-health [--json]",
+        "args": "none",
+        "effect": "Probe Maestro Android driver on :7001 (gRPC deviceInfo, else lsof port-only); returns live/listening/responsive/latency/fix"
+      },
+      {
+        "flag": "nuke",
+        "args": "targets (positional or --nuke=LIST) [--json]",
+        "effect": "Kill runners by kind (qa/cli/mcp/xcodebuild/vitest/newman/playwright) with SIGQUIT->2s->SIGKILL; writes PANIC marker for qa; aliases: maestro, headless, all/them-all"
+      },
+      {
+        "flag": "lock",
+        "args": "acquire|release|status [--runner --pid --ppid --cmd --retries --interval --json]",
+        "effect": "flock-serialized mutual-exclusion lock; detects stale/recycled pids and stray maestro"
+      },
+      {
+        "flag": "inspect",
+        "args": "spec [menu-item] [run-dir] [--cmd NAME --json]",
+        "effect": "Interactive/batch artifact inspector; per-test menu (failure, code, use-case, images, params, dir, log, cmd re-run, movie, edit, noisy, wizard, prompt, bug); deep links e.g. `inspect 3 failure`, `inspect recent`, `inspect all`"
+      },
+      {
+        "flag": "--json",
+        "args": "none",
+        "effect": "Machine-readable output for any subcommand"
+      }
+    ],
+    "required_arguments": "A command (status/health/driver-health/nuke/lock/inspect). nuke requires targets; lock requires an action; inspect's spec is optional (defaults to the current run).",
+    "has_tests": false,
+    "explicit_env_checks": "true — reads API_PORT (3000), METRO_PORT (8081), QA_APP_ID (com.bubble.mobile), QA_LOAD_CEILING (75.0), MAESTRO_DRIVER_PORT (7001), MAESTRO_DRIVER_PROTOSET (tmp/maestro_android.protoset), QA_DRIVER_LATENCY_WARN_S (2.0), VISUAL/EDITOR, HOME",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Mixed: developers run status/health/nuke/inspect manually (often via the qa:* npm aliases) to observe and control runs; qa.ts and run-flow.ts call the lock subcommand programmatically to enforce single-runner mutual exclusion. inspect is the interactive face used after a run to triage failures.",
+    "invocation_change_recommendation": "Keep the verb-subcommand form — for a control tool with distinct modes (status/nuke/inspect) verbs read better than switches, and `inspect` is exactly the interactive model the project wants other tools to emulate. Only refinement: ensure every subcommand supports --json (most do) for uniform machine consumption.",
+    "linux_changes_needed": "Partial. macOS-only: sysctl kern.boottime (has a /proc/stat fallback already), xcrun/simctl (iOS health — skip on Linux), pbcopy (clipboard), and the `open` default viewers. Linux users would configure ~/.config/testctl/viewers.json instead of `open`. status/nuke/lock/driver-health (ps/lsof/adb/grpcurl) are Linux-portable. So: core control works on Linux; iOS health and clipboard/viewer convenience need shims.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True for sim health, clipboard, and default viewers, but it already carries a Linux boottime fallback and the core control surface (status/nuke/lock/driver-health) is portable."
+    },
+    "typical_runtime": "status and nuke are fast (ps snapshot / signal dispatch). health is the slowest non-interactive command (HTTP pings v4+v6, simctl list, port checks; per-check 4-20s timeouts). driver-health is ~10s worst case. inspect (interactive) runs until the user quits.",
+    "slow_switch_warning": "No non-interactive subcommand should exceed 2 minutes (health bounds each check with a timeout). inspect is open-ended only because it is a REPL waiting on the user, not because of compute.",
+    "dry_run_recommendation": "Yes for nuke specifically — a --dry-run / --what-if that lists the exact pids and kinds it would signal (and the order) before killing, since nuke is the destructive subcommand. The read-only subcommands need none.",
+    "destructive_steps": "nuke terminates process trees (SIGQUIT->SIGKILL) and writes a PANIC marker that aborts the qa runner between tests; lock release unlinks the lock file (only when the pid matches); inspect's edit/noisy generate files (flow copies / re-run scripts) but touch no project source destructively.",
+    "rewrite_language_recommendation": "No. Python stdlib is a good fit; the flock lock, pid/zombie reaping, and JSON heartbeat parsing are all natural in Python and depend on nothing external.",
+    "merge_recommendation": "Keep standalone — it is consumed by qa.ts/run-flow.ts (lock) and by developers (status/health/nuke/inspect), so it is a shared control surface, not a single-caller helper. Consider absorbing the overlapping service checks from local_bubble_health to avoid two health implementations.",
+    "rename_recommendation": "Yes (low-risk) — expose as `testctl` (drop the .py) to match the project's stated direction; the npm aliases already hide the .py, so only direct/path callers are affected.",
+    "relocate_recommendation": "Keep in scripts/. It is frequently used and is wired into the qa runner.",
+    "improvement_suggestions": "Add a nuke --dry-run; ensure uniform --json across all subcommands; factor the macOS-only viewer/clipboard/boottime bits behind a small platform shim so a Linux container degrades cleanly; consolidate service-health logic with local_bubble_health; add a bench heartbeat awareness so `status` can show an in-progress bench (per project memory, it currently shows only the single qa run).",
+    "requirements_check_completeness": "explicit and complete — every subcommand gates on explicit conditions (heartbeat alive/abandoned, regex process classification, port-listening checks, file existence), nuke orders mcp-before-cli deliberately, lock detects stale/recycled pids and stray maestro, and probes degrade gracefully when optional tools/devices are absent.",
+    "external_dependency_score": 16,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 10 + programs 6 (xcrun, simctl, adb, grpcurl, maestro, lnav) + sim 0 (sim health degrades) + apps 0 = 16. (Ubiquitous ps/lsof/sysctl/pbcopy/open no longer counted; down from 20.)",
+    "change_score": 8,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (core portable; iOS/clipboard/viewers need shims; boottime already shimmed). Missing nuke --dry-run +1. Destructive nuke +1. Rename testctl.py->testctl +1. No tests +1. Total 8.",
+    "quality_score": 69,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 23; Tests /20: 0 (no self-tests); Structure/clarity /20: 18; Documentation /15: 13; Portability + explicit requirement checks /20: 15. Total 69. Best-engineered of the set: fcntl.flock lock with pid-reaper + boottime self-heal, deliberate nuke ordering, graceful degradation, and a genuinely useful inspect REPL; only the missing tests and macOS-leaning viewers hold it back."
+  }
+}
