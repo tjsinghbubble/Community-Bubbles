@@ -5,6 +5,41 @@ but are intentional. Read this before modifying the files listed below.
 
 ---
 
+## Tooling defaults — search/find/log tools (use these, not the defaults)
+
+These tools are installed and on PATH. Reach for them FIRST; do not fall back to
+`grep`/`find` out of habit. `rg` and `fd` compose well — `fd` selects the file
+set, `rg` searches within it.
+
+- **Search file contents → `rg` (ripgrep), never `grep`.** Faster, recursive by
+  default, respects `.gitignore`.
+- **Find files/dirs by name → `fd`, never `find`.** Faster, simpler syntax.
+- **Read a window/region of a file around a pattern → the `find-within` skill**
+  (wraps `find_within.py`), not a `grep -n | sed`/`awk` pipeline. Use for: the
+  N lines around a match, a leading/trailing window, the span between two
+  patterns (a function/handler body), match counts, or the last match in a log.
+  It reads only the slice needed — fewer tokens, one permission prompt.
+- **Logs:** `bunyan` to pretty-print JSON log streams; `lnav` to explore/filter
+  log files interactively (syslog + json iOS styles). `jq` for JSON.
+
+### `fd`/`rg` gotchas — required flags
+
+1. **Both `fd` AND `rg` skip `.gitignore`d paths by default.** That hides
+   content Claude often needs (`tmp/`, `tests/output/`, build artifacts,
+   `.env`). When the target may be ignored, pass **`fd -I`** (`--no-ignore`) and
+   **`rg -u`** (`--no-ignore`; `-uu` also unhides hidden/binary). Cut the usual
+   noise back with excludes: `fd -I -E node_modules -E .git`,
+   `rg -u -g '!node_modules'`.
+2. **`fd` output ordering is non-deterministic** (parallel walk), unlike `find`.
+   When order must be stable (diffs, comparisons, reproducible lists), pipe
+   `fd … | sort`.
+3. **`fd` exec has two forms:** `-x`/`--exec` runs the command **once per
+   result** (like `find -exec`); `-X`/`--exec-batch` runs it **once** with all
+   results as args. `--print0` (NUL-delimited output) and `--batch-size N`
+   control I/O for downstream consumers.
+
+---
+
 ## Ad-hoc Maestro runs — never write artifacts at the repo root
 
 Preferred: run one-off flows through `npm run qa:flow -- <flow.yaml>
