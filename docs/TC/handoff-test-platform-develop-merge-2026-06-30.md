@@ -1,5 +1,58 @@
 # Handoff — Test platform → develop merge (2026-06-30)
 
+---
+
+## ▶ NEXT SESSION — START HERE (updated end of session 2)
+
+**Status: the merge is validated at EVERY layer.** API/headless **23/23**, root `tsc` + Metro bundle
+clean, and native via **Mode B (release/embedded bundle) PROVEN GREEN** (`release-0100` passes 36.9s,
+the merged Welcome screen incl. "Continue with Google" renders with no Metro). The only blocked path
+— android **dev-client** e2e — is an Expo tooling fragility (ft-0008), **not the merge**.
+
+**Branch:** `reconcile/test-platform-into-develop` HEAD `fccf8cd`, pushed, tree clean, 81 ahead of
+develop. **PR #91** still **draft**. Detail: this doc's "Update — session 2" section below + notes
+`ft-0006..ft-0009` in `docs/future-tests/notes-for-future-tests.json`. Memory START-HERE =
+[[project_develop_merge_gotchas]].
+
+### Remaining work (pick up here, roughly in priority order)
+1. **Decide PR #91 ready-vs-draft.** The merge is fully validated; nothing merge-related is
+   outstanding. If dev-client android e2e is not a merge gate, **mark ready**. (Items 2–4 are
+   follow-ups that do NOT belong in this PR.)
+2. **ft-0009 → separate MOBILE PR** (release-build toolchain, currently worked around LOCAL-ONLY):
+   - `mobile/android/app/build.gradle:14` `hermesCommand` points at the dead `react-native/sdks/hermesc`
+     path (RN 0.83 moved it to the `hermes-compiler` package). Fix: resolve `hermes-compiler`
+     (`require.resolve('hermes-compiler')`) or `expo prebuild` regen. **Then remove the local symlink**
+     `mobile/node_modules/react-native/sdks/hermesc/osx-bin/hermesc → ../../hermes-compiler/…`.
+   - Default `SENTRY_DISABLE_AUTO_UPLOAD=true` for local/non-CI release builds (Sentry sourcemap
+     upload needs `SENTRY_ORG`/auth and otherwise fails the release build).
+3. **Expand Mode B release flows** beyond `release-0100-launch-welcome` (keep them auth-free /
+   `safe_for_prod`); add Mode B to CI as the native smoke (it has no dev-client/Metro fragility).
+4. **ft-0006 → mobile PR** (optional): `mobile/src/utils/crashReporter.ts` uses removed Sentry APIs
+   (`configureScope`, `autoSessionTracking`) — pre-existing develop bug; mobile `tsc` is red on it.
+
+### Reproduce Mode B (the proof)
+```
+# release build (debug-signed, embedded bundle; ~20min cold, all 4 ABIs):
+cd mobile && SENTRY_DISABLE_AUTO_UPLOAD=true npx expo run:android --variant release
+#   ^needs the hermesc symlink (item 2) until build.gradle is fixed.
+# run it (skips seed/install/Metro gates, selects only safe_for_staging flows):
+npm run qa -- --layer e2e --release-mode staging --sim android   # → release-0100 PASS
+```
+
+### Current machine state (end of session 2)
+- **Emulator `emulator-5554` (Charlotte) has the RELEASE build installed** (non-debuggable). To run
+  **dev-client** e2e again you must rebuild the dev variant: `npm run mobile:build:android-emu`.
+- `qa:server` (bubble_test, dual-stack) **still running**; Metro **up**; test-runner lock **FREE**,
+  no PANIC marker. hermesc symlink present (local workaround). No backgrounded jobs.
+- Backup tags intact: `backup/ctp-pre-merge`, `backup/develop-pinned`.
+
+### New this session (commits on top of the original P0–P4 set)
+`a18e042`..`420ee0a` P7 housekeeping (17 drafts filed) · `a056f8b` ft-0006/0007 · `563beae`
+metro-bundle warm gate · `11fcd56` ft-0008 + handoff · `a7d845f` **Mode B complete** (release-mode
+Metro-gate skip + release-0100 selector) · `9025dea` ft-0009 + ft-0008 proven · `fccf8cd` handoff.
+
+---
+
 ## TL;DR
 
 Merged `origin/develop` into the test platform and proved the **merge + API layer** are sound.
