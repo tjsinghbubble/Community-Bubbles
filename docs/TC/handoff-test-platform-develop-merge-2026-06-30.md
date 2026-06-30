@@ -39,11 +39,25 @@ Ruled out: cold-build (new metro-bundle gate pre-warmed it, HTTP 200 0.1s, failu
 adb reverse (8081+3000 forwarded), and the merge (all non-dev-client layers green). **This is the
 documented Expo dev-client reconnect hazard, NOT a merge regression.** Full detail = **ft-0008**.
 
-**Robust fix = Mode B (release/embedded bundle)** per the native-device-tooling plan Phase 8 — the
-bundle ships in assets so there's no Metro/reconnect step. Recommended next action for native e2e.
+**Mode B (release/embedded bundle) — BUILT + PROVEN GREEN this session.** Built a local android
+release variant (debug-signed, embedded Hermes bundle; `release` buildType already uses
+`signingConfigs.debug` so no prod keystore needed). Two pre-existing release-toolchain blockers had
+to be cleared first (ft-0009, both unrelated to the merge, fixed locally/uncommitted): RN-0.83 moved
+hermesc to the `hermes-compiler` package while `build.gradle:14` still points at the old
+`react-native/sdks/hermesc` path (symlinked), and the Sentry gradle plugin's release source-map
+upload needs `SENTRY_ORG` (`SENTRY_DISABLE_AUTO_UPLOAD=true`). Then:
+`npm run qa -- --layer e2e --release-mode staging --sim android` → **release-0100 PASSES (36.9s)**.
+The embedded bundle renders the full merged Welcome screen ("Log in or sign up" + "Continue with
+Google") with **no Metro, no reconnect, no blank/RedBox** — the ft-0008 failure class is eliminated.
+The first run was RED only on a stale `"Log In"` selector (the social-auth merge changed the copy →
+confirms ft-0001/ft-0005); fixed the anchor and it's green. Commits `a7d845f` (runner skips Metro
+gates in release mode + flow selector) and `9025dea` (notes). NB the hermesc/Sentry fixes are
+LOCAL-ONLY — proper fixes belong in a separate **mobile PR** (ft-0009), not this merge PR.
 
-**Remaining before PR-ready:** decide Mode-B-vs-dev-client-fix for native e2e (ft-0008); the merge
-itself is validated at every layer that doesn't depend on the dev-client reconnect.
+**Remaining before PR-ready:** the merge is validated at every layer (API/headless 23/23, build,
+and now native-via-Mode-B). Dev-client android e2e stays blocked by ft-0008 (Expo tooling, not the
+merge) — Mode B is the path forward. Optional: expand release flows beyond launch-welcome; land the
+ft-0009 toolchain fixes in a mobile PR; then mark PR #91 ready.
 
 ---
 
