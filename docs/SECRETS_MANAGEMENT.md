@@ -111,12 +111,15 @@ source). There are two layers:
   → The bundle was built without the var. Set it and rebuild (restart Metro after
   editing `mobile/.env` — `EXPO_PUBLIC_*` values are inlined at bundle time).
 
-- **Local health check (`scripts/local_bubble_health`):**
+- **Local health check (`npm run qa:health`):**
   ```
-  ❌  Secrets: mobile/.env missing/empty: EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
-  ❌  Secrets: .env is NOT gitignored — secrets could be committed
-  ❌  Secrets: possible live secret(s) committed: ...
+  ❌  secrets-env: mobile/.env missing/empty: EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+  🚨  secrets-gitignore: .env is NOT gitignored — secrets could be committed
+  🚨  secrets-leak-scan: possible live secrets committed (values redacted)
   ```
+  It also covers the EAS side: whether the EAS CLI is installed (needed for
+  `eas build --local`) and which required client vars each `eas.json` profile
+  must get from EAS env vars (login state is probed under `-v`).
 
 - **Feature works on the simulator but not the device / not after a build:** usually
   a value that resolves on your Mac (e.g. a Bonjour `*.local` host or a key in your
@@ -181,9 +184,9 @@ eas build --local --profile preview
 1. `cp mobile/.env.example mobile/.env` and fill in real values (this file is
    gitignored).
 2. For the server, populate the root `.env` (DB URL, `JWT_SECRET`, `ENCRYPTION_KEY`).
-3. Run `scripts/local_bubble_health` — its `check_secrets` step verifies the env
-   files are complete, that `.env` is gitignored, and that no live secret is
-   committed.
+3. Run `npm run qa:health` — its secrets checks verify the env files are
+   complete, that `.env` is gitignored, and that no live secret is committed
+   (hits are shown with values redacted).
 4. Restart Metro after editing `mobile/.env`.
 
 ---

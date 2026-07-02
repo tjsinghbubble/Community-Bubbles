@@ -226,11 +226,142 @@ def test_generated_shell_lints():
         check(f"edit output is valid zsh{'' if e_ok else ' — ' + e_err}", e_ok)
 
 
+def test_health_grammar():
+    check("plural 1", t.plural(1, "emulator") == "emulator")
+    check("plural 2", t.plural(2, "emulator") == "emulators")
+    check("plural 0", t.plural(0, "emulator") == "emulators")
+    check("count_phrase 0", t.count_phrase(0, "iOS simulator", "running")
+          == "No iOS simulator is running")
+    check("count_phrase 1", t.count_phrase(1, "Android emulator", "running")
+          == "1 Android emulator is running")
+    check("count_phrase 2", t.count_phrase(2, "Android emulator", "running")
+          == "2 Android emulators are running")
+    check("count_phrase no verb", t.count_phrase(2, "Android device") == "2 Android devices")
+    check("is_are", t.is_are(1) == "is" and t.is_are(3) == "are")
+
+
+def test_alias_selection():
+    check("shortest alias wins", t._shortest_alias(["Charlotte", "Bo", "Alexandra"]) == "Bo")
+    check("alias tie → alphabetical", t._shortest_alias(["Zed", "Amy", "Bob"]) == "Amy")
+    check("no aliases → None", t._shortest_alias([]) is None)
+    check("device line with alias",
+          t._device_line("Charlotte", "Pixel_10", "Android 17", ["API 37", "optimized/hot"])
+          == "Charlotte - Pixel_10 - Android 17 - API 37 - optimized/hot")
+    check("device line drops empty extras + dup alias",
+          t._device_line("Pixel_10", "Pixel_10", "Android 17", [None])
+          == "Pixel_10 - Android 17")
+
+
+def test_secrets_helpers():
+    sample = 'FOO=1\nREQUIRED=(\n  EXPO_PUBLIC_API_URL\n  EXPO_PUBLIC_X_KEY\n)\nBAR=2'
+    check("parse REQUIRED array",
+          t.parse_required_client_vars(sample) == ["EXPO_PUBLIC_API_URL", "EXPO_PUBLIC_X_KEY"])
+    check("parse garbage → fallback",
+          t.parse_required_client_vars("nothing here") == list(t.CLIENT_REQUIRED_FALLBACK))
+    check("env_file_has present", t._env_file_has("A=1\nJWT_SECRET=abc\n", "JWT_SECRET"))
+    check("env_file_has empty value", not t._env_file_has("JWT_SECRET=\n", "JWT_SECRET"))
+    check("env_file_has absent", not t._env_file_has("OTHER=1\n", "JWT_SECRET"))
+    secret = "a1b2c3d4" * 8  # 64 hex chars
+    hit = f".replit:130:JWT_SECRET = \"{secret}\""
+    red = t._redact_hit(hit)
+    check("redact strips the value", secret not in red)
+    check("redact keeps location + name", red.startswith(".replit:130:") and "JWT_SECRET" in red)
+    aiza = "AIza" + "Q" * 35
+    red2 = t._redact_hit(f"src/x.ts:9:key: \"{aiza}\"")
+    check("redact strips AIza key", aiza not in red2)
+    check("redact keeps ALL-CAPS var names",
+          "EXPO_PUBLIC_KEY" in t._redact_hit("f:1:EXPO_PUBLIC_KEY=" + "a1" * 20))
+
+
+def test_eas_helpers():
+    check("_ver_ge newer ok", t._ver_ge("16.30.1", ">= 16.28.0"))
+    check("_ver_ge equal ok", t._ver_ge("16.28.0", ">= 16.28.0"))
+    check("_ver_ge older fails", not t._ver_ge("16.7.9", ">= 16.28.0"))
+    check("_ver_ge unparseable passes", t._ver_ge("weird", "~16") and t._ver_ge(None, None))
+    cfg = {"build": {"development": {"env": {"A": "1"}}, "preview": {"env": {"A": "1", "B": "2"}}}}
+    gaps = t.eas_profile_gaps(cfg, ["A", "B"])
+    check("profile gap found", gaps.get("development") == ["B"])
+    check("complete profile has no gap", "preview" not in gaps)
+    check("missing profile flagged", gaps.get("production") == ["<profile missing>"])
+
+
+def _spec(name, suppress_ok=False, verbose_only=False):
+    return t.HealthSpec(name, lambda: None, suppress_ok, verbose_only)
+
+
+def _fake_results():
+    return [
+        (_spec("quietgreen", suppress_ok=True),
+         {"name": "quietgreen", "status": "ok", "detail": "fine"}),
+        (_spec("alarmcheck", suppress_ok=True),
+         {"name": "alarmcheck", "status": "fail", "alarm": True, "detail": "leak!",
+          "fix": "rotate it", "fix_kind": "manual"}),
+        (_spec("server"),
+         {"name": "server", "status": "fail", "detail": "down",
+          "fix": "start it", "fix_kind": "auto", "fix_cmd": ["npm", "run", "qa:server"],
+          "fix_bg": True, "fix_log": "tests/output/qa-server.log", "fix_probe": "api-port"}),
+        (_spec("server2"),
+         {"name": "server2", "status": "fail", "detail": "also down",
+          "fix": "start it", "fix_kind": "auto", "fix_cmd": ["npm", "run", "qa:server"],
+          "fix_bg": True, "fix_log": "tests/output/qa-server.log", "fix_probe": "api-port"}),
+        (_spec("loudgreen"),
+         {"name": "loudgreen", "status": "ok", "detail": "shown"}),
+    ]
+
+
+def test_fix_plan():
+    plan = t.plan_fixes(_fake_results())
+    check("auto fixes planned (deduped)", len(plan["auto"]) == 1)
+    check("auto fix carries cmd/log/probe",
+          plan["auto"][0]["cmd"] == ["npm", "run", "qa:server"]
+          and plan["auto"][0]["log"] == "tests/output/qa-server.log"
+          and plan["auto"][0]["probe"] == "api-port")
+    check("manual fixes listed", [m["name"] for m in plan["manual"]] == ["alarmcheck"])
+    check("ok checks produce no fixes",
+          t.plan_fixes([(_spec("x"), {"name": "x", "status": "ok", "fix_kind": "auto",
+                                      "fix_cmd": ["boom"]})]) == {"auto": [], "manual": []})
+
+
+def test_health_render():
+    results = _fake_results()
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        ok = t.render_health(results, verbose=False, as_json=False)
+    text = out.getvalue()
+    check("render overall not ok", ok is False)
+    check("green suppress_ok hidden", "quietgreen" not in text)
+    check("green non-suppressed shown", "loudgreen" in text)
+    check("alarm shows 🚨", "🚨  alarmcheck" in text)
+    check("registry order kept", text.find("alarmcheck") < text.find("server")
+          and text.find("server") < text.find("loudgreen"))
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        t.render_health(results, verbose=True, as_json=False)
+    check("verbose shows suppressed greens", "quietgreen" in out.getvalue())
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        t.render_health(results, verbose=False, as_json=True,
+                        fixes_applied=[{"name": "server", "pid": 1}])
+    import json as _json
+    payload = _json.loads(out.getvalue())
+    check("json includes suppressed checks",
+          [c["name"] for c in payload["checks"]]
+          == ["quietgreen", "alarmcheck", "server", "server2", "loudgreen"])
+    check("json carries fixesApplied", payload["fixesApplied"][0]["name"] == "server")
+    check("json ok flag", payload["ok"] is False)
+
+
 def main():
     test_time_parsers()
     test_classify_runner()
     test_expand_targets()
     test_small_helpers()
+    test_health_grammar()
+    test_alias_selection()
+    test_secrets_helpers()
+    test_eas_helpers()
+    test_fix_plan()
+    test_health_render()
     test_generated_shell_lints()
     with tempfile.TemporaryDirectory(prefix="selftest_testctl_") as d:
         test_lock_lifecycle(Path(d))

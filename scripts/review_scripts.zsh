@@ -10,9 +10,9 @@
 #   review_scripts [--field ...] <target> [<target> ...]
 #
 #   <target> may be:
-#     - a script path        (scripts/foo.py, tests/runner/qa.ts, scripts/local_bubble_health)
+#     - a script path        (scripts/foo.py, tests/runner/qa.ts, scripts/dev-connect.sh)
 #     - an analysis file      (docs/script/foo-analysis.json)
-#     - a bare script/base name (foo, qa, local_bubble_health)
+#     - a bare script/base name (foo, qa, dev-connect)
 #   Globs work: `review_scripts --name --purpose scripts/*`.
 #
 #   Switches are field names with `--` and dashes, e.g.:

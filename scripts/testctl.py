@@ -36,7 +36,9 @@ stdlib only; no third-party deps.
 """
 
 import argparse
+import concurrent.futures
 import fcntl
+import inspect
 import json
 import os
 import plistlib
@@ -47,10 +49,20 @@ import socket
 import subprocess
 import sys
 import time
+from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
 from urllib.request import urlopen
 from urllib.error import URLError, HTTPError
+
+# Sibling dev-tools imported as modules (same pattern scripts/helpers/selftest_* uses):
+# manage_devices for device discovery + aliases, helper_toolchain for the toolchain
+# capability probe. Both are pure at import (no DB or subprocess side effects).
+_SCRIPTS_DIR = str(Path(__file__).resolve().parent)
+if _SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPTS_DIR)
+import manage_devices as md
+from helpers import helper_toolchain as htc
 
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = REPO / "tests" / "output"
@@ -66,6 +78,12 @@ API_PORT = int(os.environ.get("API_PORT", "3000"))
 METRO_PORT = int(os.environ.get("METRO_PORT", "8081"))
 APP_ID = os.environ.get("QA_APP_ID", "com.bubble.mobile")
 LOAD_CEILING = float(os.environ.get("QA_LOAD_CEILING", "75"))
+
+# health: per-check wall-clock budget. Checks run in parallel worker threads; one
+# wedged tool (adb/simctl are the usual suspects) degrades to a warn instead of
+# blanking the whole report.
+QA_HEALTH_CHECK_TIMEOUT_S = float(os.environ.get("QA_HEALTH_CHECK_TIMEOUT_S", "25"))
+CHECK_ENV_CMD = "./scripts/check-env.sh --fix"
 
 # Maestro Android driver gRPC server (see driver-health / cmd_driver_health). The
 # maestro JVM serves `maestro_android.MaestroDriver` on host localhost:7001, opened
@@ -907,6 +925,138 @@ def cmd_nuke(spec, as_json):
 
 
 # ── health ────────────────────────────────────────────────────────────────────
+# All environment checking lives here (scripts/local_bubble_health was folded in
+# and deleted). Checks are small functions returning the dict shape below; they run
+# in PARALLEL (thread pool) and print in the fixed HEALTH_CHECKS registry order, so
+# output stays deterministic while the slow device probes overlap.
+#
+# Check dict:
+#   name/status/detail        as before (status: ok | warn | fail)
+#   alarm: bool               🚨 severity (secrets protection issues) instead of ❌
+#   lines: [str]              indented per-device/per-hit lines under the detail
+#   why: str                  what/why narration, shown under -v
+#   quiet: bool               suppress this ok result unless -v (per-result override)
+#   fix: str                  human advice (existing)
+#   fix_kind: "auto"|"manual" --fix executes "auto" ones; everything else is advice.
+#                             sudo / brew / >5-min tasks / image downloads are NEVER auto.
+#   fix_cmd: [argv]           command --fix runs (auto only)
+#   fix_bg: bool              run in a background shell (servers) vs foreground
+#   fix_log: str              repo-relative log path shown to the user (bg only)
+#   fix_probe: str            FIX_PROBES key re-checked before acting (double-start guard)
+
+
+def plural(n, noun):
+    """'emulator' -> 'emulators' when n != 1. Our nouns are all regular."""
+    return noun if n == 1 else noun + "s"
+
+
+def is_are(n):
+    return "is" if n == 1 else "are"
+
+
+def count_phrase(n, noun, verb_ing=None):
+    """Grammatical count: (1,'Android emulator','running') -> '1 Android emulator is
+    running'; 0 -> 'No Android emulator is running'; 2 -> '2 Android emulators are
+    running'. verb_ing=None omits the verb clause ('2 Android devices')."""
+    head = f"No {noun}" if n == 0 else f"{n} {plural(n, noun)}"
+    if verb_ing is None:
+        return head
+    return f"{head} {is_are(n or 1) if n else 'is'} {verb_ing}"
+
+
+def _ro_device_db():
+    """Fresh READ-ONLY connection to the device-manager DB (one per call). Health
+    checks run in worker threads, so manage_devices' single global connection
+    (md.db()) must never be used here — same pattern as _device_label above.
+    None if the DB is absent or unopenable."""
+    if not DEVICE_DB.exists():
+        return None
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{DEVICE_DB}?mode=ro", uri=True, timeout=2)
+        con.row_factory = sqlite3.Row
+        return con
+    except Exception:
+        return None
+
+
+def _shortest_alias(names):
+    """Display alias policy: the shortest name wins ('Bo' before 'Charlotte'),
+    ties broken alphabetically. None when there are no aliases."""
+    return min(names, key=lambda a: (len(a), a.lower())) if names else None
+
+
+def pick_alias(udid, con=None):
+    """Shortest human alias for a device from the device-manager DB, or None.
+    Pass an open read-only connection to batch lookups; otherwise opens its own."""
+    own = con is None
+    if own:
+        con = _ro_device_db()
+    if con is None:
+        return None
+    try:
+        rows = [r[0] for r in con.execute(
+            "SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user')",
+            (udid,))]
+    except Exception:
+        rows = []
+    finally:
+        if own:
+            con.close()
+    return _shortest_alias(rows)
+
+
+def _compile_levels():
+    """udid -> compile_level (low|medium|hot) for devices with a recorded warmup."""
+    con = _ro_device_db()
+    if con is None:
+        return {}
+    try:
+        return {r["udid"]: r["compile_level"] for r in con.execute(
+            "SELECT udid, compile_level FROM devices WHERE compile_level IS NOT NULL")}
+    except Exception:
+        return {}
+    finally:
+        con.close()
+
+
+def _last_device_fix(platform):
+    """Auto-fix fields to boot the last-used device of a platform — only when the
+    device-manager kv table has one recorded; {} otherwise (caller falls back to
+    manual advice)."""
+    con = _ro_device_db()
+    if con is None:
+        return {}
+    try:
+        row = con.execute("SELECT v FROM kv WHERE k=?", (f"last_{platform}",)).fetchone()
+    except Exception:
+        row = None
+    finally:
+        con.close()
+    if not row:
+        return {}
+    return {"fix": f"boot the last-used {platform} device: "
+                   f"`python3 scripts/manage_devices.py --start last-{platform}`",
+            "fix_kind": "auto",
+            "fix_cmd": ["python3", "scripts/manage_devices.py", "--start", f"last-{platform}"]}
+
+
+def _device_line(alias, name, os_label, extras=()):
+    """One indented device line: 'Charlotte - Pixel_10… - Android 17 - API 37 -
+    optimized/hot'. alias is dropped when absent or identical to the name."""
+    parts = ([alias] if alias and alias != name else []) + [name, os_label]
+    parts += [e for e in extras if e]
+    return " - ".join(parts)
+
+
+def _adb_getprop(serial, prop):
+    try:
+        r = subprocess.run([md.adb_bin(), "-s", serial, "shell", "getprop", prop],
+                           capture_output=True, text=True, timeout=8)
+        return (r.stdout or "").strip() or None
+    except (subprocess.SubprocessError, OSError):
+        return None
+
 
 def check_load():
     one, five, _ = os.getloadavg()
@@ -930,7 +1080,11 @@ def check_api():
     if not v4 and not v6:
         return {"name": "api-server", "status": "fail",
                 "detail": f"DOWN — nothing listening on port {API_PORT} (v4 or v6)",
-                "fix": "start it: `npm run qa:server` (serves bubble_test; plain dev server breaks seeded logins)"}
+                "fix": "start it: `npm run qa:server` (serves bubble_test; plain dev server breaks seeded logins)",
+                "fix_kind": "auto", "fix_cmd": ["npm", "run", "qa:server"],
+                "fix_bg": True, "fix_log": "tests/output/qa-server.log",
+                "fix_probe": "api-port",
+                "why": f"e2e/headless tests hit the API on :{API_PORT}; qa:server is the default because it serves the bubble_test DB the seeded logins need"}
     code, body = http_get(f"http://127.0.0.1:{API_PORT}/api/v1/health", timeout=8)
     if code is None:
         return {"name": "api-server", "status": "fail",
@@ -975,7 +1129,11 @@ def check_metro():
     if code is None and not tcp_open("127.0.0.1", METRO_PORT):
         return {"name": "metro", "status": "fail",
                 "detail": f"DOWN — nothing on :{METRO_PORT}",
-                "fix": "start it: `npm run mobile:start` (or metro_bundler). If watchman EPERM after a brew upgrade: `watchman shutdown-server`"}
+                "fix": "start it: `npm run metro_bundler`. If watchman EPERM after a brew upgrade: `watchman shutdown-server`",
+                "fix_kind": "auto", "fix_cmd": ["npm", "run", "metro_bundler"],
+                "fix_bg": True, "fix_log": "tests/output/metro.log",
+                "fix_probe": "metro-port",
+                "why": f"the dev-build app loads its JS bundle from Metro on :{METRO_PORT}; e2e flows hang on a white screen without it"}
     return {"name": "metro", "status": "fail",
             "detail": f"HUNG/odd — :{METRO_PORT} open but /status → {code or 'no response'}",
             "fix": "restart Metro: `npm run mobile:start`"}
@@ -1075,19 +1233,729 @@ def check_sim_binary():
             "detail": f"{APP_ID} on '{sim['name']}' iOS {sim['runtime']}, SDK {sdk}, binary {age} old"}
 
 
-def cmd_health(as_json):
-    checks = [check_load(), check_api(), check_qa_server_identity(), check_metro(),
-              check_sim_binary(), check_sim_age()]
-    ok = all(c["status"] == "ok" for c in checks)
-    if as_json:
-        print(json.dumps({"ok": ok, "checks": checks}, indent=2))
+def _adb_shell(serial, *args):
+    try:
+        r = subprocess.run([md.adb_bin(), "-s", serial, "shell", *args],
+                           capture_output=True, text=True, timeout=8)
+        return (r.stdout or "").strip()
+    except (subprocess.SubprocessError, OSError):
+        return ""
+
+
+REQUIRED_TOOLS = ("node", "npm", "npx", "psql", "maestro", "watchman")
+
+
+def check_tooling():
+    """Fast presence gate only. Installing is check-env.sh's job — never duplicated
+    here, never run automatically (brew/installers can want sudo or network)."""
+    cap = htc.capabilities()
+    missing = []
+    if not cap["xcode"]:
+        missing.append("Xcode/xcrun")
+    if not cap["adb"]:
+        missing.append("adb (Android platform-tools)")
+    if not cap["emulator"]:
+        missing.append("emulator (Android SDK)")
+    missing += [t for t in REQUIRED_TOOLS if not shutil.which(t)]
+    why = ("the e2e/headless suites shell out to these; health only detects gaps — "
+           "installs go through check-env.sh")
+    if missing:
+        return {"name": "tooling", "status": "fail",
+                "detail": f"missing: {', '.join(missing)}",
+                "fix": f"install what's missing: `{CHECK_ENV_CMD}` "
+                       "(brew/installer steps are never run automatically)",
+                "fix_kind": "manual", "why": why}
+    note = ("" if cap["avd_images"]
+            else " — but no Android AVD images yet (create one in Android Studio's Device Manager)")
+    return {"name": "tooling", "status": "ok",
+            "detail": "Xcode, Android SDK/adb/emulator, " + ", ".join(REQUIRED_TOOLS)
+                      + " all present" + note,
+            "why": why}
+
+
+def check_ios_sims():
+    if not htc.capabilities()["simctl"]:
+        return {"name": "ios-simulators", "status": "fail",
+                "detail": "xcrun/simctl unavailable — cannot query iOS simulators",
+                "fix": f"install Xcode, then `{CHECK_ENV_CMD}` for the rest",
+                "fix_kind": "manual"}
+    devs = md.ios_devices()
+    live = [d for d in devs if d["state"] in ("Running", "Booting")]
+    installed = len(devs)
+    if not devs:
+        return {"name": "ios-simulators", "status": "fail",
+                "detail": "no iOS simulators installed",
+                "fix": "add one in Xcode (Settings → Platforms / Devices & Simulators)",
+                "fix_kind": "manual"}
+    if not live:
+        base = {"name": "ios-simulators", "status": "fail",
+                "detail": f"{count_phrase(0, 'iOS simulator', 'running')} — "
+                          f"{installed} {is_are(installed)} installed",
+                "fix": "boot one: `python3 scripts/manage_devices.py --start <alias>` "
+                       "(list: `python3 scripts/manage_devices.py -l`)",
+                "fix_kind": "manual"}
+        base.update(_last_device_fix("ios"))
+        return base
+    con = _ro_device_db()
+    lines = []
+    try:
+        for d in live:
+            alias = pick_alias(d["id"], con)
+            booting = "booting" if d["state"] == "Booting" else None
+            lines.append(_device_line(alias, d["name"], f"iOS {d['os_version']}", [booting]))
+    finally:
+        if con is not None:
+            con.close()
+    return {"name": "ios-simulators", "status": "ok",
+            "detail": f"{count_phrase(len(live), 'iOS simulator', 'running')} — "
+                      f"{installed} installed",
+            "lines": lines}
+
+
+def check_android_emulators():
+    cap = htc.capabilities()
+    if not (cap["adb"] and cap["emulator"]):
+        return {"name": "android-emulators", "status": "fail",
+                "detail": "Android SDK tooling (adb/emulator) unavailable",
+                "fix": f"install Android Studio + platform-tools: `{CHECK_ENV_CMD}`",
+                "fix_kind": "manual"}
+    devs = md.android_all()
+    live = [d for d in devs if d["state"] in ("Running", "Booting")]
+    installed = len(devs)
+    levels = _compile_levels()
+    optimized = sum(1 for d in devs if levels.get(d["id"]))
+    counts = f"{installed} {is_are(installed)} installed, {optimized} optimized"
+    why = ("'optimized' = a recorded AOT warmup level (low/medium/hot) from "
+           "`manage_devices --warmup`; warmups take 20-90 min so they are never auto-run")
+    if not devs:
+        return {"name": "android-emulators", "status": "fail",
+                "detail": "no Android emulator AVDs defined",
+                "fix": "create one in Android Studio's Device Manager "
+                       "(system-image downloads are never automatic)",
+                "fix_kind": "manual", "why": why}
+    if not live:
+        base = {"name": "android-emulators", "status": "fail",
+                "detail": f"{count_phrase(0, 'Android emulator', 'running')} — {counts}",
+                "fix": "boot one: `python3 scripts/manage_devices.py --start <alias>` "
+                       "(list: `python3 scripts/manage_devices.py -l`)",
+                "fix_kind": "manual", "why": why}
+        base.update(_last_device_fix("android"))
+        return base
+    con = _ro_device_db()
+    lines = []
+    try:
+        for d in live:
+            alias = pick_alias(d["id"], con)
+            api = _adb_getprop(d["serial"], "ro.build.version.sdk") if d.get("serial") else None
+            level = levels.get(d["id"])
+            extras = [f"API {api}" if api else None,
+                      f"optimized/{level}" if level else "not optimized",
+                      "booting" if d["state"] == "Booting" else None,
+                      "headless" if md.looks_headless(d) else None]
+            lines.append(_device_line(alias, d["name"],
+                                      f"Android {d['os_version'] or '?'}", extras))
+    finally:
+        if con is not None:
+            con.close()
+    return {"name": "android-emulators", "status": "ok",
+            "detail": f"{count_phrase(len(live), 'Android emulator', 'running')} — {counts}",
+            "lines": lines, "why": why}
+
+
+def check_genymotion():
+    if not htc.capabilities()["genymotion"]:
+        return {"name": "genymotion", "status": "ok",
+                "detail": "gmtool not installed (Genymotion is optional)"}
+    try:
+        r = subprocess.run(["gmtool", "admin", "list"],
+                           capture_output=True, text=True, timeout=10)
+    except (subprocess.SubprocessError, OSError):
+        return {"name": "genymotion", "status": "warn",
+                "detail": "`gmtool admin list` failed/timed out — Genymotion state unknown"}
+    rows = [l.split("|") for l in (r.stdout or "").splitlines() if "|" in l]
+    on = [row for row in rows if len(row) >= 4 and "On" in row[2]]
+    if not on:
+        return {"name": "genymotion", "status": "ok",
+                "detail": "no Genymotion VM running (gmtool present)"}
+    lines = [f"{row[1].strip()} ({row[3].strip()}:5555)" for row in on]
+    return {"name": "genymotion", "status": "ok",
+            "detail": count_phrase(len(on), "Genymotion emulator", "running"),
+            "lines": lines}
+
+
+def check_real_devices():
+    """Native/physical devices — previously invisible to the health view. Android
+    real devices run e2e like emulators; iOS real devices are list-only (signing
+    unresolved — see manage_devices.ios_real)."""
+    cap = htc.capabilities()
+    droids = md.android_real() if cap["adb"] else []
+    iphones = md.ios_real() if cap["xcode"] else []
+    n = len(droids) + len(iphones)
+    if n == 0:
+        return {"name": "real-devices", "status": "ok",
+                "detail": "no real (physical) devices attached"}
+    con = _ro_device_db()
+    try:
+        lines = [_device_line(pick_alias(d["id"], con), d["name"],
+                              f"Android {d['os_version'] or '?'}", [f"serial {d['serial']}"])
+                 for d in droids]
+        lines += [_device_line(pick_alias(d["id"], con), d["name"],
+                               f"iOS {d['os_version']}",
+                               ["list-only; e2e execution unsupported"])
+                  for d in iphones]
+    finally:
+        if con is not None:
+            con.close()
+    return {"name": "real-devices", "status": "ok",
+            "detail": count_phrase(n, "real device", "attached"), "lines": lines}
+
+
+def check_db():
+    if not shutil.which("psql"):
+        return {"name": "db-server", "status": "fail",
+                "detail": "psql not on PATH — cannot check PostgreSQL",
+                "fix": f"install tooling: `{CHECK_ENV_CMD}`", "fix_kind": "manual"}
+    try:
+        r = subprocess.run(["psql", "-d", "postgres", "-tAc", "SELECT 1"],
+                           capture_output=True, text=True, timeout=10)
+    except subprocess.TimeoutExpired:
+        return {"name": "db-server", "status": "warn",
+                "detail": "psql hung for 10s — PostgreSQL wedged?"}
+    if r.returncode != 0 or r.stdout.strip() != "1":
+        return {"name": "db-server", "status": "fail",
+                "detail": "PostgreSQL is not answering on the default socket",
+                "fix": "start it: `brew services start postgresql@16` "
+                       "(service management is left to you)",
+                "fix_kind": "manual"}
+    try:
+        l = subprocess.run(["psql", "-lqt"], capture_output=True, text=True, timeout=10)
+        dbs = {line.split("|")[0].strip() for line in l.stdout.splitlines() if "|" in line}
+    except subprocess.TimeoutExpired:
+        dbs = set()
+    if "bubble_test" not in dbs:
+        return {"name": "db-server", "status": "warn",
+                "detail": "PostgreSQL up, but the test DB 'bubble_test' does not exist "
+                          "— qa:server and seeded logins need it",
+                "fix": "create + seed it (see tests/README.md): TEST_DATABASE_URL drives "
+                       "`npm run qa:provision` / `npm run qa:seed`",
+                "fix_kind": "manual"}
+    return {"name": "db-server", "status": "ok",
+            "detail": "PostgreSQL up; bubble_test present"}
+
+
+def check_adb_reverse():
+    """On-device connectivity: the app reaches the Mac's API/Metro via `adb reverse`
+    tunnels (scripts/dev-connect.sh, docs/dev-hosts.md). Checked per adb target."""
+    if not htc.capabilities()["adb"]:
+        return {"name": "adb-reverse", "status": "ok", "quiet": True,
+                "detail": "adb unavailable — reverse tunnel n/a"}
+    targets = md.android_running() + md.android_real()
+    if not targets:
+        return {"name": "adb-reverse", "status": "ok", "quiet": True,
+                "detail": "no running Android device — reverse tunnel not applicable"}
+    problems = []
+    for d in targets:
+        serial = d.get("serial") or d["id"]
+        try:
+            r = subprocess.run([md.adb_bin(), "-s", serial, "reverse", "--list"],
+                               capture_output=True, text=True, timeout=8)
+            listed = r.stdout or ""
+        except (subprocess.SubprocessError, OSError):
+            problems.append(f"{d['name']}: adb reverse --list failed/timed out")
+            continue
+        absent = [f"tcp:{p}" for p in (API_PORT, METRO_PORT) if f"tcp:{p}" not in listed]
+        if absent:
+            problems.append(f"{d['name']}: missing {', '.join(absent)}")
+    why = (f"the on-device app reaches the Mac's API (:{API_PORT}) and Metro "
+           f"(:{METRO_PORT}) through adb reverse tunnels; without them e2e flows "
+           "can't even log in")
+    if problems:
+        return {"name": "adb-reverse", "status": "fail",
+                "detail": f"reverse tunnel incomplete on "
+                          f"{count_phrase(len(problems), 'Android device')}",
+                "lines": problems,
+                "fix": "set up tunnels: `bash scripts/dev-connect.sh android`",
+                "fix_kind": "auto",
+                "fix_cmd": ["bash", "scripts/dev-connect.sh", "android"],
+                "why": why}
+    return {"name": "adb-reverse", "status": "ok",
+            "detail": f"tcp:{API_PORT} + tcp:{METRO_PORT} reversed on "
+                      f"{count_phrase(len(targets), 'Android device')}",
+            "why": why}
+
+
+# ── health: secrets (ported from the retired scripts/local_bubble_health) ──────
+# Required client vars mirror mobile/scripts/check-secrets.sh (the build gate is the
+# single source of truth — parsed, not forked). Server vars have no better source
+# than this constant (.env.example is prose). Values are NEVER printed.
+
+CLIENT_REQUIRED_FALLBACK = ("EXPO_PUBLIC_API_URL", "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY",
+                            "EXPO_PUBLIC_COMETCHAT_APP_ID")
+SERVER_REQUIRED_VARS = ("DATABASE_URL", "JWT_SECRET", "ENCRYPTION_KEY")
+
+# Live-looking secrets in TRACKED files. The hex pattern (NAME_SECRET=<32+ hex>)
+# exists because real committed values in that shape were missed by the original
+# three (rotation is tracked on Trello; this alarm is the forcing function).
+LEAK_PATTERNS = (
+    r"AIza[0-9A-Za-z_-]{35}",                      # Google API key
+    r"sk_live_[0-9A-Za-z]+",                       # Stripe live key
+    r"-----BEGIN [A-Z ]*PRIVATE KEY-----",         # PEM private key
+    r"[A-Z_]*(SECRET|PASSWORD)[A-Z_]*[[:space:]]*=[[:space:]]*[\"']?[0-9a-f]{32,}",
+)
+# Excludes: examples/docs, images + locks (base64 blobs false-positive on AIza…).
+LEAK_EXCLUDES = (
+    ":(exclude)*.example", ":(exclude)docs/*",
+    ":(exclude)*.svg", ":(exclude)*.png", ":(exclude)*.jpg", ":(exclude)*.jpeg",
+    ":(exclude)*.gif", ":(exclude)*.lock", ":(exclude)*lock.json",
+    ":(exclude)*/assets/*",
+)
+
+
+def parse_required_client_vars(text):
+    """The REQUIRED=( … ) array from mobile/scripts/check-secrets.sh."""
+    m = re.search(r"REQUIRED=\(([^)]*)\)", text or "")
+    if not m:
+        return list(CLIENT_REQUIRED_FALLBACK)
+    found = [w for w in m.group(1).split() if re.fullmatch(r"[A-Z][A-Z0-9_]*", w)]
+    return found or list(CLIENT_REQUIRED_FALLBACK)
+
+
+def _client_required_vars():
+    gate = REPO / "mobile" / "scripts" / "check-secrets.sh"
+    try:
+        return parse_required_client_vars(gate.read_text())
+    except OSError:
+        return list(CLIENT_REQUIRED_FALLBACK)
+
+
+def _env_file_has(text, var):
+    """VAR=<non-empty> present in env-file text."""
+    return bool(re.search(rf"^{re.escape(var)}=.+", text or "", re.M))
+
+
+def _redact_hit(line):
+    """git-grep hit 'path:NN:content' → 'path:NN: content' with every secret-shaped
+    substring replaced. Belt and braces: the known patterns AND any long hex/base64
+    run, so a value can never reach the terminal."""
+    m = re.match(r"([^:]+:\d+):", line)
+    loc, rest = (m.group(1), line[m.end():]) if m else ("?", line)
+    for pat in (r"AIza[0-9A-Za-z_-]{35}", r"sk_live_[0-9A-Za-z]+",
+                r"[0-9a-fA-F]{16,}",
+                # long mixed token (base64-ish) — must contain a lowercase AND a
+                # digit, so ALL-CAPS var names stay readable in the report
+                r"(?=[A-Za-z0-9+/=_-]*[a-z])(?=[A-Za-z0-9+/=_-]*[0-9])[A-Za-z0-9+/=_-]{28,}"):
+        rest = re.sub(pat, "‹redacted›", rest)
+    return f"{loc}: {rest.strip()[:100]}"
+
+
+def check_secrets_gitignore():
+    gi = REPO / ".gitignore"
+    try:
+        ignored = re.search(r"^\.env$", gi.read_text(), re.M)
+    except OSError:
+        ignored = None
+    if ignored:
+        return {"name": "secrets-gitignore", "status": "ok",
+                "detail": ".env is gitignored"}
+    return {"name": "secrets-gitignore", "status": "fail", "alarm": True,
+            "detail": ".env is NOT gitignored — secrets could be committed",
+            "fix": "add a `.env` line to .gitignore — see docs/SECRETS_MANAGEMENT.md",
+            "fix_kind": "manual"}
+
+
+def check_secrets_leaks():
+    pattern = "|".join(LEAK_PATTERNS)
+    try:
+        r = subprocess.run(["git", "-C", str(REPO), "grep", "-nIE", pattern,
+                            "--", *LEAK_EXCLUDES],
+                           capture_output=True, text=True, timeout=30)
+    except (subprocess.SubprocessError, OSError):
+        return {"name": "secrets-leak-scan", "status": "warn",
+                "detail": "leak scan failed/timed out (git grep)"}
+    if r.returncode not in (0, 1):                 # 1 = clean (no match)
+        return {"name": "secrets-leak-scan", "status": "warn",
+                "detail": f"leak scan errored: {(r.stderr or '').strip()[:120]}"}
+    hits = [l for l in r.stdout.splitlines() if l.strip()]
+    if not hits:
+        return {"name": "secrets-leak-scan", "status": "ok",
+                "detail": "no obvious live secrets in tracked files"}
+    shown = [_redact_hit(h) for h in hits[:20]]
+    if len(hits) > 20:
+        shown.append(f"… and {len(hits) - 20} more")
+    return {"name": "secrets-leak-scan", "status": "fail", "alarm": True,
+            "detail": f"possible live {plural(len(hits), 'secret')} committed "
+                      f"({len(hits)} {plural(len(hits), 'hit')}) — values redacted here",
+            "lines": shown,
+            "fix": "rotate the value, remove it from tracked files — "
+                   "see docs/SECRETS_MANAGEMENT.md",
+            "fix_kind": "manual",
+            "why": "scans TRACKED files for key-shaped strings (Google/Stripe/PEM/"
+                   "NAME_SECRET=hex); a hit means rotate + purge, not just delete"}
+
+
+def check_secrets_env():
+    problems = []
+    client_req = _client_required_vars()
+    mobile_env = REPO / "mobile" / ".env"
+    if not mobile_env.exists():
+        problems.append("mobile/.env not found (copy from mobile/.env.example)")
     else:
-        icons = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
-        for c in checks:
-            print(f"{icons[c['status']]}  {c['name']}: {c['detail']}")
-            if c.get("fix"):
-                print(f"      ↳ {c['fix']}")
-    return 0 if ok else 1
+        text = mobile_env.read_text()
+        miss = [v for v in client_req if not _env_file_has(text, v)]
+        if miss:
+            problems.append(f"mobile/.env missing/empty: {', '.join(miss)}")
+    root_env = REPO / ".env"
+    if not root_env.exists():
+        problems.append(".env not found at the repo root")
+    else:
+        text = root_env.read_text()
+        miss = [v for v in SERVER_REQUIRED_VARS if not _env_file_has(text, v)]
+        if miss:
+            problems.append(f"root .env missing/empty: {', '.join(miss)}")
+    if problems:
+        return {"name": "secrets-env", "status": "fail",
+                "detail": "; ".join(problems),
+                "fix": "fill the listed vars — docs/SECRETS_MANAGEMENT.md says where "
+                       "each value lives (values are never printed here)",
+                "fix_kind": "manual"}
+    return {"name": "secrets-env", "status": "ok",
+            "detail": f"mobile/.env has all {len(client_req)} required client vars; "
+                      f"root .env has all {len(SERVER_REQUIRED_VARS)} required server vars"}
+
+
+# ── health: EAS (Expo Application Services) ────────────────────────────────────
+
+def _ver_ge(version, constraint):
+    """'16.30.1' satisfies '>= 16.28.0'. eas.json only uses >= constraints; anything
+    unparseable passes (never block on a version-string quirk)."""
+    m = re.match(r">=\s*([\d.]+)", (constraint or "").strip())
+    have = [int(x) for x in re.findall(r"\d+", version or "")[:3]]
+    if not m or not have:
+        return True
+    need = [int(x) for x in re.findall(r"\d+", m.group(1))[:3]]
+    have += [0] * (len(need) - len(have))
+    return have[:len(need)] >= need
+
+
+def eas_profile_gaps(cfg, client_required):
+    """{profile: [required client vars not in its eas.json env block]} for the
+    local-build-relevant profiles. A gap is NOT an error — real secrets must not
+    live in eas.json — but it means the var has to come from EAS env vars, which
+    is unverifiable offline."""
+    gaps = {}
+    for prof in ("development", "preview", "production"):
+        b = (cfg.get("build") or {}).get(prof)
+        if b is None:
+            gaps[prof] = ["<profile missing>"]
+            continue
+        env = b.get("env") or {}
+        missing = [v for v in client_required if v not in env]
+        if missing:
+            gaps[prof] = missing
+    return gaps
+
+
+def check_eas(verbose=False):
+    """EAS local builds (`eas build --local`) are one team workflow. Offline checks
+    only by default: CLI presence/version + eas.json shape. `eas whoami` (network)
+    runs under -v; `eas env:list` (auth + project scope) is advice, never a probe."""
+    eas_json = REPO / "mobile" / "eas.json"
+    if not eas_json.exists():
+        return {"name": "eas", "status": "ok",
+                "detail": "no mobile/eas.json — EAS builds not configured here"}
+    try:
+        cfg = json.loads(eas_json.read_text())
+    except (OSError, ValueError) as e:
+        return {"name": "eas", "status": "warn",
+                "detail": f"mobile/eas.json unreadable/invalid: {e}",
+                "fix": "fix the JSON — every EAS build (cloud and --local) parses it",
+                "fix_kind": "manual"}
+    if not shutil.which("eas"):
+        return {"name": "eas", "status": "warn",
+                "detail": "EAS CLI is not installed — `eas build --local` will not work",
+                "fix": "install it: `npm install -g eas-cli` "
+                       "(global npm installs are never run automatically)",
+                "fix_kind": "manual",
+                "why": "one team workflow builds the mobile binary locally with "
+                       "`eas build --local`; e2e testing itself does not require EAS"}
+    status, lines, ver = "ok", [], None
+    try:
+        r = subprocess.run(["eas", "--version"], capture_output=True, text=True,
+                           timeout=15)
+        m = re.search(r"eas-cli/(\d+(?:\.\d+)*)", r.stdout or "")
+        ver = m.group(1) if m else (r.stdout or "").strip() or None
+    except (subprocess.SubprocessError, OSError):
+        pass
+    constraint = (cfg.get("cli") or {}).get("version")
+    if ver and constraint and not _ver_ge(ver, constraint):
+        status = "warn"
+        lines.append(f"eas-cli {ver} is older than eas.json's required {constraint} "
+                     f"— update: `npm install -g eas-cli`")
+    for prof, miss in sorted(eas_profile_gaps(cfg, _client_required_vars()).items()):
+        lines.append(f"profile '{prof}': {', '.join(miss)} not in eas.json env — must "
+                     f"come from EAS env vars (unverifiable offline; check "
+                     f"`eas env:list --environment {prof}`)")
+    if verbose:
+        try:
+            w = subprocess.run(["eas", "whoami"], capture_output=True, text=True,
+                               timeout=10, cwd=str(REPO / "mobile"))
+            acct = (w.stdout or "").strip()
+            lines.append(f"logged in as {acct}" if w.returncode == 0 and acct
+                         else "not logged in — `eas login` before `eas build --local`")
+        except (subprocess.SubprocessError, OSError):
+            lines.append("`eas whoami` failed/timed out (offline?)")
+    detail = (f"EAS CLI {ver or '?'} installed"
+              + (f" (eas.json wants {constraint})" if constraint else ""))
+    return {"name": "eas", "status": status, "detail": detail, "lines": lines,
+            "why": "offline-only checks by default; login/secret state needs network "
+                   "and auth, so it is reported as advice (or probed under -v)"}
+
+
+def check_on_device_binary():
+    """Android analog of check_sim_binary (which covers the booted iOS sim): which
+    app binary is on each running Android device, and its attributes (version,
+    dev/release, dexopt level). Verbose-only — several adb round-trips per device."""
+    if not htc.capabilities()["adb"]:
+        return {"name": "on-device-binary", "status": "ok", "quiet": True,
+                "detail": "adb unavailable — on-device binary checks n/a"}
+    targets = md.android_running() + md.android_real()
+    if not targets:
+        return {"name": "on-device-binary", "status": "ok", "quiet": True,
+                "detail": "no running Android device"}
+    lines, status = [], "ok"
+    con = _ro_device_db()
+    try:
+        for d in targets:
+            serial = d.get("serial") or d["id"]
+            label = pick_alias(d["id"], con) or d["name"]
+            if not _adb_shell(serial, "pm", "path", APP_ID):
+                status = "warn"
+                lines.append(f"{label}: {APP_ID} NOT installed — "
+                             f"`npm run mobile:build:android-emu` "
+                             f"(a build takes >5 min; never run automatically)")
+                continue
+            dump = _adb_shell(serial, "dumpsys", "package", APP_ID)
+            vm = re.search(r"versionName=(\S+)", dump)
+            dex = _adb_shell(serial, "dumpsys", "package", "dexopt")
+            dm = re.search(re.escape(APP_ID) + r".*?\[status=([^\]]+)\]", dex, re.S)
+            lines.append(f"{label}: {APP_ID} {vm.group(1) if vm else '?'}, "
+                         f"{'dev/debuggable' if 'DEBUGGABLE' in dump else 'release'} build, "
+                         f"dexopt {dm.group(1) if dm else 'unknown'}")
+    finally:
+        if con is not None:
+            con.close()
+    return {"name": "on-device-binary", "status": status,
+            "detail": f"app binary on {count_phrase(len(targets), 'running Android device')}",
+            "lines": lines,
+            "why": "stale, missing, or release binaries make e2e flows fail in "
+                   "confusing ways; this shows exactly what each device runs"}
+
+
+# ── health: registry + engine ───────────────────────────────────────────────────
+# Order IS the print order (deterministic even though execution is parallel):
+# secrets alarms first, then tooling, devices, servers, secrets detail, EAS.
+# suppress_ok: an always-green check prints only when non-ok (or under -v).
+# verbose_only: runs only under -v (expensive on-device probing).
+
+HealthSpec = namedtuple("HealthSpec", "name fn suppress_ok verbose_only")
+
+HEALTH_CHECKS = [
+    HealthSpec("secrets-gitignore",  check_secrets_gitignore,  True,  False),
+    HealthSpec("secrets-leak-scan",  check_secrets_leaks,      True,  False),
+    HealthSpec("tooling",            check_tooling,            False, False),
+    HealthSpec("ios-simulators",     check_ios_sims,           False, False),
+    HealthSpec("sim-app-binary",     check_sim_binary,         True,  False),
+    HealthSpec("sim-boot-age",       check_sim_age,            True,  False),
+    HealthSpec("android-emulators",  check_android_emulators,  False, False),
+    HealthSpec("genymotion",         check_genymotion,         True,  False),
+    HealthSpec("real-devices",       check_real_devices,       True,  False),
+    HealthSpec("api-server",         check_api,                False, False),
+    HealthSpec("qa-server-identity", check_qa_server_identity, True,  False),
+    HealthSpec("metro",              check_metro,              False, False),
+    HealthSpec("db-server",          check_db,                 False, False),
+    HealthSpec("adb-reverse",        check_adb_reverse,        False, False),
+    HealthSpec("secrets-env",        check_secrets_env,        False, False),
+    HealthSpec("eas",                check_eas,                True,  False),
+    HealthSpec("load-average",       check_load,               True,  False),
+    HealthSpec("on-device-binary",   check_on_device_binary,   False, True),
+]
+
+
+def _run_one_check(spec, verbose):
+    fn = spec.fn
+    if "verbose" in inspect.signature(fn).parameters:
+        return fn(verbose=verbose)
+    return fn()
+
+
+def run_health_checks(verbose=False):
+    """Run every applicable check in a thread pool (subprocess/IO-bound; adb and
+    simctl are the slow ones) and return [(spec, result)] in REGISTRY order.
+
+    Thread rules: workers may call subprocess-only manage_devices functions
+    (ios_devices/android_all/android_real/ios_real/looks_headless) and HTTP/TCP
+    probes. Device-DB reads go through _ro_device_db() — one fresh read-only
+    connection per call — NEVER md.db()/md.kv_get()/md.aliases_for() (a single
+    shared connection that is not thread-safe and would mutate/lock the DB).
+
+    A check that exceeds QA_HEALTH_CHECK_TIMEOUT_S degrades to a warn; the stuck
+    flag tells cmd_health to os._exit (a wedged thread would hang the interpreter's
+    atexit join)."""
+    specs = [s for s in HEALTH_CHECKS if verbose or not s.verbose_only]
+    ex = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+    futures = {s.name: ex.submit(_run_one_check, s, verbose) for s in specs}
+    deadline = time.time() + QA_HEALTH_CHECK_TIMEOUT_S
+    results, stuck = [], False
+    for s in specs:
+        try:
+            res = futures[s.name].result(timeout=max(0.1, deadline - time.time()))
+            if not isinstance(res, dict):
+                res = {"status": "warn", "detail": f"check returned {type(res).__name__}"}
+        except concurrent.futures.TimeoutError:
+            stuck = True
+            res = {"status": "warn",
+                   "detail": f"check timed out after {QA_HEALTH_CHECK_TIMEOUT_S:.0f}s "
+                             f"(adb/simctl may be wedged)"}
+        except Exception as e:
+            res = {"status": "warn", "detail": f"check errored: {e}"}
+        res.setdefault("name", s.name)
+        results.append((s, res))
+    ex.shutdown(wait=False, cancel_futures=True)
+    return results, stuck
+
+
+ICONS = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
+
+
+def render_health(results, verbose=False, as_json=False, fixes_applied=None):
+    """Print the report. Text: registry order, 🚨 for non-ok alarms, always-green
+    checks suppressed unless non-ok or -v. JSON: EVERY executed check (suppression
+    is text-only). Returns overall ok."""
+    ok = all(r["status"] == "ok" for _, r in results)
+    if as_json:
+        payload = {"ok": ok, "checks": [r for _, r in results]}
+        if fixes_applied is not None:
+            payload["fixesApplied"] = fixes_applied
+        print(json.dumps(payload, indent=2))
+        return ok
+    for spec, r in results:
+        if r["status"] == "ok" and not verbose and (spec.suppress_ok or r.get("quiet")):
+            continue
+        icon = "🚨" if (r.get("alarm") and r["status"] != "ok") else ICONS[r["status"]]
+        print(f"{icon}  {r['name']}: {r['detail']}")
+        for ln in r.get("lines", []):
+            print(f"\t{ln}")
+        if r.get("fix") and r["status"] != "ok":
+            print(f"      ↳ {r['fix']}")
+        if verbose and r.get("why"):
+            print(f"      · why: {r['why']}")
+    return ok
+
+
+# ── health: --fix ────────────────────────────────────────────────────────────────
+
+FIX_PROBES = {
+    "api-port": lambda: tcp_open("127.0.0.1", API_PORT) or tcp_open("::1", API_PORT),
+    "metro-port": lambda: tcp_open("127.0.0.1", METRO_PORT),
+}
+
+
+def plan_fixes(results):
+    """Split non-ok checks into auto-executable actions and manual advice, in
+    registry order. Pure — no execution, no probing — so selftests can assert it.
+    Duplicate fix_cmds collapse to one action (e.g. two checks both wanting
+    qa:server)."""
+    auto, manual, seen = [], [], set()
+    for spec, r in results:
+        if r.get("status") == "ok":
+            continue
+        if r.get("fix_kind") == "auto" and r.get("fix_cmd"):
+            key = tuple(r["fix_cmd"])
+            if key in seen:
+                continue
+            seen.add(key)
+            auto.append({"name": r.get("name", spec.name), "cmd": list(r["fix_cmd"]),
+                         "bg": bool(r.get("fix_bg")), "log": r.get("fix_log"),
+                         "probe": r.get("fix_probe"), "why": r.get("why")})
+        elif r.get("fix"):
+            manual.append({"name": r.get("name", spec.name), "fix": r["fix"]})
+    return {"auto": auto, "manual": manual}
+
+
+def apply_fixes(results, verbose=False, narrate=True):
+    """Execute the auto fixes and list the manual ones. Auto = background server
+    restarts (log path + pid shown), adb reverse tunnels, booting the last-used
+    device. NEVER auto: sudo, brew/installers, >5-min tasks (AOT warmup, builds),
+    device-image downloads, signups. Returns the applied list (--json fixesApplied)."""
+    plan = plan_fixes(results)
+    applied = []
+    sys.stdout.flush()      # the report must land before any child's own output
+
+    def say(msg):
+        if narrate:
+            print(msg, flush=True)
+
+    if not plan["auto"] and not plan["manual"]:
+        say("→ nothing to fix — environment is healthy")
+        return applied
+    if plan["auto"]:
+        OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    android_just_started = False
+    for a in plan["auto"]:
+        probe = FIX_PROBES.get(a["probe"]) if a.get("probe") else None
+        if probe and probe():
+            say(f"→ {a['name']}: already up (raced with another start) — skipping")
+            continue
+        if a["name"] == "adb-reverse" and android_just_started:
+            say("→ adb-reverse: skipped — the emulator only just started booting; "
+                "re-run `npm run qa:health -- --fix` once it's up")
+            continue
+        if verbose and a.get("why"):
+            say(f"      · why: {a['why']}")
+        if a["bg"]:
+            log_path = REPO / a["log"]
+            with open(log_path, "ab") as log_fh:
+                p = subprocess.Popen(a["cmd"], stdout=log_fh, stderr=subprocess.STDOUT,
+                                     start_new_session=True, cwd=str(REPO))
+            say(f"→ {a['name']}: started `{' '.join(a['cmd'])}` in the background "
+                f"(log: {a['log']}, pid {p.pid})")
+            applied.append({"name": a["name"], "cmd": a["cmd"], "pid": p.pid,
+                            "log": a["log"]})
+        else:
+            say(f"→ {a['name']}: running `{' '.join(a['cmd'])}` …")
+            try:
+                r = subprocess.run(a["cmd"], cwd=str(REPO), timeout=120,
+                                   capture_output=not narrate)
+                rc = r.returncode
+            except (subprocess.TimeoutExpired, OSError) as e:
+                rc = -1
+                say(f"→ {a['name']}: failed/timed out ({e}) — run it yourself to see why")
+            applied.append({"name": a["name"], "cmd": a["cmd"], "exit": rc})
+            if rc == 0 and "last-android" in a["cmd"]:
+                android_just_started = True
+    for m in plan["manual"]:
+        say(f"→ manual: {m['name']}: {m['fix']}")
+    if any("pid" in x for x in applied):
+        say("→ re-run `npm run qa:health` in ~30-60s to confirm the background "
+            "restarts came up.")
+    return applied
+
+
+def cmd_health(as_json, verbose=False, fix=False):
+    results, stuck = run_health_checks(verbose)
+    if as_json:
+        fixes = apply_fixes(results, verbose, narrate=False) if fix else None
+        ok = render_health(results, verbose, as_json=True, fixes_applied=fixes)
+    else:
+        ok = render_health(results, verbose, as_json=False)
+        if fix:
+            apply_fixes(results, verbose, narrate=True)
+    rc = 0 if ok else 1
+    if stuck:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(rc)      # a wedged worker thread would hang the atexit thread-join
+    return rc
 
 
 # ── maestro driver health ───────────────────────────────────────────────────────
@@ -2705,6 +3573,12 @@ def main():
     p_nuke.add_argument("--nuke", metavar="LIST",
                         help="same as the positional LIST (kept for npm qa:nuke compatibility)")
     p_health = sub.add_parser("health", help="diagnose the local test environment")
+    p_health.add_argument("-v", "--verbose", action="store_true",
+                          help="narrate what/why, show always-green checks, "
+                               "run on-device probes")
+    p_health.add_argument("--fix", action="store_true",
+                          help="auto-fix what's safe (background server restarts, adb "
+                               "tunnels, boot last device); print commands for the rest")
     p_driver = sub.add_parser("driver-health",
                               help="probe the Maestro Android driver (gRPC deviceInfo if live, else lsof :7001)")
     p_lock = sub.add_parser("lock", help="test-runner mutual-exclusion lock (acquire/release/status)")
@@ -2735,7 +3609,7 @@ def main():
             ap.error("nuke needs targets: `nuke all` or `nuke --nuke=LIST`")
         return cmd_nuke(spec, args.json)
     if args.command == "health":
-        return cmd_health(args.json)
+        return cmd_health(args.json, verbose=args.verbose, fix=args.fix)
     if args.command == "driver-health":
         return cmd_driver_health(args.json)
     if args.command == "lock":

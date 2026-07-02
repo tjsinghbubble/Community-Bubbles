@@ -60,13 +60,28 @@ python3 scripts/testctl.py nuke all                     # positional form works 
   ABANDONED heartbeat gets no marker); everything else gets SIGQUIT, 2s, SIGKILL.
   `mcp` also kills XCUITest drivers owned by the MCP server — orphaned
   drivers are what wedge later CLI runs.
-- **health** — load average vs `QA_LOAD_CEILING`; API socket per family
-  (IPv4/IPv6) then `/api/v1/health` with Down-vs-Hung diagnosis; whether the
-  port-3000 listener actually serves `bubble_test` (qa:server) or a dev DB;
-  Metro `/status`; installed sim binary (DTSDKName + mtime) vs booted runtime;
-  sim boot age (sims booted >500,000s grow crashing processes — warn at 80%,
-  restart required at 95%; the qa runner's sim-boot-age gate auto-restarts).
-  Exit 0 only when all checks pass.
+- **health** — the whole local environment, one command (this absorbed the old
+  `scripts/local_bubble_health`). Checks run in parallel but always print in the
+  same order: secrets alarms (🚨 — .env gitignored, live-looking secrets in
+  tracked files, values redacted) → tooling gate (Xcode/adb/node/maestro/…;
+  installs are `./scripts/check-env.sh --fix`'s job) → iOS simulators, sim
+  binary (DTSDKName + mtime) and boot age (>500,000s grows crashing processes)
+  → Android emulators (short aliases like "Charlotte", optimized/AOT level) →
+  Genymotion → real devices → API socket per family (IPv4/IPv6) +
+  `/api/v1/health` with Down-vs-Hung diagnosis → whether the port-3000 listener
+  actually serves `bubble_test` (qa:server) → Metro `/status` → PostgreSQL +
+  `bubble_test` existence → adb reverse tunnels → required env vars
+  (mobile/.env + root .env; mirrors `mobile/scripts/check-secrets.sh`) → EAS
+  (CLI presence/version, eas.json profile gaps for `eas build --local`) → load
+  average vs `QA_LOAD_CEILING`. Flags: `-v` (narrate what/why, show the
+  always-green checks it normally hides, probe on-device binaries + `eas
+  whoami`); `--fix` (auto-restart dead API/Metro in background shells with the
+  log path printed, re-create adb tunnels, boot the last-used device; anything
+  sudo/brew/slow prints as `→ manual:` advice instead — re-runs are
+  double-start-safe); `--json` (every check, including hidden greens, plus
+  `fixesApplied`). Exit 0 only when all checks pass. The three new-developer
+  questions: *can I test now?* → `npm run qa:health`; *do I install things?* →
+  `./scripts/check-env.sh --fix`; *fix it for me* → `npm run qa:health -- --fix`.
 - **inspect** — interactive failure inspector over a run's artifacts.
   `inspect [TEST] [RUN_DIR]`: RUN_DIR defaults to the live run (heartbeat) or
   the newest `tests/output/run-*`; a file path means its directory; an artifact
