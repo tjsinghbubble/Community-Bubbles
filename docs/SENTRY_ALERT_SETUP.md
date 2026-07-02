@@ -53,7 +53,7 @@ Four alert rules cover performance and stability:
 
 All rules fire notifications to the configured email and/or Slack channel.
 
-The **Crash-Free Session Rate < 95%** rule is the primary stability gate for pre-release checks.  It is paired with the `check-sentry-crash-free-rate.js` CI script that reads the live session data and fails an EAS build automatically when the threshold is breached — see `mobile/SENTRY_DASHBOARD_SETUP.md` for integration details.
+The **Crash-Free Session Rate < 95%** rule is the primary stability gate for pre-release checks.  It is paired with the `check-sentry-crash-free-rate.js` CI script that reads the live session data and fails an EAS build automatically when the threshold is breached — see `docs/SENTRY_DASHBOARD_SETUP.md` for integration details.
 
 > **Why no API p95 Performance alert?**  
 > API calls are recorded as **child spans** (op: `http.client`) on the active navigation transaction — not as standalone top-level transactions. Sentry's transaction-level performance alerts aggregate `p75/p95(transaction.duration)` across root transactions only, so filtering by `transaction.op:http.client` would match nothing.  

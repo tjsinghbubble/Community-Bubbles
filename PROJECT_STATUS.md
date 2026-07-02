@@ -33,7 +33,7 @@
 - ✅ `MOBILE_SETUP.md` - Comprehensive setup guide
 - ✅ `QUICKSTART.md` - Quick start instructions
 - ✅ `mobile/README.md` - Mobile app documentation
-- ✅ `mobile/COMETCHAT_INTEGRATION.md` - Chat integration guide
+- ✅ `docs/COMETCHAT_INTEGRATION.md` - Chat integration guide
 - ✅ `replit.md` - Architecture overview
 
 ## 📱 How to Run It
@@ -290,7 +290,7 @@ Code changes reload automatically! No need to restart.
 ### Documentation
 - `QUICKSTART.md` - Get started in 5 minutes
 - `MOBILE_SETUP.md` - Detailed setup guide
-- `mobile/COMETCHAT_INTEGRATION.md` - Chat integration
+- `docs/COMETCHAT_INTEGRATION.md` - Chat integration
 - `mobile/README.md` - Mobile app overview
 
 ### External Resources

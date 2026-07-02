@@ -1943,7 +1943,7 @@ def fill_template(template_name, e, run, interactive):
 
 
 def cmd_create_prompt(e, run):
-    text = fill_template("_testctl_prompt_template.md", e, run, sys.stdin.isatty())
+    text = fill_template("templates/_testctl_prompt_template.md", e, run, sys.stdin.isatty())
     if text is None:
         return
     leaf = f"{e.id}-{short_role(e.role)}" if e.role else e.id
@@ -1955,7 +1955,7 @@ def cmd_create_prompt(e, run):
 
 
 def cmd_create_trello(e, run):
-    text = fill_template("_testctl_trello_template.md", e, run, sys.stdin.isatty())
+    text = fill_template("templates/_testctl_trello_template.md", e, run, sys.stdin.isatty())
     if text is None:
         return
     drafts = REPO / "tmp" / "trello-cards"
