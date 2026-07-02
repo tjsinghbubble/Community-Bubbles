@@ -3,8 +3,15 @@
 Patch exports of the three stashes that were sitting in the old working copies,
 preserved here for review while the docs/testing area is being reconciled.
 Exported with `git stash show --include-untracked -p`; scanned for
-secret-shaped strings before committing (clean). The stashes themselves were
-NOT dropped — they still exist in the local stash list.
+secret-shaped strings before committing (clean).
+
+Status (2026-07-02): the TJ-test,db stash was reviewed and DROPPED — everything
+in it was already superseded on `create_test_platform_2` (testIDs, package.json
+script forms, Maestro `${APP_ID}`/dev-hosts parameterization) except the
+`qr.mjs` Bonjour rewrite, which was ported to `scripts/qr.mjs`. Its referenced
+`script/setup-hosts.mjs` was untracked at stash time and is lost. The lockfile
+regeneration was discarded. The other two stashes still exist locally (their
+`stash@{N}` indices have shifted down accordingly).
 
 Apply one with `git apply docs/stashes/<file>.patch` (or `--3way` if it no
 longer applies cleanly to today's tree).
