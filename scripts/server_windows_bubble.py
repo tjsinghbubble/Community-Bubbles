@@ -48,20 +48,35 @@ WIN_CONFIGS = {
     "iOS App":       (40000, 10000, 12000, 65535, 65535, 65535),  # deep crimson
     "Android App":   (28000, 10000, 42000, 65535, 65535, 65535),  # deep violet
     "General":       (16384, 16384, 16384, 65535, 65535,     0),  # slate gray / yellow text
-    "Testing":		 (16384, 16384, 16384, 65535, 65535,     0),  # slate gray / yellow text FIXME
+    "Testing":       ( 8000, 28000, 30000, 65535, 65535, 65535),  # dark teal
 }
 
-FUN="cd $PROJ_ROOT; f=/usr/share/dict/words; integer z="$(wc -l < $f)"; w=$(sed -n $[RANDOM%z+1]p $f); echo Word of the day: $w"
-NOT_FUN="cd $PROJ_ROOT; echo Have a good day!"
+# Zsh one-liner: print a random word of the day (General window greeting).
+FUN = "f=/usr/share/dict/words; integer z=$(wc -l < $f); w=$(sed -n $[RANDOM%z+1]p $f); echo Word of the day: $w"
 
-SCRIPT_CONFIGS = {
-    "API Server":    "cd $PROJ_ROOT ; echo to start, run \'npm run api_server\'",
-    "Metro Bundler": "cd $PROJ_ROOT ; echo to start, run \'npm run metro_bundler\'",
-    "iOS App":       "cd $PROJ_ROOT ; echo to compile and launch, run \'npm run build:mobile:ios-sim\'",
-    "Android App":   "cd $PROJ_ROOT ; echo to start the API server, run \'npm run api_server\'",
-    "General":       $FUN,
-    "Testing":		 "cd $PROJ_ROOT ; echo FIXME", 
+# Single source of truth: window -> npm run script that belongs in it.
+# None = no server to run (window gets FUN greeting instead).
+# Each window opens with a banner naming its command, plus a 'go' alias
+# so the developer can just type: go
+RUN_COMMANDS = {
+    "API Server":    "npm run qa:server",
+    "Metro Bundler": "npm run metro_bundler",
+    "iOS App":       "npm run mobile:build:ios-sim",
+    "Android App":   "npm run mobile:build:android-emu",
+    "General":       None,
+    "Testing":       "npm run qa",
 }
+
+def startup_command(name):
+    """Build the shell line run when window 'name' opens: cd, banner, 'go' alias."""
+    parts = ["cd $PROJ_ROOT"]
+    cmd = RUN_COMMANDS.get(name)
+    if cmd:
+        parts.append(f"alias go='{cmd}'")
+        parts.append(f"echo '[{name}]  start with:  {cmd}   (or just type: go)'")
+    else:
+        parts.append(FUN)
+    return " ; ".join(parts)
 
 LAYOUT_ORDER = [
     "API Server",	"Metro Bundler",
@@ -179,14 +194,14 @@ def create_single_window(name):
     bottom = y + win_h
     bg_r, bg_g, bg_b, fg_r, fg_g, fg_b = WIN_CONFIGS[name]
     title_string = escape_string_for_applescript(name)
-    script = SCRIPT_CONFIGS[name] or "echo {title_string}"
+    shell_cmd = escape_string_for_applescript(startup_command(name))
 
     # Terminal.app has no 'make new window'; do script "" (no 'in' clause) always
     # opens a new window and returns the new tab.  Colors are tab properties, not
     # window properties; bounds IS a window property.
     script = f'''tell application "Terminal"
     activate
-    set newTab to do script "{script}"
+    set newTab to do script "{shell_cmd}"
     delay 0.3
     set tw to front window
     set bounds of tw to {{{x}, {y}, {right}, {bottom}}}
@@ -238,8 +253,6 @@ def compute_layout(screen_left, screen_top, screen_width, screen_height):
     row3_height = work_height * 4 // 10
 
     half_width = (work_width - GAP) // 2
-    bot_width = work_width * 8 // 10
-    bot_x = left_offset + (work_width - bot_width) // 2
 
     # Row 1
     bounds["API Server"] = (left_offset, top_offset, half_width, row1_height)
@@ -252,7 +265,8 @@ def compute_layout(screen_left, screen_top, screen_width, screen_height):
 
     # Row 3
     row3_y = row2_y + row2_height + GAP
-    bounds["General"] = (bot_x, row3_y, bot_width, row3_height)
+    bounds["General"] = (left_offset, row3_y, half_width, row3_height)
+    bounds["Testing"] = (left_offset + half_width + GAP, row3_y, half_width, row3_height)
 
     # Clamp to screen bounds
     for name in LAYOUT_ORDER:
