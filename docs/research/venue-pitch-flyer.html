@@ -1,0 +1,371 @@
+<title>Bubble — Your Tuesday nights, full.</title>
+<style>
+  :root {
+    --paper: #FBF8F2;
+    --ink: #1C2532;
+    --amber: #E39B2D;
+    --amber-deep: #B87716;
+    --wood: #7A5230;
+    --slate: #5A6472;
+    --hairline: rgba(28, 37, 50, 0.16);
+    --display: "Avenir Next Condensed", "Helvetica Neue Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+    --body: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { background: #E9E4DA; }
+
+  body {
+    margin: 0;
+    font-family: var(--body);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 820px;
+    margin: 24px auto;
+    background: var(--paper);
+    padding: 44px 52px 36px;
+    box-shadow: 0 2px 24px rgba(28, 37, 50, 0.18);
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid var(--ink);
+  }
+  .wordmark {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: 0.02em;
+    text-transform: lowercase;
+  }
+  .wordmark .dot { color: var(--amber); }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--slate);
+  }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 30px 0 6px; }
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 58px;
+    line-height: 0.98;
+    margin: 0 0 14px;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+  h1 .accent { color: var(--amber-deep); }
+  .lede {
+    font-size: 16.5px;
+    line-height: 1.5;
+    max-width: 58ch;
+    margin: 0;
+    color: var(--ink);
+  }
+  .lede strong { font-weight: 600; }
+
+  /* ---------- steps ---------- */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 28px;
+    padding: 26px 0 22px;
+    margin-top: 22px;
+    border-top: 1px solid var(--hairline);
+  }
+  .step-label {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--wood);
+    margin: 0 0 8px;
+  }
+  .step h3 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.1;
+    margin: 0 0 8px;
+    text-wrap: balance;
+  }
+  .step p {
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin: 0;
+    color: var(--slate);
+  }
+
+  /* ---------- proof strip ---------- */
+  .proof {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    align-items: center;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px 26px;
+    margin: 4px 0 26px;
+  }
+  .proof .big {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 44px;
+    line-height: 1;
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .proof .big small {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(251, 248, 242, 0.75);
+    margin-top: 6px;
+  }
+  .proof p {
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0;
+    color: rgba(251, 248, 242, 0.92);
+    max-width: 52ch;
+  }
+
+  /* ---------- economics ---------- */
+  .economics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    padding-bottom: 26px;
+  }
+  .economics h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 21px;
+    margin: 0 0 10px;
+  }
+  .economics ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .economics li {
+    font-size: 13.5px;
+    line-height: 1.5;
+    padding-left: 18px;
+    position: relative;
+    color: var(--ink);
+  }
+  .economics li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 8px;
+    height: 8px;
+    background: var(--amber);
+  }
+  .economics li strong { font-weight: 600; }
+
+  /* ---------- offer ---------- */
+  .offer {
+    border: 3px solid var(--ink);
+    background: var(--amber);
+    padding: 24px 28px;
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+  .offer h2 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1.02;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .offer p {
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin: 0;
+    color: rgba(28, 37, 50, 0.88);
+  }
+  .offer-terms {
+    border-left: 2px solid rgba(28, 37, 50, 0.35);
+    padding-left: 22px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(28, 37, 50, 0.88);
+  }
+  .offer-terms p { margin: 0 0 8px; font-size: 13px; }
+  .offer-terms p:last-child { margin-bottom: 0; }
+  .offer-terms strong { font-weight: 700; color: var(--ink); }
+
+  /* ---------- footer ---------- */
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-top: 26px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+  .contact {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+  .contact span { color: var(--slate); font-family: var(--body); font-weight: 400; font-size: 12.5px; }
+  .fineprint {
+    font-size: 11px;
+    color: var(--slate);
+    text-align: right;
+    max-width: 40ch;
+    line-height: 1.45;
+  }
+
+  /* ---------- print ---------- */
+  @page { size: letter; margin: 0.4in; }
+  @media print {
+    html { background: #fff; }
+    .sheet {
+      margin: 0;
+      max-width: none;
+      box-shadow: none;
+      padding: 12px 20px;
+    }
+    .proof, .offer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  @media (max-width: 640px) {
+    .sheet { padding: 28px 22px; }
+    h1 { font-size: 40px; }
+    .steps, .economics, .offer, .proof { grid-template-columns: 1fr; }
+    .offer-terms { border-left: none; padding-left: 0; border-top: 2px solid rgba(28,37,50,0.35); padding-top: 16px; }
+    .foot { flex-direction: column; }
+    .fineprint { text-align: left; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div class="wordmark">bubble<span class="dot">.</span></div>
+    <div class="eyebrow">Venue partnerships &middot; Bay Area</div>
+  </header>
+
+  <section class="hero">
+    <h1>Your Tuesday nights, <span class="accent">full.</span></h1>
+    <p class="lede">
+      Bubble organizes recurring groups &mdash; leagues, trivia teams, game nights &mdash;
+      and helps them pick <strong>one venue as their home</strong>. Same crowd, same night,
+      every week. They handle the fun; you handle the register.
+    </p>
+  </section>
+
+  <section class="steps">
+    <div class="step">
+      <p class="step-label">Step 1</p>
+      <h3>We build the group</h3>
+      <p>Scheduling, reminders, attendance, and substitutes &mdash; free for the group,
+         forever. Free tools are why they organize with us, and why they keep showing up.</p>
+    </div>
+    <div class="step">
+      <p class="step-label">Step 2</p>
+      <h3>They make you home</h3>
+      <p>A standing night at your venue: lanes reserved, tables claimed, a crowd that
+         orders rounds and food on your slowest weeknight.</p>
+    </div>
+    <div class="step">
+      <p class="step-label">Step 3</p>
+      <h3>You see who&rsquo;s coming</h3>
+      <p>Headcounts days in advance, so you staff and stock to real numbers &mdash;
+         and you can message your groups directly.</p>
+    </div>
+  </section>
+
+  <section class="proof">
+    <div class="big">30&ndash;50%
+      <small>reported weekday lift</small>
+    </div>
+    <p>
+      Hosted-trivia operators report weekday revenue lifts of 30&ndash;50% at partner
+      bars, with regulars arriving in groups of 4&ndash;8, concentrated on Tuesdays and
+      Wednesdays. That&rsquo;s their number, not ours &mdash; which is why our offer below
+      lets your own till be the proof.
+    </p>
+  </section>
+
+  <section class="economics">
+    <div>
+      <h2>What it costs your customers</h2>
+      <ul>
+        <li><strong>Nothing. Ever.</strong> No booking fees, no app charges, no cover.</li>
+        <li>Members spend the way they already want to: shoe rentals, lane time,
+            pitchers, the kitchen.</li>
+        <li>Solo players who want a team get matched into open seats at your
+            regular nights &mdash; new faces, no marketing spend.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What it costs you</h2>
+      <ul>
+        <li><strong>Nothing until it works.</strong> The first night is free, start to finish.</li>
+        <li>After that, a simple plan: flat monthly or per-filled-seat &mdash; your pick.</li>
+        <li>No long contracts. If the numbers stop making sense, so do we.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="offer">
+    <div>
+      <h2>First night&rsquo;s on us.</h2>
+      <p>
+        We fill one slow night at your venue &mdash; we recruit the group, run the
+        signups, and send the reminders. You pull the till report and compare it
+        to a normal Tuesday.
+      </p>
+    </div>
+    <div class="offer-terms">
+      <p><strong>If the night pays,</strong> we talk plans.</p>
+      <p><strong>If it doesn&rsquo;t,</strong> you got a busy Tuesday for free and we
+         part as friends.</p>
+      <p>Setup takes one conversation. You choose the night.</p>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div class="contact">
+      hello@bubble.example &nbsp;&middot;&nbsp; (415) 555-0100
+      <br><span>Ask for a 90-second demo &mdash; we&rsquo;ll bring it to the bar.</span>
+    </div>
+    <p class="fineprint">
+      Bubble never charges your customers or the groups that meet at your venue.
+      Weekday-lift figure as reported by hosted-trivia operators; individual
+      results vary &mdash; that&rsquo;s what the free night is for.
+    </p>
+  </footer>
+
+</div>
