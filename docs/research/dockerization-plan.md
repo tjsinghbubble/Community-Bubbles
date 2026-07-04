@@ -117,6 +117,7 @@ Additional controls:
 - API container binds 127.0.0.1 (or docker network) — only Caddy is exposed. Express rate limiting already in-app (`express-rate-limit`, `RATE_LIMIT_*`).
 - Docker: non-root user in image (done), `--read-only` rootfs feasible later, no docker socket exposure, `live-restore: true`.
 - Backups (the Replit-incident lesson): managed-PG PITR, or self-hosted wal-g nightly base + WAL to the object bucket, restore drill documented and rehearsed.
+- **Fail closed on dev-mode serving (single-packet DoS footgun).** `server/vite.ts` installs a custom Vite logger whose `error` handler calls `process.exit(1)`, and the Vite dev middleware runs in the same process as the API. In any non-production boot, a single unauthenticated request that makes Vite throw (e.g. `GET /.DS_Store` → import-analysis parse failure) kills the whole server — API and web together. Reachable only when a deployed host runs with `NODE_ENV` unset or `=development`. Our container sets `NODE_ENV=production BUBBLE_SERVER_MODE=prod` (→ `serveStatic()`, not Vite), so the built image is safe — but the containerization plan must (a) assert at boot that a deployed host is explicitly `NODE_ENV=production` and refuse to serve Vite middleware otherwise, and (b) verify the actual deployed `NODE_ENV` on the current Replit instance out-of-band. Fix + full write-up: Trello https://trello.com/c/5S47nGpb (draft in [trello-cards/vite-logger-process-exit-dos.md](trello-cards/vite-logger-process-exit-dos.md)). See discuss-item 6.
 
 ## 7. Costs feed
 
@@ -129,3 +130,4 @@ Instance sizing and egress inputs for this topology come from the perf runs ([pe
 3. Managed vs self-hosted Postgres (backup posture vs ~$16–54/mo managed floor).
 4. Optional qa-runner `hosting` area registration (`tests/runner/select.ts` AREA_TAGS) with an excluded-by-default mechanism.
 5. Secret rotation plan for everything in `.replit [userenv.shared]`.
+6. **Remove the `process.exit(1)` in `server/vite.ts`** and assert deployed hosts run `NODE_ENV=production` (fail closed if not) — closes the dev-mode single-packet DoS described in §6. Small code change; verify current Replit `NODE_ENV` out-of-band first. Trello https://trello.com/c/5S47nGpb.
