@@ -28,7 +28,19 @@ appId: com.bubble.mobile
 
 - openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A${METRO_PORT}"
 
-# Bounded: the bundle may still be streaming (continuous re-render never "settles", so an uncapped
-# wait burns the full 5s default). The next command waits for its own element regardless.
+# A freshly-erased device shows a SpringBoard confirmation for the custom URL scheme
+# (『Open in "Bubble"?』) that blocks every subsequent assert. The grant is
+# SpringBoard-level and PERSISTS across clearState (verified live 2026-07-04), so it
+# fires at most once per `simctl erase`. The dialog renders ~1s AFTER openLink returns,
+# so a bare tap races and misses it — let it settle first (bounded; a static screen
+# settles fast, so this is cheap on the already-granted path), then dismiss it only
+# when actually present (skipped on granted devices).
 - waitForAnimationToEnd:
     timeout: 2500
+- runFlow:
+    when:
+      visible:
+        text: "Open"
+    commands:
+      - tapOn:
+          text: "Open"
