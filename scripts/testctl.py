@@ -1491,7 +1491,8 @@ def check_adb_reverse():
 
 CLIENT_REQUIRED_FALLBACK = ("EXPO_PUBLIC_API_URL", "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY",
                             "EXPO_PUBLIC_COMETCHAT_APP_ID")
-SERVER_REQUIRED_VARS = ("DATABASE_URL", "JWT_SECRET", "ENCRYPTION_KEY")
+SERVER_REQUIRED_VARS = ("DATABASE_URL", "JWT_SECRET", "ENCRYPTION_KEY",
+                        "GOOGLE_PLACES_API_KEY")  # Places proxy (server/routes.ts) — events-0500 fails without it
 
 # Live-looking secrets in TRACKED files. The hex pattern (NAME_SECRET=<32+ hex>)
 # exists because real committed values in that shape were missed by the original
@@ -1621,6 +1622,38 @@ def check_secrets_env():
     return {"name": "secrets-env", "status": "ok",
             "detail": f"mobile/.env has all {len(client_req)} required client vars; "
                       f"root .env has all {len(SERVER_REQUIRED_VARS)} required server vars"}
+
+
+# Social login (Google/Apple) is wired in code but unconfigured team-wide: the app
+# reads these in WelcomeAuthScreen, the server verifies token audience against the
+# same names (server/social-auth-handler.ts). Missing = Google button shows an
+# 'Unavailable' alert and /api/auth/google 503s. warn, not fail — no e2e flow
+# exercises the actual social login round-trip yet, so a missing value cannot
+# fail a run.
+SOCIAL_AUTH_VARS = ("EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS", "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID")
+
+
+def check_social_auth_env():
+    gaps = []
+    for label, path in (("mobile/.env", REPO / "mobile" / ".env"),
+                        ("root .env", REPO / ".env")):
+        try:
+            text = path.read_text()
+        except OSError:
+            continue  # secrets-env already fails loudly on a missing file
+        miss = [v for v in SOCIAL_AUTH_VARS if not _env_file_has(text, v)]
+        if miss:
+            gaps.append(f"{label}: {', '.join(miss)}")
+    if gaps:
+        return {"name": "social-auth-env", "status": "warn",
+                "detail": "Google sign-in unconfigured — " + "; ".join(gaps),
+                "fix": "create iOS/Android/Web OAuth clients in Google Cloud Console, "
+                       "set the vars in BOTH env files (server verifies audience too)",
+                "fix_kind": "manual",
+                "why": "app guards configure() so this no longer crashes iOS, but the "
+                       "Google button is dead and /api/auth/google 503s until set"}
+    return {"name": "social-auth-env", "status": "ok",
+            "detail": "Google sign-in client IDs present in mobile/.env and root .env"}
 
 
 # ── health: EAS (Expo Application Services) ────────────────────────────────────
@@ -1775,6 +1808,7 @@ HEALTH_CHECKS = [
     HealthSpec("db-server",          check_db,                 False, False),
     HealthSpec("adb-reverse",        check_adb_reverse,        False, False),
     HealthSpec("secrets-env",        check_secrets_env,        False, False),
+    HealthSpec("social-auth-env",    check_social_auth_env,    True,  False),
     HealthSpec("eas",                check_eas,                True,  False),
     HealthSpec("load-average",       check_load,               True,  False),
     HealthSpec("on-device-binary",   check_on_device_binary,   False, True),

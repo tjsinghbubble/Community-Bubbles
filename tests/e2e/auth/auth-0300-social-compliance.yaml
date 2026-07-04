@@ -1,0 +1,69 @@
+# qa-id: auth-0300
+# qa-reason: Social-login buttons satisfy the machine-checkable Apple/Google requirements
+# Compliance probe for the Welcome screen's social-login offering. App Review
+# Guideline 4.8 requires an equivalent privacy-focused sign-in option wherever a
+# third-party login is offered, and both Apple's HIG and Google's brand guidelines
+# constrain button copy and prominence. This flow asserts everything that is
+# deterministic from the accessibility tree:
+#
+#   1. If the Google button is offered, the Apple button is offered too (iOS).
+#   2. Both are visible WITHOUT scrolling, alongside the first-party email path
+#      (no buried/hidden option — HIG "don't make people scroll to find it").
+#   3. Button copy is an approved, parity-consistent pair: "Continue with Apple" /
+#      "Continue with Google" (both are on each vendor's approved-strings list;
+#      mixed verbs like "Sign in with X" + "Continue with Y" fail parity).
+#
+# NOT covered here (documented limits, not oversights): pixel-level checks (logo
+# artwork, ≥44pt touch target, equal button prominence) need a screenshot image
+# check — the screenshot below is taken for that follow-up; the OAuth round-trips
+# themselves are external system UI and are exercised nowhere in e2e yet.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - compliance
+  - smoke
+  - e2e
+  - ios
+  - role-any
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Welcome screen marker (email-first UX from the social-auth merge).
+- extendedWaitUntil:
+    visible:
+      text: "Log in or sign up"
+    timeout: 60000
+
+# 1+2. Third-party login offered → Apple option present, and every sign-in path is
+# reachable without scrolling: assertVisible does not scroll, so these four asserts
+# together prove the no-buried-option requirement on this device size.
+- assertVisible:
+    id: input-email
+- assertVisible:
+    id: button-continue
+- assertVisible:
+    id: button-google-signin
+- assertVisible:
+    id: button-apple-signin
+
+# 3. Approved copy, consistent verb parity. Whole-string text match pins the exact
+# copy — a rewording to an unapproved variant ("Log in with Google", "Google") or a
+# verb mismatch between the two buttons fails here.
+- assertVisible:
+    text: "Continue with Google"
+- assertVisible:
+    text: "Continue with Apple"
+
+# Artifact for the pixel-level follow-up (logo artwork, touch-target height,
+# equal prominence) and for App Review evidence.
+- takeScreenshot: ${SHOT_PREFIX}social-compliance-welcome
