@@ -8,15 +8,11 @@
 # wiring Maestro can never prove against real Google (bot detection, external
 # system UI).
 #
-# Determinism: the stub account (qa-social-e2e@bubble.test) is expected to exist
-# with a COMPLETED profile, so this always takes the existing-user path straight
-# to Main. After a bubble_test wipe, re-provision once:
-#   TOK=$(curl -s -X POST localhost:3000/api/auth/google -H 'content-type: application/json' \
-#     -d '{"idToken":"qa-social-stub.google.{\"sub\":\"qa-e2e-google-qa-social-e2e@bubble.test\",\"email\":\"qa-social-e2e@bubble.test\",\"email_verified\":true,\"name\":\"QA Social E2E\"}"}' | jq -r .token)
-#   curl -s -X POST localhost:3000/api/auth/complete-social-profile -H "authorization: Bearer $TOK" \
-#     -H 'content-type: application/json' -d '{"name":"QA Social E2E","gender":"Prefer not to say","dateOfBirth":"1990-01-01"}'
-# (Folding this into tests/fixtures/seed.ts is the tracked follow-up; the
-# first-run SocialProfile→Interests completion path stays a manual/future flow.)
+# Determinism: qa:seed provisions the stub account (qa-social-e2e@bubble.test,
+# completed profile, google_id matching the app seam's sub), so this always takes
+# the existing-user path straight to Main. The first-run SocialProfile→Interests
+# completion path is deliberately NOT covered here (future flow, after ft-0005
+# verifies the signup selectors).
 appId: com.bubble.mobile
 tags:
   - auth

@@ -221,6 +221,32 @@ async function main(): Promise<void> {
     });
     console.log(`[qa-seed] created fixture: lockout-victim@bubble.test`);
 
+    // Completed social-stub account for auth-0410 (e2e). The google_id matches the
+    // sub the app's QA seam generates (WelcomeAuthScreen qaStubToken:
+    // `qa-e2e-google-<email>`), so tapping the Google button always takes the
+    // deterministic existing-user path straight to Main — never the first-run
+    // SocialProfile wizard. Profile fields are set (social_auth_pending=false)
+    // exactly as complete-social-profile would leave them. The password is an
+    // unguessable placeholder, mirroring the real social-signup handler.
+    {
+      const stubEmail = "qa-social-e2e@bubble.test";
+      const placeholder = await bcrypt.hash(`google_qa-stub_${Date.now()}`, 10);
+      await pool.query(
+        `INSERT INTO users (name, email, email_hash, password, interests, is_super_admin,
+                            google_id, social_auth_pending, gender, date_of_birth)
+         VALUES ($1, $2, $3, $4, $5, false, $6, false, 'Prefer not to say', '1990-01-01')`,
+        [
+          "QA Social E2E",
+          encryptField(stubEmail),
+          hashField(stubEmail),
+          placeholder,
+          ["Sports", "Music", "Tech"],
+          `qa-e2e-google-${stubEmail}`,
+        ],
+      );
+      console.log(`[qa-seed] created fixture: ${stubEmail} (completed social-stub account)`);
+    }
+
     // Bulletin post types (the app has no built-in defaults; prod rows were created by
     // admins). One member-postable type and one admin-only type, so sec-0200 can create a
     // bulletin post and future tests can probe the adminOnly gate.
@@ -284,7 +310,7 @@ async function main(): Promise<void> {
     }
     console.log(`[qa-seed] created ${categoryCount} categories (${categoryTree.length} groups + children)`);
 
-    const userCount = Object.keys(roles).length + 1;
+    const userCount = Object.keys(roles).length + 2; // + lockout-victim + social-stub
     await appendEntry(pool, {
       author: "qa-seed",
       observation: `reset+seeded smoke fixtures v3: ${userCount} role users, ${bubbleCount} bubble(s), ${membershipCount} membership(s), 1 bubble rule, 1 event.`,
