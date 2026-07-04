@@ -43,6 +43,12 @@ const SECURE_TOKEN_KEY = 'authToken_secure';
 const SECURE_USER_KEY = 'user_secure';
 const ASYNC_TOKEN_KEY = 'authToken';
 const ASYNC_USER_KEY = 'user';
+// Lives in the app container (AsyncStorage), which uninstall/reinstall — and Maestro
+// clearState — DOES wipe, unlike the iOS Keychain backing SecureStore. Its absence
+// alongside a Keychain token means the app was reinstalled: treat the surviving
+// Keychain session as stale and drop it (a deleted app must not auto-login on
+// reinstall; on-device e2e relies on clearState actually logging out).
+const INSTALL_MARKER_KEY = 'installMarker';
 
 async function saveAuthToSecureStore(token: string, user: User): Promise<void> {
   await SecureStore.setItemAsync(SECURE_TOKEN_KEY, token);
@@ -55,6 +61,18 @@ async function clearAuthFromSecureStore(): Promise<void> {
 }
 
 async function loadAuthFromStorage(): Promise<{ token: string; user: User } | null> {
+  // 0. Fresh install (container wiped, Keychain possibly not): discard any surviving
+  // Keychain session before reading it. Legacy AsyncStorage tokens are unaffected —
+  // they only exist when the container survived, i.e. a genuine in-place update.
+  try {
+    if (!(await AsyncStorage.getItem(INSTALL_MARKER_KEY))) {
+      await clearAuthFromSecureStore();
+      await AsyncStorage.setItem(INSTALL_MARKER_KEY, '1');
+    }
+  } catch (e) {
+    console.warn('[Auth] Install-marker check failed:', e);
+  }
+
   // 1. Try SecureStore first (new storage)
   try {
     const secureToken = await SecureStore.getItemAsync(SECURE_TOKEN_KEY);
