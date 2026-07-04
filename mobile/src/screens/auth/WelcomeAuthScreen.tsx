@@ -42,10 +42,18 @@ const GRID_IMAGES = [
   require('../../assets/images/LandingPage/mask_group.jpg'),
 ];
 
-GoogleSignin.configure({
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-});
+// iOS GIDSignIn throws (crashing the app at import time) when it can't determine
+// a clientID — configure only when the platform's client ID is actually set.
+const GOOGLE_SIGNIN_AVAILABLE = !!(Platform.OS === 'ios'
+  ? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS
+  : process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID);
+
+if (GOOGLE_SIGNIN_AVAILABLE) {
+  GoogleSignin.configure({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+  });
+}
 
 export default function WelcomeAuthScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
@@ -83,6 +91,10 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
   }, [email, navigation]);
 
   const handleGoogle = useCallback(async () => {
+    if (!GOOGLE_SIGNIN_AVAILABLE) {
+      Alert.alert('Unavailable', 'Google Sign In is not configured in this build.');
+      return;
+    }
     setGoogleLoading(true);
     try {
       await GoogleSignin.hasPlayServices();
