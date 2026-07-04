@@ -25,5 +25,5 @@ appId: com.bubble.mobile
     index: 1
 - extendedWaitUntil:
     visible:
-      text: "Log In"
+      text: "Log in or sign up"
     timeout: 15000
