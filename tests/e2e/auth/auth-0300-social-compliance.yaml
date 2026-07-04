@@ -44,25 +44,34 @@ tags:
       text: "Log in or sign up"
     timeout: 60000
 
-# 1+2. Third-party login offered → Apple option present, and every sign-in path is
-# reachable without scrolling: assertVisible does not scroll, so these four asserts
-# together prove the no-buried-option requirement on this device size.
+# 1+2. Every sign-in path is reachable without scrolling: assertVisible does not
+# scroll, so these asserts together prove the no-buried-option requirement on this
+# device size. Email + Continue + Google are on BOTH platforms.
 - assertVisible:
     id: input-email
 - assertVisible:
     id: button-continue
 - assertVisible:
     id: button-google-signin
-- assertVisible:
-    id: button-apple-signin
 
 # 3. Approved copy, consistent verb parity. Whole-string text match pins the exact
-# copy — a rewording to an unapproved variant ("Log in with Google", "Google") or a
-# verb mismatch between the two buttons fails here.
+# copy — a rewording to an unapproved variant ("Log in with Google", "Google") fails here.
 - assertVisible:
     text: "Continue with Google"
-- assertVisible:
-    text: "Continue with Apple"
+
+# Sign in with Apple is iOS-ONLY: WelcomeAuthScreen renders the Apple button under
+# `Platform.OS === 'ios'`, and App Review Guideline 4.8 (offer an equivalent
+# privacy-focused login) is an iOS App Store requirement — Android offers Google
+# alone. Assert the Apple option + its parity copy only on iOS, so the android
+# welcome screen (Google-only, no Apple button) isn't a false compliance failure.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: button-apple-signin
+      - assertVisible:
+          text: "Continue with Apple"
 
 # Artifact for the pixel-level follow-up (logo artwork, touch-target height,
 # equal prominence) and for App Review evidence.
