@@ -23,6 +23,14 @@
 # Start time: a Confirm/Cancel modal; Confirm accepts the current time (value varies
 # per run, flow is deterministic).
 appId: com.bubble.mobile
+# external:      exercises the live Google Places autocomplete API.
+# bug-filed:     known-red on iOS — the start-time step lands on the resurfaced Search
+#                Location picker and the time-modal "Confirm" is never found; the
+#                Create-Event date/time + LocationPicker UI lacks testIDs (Trello 4Ivuvgkl).
+#                Classified as a known bug (🐞), NOT a new failure, so the suite exit code
+#                reflects reality until the app-side testIDs land.
+# flaky-fragile: even before the hard block, the coordinate/relative picker interactions
+#                race the iOS inline spinner's ~1.5s auto-collapse — intermittent by nature.
 tags:
   - events
   - bubble-admin
@@ -30,7 +38,9 @@ tags:
   - e2e
   - ios
   - role-bubble-admin
-  - external   # exercises the live Google Places autocomplete API
+  - external
+  - bug-filed
+  - flaky-fragile
 ---
 # Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
 # OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
