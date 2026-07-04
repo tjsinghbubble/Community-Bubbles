@@ -1,0 +1,20 @@
+# BuildKit per-Dockerfile ignore — keeps the build context small.
+# Context is Bubble/ project root; only what the api.Dockerfile COPYies matters.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!vite-plugin-meta-images.ts
+!drizzle.config.ts
+!components.json
+!postcss.config.js
+!scripts/build.ts
+!scripts/flag-temp-files.zsh
+!shared/
+!server/
+!client/
+!migrations/
+!drizzle/
+**/node_modules
+**/.DS_Store
