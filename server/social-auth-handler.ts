@@ -14,6 +14,40 @@ function makeJwt(userId: string, tokenVersion: number): string {
   return jwt.sign({ userId, tokenVersion }, JWT_SECRET, { expiresIn: "30d" });
 }
 
+// ---------------------------------------------------------------------------
+// QA stub-token seam.
+//
+// Real Google/Apple sign-in cannot be automated (vendor bot detection, external
+// system UI), so the e2e/headless layers exercise the social-auth pipeline with
+// a stub token that substitutes ONLY the vendor signature verification — user
+// lookup/creation, account linking, deactivation checks, and JWT issuance all
+// run the production code path.
+//
+// Format:  qa-social-stub.<provider>.<json>   e.g.
+//   qa-social-stub.google.{"sub":"qa-g-1","email":"qa@bubble.test","email_verified":true,"name":"QA User"}
+//
+// Fail-closed: accepted ONLY when BUBBLE_SERVER_MODE=qa AND NODE_ENV is not
+// production (the qa:server script sets the former; deployments never do).
+// Anywhere else the prefix is rejected as an invalid token BEFORE any parsing.
+// The prefix cannot collide with real tokens — vendor JWTs are base64url
+// segments and never contain this literal.
+// ---------------------------------------------------------------------------
+const QA_STUB_PREFIX = "qa-social-stub.";
+
+function qaStubEnabled(): boolean {
+  return process.env.BUBBLE_SERVER_MODE === "qa" && process.env.NODE_ENV !== "production";
+}
+
+/** Parse a qa stub token for `provider`. Returns the payload object, or throws.
+ *  Callers must have already checked the prefix + qaStubEnabled(). */
+export function parseQaStubToken(token: string, provider: "google" | "apple"): any {
+  const rest = token.slice(QA_STUB_PREFIX.length);
+  const dot = rest.indexOf(".");
+  const prov = rest.slice(0, dot);
+  if (prov !== provider) throw new Error(`stub provider '${prov}' != '${provider}'`);
+  return JSON.parse(rest.slice(dot + 1));
+}
+
 const googleClient = new OAuth2Client();
 
 export function registerSocialAuthRoutes(app: Express) {
@@ -52,20 +86,34 @@ export function registerSocialAuthRoutes(app: Express) {
 
       const { idToken } = parsed.data;
 
-      // Verify the Google ID token — accept both iOS and Android client IDs
-      const audience = [GOOGLE_CLIENT_ID_IOS, GOOGLE_CLIENT_ID_ANDROID].filter(Boolean);
-      if (audience.length === 0) {
-        console.error("[google-auth] No Google client IDs configured");
-        return res.status(500).json({ error: "Google Sign In is not configured" });
-      }
-
       let payload: any;
-      try {
-        const ticket = await googleClient.verifyIdToken({ idToken, audience });
-        payload = ticket.getPayload();
-      } catch (verifyErr: any) {
-        console.error("[google-auth] Token verification failed:", verifyErr.message);
-        return res.status(401).json({ error: "Invalid Google token" });
+      if (idToken.startsWith(QA_STUB_PREFIX)) {
+        // QA seam — see header comment. Rejected outright outside qa mode.
+        if (!qaStubEnabled()) {
+          console.error("[google-auth] qa stub token rejected: server not in qa mode");
+          return res.status(401).json({ error: "Invalid Google token" });
+        }
+        try {
+          payload = parseQaStubToken(idToken, "google");
+        } catch (stubErr: any) {
+          return res.status(400).json({ error: `Malformed qa stub token: ${stubErr.message}` });
+        }
+        console.warn(`[google-auth] QA STUB token accepted (${payload?.email ?? payload?.sub})`);
+      } else {
+        // Verify the Google ID token — accept both iOS and Android client IDs
+        const audience = [GOOGLE_CLIENT_ID_IOS, GOOGLE_CLIENT_ID_ANDROID].filter(Boolean);
+        if (audience.length === 0) {
+          console.error("[google-auth] No Google client IDs configured");
+          return res.status(500).json({ error: "Google Sign In is not configured" });
+        }
+
+        try {
+          const ticket = await googleClient.verifyIdToken({ idToken, audience });
+          payload = ticket.getPayload();
+        } catch (verifyErr: any) {
+          console.error("[google-auth] Token verification failed:", verifyErr.message);
+          return res.status(401).json({ error: "Invalid Google token" });
+        }
       }
 
       if (!payload?.email || !payload?.sub) {
@@ -165,14 +213,29 @@ export function registerSocialAuthRoutes(app: Express) {
       const { identityToken, fullName } = parsed.data;
 
       let applePayload: any;
-      try {
-        applePayload = await appleSignIn.verifyIdToken(identityToken, {
-          audience: "io.trybubble.app",
-          ignoreExpiration: false,
-        });
-      } catch (verifyErr: any) {
-        console.error("[apple-auth] Token verification failed:", verifyErr.message);
-        return res.status(401).json({ error: "Invalid Apple token" });
+      if (identityToken.startsWith(QA_STUB_PREFIX)) {
+        // QA seam — see header comment. Rejected outright outside qa mode.
+        if (!qaStubEnabled()) {
+          console.error("[apple-auth] qa stub token rejected: server not in qa mode");
+          return res.status(401).json({ error: "Invalid Apple token" });
+        }
+        try {
+          applePayload = parseQaStubToken(identityToken, "apple");
+        } catch (stubErr: any) {
+          return res.status(400).json({ error: `Malformed qa stub token: ${stubErr.message}` });
+        }
+        console.warn(`[apple-auth] QA STUB token accepted (${applePayload?.email ?? applePayload?.sub})`);
+      } else {
+        try {
+          applePayload = await appleSignIn.verifyIdToken(identityToken, {
+            // NB hardcoded production bundle — dev builds fail here; Trello LYQnNfnb.
+            audience: "io.trybubble.app",
+            ignoreExpiration: false,
+          });
+        } catch (verifyErr: any) {
+          console.error("[apple-auth] Token verification failed:", verifyErr.message);
+          return res.status(401).json({ error: "Invalid Apple token" });
+        }
       }
 
       if (!applePayload?.sub) {
