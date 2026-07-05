@@ -1,0 +1,50 @@
+# Subflow: compliance-report
+# ---------------------------------------------------------------------------
+# Terminal reporter for the "soft assertion / collect-all-violations" pattern.
+#
+# HOW IT WORKS
+#   The CALLING flow builds a scorecard object `output.compliance` — one entry per
+#   requirement — and runs each check GUARDED (via `runFlow: when:`) so a failing
+#   check records its status instead of aborting the flow. This subflow is called
+#   LAST: it captures a screenshot for the host-side visual tier, then makes the
+#   single real assertion — the flow fails iff ANY requirement is 'FAIL', and the
+#   assertion's label serialises the whole scorecard so every violation is visible
+#   in one line of output.
+#
+# STATUS VOCABULARY (values the caller may set)
+#   OK      checked on-device, satisfied
+#   FAIL    checked on-device, VIOLATED        <- the only status that fails the flow
+#   SKIP    not applicable on this platform    (e.g. Apple button on Android)
+#   VISUAL  not observable to Maestro (icon artwork, size, colour, font, stretch);
+#           deferred to the host-side image checker (scripts/compliance_visual.py),
+#           which reads the screenshot + per-step hierarchy and merges its verdict.
+#
+# So a green run here means "every ON-DEVICE requirement passed; VISUAL ones are
+# pending the host tier" — NOT full compliance on its own. The label makes the
+# VISUAL/SKIP items explicit so a pass is never mistaken for the complete verdict.
+#
+# CONTRACT (env)
+#   SHOT_PREFIX       set globally by the qa runner (screenshot destination)
+#   COMPLIANCE_LABEL  caller passes it via `runFlow: env:` — names this scorecard
+#                     (used in the screenshot name and the assertion label)
+appId: com.bubble.mobile
+---
+- assertTrue:
+    condition: ${typeof output !== 'undefined' && output.compliance != null && typeof output.compliance === 'object'}
+    label: "compliance-report: caller must populate output.compliance before calling this subflow"
+- assertTrue:
+    condition: ${typeof SHOT_PREFIX === 'string' && typeof COMPLIANCE_LABEL === 'string'}
+    label: "compliance-report requires SHOT_PREFIX (runner) + COMPLIANCE_LABEL (caller via runFlow env)"
+
+# Evidence for the host-side VISUAL tier (icon artwork, Apple/Google size parity,
+# dark-mode variant, stretch/aspect-ratio). The per-step view hierarchy — which the
+# geometry checks need for element bounds — is already written by
+# `maestro test --debug-output`, which the qa runner passes.
+- takeScreenshot: ${SHOT_PREFIX}compliance-${COMPLIANCE_LABEL}
+
+# Terminal soft-assert: fail iff any requirement is FAIL. OK / SKIP / VISUAL all pass
+# the on-device tier. The label dumps the full scorecard as JSON so ALL violations
+# (and the deferred VISUAL items) appear at once.
+- assertTrue:
+    condition: ${Object.keys(output.compliance).filter(function(k){return output.compliance[k] === 'FAIL'}).length === 0}
+    label: ${'COMPLIANCE[' + COMPLIANCE_LABEL + '] ' + JSON.stringify(output.compliance)}

@@ -1,0 +1,120 @@
+# qa-id: auth-0320
+# qa-reason: Welcome-screen social-login compliance — collect ALL violations in one pass (soft assertions)
+# ---------------------------------------------------------------------------
+# Unlike auth-0300 (fail-fast smoke: aborts on the first missing element), this flow
+# is a SOFT-ASSERTION compliance probe. It records every requirement's status into a
+# scorecard, running each check GUARDED so nothing aborts, then reports the whole
+# scorecard at the end via common/compliance-report.yaml. One run tells you EVERY
+# violation, not just the first — the right shape for a rule-heavy, App-Review-graded
+# screen. See docs/research/unorganized-Apple-Login-requirements.md.
+#
+# WHAT THIS TIER CAN CHECK (accessibility tree only): presence, approved copy, and the
+# conditional "Apple required because Google is offered" rule (App Review Guideline 4.8).
+#
+# WHAT IT CANNOT (marked VISUAL, deferred to scripts/compliance_visual.py on the
+# screenshot + hierarchy): Apple logo artwork/HIG, Apple/Google button SIZE PARITY
+# ("equal size and visual prominence" — the reviewer checks this), dark-mode variant,
+# and stretch/aspect-ratio.
+#
+# OUT OF SCOPE HERE (not observable on the Welcome screen — belong to other flows /
+# backend tests): in-app account deletion (Guideline 5.1.1(v)), Hide-My-Email private
+# relay handling, and the first-sign-in-only name/email caching. Noted so this flow's
+# green is not mistaken for full Sign-in-with-Apple compliance.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - compliance
+  - e2e
+  - ios
+  - android
+  - role-any
+---
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: run via `npm run qa` (needs METRO_HOST, METRO_PORT, SHOT_PREFIX)"
+
+- runFlow:
+    file: ../common/reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- extendedWaitUntil:
+    visible:
+      text: "Log in or sign up"
+    timeout: 60000
+
+# --- 1. Seed the scorecard: every requirement starts FAIL (soft-assertion default:
+# assume violated until a guarded check proves otherwise). VISUAL items are pre-set
+# and left for the host tier; they never fail the on-device flow.
+- evalScript: ${output.compliance = { 'first-party-email-path':'FAIL', 'google-offered':'FAIL', 'google-copy-approved':'FAIL', 'apple-offered-when-google':'FAIL', 'apple-copy-approved':'FAIL', 'apple-icon-official':'VISUAL', 'apple-google-size-parity':'VISUAL', 'buttons-not-stretched':'VISUAL' }}
+
+# --- 2. Platform scoping: Sign in with Apple is an iOS App Store requirement; Android
+# offers Google alone. Mark the Apple checks SKIP on Android so they aren't violations.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - evalScript: ${output.compliance['apple-offered-when-google'] = 'SKIP'}
+      - evalScript: ${output.compliance['apple-copy-approved'] = 'SKIP'}
+      - evalScript: ${output.compliance['apple-icon-official'] = 'SKIP'}
+      - evalScript: ${output.compliance['apple-google-size-parity'] = 'SKIP'}
+
+# --- 3. Guarded checks: flip a flag to OK only when its condition holds; never abort.
+# First-party email/password path present (email field + Continue).
+- runFlow:
+    when:
+      visible:
+        id: input-email
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: button-continue
+          commands:
+            - evalScript: ${output.compliance['first-party-email-path'] = 'OK'}
+
+# Google offered + approved copy.
+- runFlow:
+    when:
+      visible:
+        id: button-google-signin
+    commands:
+      - evalScript: ${output.compliance['google-offered'] = 'OK'}
+- runFlow:
+    when:
+      visible:
+        text: "Continue with Google"
+    commands:
+      - evalScript: ${output.compliance['google-copy-approved'] = 'OK'}
+
+# Apple (iOS only). Guideline 4.8: Apple is required BECAUSE a third-party login
+# (Google) is offered — so nest the Apple checks under "iOS AND Google present".
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - runFlow:
+          when:
+            visible:
+              id: button-google-signin
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: button-apple-signin
+                commands:
+                  - evalScript: ${output.compliance['apple-offered-when-google'] = 'OK'}
+            - runFlow:
+                when:
+                  visible:
+                    text: "Continue with Apple"
+                commands:
+                  - evalScript: ${output.compliance['apple-copy-approved'] = 'OK'}
+
+# --- 4. Capture evidence + report the whole scorecard (fails iff any flag is FAIL).
+- runFlow:
+    file: ../common/compliance-report.yaml
+    env:
+      SHOT_PREFIX: ${SHOT_PREFIX}
+      COMPLIANCE_LABEL: welcome-social
