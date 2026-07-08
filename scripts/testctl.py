@@ -6,12 +6,15 @@ One tool callable by every entity that pokes at tests: Claude Code, shell
 health scripts, humans, and the test scripts themselves.
 
   testctl.py status            what is running right now (test, step, runner, invoker, timings)
+                               [the default command when none is given]
   testctl.py nuke LIST         stop test runners (known method first, else SIGQUIT → 2s → SIGKILL)
-  testctl.py health            diagnose the local test environment
-  testctl.py driver-health     probe the Maestro Android driver: gRPC deviceInfo (aliveness+latency)
-                               if a live session holds :7001, else an lsof port-only check
+  testctl.py health            diagnose the environment (are machines running)
+  testctl.py ability           diagnose the testing possibilities with this environment (WIP)
+  testctl.py driver-health     probe the Maestro device driver (Android; details under -v)
   testctl.py inspect [last|all|recent|<N> [<B>]] [RUN_DIR]   artifact inspector
   testctl.py --json <cmd>      machine-readable output for any command
+  testctl.py --env ENV <cmd>   target LOCAL (default), PROD (trybubble.io), or STAGING
+                               ($STAGING_HOSTNAME — fatal if unset); L/P/S accepted
 
 Inspect is a menu app; CLI args are deep-links into its nav tree (RUNS → RUN →
 TEST). With no RUN_DIR it uses the current run (heartbeat) or the newest
@@ -52,7 +55,7 @@ import time
 from collections import namedtuple
 from datetime import datetime
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
 # Sibling dev-tools imported as modules (same pattern scripts/helpers/selftest_* uses):
@@ -78,6 +81,43 @@ API_PORT = int(os.environ.get("API_PORT", "3000"))
 METRO_PORT = int(os.environ.get("METRO_PORT", "8081"))
 APP_ID = os.environ.get("QA_APP_ID", "com.bubble.mobile")
 LOAD_CEILING = float(os.environ.get("QA_LOAD_CEILING", "75"))
+
+# ── target environment (--env LOCAL|PROD|STAGING; L/P/S accepted) ──────────────
+# Selects which deployment the env-aware commands (health, ability) probe.
+# LOCAL is the default and the only env where testctl may start anything.
+
+EnvCfg = namedtuple("EnvCfg", "name host api_base is_local")
+
+_ENV_ALIASES = {"L": "LOCAL", "P": "PROD", "S": "STAGING"}
+PROD_HOSTNAME = "trybubble.io"
+
+
+def resolve_env(raw):
+    """--env value → EnvCfg. Fatal (SystemExit) on STAGING without STAGING_HOSTNAME
+    and on unknown names — a typo must not silently probe the wrong deployment."""
+    key = (raw or "LOCAL").strip().upper()
+    key = _ENV_ALIASES.get(key, key)
+    if key == "LOCAL":
+        host = f"127.0.0.1:{API_PORT}"
+        return EnvCfg("LOCAL", host, f"http://{host}", True)
+    if key == "PROD":
+        return EnvCfg("PROD", PROD_HOSTNAME, f"https://{PROD_HOSTNAME}", False)
+    if key == "STAGING":
+        host = os.environ.get("STAGING_HOSTNAME", "").strip()
+        if not host:
+            raise SystemExit(
+                "testctl: --env STAGING needs the STAGING_HOSTNAME environment variable.\n"
+                "The staging deployment has no fixed hostname (it moves between hosting "
+                "providers), so testctl refuses to guess. Set it first, e.g.\n"
+                "    export STAGING_HOSTNAME=staging.trybubble.io")
+        return EnvCfg("STAGING", host, f"https://{host}", False)
+    raise SystemExit(f"testctl: unknown --env {raw!r} — use LOCAL, PROD, or STAGING "
+                     "(L, P, S also accepted)")
+
+
+# The active target. Module-level so the health/ability check registry (zero-arg
+# functions) can read it; main() reassigns it from --env before dispatch.
+ENV = resolve_env(None)
 
 # health: per-check wall-clock budget. Checks run in parallel worker threads; one
 # wedged tool (adb/simctl are the usual suspects) degrades to a warn instead of
@@ -233,6 +273,19 @@ def http_get(url, timeout=5):
         return None, str(e)
 
 
+def http_post_json(url, payload, timeout=8):
+    """POST JSON; return (status_code, body_str) or (None, error_str)."""
+    req = Request(url, data=json.dumps(payload).encode(),
+                  headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(req, timeout=timeout) as res:
+            return res.status, res.read().decode("utf-8", "replace")
+    except HTTPError as e:
+        return e.code, e.read().decode("utf-8", "replace") if e.fp else ""
+    except (URLError, OSError, TimeoutError) as e:
+        return None, str(e)
+
+
 def tcp_open(host, port, timeout=2):
     try:
         with socket.create_connection((host, port), timeout=timeout):
@@ -361,42 +414,61 @@ STEP_RE = re.compile(
 )
 
 
-def latest_maestro_step(search_dirs, max_age_s=3600):
-    """Newest maestro log under any of search_dirs → (step_text, step_started_epoch, log_path).
-
-    Two names: maestro.log (live, still under .maestro/tests/<ts>/ while the flow runs)
-    and internal-maestro-log.log (post-run, after the qa runner flattens/renames it).
-    """
-    newest, newest_mtime = None, 0
+def _iter_maestro_logs(search_dirs):
     for d in search_dirs:
         d = Path(d)
         if not d.is_dir():
             continue
         try:
             for pattern in ("maestro.log", "internal-maestro-log*.log"):
-                for f in d.rglob(pattern):
-                    mt = f.stat().st_mtime
-                    if mt > newest_mtime:
-                        newest, newest_mtime = f, mt
+                yield from d.rglob(pattern)
         except OSError:
             continue
+
+
+def _newest_maestro_log(search_dirs):
+    newest, newest_mtime = None, 0
+    for f in _iter_maestro_logs(search_dirs):
+        try:
+            mt = f.stat().st_mtime
+        except OSError:
+            continue
+        if mt > newest_mtime:
+            newest, newest_mtime = f, mt
+    return newest, newest_mtime
+
+
+def _last_step_in_lines(lines, log_mtime):
+    """(step_text, step_started_epoch) from the newest STEP_RE line, or (None, None)."""
+    for line in reversed(lines):
+        m = STEP_RE.match(line)
+        if not m:
+            continue
+        step = m.group(2).strip()[:140]
+        # Log lines carry time-of-day only; borrow the date from the file mtime.
+        day = datetime.fromtimestamp(log_mtime).strftime("%Y-%m-%d")
+        t = datetime.strptime(f"{day} {m.group(1)}", "%Y-%m-%d %H:%M:%S").timestamp()
+        if t > log_mtime + 60:  # log line written "later" than mtime → midnight wrap
+            t -= 86400
+        return step, t
+    return None, None
+
+
+def latest_maestro_step(search_dirs, max_age_s=3600):
+    """Newest maestro log under any of search_dirs → (step_text, step_started_epoch, log_path).
+
+    Two names: maestro.log (live, still under .maestro/tests/<ts>/ while the flow runs)
+    and internal-maestro-log.log (post-run, after the qa runner flattens/renames it).
+    """
+    newest, newest_mtime = _newest_maestro_log(search_dirs)
     if newest is None or time.time() - newest_mtime > max_age_s:
         return None, None, None
     try:
         lines = newest.read_text(errors="replace").splitlines()[-400:]
     except OSError:
         return None, None, None
-    for line in reversed(lines):
-        m = STEP_RE.match(line)
-        if m:
-            step = m.group(2).strip()[:140]
-            # Log lines carry time-of-day only; borrow the date from the file mtime.
-            day = datetime.fromtimestamp(newest_mtime).strftime("%Y-%m-%d")
-            t = datetime.strptime(f"{day} {m.group(1)}", "%Y-%m-%d %H:%M:%S").timestamp()
-            if t > newest_mtime + 60:  # log line written "later" than mtime → midnight wrap
-                t -= 86400
-            return step, t, str(newest)
-    return None, None, str(newest)
+    step, t = _last_step_in_lines(lines, newest_mtime)
+    return step, t, str(newest)
 
 
 def read_heartbeat(procs):
@@ -536,7 +608,8 @@ def _summary_meta(run_dir):
 
 
 # Result-column styling. GREEN (bold) = mostly good news; RED = mostly bad; "" = mixed.
-_ANSI = {"green": "\033[1;32m", "red": "\033[31m", "reset": "\033[0m"}
+_ANSI = {"green": "\033[1;32m", "red": "\033[31m", "bold": "\033[1m",
+         "cyan": "\033[36m", "reset": "\033[0m"}
 
 
 def _style(text, style):
@@ -554,24 +627,10 @@ def _run_result(run_dir):
     m = _summary_meta(run_dir)
     if m is None:
         return "No summary (crashed/killed?)", "red"
-    t = m.get("totals") or {}
-    ran = t.get("total", 0)
-    targeted = t.get("targeted") or ran
-    passed = t.get("passed", 0)
-    new_fail = t.get("failed", 0)
-    backlog = t.get("knownBugs", 0) + t.get("findings", 0)
+    ran, targeted, passed, new_fail, backlog = _run_totals(m)
 
-    # ── canceled / aborted (RED) ────────────────────────────────────────────
     if m.get("canceled"):
-        reason = (m.get("cancelReason") or "").lower()
-        note = f" · {ran}/{targeted} ran" if ran else ""
-        if reason == "user":
-            return f"Canceled by user{note}", "red"
-        if reason == "panic" or "incomplete" in reason or "placeholder" in reason:
-            return f"Crashed/incomplete{note}", "red"
-        return "Failed gating", "red"
-
-    # ── bad news (RED) ──────────────────────────────────────────────────────
+        return _canceled_label(m, ran, targeted)
     if ran == 0:
         return "No tests ran", "red"
 
@@ -582,8 +641,6 @@ def _run_result(run_dir):
     # No new failures. 100% with nothing carried is an unqualified Success; otherwise
     # it's still a pass, with a plain carried-count (no 🐞/🔎 icons — Travis A/B/D).
     if new_fail == 0:
-        if backlog == 0:
-            return f"Success: ({passed}/{targeted})", "green"
         return f"Success: ({passed}/{targeted}){carried}", "green"
 
     # ── 0% pass WITH real failures (RED) — the bench case ────────────────────
@@ -593,6 +650,25 @@ def _run_result(run_dir):
 
     # ── mixed (no highlight) — spell out "new failures", drop the ✗ glyph ────
     return f"{pct}% pass ({passed}/{targeted}) · {new_fail} new failures{carried}", ""
+
+
+def _run_totals(m):
+    """(ran, targeted, passed, new_fail, backlog) from a summary's totals block."""
+    t = m.get("totals") or {}
+    ran = t.get("total", 0)
+    return (ran, t.get("targeted") or ran, t.get("passed", 0), t.get("failed", 0),
+            t.get("knownBugs", 0) + t.get("findings", 0))
+
+
+def _canceled_label(m, ran, targeted):
+    """Canceled / aborted runs are all RED; the reason picks the wording."""
+    reason = (m.get("cancelReason") or "").lower()
+    note = f" · {ran}/{targeted} ran" if ran else ""
+    if reason == "user":
+        return f"Canceled by user{note}", "red"
+    if reason == "panic" or "incomplete" in reason or "placeholder" in reason:
+        return f"Crashed/incomplete{note}", "red"
+    return "Failed gating", "red"
 
 
 def _hyperlink(label, path, width):
@@ -607,61 +683,65 @@ def _hyperlink(label, path, width):
 RUNS_WINDOW_H = 72  # how far back the recent-runs table reaches
 
 
+def _run_platform_cols(p):
+    """(driver, platform) table cells for one run's params."""
+    if "e2e" not in (p.get("layers") or []):
+        # Headless runs are host-side HTTP tests — no device, no platform. Don't claim one
+        # (the old code showed a phantom "iOS" with a "—" driver).
+        return "—", "—"
+    # Prefer the stable device NAME (AVD name / iOS device name) the run recorded —
+    # the adb serial (deviceId, e.g. emulator-5556) is reused across back-to-back
+    # bench sims, so labelling by it collapses every android run to one alias. Fall
+    # back to --sim, then the serial, for pre-change runs that lack a name.
+    dev_key = p.get("deviceName") or p.get("sim") or p.get("deviceId")
+    driver, osv = _device_label(dev_key)
+    plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
+        p.get("platform"), (p.get("platform") or "—").capitalize())
+    return driver or "—", (f"{plat} / {osv}" if osv else plat)
+
+
+def _run_flavor(p):
+    """Flavor = layers + selection scope, so 'e2e' alone vs the full sweep are
+    distinguishable (Travis F). Scope mirrors qa.ts: smoke tag → smoke; no tags+no
+    areas → all; else the explicit tags/areas."""
+    ptags, pareas = p.get("tags") or [], p.get("areas") or []
+    if "smoke" in ptags:
+        scope = "smoke"
+    elif not ptags and not pareas:
+        scope = "all"
+    else:
+        scope = ", ".join(pareas or ptags)
+    layer_s = "+".join(p.get("layers") or [])
+    return f"{layer_s}/{scope}" if layer_s else "—"
+
+
+def _recent_run_row(d, now, window_h):
+    """Table row for one run dir, or None (not a qa run / outside the window)."""
+    params = d / "run-params.json"
+    if not d.is_dir() or not params.exists():
+        return None  # qa runs only (manual single-flow runs don't write params)
+    try:
+        p = json.loads(params.read_text())
+    except Exception:
+        return None
+    started = convert_iso_timestamp(p.get("startedAt"))
+    if not started or (now - started) > window_h * 3600:
+        return None
+    m = _summary_meta(d)
+    fin = convert_iso_timestamp(m.get("finishedAt")) if m else None
+    driver, platform = _run_platform_cols(p)
+    label, rstyle = _run_result(d)
+    return {"dir": d, "driver": driver, "platform": platform,
+            "started": _fmt_started(started), "started_epoch": started,
+            "runtime": f"{(fin - started) / 3600:.2f}" if fin else "—",
+            "flavor": _run_flavor(p), "result": label, "result_style": rstyle}
+
+
 def _collect_recent_runs(window_h=RUNS_WINDOW_H):
     """All qa runs started within `window_h` hours, newest first. One row dict each."""
     now = time.time()
-    rows = []
-    for d in OUTPUT_ROOT.glob("run-*"):
-        if not d.is_dir():
-            continue
-        params = d / "run-params.json"
-        if not params.exists():
-            continue  # qa runs only (manual single-flow runs don't write params)
-        try:
-            p = json.loads(params.read_text())
-        except Exception:
-            continue
-        started = convert_iso_timestamp(p.get("startedAt"))
-        if not started or (now - started) > window_h * 3600:
-            continue
-        m = _summary_meta(d)
-        fin = convert_iso_timestamp(m.get("finishedAt")) if m else None
-        runtime = f"{(fin - started) / 3600:.2f}" if fin else "—"
-        layers = p.get("layers") or []
-        is_e2e = "e2e" in layers
-        if is_e2e:
-            # Prefer the stable device NAME (AVD name / iOS device name) the run recorded —
-            # the adb serial (deviceId, e.g. emulator-5556) is reused across back-to-back
-            # bench sims, so labelling by it collapses every android run to one alias. Fall
-            # back to --sim, then the serial, for pre-change runs that lack a name.
-            dev_key = p.get("deviceName") or p.get("sim") or p.get("deviceId")
-            driver, osv = _device_label(dev_key)
-            plat = {"ios": "iOS", "android": "Android", "web": "Web"}.get(
-                p.get("platform"), (p.get("platform") or "—").capitalize())
-            platform = f"{plat} / {osv}" if osv else plat
-        else:
-            # Headless runs are host-side HTTP tests — no device, no platform. Don't claim one
-            # (the old code showed a phantom "iOS" with a "—" driver).
-            driver, platform = "—", "—"
-        # Flavor = layers + selection scope, so 'e2e' alone vs the full sweep are distinguishable
-        # (Travis F). Scope mirrors qa.ts: smoke tag → smoke; no tags+no areas → all; else the
-        # explicit tags/areas.
-        ptags, pareas = p.get("tags") or [], p.get("areas") or []
-        if "smoke" in ptags:
-            scope = "smoke"
-        elif not ptags and not pareas:
-            scope = "all"
-        else:
-            scope = ",".join(pareas or ptags)
-        layer_s = "+".join(layers)
-        flavor = f"{layer_s}/{scope}" if layer_s else "—"
-        label, rstyle = _run_result(d)
-        rows.append({
-            "dir": d, "driver": driver or "—", "platform": platform,
-            "started": _fmt_started(started), "started_epoch": started,
-            "runtime": runtime, "flavor": flavor,
-            "result": label, "result_style": rstyle,
-        })
+    rows = [_recent_run_row(d, now, window_h) for d in OUTPUT_ROOT.glob("run-*")]
+    rows = [r for r in rows if r]
     rows.sort(key=lambda r: r["started_epoch"], reverse=True)
     return rows
 
@@ -698,54 +778,110 @@ def _recent_runs_table(rows=None, window_h=RUNS_WINDOW_H, numbered=False):
     return rows
 
 
+def _active_job_entry(job, hb, now):
+    jstart = convert_iso_timestamp(job.get("startedAt"))
+    entry = {
+        "test": job.get("id"),
+        "tool": job.get("tool"),
+        "role": job.get("role"),
+        "tags": job.get("tags"),
+        "testElapsedS": (now - jstart) if jstart else None,
+        "step": None,
+        "stepElapsedS": None,
+    }
+    if job.get("tool") == "maestro" and hb.get("runDir"):
+        step, t0, _ = latest_maestro_step([Path(hb["runDir"]) / "e2e"])
+        if step:
+            entry["step"] = step
+            entry["stepElapsedS"] = now - t0 if t0 else None
+    return entry
+
+
+def _heartbeat_run(hb, procs, now):
+    """One qaRuns payload entry from a live/abandoned heartbeat."""
+    started = convert_iso_timestamp(hb.get("startedAt"))
+    run = {
+        "runId": hb.get("runId"),
+        "state": hb.get("state"),
+        "abandoned": hb["abandoned"],
+        "invoker": None,
+        "totalElapsedS": (now - started) if started else None,
+        "completed": hb.get("completed"),
+        "totalJobs": hb.get("totalJobs"),
+        "active": [_active_job_entry(job, hb, now) for job in hb.get("active") or []],
+    }
+    if hb.get("pid") in procs:
+        run["invoker"], _ = invoker_chain(hb["pid"], procs)
+    return run
+
+
+def _adhoc_maestro_step(test_procs, runs, now):
+    """Ad-hoc maestro CLI / MCP flows that the qa heartbeat knows nothing about."""
+    if runs or not any(p["kind"] in ("maestro-cli", "maestro-mcp") for p in test_procs):
+        return None
+    step, t0, log = latest_maestro_step(
+        [REPO / "tmp" / "maestro", Path.home() / ".maestro" / "tests"], max_age_s=1800)
+    if not step:
+        return None
+    return {"step": step, "stepElapsedS": now - t0 if t0 else None, "log": log}
+
+
+def _print_qa_run(run):
+    if run["abandoned"]:
+        print(f"🚨🚨🚨😵🪦🪦  qa run {run['runId']}  state={run['state']}")
+    else:
+        print(f"🏃  qa run {run['runId']}  state={run['state']}  invoker={run['invoker'] or '?'}")
+    print(f"    run elapsed {interval_into_string(run['totalElapsedS'])}, "
+          f"jobs {run['completed']}/{run['totalJobs'] if run['totalJobs'] is not None else '?'} done")
+    for j in run["active"]:
+        role = f"  role={j['role']}" if j.get("role") else ""
+        tags = f"  tags=[{', '.join(j['tags'])}]" if j.get("tags") else ""
+        print(f"    ▶ {j['test']} ({j['tool']}){role}{tags}  — in test {interval_into_string(j['testElapsedS'])}")
+        if j.get("step"):
+            print(f"      step: {j['step']}  ({interval_into_string(j['stepElapsedS'])} in step)")
+
+
+def _print_test_processes(processes):
+    print("\nTest processes:")
+    for p in processes:
+        chain = f" [{p['invokerChain']}]" if p["invokerChain"] else ""
+        print(f"  {p['pid']:>7}  {p['kind']:<16} invoker={p['invoker']:<7}{chain} "
+              f"up {interval_into_string(p['elapsedS'])}")
+
+
+def _print_idle_status(payload):
+    print("✅  No tests in progress.")
+    if payload["panicMarker"]:
+        print("⚠️   Stale PANIC marker present (tests/PANIC) — qa clears it on next start.")
+    _recent_runs_table()
+
+
+def _print_status_text(payload, runs, adhoc_step, test_procs):
+    # A lingering maestro MCP server is not "a test running" — don't let it suppress
+    # the idle view + recent-runs table (it's the common leftover state).
+    non_mcp_procs = [p for p in test_procs if p["kind"] != "maestro-mcp"]
+    if not runs and not non_mcp_procs:
+        return _print_idle_status(payload)
+    for run in runs:
+        _print_qa_run(run)
+    if adhoc_step:
+        print(f"▶   Ad-hoc maestro flow step: {adhoc_step['step']} "
+              f"({interval_into_string(adhoc_step['stepElapsedS'])} in step)\n    log: {adhoc_step['log']}")
+    if payload["processes"]:
+        _print_test_processes(payload["processes"])
+    if payload["panicMarker"]:
+        print("\n⚠️   PANIC marker present (tests/PANIC).")
+
+
 def cmd_status(as_json):
     now = time.time()
     procs = ps_snapshot()
     hb = read_heartbeat(procs)
     test_procs = find_test_processes(procs)
-
     runs = []
     if hb and (hb["runnerAlive"] or hb["abandoned"]):
-        started = convert_iso_timestamp(hb.get("startedAt"))
-        run = {
-            "runId": hb.get("runId"),
-            "state": hb.get("state"),
-            "abandoned": hb["abandoned"],
-            "invoker": None,
-            "totalElapsedS": (now - started) if started else None,
-            "completed": hb.get("completed"),
-            "totalJobs": hb.get("totalJobs"),
-            "active": [],
-        }
-        if hb.get("pid") in procs:
-            run["invoker"], _ = invoker_chain(hb["pid"], procs)
-        for job in hb.get("active") or []:
-            jstart = convert_iso_timestamp(job.get("startedAt"))
-            entry = {
-                "test": job.get("id"),
-                "tool": job.get("tool"),
-                "role": job.get("role"),
-                "tags": job.get("tags"),
-                "testElapsedS": (now - jstart) if jstart else None,
-                "step": None,
-                "stepElapsedS": None,
-            }
-            if job.get("tool") == "maestro" and hb.get("runDir"):
-                step, t0, _ = latest_maestro_step([Path(hb["runDir"]) / "e2e"])
-                if step:
-                    entry["step"] = step
-                    entry["stepElapsedS"] = now - t0 if t0 else None
-            run["active"].append(entry)
-        runs.append(run)
-
-    # Ad-hoc maestro CLI / MCP flows that the qa heartbeat knows nothing about.
-    adhoc_step = None
-    if any(p["kind"] in ("maestro-cli", "maestro-mcp") for p in test_procs) and not runs:
-        step, t0, log = latest_maestro_step(
-            [REPO / "tmp" / "maestro", Path.home() / ".maestro" / "tests"], max_age_s=1800)
-        if step:
-            adhoc_step = {"step": step, "stepElapsedS": now - t0 if t0 else None, "log": log}
-
+        runs.append(_heartbeat_run(hb, procs, now))
+    adhoc_step = _adhoc_maestro_step(test_procs, runs, now)
     payload = {
         "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),
         "qaRuns": runs,
@@ -758,45 +894,10 @@ def cmd_status(as_json):
         ],
         "panicMarker": PANIC_MARKER.exists(),
     }
-
     if as_json:
         print(json.dumps(payload, indent=2))
         return 0
-
-    # A lingering maestro MCP server is not "a test running" — don't let it suppress the
-    # idle view + recent-runs table (it's the common leftover state).
-    non_mcp_procs = [p for p in test_procs if p["kind"] != "maestro-mcp"]
-    if not runs and not non_mcp_procs:
-        print("✅  No tests in progress.")
-        if payload["panicMarker"]:
-            print("⚠️   Stale PANIC marker present (tests/PANIC) — qa clears it on next start.")
-        _recent_runs_table()
-        return 0
-
-    for run in runs:
-        if run["abandoned"]:
-            print(f"🚨🚨🚨😵🪦🪦  qa run {run['runId']}  state={run['state']}")
-        else:
-            print(f"🏃  qa run {run['runId']}  state={run['state']}  invoker={run['invoker'] or '?'}")
-        print(f"    run elapsed {interval_into_string(run['totalElapsedS'])}, "
-              f"jobs {run['completed']}/{run['totalJobs'] if run['totalJobs'] is not None else '?'} done")
-        for j in run["active"]:
-            role = f"  role={j['role']}" if j.get("role") else ""
-            tags = f"  tags=[{', '.join(j['tags'])}]" if j.get("tags") else ""
-            print(f"    ▶ {j['test']} ({j['tool']}){role}{tags}  — in test {interval_into_string(j['testElapsedS'])}")
-            if j.get("step"):
-                print(f"      step: {j['step']}  ({interval_into_string(j['stepElapsedS'])} in step)")
-    if adhoc_step:
-        print(f"▶   Ad-hoc maestro flow step: {adhoc_step['step']} "
-              f"({interval_into_string(adhoc_step['stepElapsedS'])} in step)\n    log: {adhoc_step['log']}")
-    if payload["processes"]:
-        print("\nTest processes:")
-        for p in payload["processes"]:
-            chain = f" [{p['invokerChain']}]" if p["invokerChain"] else ""
-            print(f"  {p['pid']:>7}  {p['kind']:<16} invoker={p['invoker']:<7}{chain} "
-                  f"up {interval_into_string(p['elapsedS'])}")
-    if payload["panicMarker"]:
-        print("\n⚠️   PANIC marker present (tests/PANIC).")
+    _print_status_text(payload, runs, adhoc_step, test_procs)
     return 0
 
 
@@ -820,14 +921,18 @@ TARGET_TO_KINDS = {
 }
 
 
+def _expand_one_target(t, out):
+    for x in NUKE_ALIASES.get(t, [t]):
+        for y in NUKE_ALIASES.get(x, [x]):  # headless inside all
+            if y not in out:
+                out.append(y)
+
+
 def expand_targets(spec):
     raw = [t.strip().lower() for t in spec.split(",") if t.strip()]
     out = []
     for t in raw:
-        for x in NUKE_ALIASES.get(t, [t]):
-            for y in NUKE_ALIASES.get(x, [x]):  # headless inside all
-                if y not in out:
-                    out.append(y)
+        _expand_one_target(t, out)
     unknown = [t for t in out if t not in TARGET_TO_KINDS]
     return [t for t in out if t in TARGET_TO_KINDS], unknown
 
@@ -864,63 +969,78 @@ def signal_ladder(pids, actions):
                 actions.append({"pid": pid, "signal": "SIGKILL", "error": str(e)})
 
 
+def _nuke_qa(test_procs, procs, actions, killed_kinds):
+    # Known method: PANIC marker — the runner aborts between tests and
+    # finalizes its summary. Then ladder the runner tree anyway: a test
+    # mid-flight (maestro/vitest/newman child) won't be aborted by the marker.
+    # No live qa-runner (e.g. an ABANDONED heartbeat) → no marker: there is
+    # nothing to abort, and a stale marker only pollutes the next run's start.
+    qa_runners = [tp for tp in test_procs if tp["kind"] == "qa-runner"]
+    if qa_runners:
+        PANIC_MARKER.write_text(f"testctl nuke at {datetime.now().isoformat()}\n")
+        actions.append({"method": "panic-marker", "path": str(PANIC_MARKER)})
+    for p in qa_runners:
+        tree = [p["pid"]] + [d["pid"] for d in descendants(p["pid"], procs)]
+        signal_ladder(tree, actions)
+        killed_kinds.append("qa-runner")
+
+
+def _nuke_mcp(test_procs, procs, actions, killed_kinds):
+    mcp_pids = [p["pid"] for p in test_procs if p["kind"] == "maestro-mcp"]
+    # MCP-owned XCUITest drivers go too — orphaned drivers are exactly what
+    # holds the simulator/port and wedges later CLI runs.
+    owned = [p["pid"] for p in test_procs if p["kind"] == "xcuitest-driver"
+             and any(a["pid"] in mcp_pids for a in ancestors(p["pid"], procs))]
+    if mcp_pids or owned:
+        signal_ladder(mcp_pids + owned, actions)
+        killed_kinds.append("maestro-mcp")
+
+
+def _nuke_plain_kinds(targets, test_procs, actions, killed_kinds):
+    plain = {"cli": "maestro-cli", "xcodebuild": "xcuitest-driver",
+             "vitest": "vitest", "newman": "newman", "playwright": "playwright"}
+    for t, kind in plain.items():
+        if t not in targets:
+            continue
+        pids = [p["pid"] for p in test_procs if p["kind"] == kind]
+        if pids:
+            signal_ladder(pids, actions)
+            killed_kinds.append(kind)
+
+
+def _nuke_action_line(a):
+    if "method" in a:
+        return f"📍  wrote {a['method']} → {a['path']}"
+    err = f"  ({a['error']})" if "error" in a else ""
+    return f"🛑  {a['signal']} → pid {a['pid']}{err}"
+
+
+def _print_nuke_text(spec, targets, unknown, actions, killed_kinds):
+    if unknown:
+        print(f"⚠️   Unknown nuke target(s) ignored: {', '.join(unknown)}")
+    if not actions:
+        print(f"✅  Nothing to nuke for: {', '.join(targets) or spec}")
+    for a in actions:
+        print(_nuke_action_line(a))
+    if "qa-runner" in killed_kinds:
+        print("ℹ️   Remove is not needed: qa clears the PANIC marker on next start.")
+
+
 def cmd_nuke(spec, as_json):
     targets, unknown = expand_targets(spec)
     procs = ps_snapshot()
     test_procs = find_test_processes(procs)
-    actions = []
-    killed_kinds = []
-
+    actions, killed_kinds = [], []
     if "qa" in targets:
-        # Known method: PANIC marker — the runner aborts between tests and
-        # finalizes its summary. Then ladder the runner tree anyway: a test
-        # mid-flight (maestro/vitest/newman child) won't be aborted by the marker.
-        # No live qa-runner (e.g. an ABANDONED heartbeat) → no marker: there is
-        # nothing to abort, and a stale marker only pollutes the next run's start.
-        qa_runners = [tp for tp in test_procs if tp["kind"] == "qa-runner"]
-        if qa_runners:
-            PANIC_MARKER.write_text(f"testctl nuke at {datetime.now().isoformat()}\n")
-            actions.append({"method": "panic-marker", "path": str(PANIC_MARKER)})
-        for p in qa_runners:
-            tree = [p["pid"]] + [d["pid"] for d in descendants(p["pid"], procs)]
-            signal_ladder(tree, actions)
-            killed_kinds.append("qa-runner")
-
+        _nuke_qa(test_procs, procs, actions, killed_kinds)
     if "mcp" in targets:
-        mcp_pids = [p["pid"] for p in test_procs if p["kind"] == "maestro-mcp"]
-        # MCP-owned XCUITest drivers go too — orphaned drivers are exactly what
-        # holds the simulator/port and wedges later CLI runs.
-        owned = [p["pid"] for p in test_procs if p["kind"] == "xcuitest-driver"
-                 and any(a["pid"] in mcp_pids for a in ancestors(p["pid"], procs))]
-        if mcp_pids or owned:
-            signal_ladder(mcp_pids + owned, actions)
-            killed_kinds.append("maestro-mcp")
-
-    plain = {"cli": "maestro-cli", "xcodebuild": "xcuitest-driver",
-             "vitest": "vitest", "newman": "newman", "playwright": "playwright"}
-    for t, kind in plain.items():
-        if t in targets:
-            pids = [p["pid"] for p in test_procs if p["kind"] == kind]
-            if pids:
-                signal_ladder(pids, actions)
-                killed_kinds.append(kind)
-
+        _nuke_mcp(test_procs, procs, actions, killed_kinds)
+    _nuke_plain_kinds(targets, test_procs, actions, killed_kinds)
     payload = {"targets": targets, "unknownTargets": unknown, "actions": actions}
     if as_json:
         print(json.dumps(payload, indent=2))
     else:
-        if unknown:
-            print(f"⚠️   Unknown nuke target(s) ignored: {', '.join(unknown)}")
-        if not actions:
-            print(f"✅  Nothing to nuke for: {', '.join(targets) or spec}")
-        for a in actions:
-            if "method" in a:
-                print(f"📍  wrote {a['method']} → {a['path']}")
-            else:
-                err = f"  ({a['error']})" if "error" in a else ""
-                print(f"🛑  {a['signal']} → pid {a['pid']}{err}")
-        if "qa-runner" in killed_kinds:
-            print("ℹ️   Remove is not needed: qa clears the PANIC marker on next start.")
+        _print_nuke_text(spec, targets, unknown, actions, killed_kinds)
     return 0
 
 
@@ -1036,7 +1156,7 @@ def _last_device_fix(platform):
     if not row:
         return {}
     return {"fix": f"boot the last-used {platform} device: "
-                   f"`python3 scripts/manage_devices.py --start last-{platform}`",
+                   f"`manage_devices.py --start last-{platform}`",
             "fix_kind": "auto",
             "fix_cmd": ["python3", "scripts/manage_devices.py", "--start", f"last-{platform}"]}
 
@@ -1074,12 +1194,77 @@ def api_listener_pid():
     return int(m.group(1)) if m else None
 
 
-def check_api():
+# How the local API server was started → what testing it can support. Keyed by
+# npm_lifecycle_event (primary) / BUBBLE_SERVER_MODE (fallback) read from the
+# listener's environment (`ps eww`).
+SERVER_MODE_SUITABILITY = {
+    "qa:server": "Ok for all testing",
+    "qa": "Ok for writeable but non-destructive tests (an active qa run owns the seeds)",
+    "prod": "Ok for readonly testing",
+    "start": "Ok for readonly testing",
+    "dev": "Ok for tests that don't depend on seeded data (serves the dev DB, not bubble_test)",
+}
+
+
+def api_server_mode():
+    """(pid, mode) of the local API listener. mode is a SERVER_MODE_SUITABILITY key
+    or None when undetectable."""
+    pid = api_listener_pid()
+    if pid is None:
+        return None, None
+    envout = subprocess.run(["ps", "eww", "-p", str(pid)],
+                            capture_output=True, text=True).stdout
+    m = re.search(r"npm_lifecycle_event=(\S+)", envout)
+    if m and m.group(1) in SERVER_MODE_SUITABILITY:
+        return pid, m.group(1)
+    m = re.search(r"BUBBLE_SERVER_MODE=(\w+)", envout)
+    if m:
+        mode = {"qa": "qa:server"}.get(m.group(1), m.group(1))
+        return pid, mode if mode in SERVER_MODE_SUITABILITY else None
+    return pid, None
+
+
+def _local_mode_note():
+    pid, mode = api_server_mode()
+    if mode is None:
+        return f" (pid {pid}, start mode undetected)" if pid else ""
+    return f" — started via `npm run {mode}`: {SERVER_MODE_SUITABILITY[mode]}"
+
+
+def _api_state(code, body):
+    """/api/v1/health HTTP result → (state word, check status, detail). States:
+    Healthy (200 + status ok), Partial Fail (answers but degraded/odd), Not Running."""
+    if code is None:
+        return "Not Running", "fail", body or "no HTTP response"
+    try:
+        health = json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        return "Partial Fail", "warn", f"/api/v1/health → {code} (non-JSON body)"
+    db = health.get("services", {}).get("database", {}).get("status")
+    line = f"/api/v1/health → {code}, status={health.get('status')}, db={db}"
+    if code == 200 and health.get("status") == "ok":
+        return "Healthy", "ok", line
+    return ("Partial Fail", "warn",
+            f"{line} — the endpoint answers but reports a degraded or critical service")
+
+
+def _check_api_remote():
+    code, body = http_get(f"{ENV.api_base}/api/v1/health", timeout=10)
+    word, status, extra = _api_state(code, body)
+    result = {"name": "api-server", "status": status,
+              "detail": f"{word} — {ENV.name} ({ENV.host}): {extra}"}
+    if status != "ok":
+        result["fix"] = (f"{ENV.name} is remote — check the hosting console and deploy "
+                         f"logs for {ENV.host}; nothing testctl can start from here")
+    return result
+
+
+def _check_api_local():
     v4 = tcp_open("127.0.0.1", API_PORT)
     v6 = tcp_open("::1", API_PORT)
     if not v4 and not v6:
         return {"name": "api-server", "status": "fail",
-                "detail": f"DOWN — nothing listening on port {API_PORT} (v4 or v6)",
+                "detail": f"Not Running — nothing listening on port {API_PORT} (v4 or v6)",
                 "fix": "start it: `npm run qa:server` (serves bubble_test; plain dev server breaks seeded logins)",
                 "fix_kind": "auto", "fix_cmd": ["npm", "run", "qa:server"],
                 "fix_bg": True, "fix_log": "tests/output/qa-server.log",
@@ -1088,20 +1273,21 @@ def check_api():
     code, body = http_get(f"http://127.0.0.1:{API_PORT}/api/v1/health", timeout=8)
     if code is None:
         return {"name": "api-server", "status": "fail",
-                "detail": f"HUNG — port {API_PORT} accepts connections but /api/v1/health gave no HTTP response ({body})",
+                "detail": f"Partial Fail — port {API_PORT} accepts connections but "
+                          f"/api/v1/health gave no HTTP response ({body})",
                 "fix": f"kill listener (pid {api_listener_pid()}) and restart: `npm run qa:server`"}
     note = ""
     if v4 != v6:
         which = "IPv4-only" if v4 else "IPv6-only"
-        note = f"; ⚠ {which} listener — localhost may resolve to the other family (qa:server binds dual-stack via API_BIND_HOST=::)"
-    try:
-        health = json.loads(body)
-        return {"name": "api-server", "status": "ok" if code == 200 else "warn",
-                "detail": f"/api/v1/health → {code}, status={health.get('status')}, "
-                          f"db={health.get('services', {}).get('database', {}).get('status')}{note}"}
-    except json.JSONDecodeError:
-        return {"name": "api-server", "status": "warn",
-                "detail": f"/api/v1/health → {code} (non-JSON body){note}"}
+        note = (f"; ⚠ {which} listener — localhost may resolve to the other family "
+                "(qa:server binds dual-stack via API_BIND_HOST=::)")
+    word, status, extra = _api_state(code, body)
+    return {"name": "api-server", "status": status,
+            "detail": f"{word} — {extra}{note}{_local_mode_note()}"}
+
+
+def check_api():
+    return _check_api_local() if ENV.is_local else _check_api_remote()
 
 
 def check_qa_server_identity():
@@ -1291,8 +1477,8 @@ def check_ios_sims():
         base = {"name": "ios-simulators", "status": "fail",
                 "detail": f"{count_phrase(0, 'iOS simulator', 'running')} — "
                           f"{installed} {is_are(installed)} installed",
-                "fix": "boot one: `python3 scripts/manage_devices.py --start <alias>` "
-                       "(list: `python3 scripts/manage_devices.py -l`)",
+                "fix": "boot one: `manage_devices.py --start <alias>` "
+                       "(list: `manage_devices.py -l`)",
                 "fix_kind": "manual"}
         base.update(_last_device_fix("ios"))
         return base
@@ -1336,30 +1522,35 @@ def check_android_emulators():
     if not live:
         base = {"name": "android-emulators", "status": "fail",
                 "detail": f"{count_phrase(0, 'Android emulator', 'running')} — {counts}",
-                "fix": "boot one: `python3 scripts/manage_devices.py --start <alias>` "
-                       "(list: `python3 scripts/manage_devices.py -l`)",
+                "fix": "boot one: `manage_devices.py --start <alias>` "
+                       "(list: `manage_devices.py -l`)",
                 "fix_kind": "manual", "why": why}
         base.update(_last_device_fix("android"))
         return base
+    return {"name": "android-emulators", "status": "ok",
+            "detail": f"{count_phrase(len(live), 'Android emulator', 'running')} — {counts}",
+            "lines": _android_device_lines(live, levels), "why": why}
+
+
+def _android_extras(d, levels):
+    api = _adb_getprop(d["serial"], "ro.build.version.sdk") if d.get("serial") else None
+    level = levels.get(d["id"])
+    return [f"API {api}" if api else None,
+            f"optimized/{level}" if level else "not optimized",
+            "booting" if d["state"] == "Booting" else None,
+            "headless" if md.looks_headless(d) else None]
+
+
+def _android_device_lines(live, levels):
     con = _ro_device_db()
-    lines = []
     try:
-        for d in live:
-            alias = pick_alias(d["id"], con)
-            api = _adb_getprop(d["serial"], "ro.build.version.sdk") if d.get("serial") else None
-            level = levels.get(d["id"])
-            extras = [f"API {api}" if api else None,
-                      f"optimized/{level}" if level else "not optimized",
-                      "booting" if d["state"] == "Booting" else None,
-                      "headless" if md.looks_headless(d) else None]
-            lines.append(_device_line(alias, d["name"],
-                                      f"Android {d['os_version'] or '?'}", extras))
+        return [_device_line(pick_alias(d["id"], con), d["name"],
+                             f"Android {d['os_version'] or '?'}",
+                             _android_extras(d, levels))
+                for d in live]
     finally:
         if con is not None:
             con.close()
-    return {"name": "android-emulators", "status": "ok",
-            "detail": f"{count_phrase(len(live), 'Android emulator', 'running')} — {counts}",
-            "lines": lines, "why": why}
 
 
 def check_genymotion():
@@ -1688,21 +1879,49 @@ def eas_profile_gaps(cfg, client_required):
     return gaps
 
 
+def _eas_config():
+    """(cfg, early-result) — exactly one is None."""
+    eas_json = REPO / "mobile" / "eas.json"
+    if not eas_json.exists():
+        return None, {"name": "eas", "status": "ok",
+                      "detail": "no mobile/eas.json — EAS builds not configured here"}
+    try:
+        return json.loads(eas_json.read_text()), None
+    except (OSError, ValueError) as e:
+        return None, {"name": "eas", "status": "warn",
+                      "detail": f"mobile/eas.json unreadable/invalid: {e}",
+                      "fix": "fix the JSON — every EAS build (cloud and --local) parses it",
+                      "fix_kind": "manual"}
+
+
+def _eas_cli_version():
+    try:
+        r = subprocess.run(["eas", "--version"], capture_output=True, text=True,
+                           timeout=15)
+    except (subprocess.SubprocessError, OSError):
+        return None
+    m = re.search(r"eas-cli/(\d+(?:\.\d+)*)", r.stdout or "")
+    return m.group(1) if m else (r.stdout or "").strip() or None
+
+
+def _eas_whoami_line():
+    try:
+        w = subprocess.run(["eas", "whoami"], capture_output=True, text=True,
+                           timeout=10, cwd=str(REPO / "mobile"))
+    except (subprocess.SubprocessError, OSError):
+        return "`eas whoami` failed/timed out (offline?)"
+    acct = (w.stdout or "").strip()
+    return (f"logged in as {acct}" if w.returncode == 0 and acct
+            else "not logged in — `eas login` before `eas build --local`")
+
+
 def check_eas(verbose=False):
     """EAS local builds (`eas build --local`) are one team workflow. Offline checks
     only by default: CLI presence/version + eas.json shape. `eas whoami` (network)
     runs under -v; `eas env:list` (auth + project scope) is advice, never a probe."""
-    eas_json = REPO / "mobile" / "eas.json"
-    if not eas_json.exists():
-        return {"name": "eas", "status": "ok",
-                "detail": "no mobile/eas.json — EAS builds not configured here"}
-    try:
-        cfg = json.loads(eas_json.read_text())
-    except (OSError, ValueError) as e:
-        return {"name": "eas", "status": "warn",
-                "detail": f"mobile/eas.json unreadable/invalid: {e}",
-                "fix": "fix the JSON — every EAS build (cloud and --local) parses it",
-                "fix_kind": "manual"}
+    cfg, early = _eas_config()
+    if cfg is None:
+        return early
     if not shutil.which("eas"):
         return {"name": "eas", "status": "warn",
                 "detail": "EAS CLI is not installed — `eas build --local` will not work",
@@ -1711,37 +1930,32 @@ def check_eas(verbose=False):
                 "fix_kind": "manual",
                 "why": "one team workflow builds the mobile binary locally with "
                        "`eas build --local`; e2e testing itself does not require EAS"}
-    status, lines, ver = "ok", [], None
-    try:
-        r = subprocess.run(["eas", "--version"], capture_output=True, text=True,
-                           timeout=15)
-        m = re.search(r"eas-cli/(\d+(?:\.\d+)*)", r.stdout or "")
-        ver = m.group(1) if m else (r.stdout or "").strip() or None
-    except (subprocess.SubprocessError, OSError):
-        pass
+    status, lines = "ok", []
+    ver = _eas_cli_version()
     constraint = (cfg.get("cli") or {}).get("version")
     if ver and constraint and not _ver_ge(ver, constraint):
         status = "warn"
         lines.append(f"eas-cli {ver} is older than eas.json's required {constraint} "
                      f"— update: `npm install -g eas-cli`")
-    for prof, miss in sorted(eas_profile_gaps(cfg, _client_required_vars()).items()):
-        lines.append(f"profile '{prof}': {', '.join(miss)} not in eas.json env — must "
-                     f"come from EAS env vars (unverifiable offline; check "
-                     f"`eas env:list --environment {prof}`)")
+    lines += _eas_gap_lines(cfg)
     if verbose:
-        try:
-            w = subprocess.run(["eas", "whoami"], capture_output=True, text=True,
-                               timeout=10, cwd=str(REPO / "mobile"))
-            acct = (w.stdout or "").strip()
-            lines.append(f"logged in as {acct}" if w.returncode == 0 and acct
-                         else "not logged in — `eas login` before `eas build --local`")
-        except (subprocess.SubprocessError, OSError):
-            lines.append("`eas whoami` failed/timed out (offline?)")
-    detail = (f"EAS CLI {ver or '?'} installed"
-              + (f" (eas.json wants {constraint})" if constraint else ""))
-    return {"name": "eas", "status": status, "detail": detail, "lines": lines,
+        lines.append(_eas_whoami_line())
+    return {"name": "eas", "status": status, "detail": _eas_detail(ver, constraint),
+            "lines": lines,
             "why": "offline-only checks by default; login/secret state needs network "
                    "and auth, so it is reported as advice (or probed under -v)"}
+
+
+def _eas_gap_lines(cfg):
+    return [f"profile '{prof}': {', '.join(miss)} not in eas.json env — must "
+            f"come from EAS env vars (unverifiable offline; check "
+            f"`eas env:list --environment {prof}`)"
+            for prof, miss in sorted(eas_profile_gaps(cfg, _client_required_vars()).items())]
+
+
+def _eas_detail(ver, constraint):
+    return (f"EAS CLI {ver or '?'} installed"
+            + (f" (eas.json wants {constraint})" if constraint else ""))
 
 
 def check_on_device_binary():
@@ -1787,31 +2001,33 @@ def check_on_device_binary():
 # ── health: registry + engine ───────────────────────────────────────────────────
 # Order IS the print order (deterministic even though execution is parallel):
 # secrets alarms first, then tooling, devices, servers, secrets detail, EAS.
-# suppress_ok: an always-green check prints only when non-ok (or under -v).
+# suppress_ok: an always/usually-green check prints only when non-ok (or under -v).
 # verbose_only: runs only under -v (expensive on-device probing).
+# local_only: introspects the LOCAL backend — skipped when --env is PROD/STAGING
+# (a remote deployment exposes no pid, DB socket, or adb tunnel to inspect).
 
-HealthSpec = namedtuple("HealthSpec", "name fn suppress_ok verbose_only")
+HealthSpec = namedtuple("HealthSpec", "name fn suppress_ok verbose_only local_only")
 
 HEALTH_CHECKS = [
-    HealthSpec("secrets-gitignore",  check_secrets_gitignore,  True,  False),
-    HealthSpec("secrets-leak-scan",  check_secrets_leaks,      True,  False),
-    HealthSpec("tooling",            check_tooling,            False, False),
-    HealthSpec("ios-simulators",     check_ios_sims,           False, False),
-    HealthSpec("sim-app-binary",     check_sim_binary,         True,  False),
-    HealthSpec("sim-boot-age",       check_sim_age,            True,  False),
-    HealthSpec("android-emulators",  check_android_emulators,  False, False),
-    HealthSpec("genymotion",         check_genymotion,         True,  False),
-    HealthSpec("real-devices",       check_real_devices,       True,  False),
-    HealthSpec("api-server",         check_api,                False, False),
-    HealthSpec("qa-server-identity", check_qa_server_identity, True,  False),
-    HealthSpec("metro",              check_metro,              False, False),
-    HealthSpec("db-server",          check_db,                 False, False),
-    HealthSpec("adb-reverse",        check_adb_reverse,        False, False),
-    HealthSpec("secrets-env",        check_secrets_env,        False, False),
-    HealthSpec("social-auth-env",    check_social_auth_env,    True,  False),
-    HealthSpec("eas",                check_eas,                True,  False),
-    HealthSpec("load-average",       check_load,               True,  False),
-    HealthSpec("on-device-binary",   check_on_device_binary,   False, True),
+    HealthSpec("secrets-gitignore",  check_secrets_gitignore,  True,  False, False),
+    HealthSpec("secrets-leak-scan",  check_secrets_leaks,      True,  False, False),
+    HealthSpec("tooling",            check_tooling,            True,  False, False),
+    HealthSpec("ios-simulators",     check_ios_sims,           False, False, False),
+    HealthSpec("sim-app-binary",     check_sim_binary,         True,  False, False),
+    HealthSpec("sim-boot-age",       check_sim_age,            True,  False, False),
+    HealthSpec("android-emulators",  check_android_emulators,  False, False, False),
+    HealthSpec("genymotion",         check_genymotion,         True,  False, False),
+    HealthSpec("real-devices",       check_real_devices,       True,  False, False),
+    HealthSpec("api-server",         check_api,                False, False, False),
+    HealthSpec("qa-server-identity", check_qa_server_identity, True,  False, True),
+    HealthSpec("metro",              check_metro,              False, False, False),
+    HealthSpec("db-server",          check_db,                 False, False, True),
+    HealthSpec("adb-reverse",        check_adb_reverse,        False, False, True),
+    HealthSpec("secrets-env",        check_secrets_env,        True,  False, False),
+    HealthSpec("social-auth-env",    check_social_auth_env,    True,  False, False),
+    HealthSpec("eas",                check_eas,                True,  False, False),
+    HealthSpec("load-average",       check_load,               True,  False, False),
+    HealthSpec("on-device-binary",   check_on_device_binary,   False, True,  False),
 ]
 
 
@@ -1835,54 +2051,76 @@ def run_health_checks(verbose=False):
     A check that exceeds QA_HEALTH_CHECK_TIMEOUT_S degrades to a warn; the stuck
     flag tells cmd_health to os._exit (a wedged thread would hang the interpreter's
     atexit join)."""
-    specs = [s for s in HEALTH_CHECKS if verbose or not s.verbose_only]
+    specs = [s for s in HEALTH_CHECKS
+             if (verbose or not s.verbose_only) and (ENV.is_local or not s.local_only)]
     ex = concurrent.futures.ThreadPoolExecutor(max_workers=8)
     futures = {s.name: ex.submit(_run_one_check, s, verbose) for s in specs}
     deadline = time.time() + QA_HEALTH_CHECK_TIMEOUT_S
     results, stuck = [], False
     for s in specs:
-        try:
-            res = futures[s.name].result(timeout=max(0.1, deadline - time.time()))
-            if not isinstance(res, dict):
-                res = {"status": "warn", "detail": f"check returned {type(res).__name__}"}
-        except concurrent.futures.TimeoutError:
-            stuck = True
-            res = {"status": "warn",
-                   "detail": f"check timed out after {QA_HEALTH_CHECK_TIMEOUT_S:.0f}s "
-                             f"(adb/simctl may be wedged)"}
-        except Exception as e:
-            res = {"status": "warn", "detail": f"check errored: {e}"}
+        res, timed_out = _collect_check_result(futures[s.name], deadline - time.time())
+        stuck = stuck or timed_out
         res.setdefault("name", s.name)
         results.append((s, res))
     ex.shutdown(wait=False, cancel_futures=True)
     return results, stuck
 
 
+def _collect_check_result(future, remaining_s):
+    """(result-dict, timed_out) for one worker future."""
+    try:
+        res = future.result(timeout=max(0.1, remaining_s))
+        if not isinstance(res, dict):
+            return {"status": "warn", "detail": f"check returned {type(res).__name__}"}, False
+        return res, False
+    except concurrent.futures.TimeoutError:
+        return {"status": "warn",
+                "detail": f"check timed out after {QA_HEALTH_CHECK_TIMEOUT_S:.0f}s "
+                          f"(adb/simctl may be wedged)"}, True
+    except Exception as e:
+        return {"status": "warn", "detail": f"check errored: {e}"}, False
+
+
 ICONS = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
 
 
-def render_health(results, verbose=False, as_json=False, fixes_applied=None):
+def _check_suppressed(spec, r, verbose):
+    return r["status"] == "ok" and not verbose and (spec.suppress_ok or r.get("quiet"))
+
+
+def _check_icon(r):
+    if r.get("alarm") and r["status"] != "ok":
+        return "🚨"
+    return ICONS[r["status"]]
+
+
+def _render_check_text(spec, r, verbose, show_fix):
+    """One check's report lines. Fix advice (↳) prints only when show_fix — i.e.
+    --fix or -v; a bare `health` just states what is wrong."""
+    if _check_suppressed(spec, r, verbose):
+        return
+    print(f"{_check_icon(r)}  {r['name']}: {r['detail']}")
+    for ln in r.get("lines", []):
+        print(f"\t{ln}")
+    if show_fix and r.get("fix") and r["status"] != "ok":
+        print(f"      ↳ {r['fix']}")
+    if verbose and r.get("why"):
+        print(f"      · why: {r['why']}")
+
+
+def render_health(results, verbose=False, as_json=False, fixes_applied=None, show_fix=True):
     """Print the report. Text: registry order, 🚨 for non-ok alarms, always-green
     checks suppressed unless non-ok or -v. JSON: EVERY executed check (suppression
     is text-only). Returns overall ok."""
     ok = all(r["status"] == "ok" for _, r in results)
     if as_json:
-        payload = {"ok": ok, "checks": [r for _, r in results]}
+        payload = {"ok": ok, "env": ENV.name, "checks": [r for _, r in results]}
         if fixes_applied is not None:
             payload["fixesApplied"] = fixes_applied
         print(json.dumps(payload, indent=2))
         return ok
     for spec, r in results:
-        if r["status"] == "ok" and not verbose and (spec.suppress_ok or r.get("quiet")):
-            continue
-        icon = "🚨" if (r.get("alarm") and r["status"] != "ok") else ICONS[r["status"]]
-        print(f"{icon}  {r['name']}: {r['detail']}")
-        for ln in r.get("lines", []):
-            print(f"\t{ln}")
-        if r.get("fix") and r["status"] != "ok":
-            print(f"      ↳ {r['fix']}")
-        if verbose and r.get("why"):
-            print(f"      · why: {r['why']}")
+        _render_check_text(spec, r, verbose, show_fix)
     return ok
 
 
@@ -1916,14 +2154,82 @@ def plan_fixes(results):
     return {"auto": auto, "manual": manual}
 
 
-def apply_fixes(results, verbose=False, narrate=True):
-    """Execute the auto fixes and list the manual ones. Auto = background server
-    restarts (log path + pid shown), adb reverse tunnels, booting the last-used
-    device. NEVER auto: sudo, brew/installers, >5-min tasks (AOT warmup, builds),
-    device-image downloads, signups. Returns the applied list (--json fixesApplied)."""
-    plan = plan_fixes(results)
-    applied = []
+def _fix_skip_reason(a, android_just_started):
+    """Why an auto fix should be skipped, or None to proceed."""
+    probe = FIX_PROBES.get(a["probe"]) if a.get("probe") else None
+    if probe and probe():
+        return "already up (raced with another start) — skipping"
+    if a["name"] == "adb-reverse" and android_just_started:
+        return ("skipped — the emulator only just started booting; "
+                "re-run `npm run qa:health -- --fix` once it's up")
+    return None
+
+
+def _start_background_fix(a, say):
+    """Launch one background (unmonitored subshell) fix; returns the applied record."""
+    with open(REPO / a["log"], "ab") as log_fh:
+        p = subprocess.Popen(a["cmd"], stdout=log_fh, stderr=subprocess.STDOUT,
+                             start_new_session=True, cwd=str(REPO))
+    say(f"→ {a['name']}: started `{' '.join(a['cmd'])}` in the background "
+        f"(log: {a['log']}, pid {p.pid})")
+    return {"name": a["name"], "cmd": a["cmd"], "pid": p.pid, "log": a["log"]}
+
+
+def _run_foreground_fix(a, say, narrate):
+    """Run one blocking fix to completion; returns the applied record."""
+    say(f"→ {a['name']}: running `{' '.join(a['cmd'])}` …")
+    try:
+        rc = subprocess.run(a["cmd"], cwd=str(REPO), timeout=120,
+                            capture_output=not narrate).returncode
+    except (subprocess.TimeoutExpired, OSError) as e:
+        rc = -1
+        say(f"→ {a['name']}: failed/timed out ({e}) — run it yourself to see why")
+    return {"name": a["name"], "cmd": a["cmd"], "exit": rc}
+
+
+def _apply_one_auto_fix(a, ctx, verbose, narrate, say):
+    """One auto fix: skip / background / foreground. Returns the applied record or
+    None when skipped. ctx carries the android-just-started ordering flag."""
+    skip = _fix_skip_reason(a, ctx["android_just_started"])
+    if skip:
+        say(f"→ {a['name']}: {skip}")
+        return None
+    if verbose and a.get("why"):
+        say(f"      · why: {a['why']}")
+    if a["bg"]:
+        return _start_background_fix(a, say)
+    rec = _run_foreground_fix(a, say, narrate)
+    if rec["exit"] == 0 and "last-android" in a["cmd"]:
+        ctx["android_just_started"] = True
+    return rec
+
+
+def apply_auto_fixes(plan, verbose=False, narrate=True):
+    """Execute the plan's auto fixes. Auto = background server restarts (log path +
+    pid shown), adb reverse tunnels, booting the last-used device. NEVER auto: sudo,
+    brew/installers, >5-min tasks (AOT warmup, builds), device-image downloads,
+    signups. Returns the applied list (--json fixesApplied)."""
     sys.stdout.flush()      # the report must land before any child's own output
+
+    def say(msg):
+        if narrate:
+            print(msg, flush=True)
+
+    if plan["auto"]:
+        OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    ctx = {"android_just_started": False}
+    recs = [_apply_one_auto_fix(a, ctx, verbose, narrate, say) for a in plan["auto"]]
+    applied = [r for r in recs if r]
+    if any("pid" in x for x in applied):
+        say("→ re-run `npm run qa:health` in ~30-60s to confirm the background "
+            "restarts came up.")
+    return applied
+
+
+def apply_fixes(results, verbose=False, narrate=True):
+    """Non-interactive fix pass (--json path and selftests): run every auto fix,
+    then list the manual advice."""
+    plan = plan_fixes(results)
 
     def say(msg):
         if narrate:
@@ -1931,48 +2237,53 @@ def apply_fixes(results, verbose=False, narrate=True):
 
     if not plan["auto"] and not plan["manual"]:
         say("→ nothing to fix — environment is healthy")
-        return applied
-    if plan["auto"]:
-        OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-    android_just_started = False
-    for a in plan["auto"]:
-        probe = FIX_PROBES.get(a["probe"]) if a.get("probe") else None
-        if probe and probe():
-            say(f"→ {a['name']}: already up (raced with another start) — skipping")
-            continue
-        if a["name"] == "adb-reverse" and android_just_started:
-            say("→ adb-reverse: skipped — the emulator only just started booting; "
-                "re-run `npm run qa:health -- --fix` once it's up")
-            continue
-        if verbose and a.get("why"):
-            say(f"      · why: {a['why']}")
-        if a["bg"]:
-            log_path = REPO / a["log"]
-            with open(log_path, "ab") as log_fh:
-                p = subprocess.Popen(a["cmd"], stdout=log_fh, stderr=subprocess.STDOUT,
-                                     start_new_session=True, cwd=str(REPO))
-            say(f"→ {a['name']}: started `{' '.join(a['cmd'])}` in the background "
-                f"(log: {a['log']}, pid {p.pid})")
-            applied.append({"name": a["name"], "cmd": a["cmd"], "pid": p.pid,
-                            "log": a["log"]})
-        else:
-            say(f"→ {a['name']}: running `{' '.join(a['cmd'])}` …")
-            try:
-                r = subprocess.run(a["cmd"], cwd=str(REPO), timeout=120,
-                                   capture_output=not narrate)
-                rc = r.returncode
-            except (subprocess.TimeoutExpired, OSError) as e:
-                rc = -1
-                say(f"→ {a['name']}: failed/timed out ({e}) — run it yourself to see why")
-            applied.append({"name": a["name"], "cmd": a["cmd"], "exit": rc})
-            if rc == 0 and "last-android" in a["cmd"]:
-                android_just_started = True
+        return []
+    applied = apply_auto_fixes(plan, verbose, narrate)
     for m in plan["manual"]:
         say(f"→ manual: {m['name']}: {m['fix']}")
-    if any("pid" in x for x in applied):
-        say("→ re-run `npm run qa:health` in ~30-60s to confirm the background "
-            "restarts came up.")
     return applied
+
+
+# `health --fix` (interactive, LOCAL): the alternative when the user declines the
+# auto-start offer. Each entry: (what, terminal-window name or None, command).
+MANUAL_START_ADVICE = {
+    "api-server": ("the API server", "QA Server", "npm run qa:server"),
+    "metro": ("the Metro Server", "Metro Bundler", "npm run metro_bundler"),
+    "ios-simulators": ("an iOS simulator", None, "manage_devices.py --start last-ios"),
+    "android-emulators": ("an Android emulator", None,
+                          "manage_devices.py --start last-android"),
+    "adb-reverse": ("the adb reverse tunnels", None, "bash scripts/dev-connect.sh android"),
+}
+
+
+def _print_manual_start(name):
+    what, window, cmd = MANUAL_START_ADVICE.get(
+        name, (f"`{name}`", None, "see the ↳ line above"))
+    if window:
+        print(f"→ To start {what} manually, go to the \"{window}\" terminal window "
+              f"and type 'go'")
+        print(f"  Alternatively, go into a terminal window and type '{cmd}'")
+    else:
+        print(f"→ To start {what} manually, go into a terminal window and type '{cmd}'")
+
+
+def offer_fixes(results, verbose=False):
+    """`health --fix`, text mode. LOCAL: offer to start only the missing servers/
+    emulators (unmonitored subshells) behind a y/N prompt; declining prints the
+    manual instructions instead. PROD/STAGING: advice only (already rendered as
+    ↳ lines) — testctl never starts anything on a remote deployment."""
+    if not ENV.is_local:
+        return
+    plan = plan_fixes(results)
+    if not plan["auto"]:
+        if not plan["manual"]:
+            print("→ nothing to fix — environment is healthy")
+        return
+    if _ask_yes("Should I start the non-running applications?"):
+        apply_auto_fixes(plan, verbose, narrate=True)
+    else:
+        for a in plan["auto"]:
+            _print_manual_start(a["name"])
 
 
 def cmd_health(as_json, verbose=False, fix=False):
@@ -1981,9 +2292,9 @@ def cmd_health(as_json, verbose=False, fix=False):
         fixes = apply_fixes(results, verbose, narrate=False) if fix else None
         ok = render_health(results, verbose, as_json=True, fixes_applied=fixes)
     else:
-        ok = render_health(results, verbose, as_json=False)
+        ok = render_health(results, verbose, as_json=False, show_fix=fix or verbose)
         if fix:
-            apply_fixes(results, verbose, narrate=True)
+            offer_fixes(results, verbose)
     rc = 0 if ok else 1
     if stuck:
         sys.stdout.flush()
@@ -2079,16 +2390,271 @@ def check_driver_health():
             "responsive": True, "latency_s": round(latency, 3), "detail": f"{base}; {gdetail}{note}"}
 
 
-def cmd_driver_health(as_json):
+# Shown only under -v: the mechanism is deliberately absent from the help text.
+DRIVER_HEALTH_DETAILS = f"""\
+When you need this: a Maestro flow is hanging or timing out mid-run (inputText
+DEADLINE_EXCEEDED, taps not landing) and you want to know whether the driver JVM
+is wedged or the app is just slow — this probes aliveness + latency without
+disturbing the run.
+
+How it works:
+  A. Live session (:{DRIVER_PORT} LISTENing) → gRPC `deviceInfo` probe (aliveness +
+     latency; warn over {DRIVER_LATENCY_WARN_S:.0f}s, healthy is ~0.15s). The driver serves no
+     reflection/health RPC, so the probe needs the -protoset file at
+     {DRIVER_PROTOSET} (gitignored, regenerable).
+  B. No listener → lsof port-only check; the driver is down/idle. It is EPHEMERAL:
+     up only during a live `maestro test`/studio/hierarchy session, tunneled via
+     dadb (NOT `adb forward`, so `adb forward --list` stays empty).
+
+Why Android only: the Android driver is a host-side gRPC server on
+localhost:{DRIVER_PORT} — probeable out-of-band. The iOS driver is an XCUITest runner
+inside the simulator, a strict singleton with no host-facing health port; any
+out-of-band session (including a probe) kills the live test's driver, so a safe
+iOS equivalent does not exist."""
+
+
+def cmd_driver_health(as_json, verbose=False):
     c = check_driver_health()
     if as_json:
         print(json.dumps(c, indent=2))
     else:
-        icons = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
-        print(f"{icons[c['status']]}  {c['name']}: {c['detail']}")
+        print(f"{ICONS[c['status']]}  {c['name']}: {c['detail']}")
         if c.get("fix"):
             print(f"      ↳ {c['fix']}")
+        if verbose:
+            print()
+            print(DRIVER_HEALTH_DETAILS)
     return 1 if c["status"] == "fail" else 0
+
+
+# ── ability ───────────────────────────────────────────────────────────────────
+# What testing is POSSIBLE with the current environment (WIP: several rows are
+# speculative — deriving them fully needs new tags, new `npm run qa` arguments,
+# and new gating; unknowns render as ❔, never as a silent guess).
+
+def _env_text(path):
+    try:
+        return path.read_text()
+    except OSError:
+        return ""
+
+
+def _seed_credentials():
+    try:
+        cfg = json.loads((REPO / "tests" / "config" / "roles.json").read_text())
+    except (OSError, ValueError):
+        return None
+    cred = (cfg.get("roles") or {}).get("role-user") or {}
+    return cred if cred.get("email") and cred.get("password") else None
+
+
+def _seeded_accounts_present():
+    """Mirror the runner's seeded-account gate (tests/runner/gating.ts): authenticate
+    the seeded role-user against the LOCAL API. A DB count can't work — emails are
+    encrypted at rest. True/False on a definitive answer, None when unknowable
+    (no creds, API down, non-LOCAL env)."""
+    cred = _seed_credentials()
+    if not cred or not ENV.is_local:
+        return None
+    code, _ = http_post_json(f"{ENV.api_base}/api/auth/login",
+                             {"email": cred["email"], "password": cred["password"]})
+    if code is None:
+        return None
+    return True if code == 200 else (False if code in (400, 401, 403, 404) else None)
+
+
+def _flow_tags(text):
+    m = re.search(r"^tags:\n((?:\s*-\s*\S+\n)+)", text, re.M)
+    return set(re.findall(r"-\s*(\S+)", m.group(1))) if m else set()
+
+
+def _count_test_inventory():
+    """e2e flow counts by platform tag + headless test count. Env-scoped counts
+    are impossible today: no LOCAL/STAGING/PROD tags exist yet (WIP)."""
+    counts = {"e2e_total": 0, "e2e_ios": 0, "e2e_android": 0,
+              "e2e_untagged": 0, "headless": 0}
+    for path in sorted((REPO / "tests" / "e2e").rglob("*.yaml")):
+        text = _env_text(path)
+        if "# qa-id:" not in text:
+            continue                     # subflow/helper, not a runnable test
+        tags = _flow_tags(text)
+        counts["e2e_total"] += 1
+        counts["e2e_ios"] += "ios" in tags
+        counts["e2e_android"] += "android" in tags
+        counts["e2e_untagged"] += not tags & {"ios", "android"}
+    counts["headless"] = len(list((REPO / "tests" / "headless").rglob("*.headless.test.ts")))
+    return counts
+
+
+def _live_device_counts():
+    cap = htc.capabilities()
+    ios = 0
+    if cap["simctl"]:
+        ios = len([d for d in md.ios_devices() if d["state"] in ("Running", "Booting")])
+    android = len(md.android_running()) + len(md.android_real()) if cap["adb"] else 0
+    return ios, android
+
+
+def gather_ability_facts():
+    code, body = http_get(f"{ENV.api_base}/api/v1/health", timeout=8)
+    word, _, _ = _api_state(code, body)
+    _, mode = api_server_mode() if ENV.is_local else (None, None)
+    mobile_env = _env_text(REPO / "mobile" / ".env")
+    root_env = _env_text(REPO / ".env")
+    ios_live, android_live = _live_device_counts()
+    return {
+        "api_state": word,                       # Healthy | Partial Fail | Not Running
+        "server_mode": mode,                     # qa:server | qa | prod | dev | None
+        "seeds": _seeded_accounts_present() if ENV.is_local else None,
+        "google_ids": all(_env_file_has(mobile_env, v) for v in SOCIAL_AUTH_VARS),
+        "apple_vars": bool(re.search(r"^EXPO_PUBLIC_APPLE\w*=.+", mobile_env, re.M)),
+        "cometchat": _env_file_has(mobile_env, "EXPO_PUBLIC_COMETCHAT_APP_ID"),
+        "places": (_env_file_has(mobile_env, "EXPO_PUBLIC_GOOGLE_PLACES_API_KEY")
+                   and _env_file_has(root_env, "GOOGLE_PLACES_API_KEY")),
+        "sentry_dsn": _env_file_has(root_env, "SENTRY_DSN"),
+        "sentry_local_on": bool(re.search(r"^BUBBLE_SENTRY_USAGE=local", root_env, re.M)),
+        "ios_live": ios_live,
+        "android_live": android_live,
+        "counts": _count_test_inventory(),
+    }
+
+
+def _cap(rows, label, possible, note="", fix=None):
+    rows.append({"label": label, "possible": possible, "note": note, "fix": fix})
+
+
+def _backend_flags(f):
+    """Building blocks for the backend rows. `api_ok` means reachable — a Partial
+    Fail (degraded optional service) still supports most testing; only Not Running
+    zeroes these out."""
+    api_ok = f["api_state"] != "Not Running"
+    seeded_env = ENV.is_local and api_ok and f["server_mode"] == "qa:server"
+    shared_ok = ENV.name in ("LOCAL", "STAGING") and api_ok
+    return api_ok, seeded_env, shared_ok
+
+
+def _expect_seeds_value(f, seeded_env):
+    if not seeded_env:
+        return False
+    return None if f["seeds"] is None else bool(f["seeds"])
+
+
+def _derive_caps_backend(rows, f):
+    """Rows tied to which API server is up and how it was started."""
+    api_ok, seeded_env, shared_ok = _backend_flags(f)
+    mode_note = "" if seeded_env else f" — current: {f['server_mode'] or 'down'}"
+    _cap(rows, "write seeded values", seeded_env, "qa api server only" + mode_note,
+         fix="start it: `npm run qa:server`")
+    _cap(rows, "expect seeded values", _expect_seeds_value(f, seeded_env),
+         "qa api server + seeded accounts in bubble_test",
+         fix="seed it: `npm run qa:seed`")
+    _cap(rows, "create accounts (email/pwd)", ENV.is_local and api_ok,
+         "LOCAL only — throwaway accounts pollute shared envs",
+         fix="start the LOCAL stack (`npm run qa:server`) and use --env LOCAL")
+    _cap(rows, "send messages", shared_ok,
+         "LOCAL and STAGING only — never spam PROD users")
+    _cap(rows, "run performance tests", shared_ok,
+         "LOCAL and STAGING only — load must not hit PROD")
+    seeds_note = ("based on presence of seeded accounts"
+                  + ("" if ENV.is_local else " — unverifiable remotely (WIP)"))
+    _cap(rows, "sign in email/pwd (seeded)",
+         bool(f["seeds"]) if f["seeds"] is not None else None,
+         seeds_note, fix="seed LOCAL: `npm run qa:seed`")
+
+
+def _tri(prod_val, local_val, staging_val=None):
+    """Env-dependent capability value; STAGING defaults to ❔ (WIP)."""
+    if ENV.name == "PROD":
+        return prod_val
+    return local_val if ENV.is_local else staging_val
+
+
+def _derive_caps_integrations(rows, f):
+    """Rows tied to third-party wiring (env vars / deployment)."""
+    local = ENV.is_local
+    prod = ENV.name == "PROD"
+    _cap(rows, "Sign In With Google", _tri(True, f["google_ids"]),
+         "PROD always; LOCAL only with EXPO_PUBLIC_GOOGLE_CLIENT_ID_* set",
+         fix="create OAuth clients in Google Cloud Console; set the vars in mobile/.env and root .env")
+    _cap(rows, "Sign In With Apple", _tri(True, f["apple_vars"]),
+         "PROD always; LOCAL only with Apple env vars set (WIP)",
+         fix="wire Apple sign-in env vars (none defined yet — WIP)")
+    _cap(rows, "create account via email/pwd", ENV.name in ("LOCAL", "STAGING"),
+         "LOCAL and STAGING only")
+    _cap(rows, "create account via Google", None, "possible on LOCAL? — unverified (WIP)")
+    _cap(rows, "create account via Apple", None, "possible on LOCAL? — unverified (WIP)")
+    _cap(rows, "Comet Chat flows", ENV.name in ("LOCAL", "STAGING") and f["cometchat"],
+         "needs EXPO_PUBLIC_COMETCHAT_APP_ID; LOCAL/STAGING only (no comet-chat tag yet — WIP)",
+         fix="set EXPO_PUBLIC_COMETCHAT_APP_ID in mobile/.env")
+    sentry_on = f["sentry_dsn"] and (not local or f["sentry_local_on"])
+    _cap(rows, "automated runs with Sentry enabled", False if sentry_on else True,
+         "Sentry active ⇒ MANUAL ONLY — `npm run qa` must ban automated tests (gating WIP)"
+         if sentry_on else "Sentry inactive here — automated runs are safe")
+    _cap(rows, "Google Places flows", f["places"] if local else None,
+         "needs the key in mobile/.env AND root .env (server proxy); test tagging for "
+         "this dependency is WIP",
+         fix="set EXPO_PUBLIC_GOOGLE_PLACES_API_KEY (mobile/.env) + GOOGLE_PLACES_API_KEY (root .env)")
+    _cap(rows, "Universal Links", prod or None, "production only? — WIP")
+    _cap(rows, "email-gated actions", True if local else None,
+         "email proof-of-identity is worked around in dev; remote envs need real mail (WIP)")
+    _cap(rows, "SSL on API server", not local,
+         f"{ENV.api_base} — LOCAL is plain http; check-tls contract tests are the plan (WIP)")
+
+
+def derive_capabilities(facts):
+    rows = []
+    _derive_caps_backend(rows, facts)
+    _derive_caps_integrations(rows, facts)
+    return rows
+
+
+ABILITY_ICONS = {True: "✅", False: "❌", None: "❔"}
+
+
+def _render_ability_counts(c, ios_live, android_live):
+    print("\nTEST INVENTORY")
+    untagged = f", {c['e2e_untagged']} with no platform tag" if c["e2e_untagged"] else ""
+    print(f"  e2e flows: {c['e2e_total']} total — {c['e2e_ios']} iOS-tagged, "
+          f"{c['e2e_android']} Android-tagged{untagged}")
+    print(f"  headless tests: {c['headless']}")
+    print("  by environment: no LOCAL/STAGING/PROD tags exist yet — all of the above "
+          "count as LOCAL-dev (tagging is WIP)")
+    ios_run = c["e2e_ios"] if ios_live else 0
+    android_run = c["e2e_android"] if android_live else 0
+    print(f"  runnable now: iOS e2e {ios_run} ({count_phrase(ios_live, 'simulator', 'running')}), "
+          f"Android e2e {android_run} ({count_phrase(android_live, 'device', 'live')}), "
+          f"headless {c['headless']}")
+
+
+def _render_ability_json(caps, facts):
+    print(json.dumps({"env": ENV.name, "host": ENV.host, "facts": {
+        k: v for k, v in facts.items() if k != "counts"},
+        "capabilities": caps, "counts": facts["counts"]}, indent=2))
+
+
+def _print_cap_row(r, fix):
+    note = f"  — {r['note']}" if r["note"] else ""
+    print(f"  {ABILITY_ICONS[r['possible']]} {r['label']:34}{note}")
+    if fix and r["possible"] is False and r.get("fix"):
+        print(f"      ↳ {r['fix']}")
+
+
+def render_ability(caps, facts, as_json, fix=False):
+    if as_json:
+        return _render_ability_json(caps, facts)
+    print(f"ability — env {ENV.name} ({ENV.host}); api {facts['api_state']}"
+          + (f", server mode {facts['server_mode']}" if facts["server_mode"] else ""))
+    print("\nCAPABILITIES (❔ = not derivable yet — WIP)")
+    for r in caps:
+        _print_cap_row(r, fix)
+    _render_ability_counts(facts["counts"], facts["ios_live"], facts["android_live"])
+
+
+def cmd_ability(as_json, verbose=False, fix=False):
+    facts = gather_ability_facts()
+    caps = derive_capabilities(facts)
+    render_ability(caps, facts, as_json, fix or verbose)   # -v shows the ↳ advice too
+    return 0
 
 
 # ── inspect ───────────────────────────────────────────────────────────────────
@@ -2190,26 +2756,24 @@ class Entry:
         return f"{self.icon} {self.id}{role}  {note}".rstrip()
 
 
-def find_run_dir(arg):
-    """Resolve the run directory: explicit arg (file → its dir, artifact subdir →
-    run root) or the heartbeat's current run, else the newest run-* dir."""
-    if arg:
-        p = Path(arg).expanduser()
-        if not p.exists():
-            raise SystemExit(f"error: no such path: {arg}")
-        p = p.resolve()
-        if p.is_file():
-            p = p.parent
-        for cand in [p, *p.parents]:
-            if (cand / "summary.json").exists() or (cand / "run-params.json").exists() \
-                    or cand.name.startswith("run-"):
-                return cand
-            if cand == OUTPUT_ROOT:
-                break
-        return p
-    hb = read_heartbeat(ps_snapshot())
-    if hb and hb.get("runnerAlive") and hb.get("runDir") and Path(hb["runDir"]).is_dir():
-        return Path(hb["runDir"])
+def _run_root_from_path(arg):
+    """Explicit path arg → its run root (file → its dir, artifact subdir → run root)."""
+    p = Path(arg).expanduser()
+    if not p.exists():
+        raise SystemExit(f"error: no such path: {arg}")
+    p = p.resolve()
+    if p.is_file():
+        p = p.parent
+    for cand in [p, *p.parents]:
+        if (cand / "summary.json").exists() or (cand / "run-params.json").exists() \
+                or cand.name.startswith("run-"):
+            return cand
+        if cand == OUTPUT_ROOT:
+            break
+    return p
+
+
+def _newest_run_dir():
     runs = sorted((d for d in OUTPUT_ROOT.glob("run-*") if d.is_dir()),
                   key=lambda d: d.stat().st_mtime, reverse=True)
     for d in runs:
@@ -2218,6 +2782,71 @@ def find_run_dir(arg):
     if runs:
         return runs[0]
     raise SystemExit(f"error: no run directories under {OUTPUT_ROOT}")
+
+
+def find_run_dir(arg):
+    """Resolve the run directory: explicit arg (file → its dir, artifact subdir →
+    run root) or the heartbeat's current run, else the newest run-* dir."""
+    if arg:
+        return _run_root_from_path(arg)
+    hb = read_heartbeat(ps_snapshot())
+    if hb and hb.get("runnerAlive") and hb.get("runDir") and Path(hb["runDir"]).is_dir():
+        return Path(hb["runDir"])
+    return _newest_run_dir()
+
+
+def _summary_entry(r, run_dir):
+    e = Entry(**r)
+    # Artifact dirs are stored absolute; survive a moved/renamed checkout.
+    if not e.artifacts.is_dir():
+        guess = run_dir / e.layer / (f"{e.id}-{e.role}" if e.role else e.id)
+        if guess.is_dir():
+            e.artifacts = guess
+    return e
+
+
+def _synth_status_from_logs(d):
+    status = "?"
+    for log in list(d.glob("high-level-*.log")) + list(d.glob("run.log")):
+        try:
+            txt = log.read_text(errors="replace")
+        except OSError:
+            continue
+        if " FAILED" in txt or "(exit 1)" in txt or "(exit 2)" in txt:
+            status = "fail"
+        elif "(exit 0)" in txt:
+            status = "pass"
+    return status
+
+
+def _synth_entry(d, layer):
+    leaf = d.name
+    role = next((r for r in ROLES if leaf.endswith("-" + r)), None)
+    tid = leaf[: -len(role) - 1] if role else leaf
+    tool = "maestro" if layer == "e2e" else (
+        "newman" if list(d.glob("*postman_collection*")) else "vitest")
+    return Entry(id=tid, role=role, tool=tool, layer=layer,
+                 status=_synth_status_from_logs(d), artifactsDir=str(d),
+                 message="(no summary.json — run in progress or aborted)")
+
+
+def _layer_entries(run_dir, layer):
+    base = run_dir / layer
+    if not base.is_dir():
+        return []
+    return [_synth_entry(d, layer)
+            for d in sorted(p for p in base.iterdir() if p.is_dir())]
+
+
+def _synthesize_live_entries(info, run_dir):
+    """No summary yet: in-progress or manual run — synthesize entries from disk."""
+    info["live"] = True
+    for layer in ("e2e", "headless"):
+        info["entries"] += _layer_entries(run_dir, layer)
+    if not info["entries"] and run_dir.name.startswith("run-manual-"):
+        info["entries"].append(Entry(id=run_dir.name[len("run-manual-"):], role=None,
+                                     tool="maestro", layer="e2e", status="?",
+                                     artifactsDir=str(run_dir), message="(manual qa:flow run)"))
 
 
 def load_run(run_dir):
@@ -2229,48 +2858,12 @@ def load_run(run_dir):
         pass
     try:
         s = json.loads((run_dir / "summary.json").read_text())
-        info["summary"] = s
-        info["gates"] = s.get("gates") or []
-        for r in s.get("results", []):
-            e = Entry(**r)
-            # Artifact dirs are stored absolute; survive a moved/renamed checkout.
-            if not e.artifacts.is_dir():
-                guess = run_dir / e.layer / (f"{e.id}-{e.role}" if e.role else e.id)
-                if guess.is_dir():
-                    e.artifacts = guess
-            info["entries"].append(e)
-        return info
     except (OSError, json.JSONDecodeError):
-        pass
-    # No summary yet: in-progress or manual run — synthesize entries from disk.
-    info["live"] = True
-    for layer in ("e2e", "headless"):
-        base = run_dir / layer
-        if not base.is_dir():
-            continue
-        for d in sorted(p for p in base.iterdir() if p.is_dir()):
-            leaf = d.name
-            role = next((r for r in ROLES if leaf.endswith("-" + r)), None)
-            tid = leaf[: -len(role) - 1] if role else leaf
-            tool = "maestro" if layer == "e2e" else (
-                "newman" if list(d.glob("*postman_collection*")) else "vitest")
-            status = "?"
-            for log in list(d.glob("high-level-*.log")) + list(d.glob("run.log")):
-                try:
-                    txt = log.read_text(errors="replace")
-                    if " FAILED" in txt or "(exit 1)" in txt or "(exit 2)" in txt:
-                        status = "fail"
-                    elif "(exit 0)" in txt:
-                        status = "pass"
-                except OSError:
-                    pass
-            info["entries"].append(Entry(id=tid, role=role, tool=tool, layer=layer,
-                                         status=status, artifactsDir=str(d),
-                                         message="(no summary.json — run in progress or aborted)"))
-    if not info["entries"] and run_dir.name.startswith("run-manual-"):
-        info["entries"].append(Entry(id=run_dir.name[len("run-manual-"):], role=None,
-                                     tool="maestro", layer="e2e", status="?",
-                                     artifactsDir=str(run_dir), message="(manual qa:flow run)"))
+        _synthesize_live_entries(info, run_dir)
+        return info
+    info["summary"] = s
+    info["gates"] = s.get("gates") or []
+    info["entries"] = [_summary_entry(r, run_dir) for r in s.get("results", [])]
     return info
 
 
@@ -2288,21 +2881,17 @@ def canon_role(text):
     return cand if cand in ROLES else None
 
 
-def parse_test_spec(spec, entries):
-    """Parse a forgiving test spec against the run's entries.
-    Returns (entry, None) or (None, 'reason it was rejected')."""
+def _normalize_spec_text(spec):
     text = spec.strip().lower()
     text = re.sub(r"[✅❌🐞🔎⚠️❔]", " ", text)
     text = re.sub(r"[\[\](),=]", " ", text)
     text = re.sub(r"\b\d+\.\d+s\b", " ", text)       # durations like 51.9740s
-    text = re.sub(r"\s+", " ", text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
-    # Test id: scan (prefix, number) pairs, match against ids present in the run.
-    by_id = {}
-    for e in entries:
-        by_id.setdefault(e.id, []).append(e)
-    tid = None
-    id_spans = []
+
+def _match_test_id(text, by_id):
+    """Scan (prefix, number) pairs against ids present in the run.
+    Returns (tid, [matched span]) or (None, [])."""
     for m in ID_PAIR_RE.finditer(text):
         prefix = re.sub(r"[\s_]+", "-", m.group(1))
         if prefix in ("uc", "role"):
@@ -2311,58 +2900,76 @@ def parse_test_spec(spec, entries):
         for known in by_id:
             km = re.match(r"(.+)-0*(\d+)$", known)
             if km and km.group(1) == prefix and int(km.group(2)) == num:
-                tid = known
-                id_spans.append(m.span())
-                break
-        if tid:
-            break
+                return known, [m.span()]
+    return None, []
 
-    # Role: explicit role-… first; bare form only outside any matched id span
-    # (so "bubble-admin-0600" alone doesn't read as role=bubble-admin).
-    role = None
+
+def _match_role(text, id_spans):
+    """Explicit role-… first; bare form only outside any matched id span
+    (so "bubble-admin-0600" alone doesn't read as role=bubble-admin)."""
     m = ROLE_EXPLICIT_RE.search(text)
     if m:
-        role = canon_role(m.group(1))
-    else:
-        bare = text
-        for a, b in sorted(id_spans, reverse=True):
-            bare = bare[:a] + " " * (b - a) + bare[b:]
-        m = ROLE_BARE_RE.search(bare)
-        if m:
-            role = canon_role(m.group(1))
+        return canon_role(m.group(1))
+    bare = text
+    for a, b in sorted(id_spans, reverse=True):
+        bare = bare[:a] + " " * (b - a) + bare[b:]
+    m = ROLE_BARE_RE.search(bare)
+    return canon_role(m.group(1)) if m else None
 
-    # UC alias: only if no test id was recognized.
-    if tid is None:
-        m = UC_RE.search(text)
-        if m:
-            uc = m.group(1)
-            uc_ids = sorted({e.id for e in entries
-                             if re.search(rf"\buc\s*0*{uc}\b", e.reason, re.I)})
-            if not uc_ids:
-                return None, f"No test in this run mentions UC {uc}"
-            if len(uc_ids) > 1:
-                return None, f"UC {uc} is ambiguous here — tests: {', '.join(uc_ids)}"
-            tid = uc_ids[0]
 
-    if tid is None:
-        return None, f"Could not find a test name in {spec!r} for this run"
+def _match_uc_alias(text, entries):
+    """(tid, error) via the UC alias — only used when no test id was recognized."""
+    m = UC_RE.search(text)
+    if not m:
+        return None, None
+    uc = m.group(1)
+    uc_ids = sorted({e.id for e in entries
+                     if re.search(rf"\buc\s*0*{uc}\b", e.reason, re.I)})
+    if not uc_ids:
+        return None, f"No test in this run mentions UC {uc}"
+    if len(uc_ids) > 1:
+        return None, f"UC {uc} is ambiguous here — tests: {', '.join(uc_ids)}"
+    return uc_ids[0], None
 
-    cands = by_id[tid]
+
+def _role_mismatch_error(tid, role, roles_present):
+    if not roles_present:
+        return f"Test {tid} runs without a role"
+    if len(roles_present) == 1:
+        return f"Test {tid} only runs with role {short_role(roles_present[0])}"
+    return (f"Test {tid} did not run with role {short_role(role)} here; "
+            f"roles: {', '.join(short_role(r) for r in roles_present)}")
+
+
+def _pick_entry_for_role(tid, cands, role):
     roles_present = [e.role for e in cands if e.role]
     if role:
         for e in cands:
             if e.role == role:
                 return e, None
-        if not roles_present:
-            return None, f"Test {tid} runs without a role"
-        if len(roles_present) == 1:
-            return None, f"Test {tid} only runs with role {short_role(roles_present[0])}"
-        return None, (f"Test {tid} did not run with role {short_role(role)} here; "
-                      f"roles: {', '.join(short_role(r) for r in roles_present)}")
+        return None, _role_mismatch_error(tid, role, roles_present)
     if len(cands) == 1:
         return cands[0], None
     return None, (f"Test {tid} runs with multiple roles: "
                   + ", ".join(short_role(r) for r in roles_present))
+
+
+def parse_test_spec(spec, entries):
+    """Parse a forgiving test spec against the run's entries.
+    Returns (entry, None) or (None, 'reason it was rejected')."""
+    text = _normalize_spec_text(spec)
+    by_id = {}
+    for e in entries:
+        by_id.setdefault(e.id, []).append(e)
+    tid, id_spans = _match_test_id(text, by_id)
+    role = _match_role(text, id_spans)
+    if tid is None:
+        tid, err = _match_uc_alias(text, entries)
+        if err:
+            return None, err
+    if tid is None:
+        return None, f"Could not find a test name in {spec!r} for this run"
+    return _pick_entry_for_role(tid, by_id[tid], role)
 
 
 # ── repo source lookup ───────────────────────────────────────────────────────
@@ -2395,54 +3002,70 @@ def first_glob(d, *patterns):
 
 # ── command implementations ──────────────────────────────────────────────────
 
+def _maestro_failure_text(e):
+    log = first_glob(e.artifacts, "high-level-maestro-output.log", "run.log")
+    if not log:
+        return None
+    lines = log.read_text(errors="replace").splitlines()
+    idx = [i for i, l in enumerate(lines) if "FAILED" in l]
+    if not idx:
+        return None
+    i = idx[-1]
+    end = len(lines)
+    for j in range(i + 1, len(lines)):
+        if lines[j].startswith("===="):
+            end = j + 1
+            break
+    return "\n".join(lines[max(0, i - 3):end])
+
+
+def _vitest_failed_lines(a):
+    lines = [f"✗ {a.get('fullName', a.get('title', '?'))}"]
+    for msg in a.get("failureMessages") or []:
+        lines.append("  " + "\n  ".join(msg.splitlines()[:25]))
+    return lines
+
+
+def _vitest_failure_text(e):
+    f = first_glob(e.artifacts, "vitest-results--*.json", "vitest.json")
+    if not f:
+        return None
+    try:
+        data = json.loads(f.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    out = []
+    for tr in data.get("testResults", []):
+        for a in tr.get("assertionResults", []):
+            if a.get("status") == "failed":
+                out.extend(_vitest_failed_lines(a))
+    return "\n".join(out) or None
+
+
+def _newman_failure_text(e):
+    f = first_glob(e.artifacts, "detailed-log--*.json", "newman.json")
+    if not f:
+        return None
+    try:
+        failures = json.loads(f.read_text()).get("run", {}).get("failures", [])
+    except (OSError, json.JSONDecodeError):
+        return None
+    out = []
+    for fl in failures:
+        src = (fl.get("source") or {}).get("name", "?")
+        err = fl.get("error") or {}
+        out.append(f"✗ {src} — {err.get('test', '')}\n  {err.get('message', '')}")
+    return "\n".join(out) or None
+
+
+_FAILURE_TEXT_FNS = {"maestro": _maestro_failure_text, "vitest": _vitest_failure_text,
+                     "newman": _newman_failure_text}
+
+
 def get_failure_text(e):
     """The failing step + context, per runner. Returns text or None."""
-    if e.tool == "maestro":
-        log = first_glob(e.artifacts, "high-level-maestro-output.log", "run.log")
-        if not log:
-            return None
-        lines = log.read_text(errors="replace").splitlines()
-        idx = [i for i, l in enumerate(lines) if "FAILED" in l]
-        if not idx:
-            return None
-        i = idx[-1]
-        end = len(lines)
-        for j in range(i + 1, len(lines)):
-            if lines[j].startswith("===="):
-                end = j + 1
-                break
-        return "\n".join(lines[max(0, i - 3):end])
-    if e.tool == "vitest":
-        f = first_glob(e.artifacts, "vitest-results--*.json", "vitest.json")
-        if not f:
-            return None
-        try:
-            data = json.loads(f.read_text())
-        except (OSError, json.JSONDecodeError):
-            return None
-        out = []
-        for tr in data.get("testResults", []):
-            for a in tr.get("assertionResults", []):
-                if a.get("status") == "failed":
-                    out.append(f"✗ {a.get('fullName', a.get('title', '?'))}")
-                    for msg in a.get("failureMessages") or []:
-                        out.append("  " + "\n  ".join(msg.splitlines()[:25]))
-        return "\n".join(out) or None
-    if e.tool == "newman":
-        f = first_glob(e.artifacts, "detailed-log--*.json", "newman.json")
-        if not f:
-            return None
-        try:
-            failures = json.loads(f.read_text()).get("run", {}).get("failures", [])
-        except (OSError, json.JSONDecodeError):
-            return None
-        out = []
-        for fl in failures:
-            src = (fl.get("source") or {}).get("name", "?")
-            err = fl.get("error") or {}
-            out.append(f"✗ {src} — {err.get('test', '')}\n  {err.get('message', '')}")
-        return "\n".join(out) or None
-    return None
+    fn = _FAILURE_TEXT_FNS.get(e.tool)
+    return fn(e) if fn else None
 
 
 def cmd_show_failure(e, run):
@@ -2483,18 +3106,21 @@ def flow_files(e):
     return files
 
 
-def cmd_show_code(e, run):
+def _code_files_for(e):
+    """Test source files: the artifact copy first, else the repo qa-id match."""
     if e.tool == "maestro":
         files = flow_files(e)
-        if not files:
-            src = find_source_by_qa_id(e.id, e.layer)
-            files = [src] if src else []
     else:
         f = first_glob(e.artifacts, "*.headless.test.ts", "*postman_collection*.json")
         files = [f] if f else []
-        if not files:
-            src = find_source_by_qa_id(e.id, e.layer)
-            files = [src] if src else []
+    if not files:
+        src = find_source_by_qa_id(e.id, e.layer)
+        files = [src] if src else []
+    return files
+
+
+def cmd_show_code(e, run):
+    files = _code_files_for(e)
     if not files:
         print("  No test source found (artifact copy or repo qa-id match).")
         return
@@ -2514,6 +3140,27 @@ def use_case_numbers(e):
                                                    f"{e.reason} {src_text}", re.I)}, key=int)
 
 
+def _print_uc_fields(header, r):
+    for i, h in enumerate(header):
+        v = r[i].strip() if i < len(r) else ""
+        # The recorded manual-testing status is stale/untrustworthy; the use-case
+        # command is slated for rework (deferred). Stub it rather than mislead.
+        if "Manual testing status" in h:
+            v = "FIXME - future work"
+        if v and h.strip():
+            print(f"  {h.strip():<28} {v}")
+
+
+def _print_one_uc(uc, header, rows, uc_col):
+    hits = [r for r in rows[1:] if len(r) > uc_col and r[uc_col].strip() == uc]
+    if not hits:
+        print(f"  UC {uc}: not found in {USE_CASES_TSV.name}")
+        return
+    for r in hits:
+        print(f"\nUC {uc}:")
+        _print_uc_fields(header, r)
+
+
 def cmd_show_use_case(e, run):
     ucs = use_case_numbers(e)
     if not ucs:
@@ -2530,20 +3177,7 @@ def cmd_show_use_case(e, run):
         print("  ⚠️  use-case TSV header changed — no 'Orig Use Case Rank' column.")
         return
     for uc in ucs:
-        hits = [r for r in rows[1:] if len(r) > uc_col and r[uc_col].strip() == uc]
-        if not hits:
-            print(f"  UC {uc}: not found in {USE_CASES_TSV.name}")
-            continue
-        for r in hits:
-            print(f"\nUC {uc}:")
-            for i, h in enumerate(header):
-                v = r[i].strip() if i < len(r) else ""
-                # The recorded manual-testing status is stale/untrustworthy; the use-case
-                # command is slated for rework (deferred). Stub it rather than mislead.
-                if "Manual testing status" in h:
-                    v = "FIXME - future work"
-                if v and h.strip():
-                    print(f"  {h.strip():<28} {v}")
+        _print_one_uc(uc, header, rows, uc_col)
 
 
 def cmd_show_images(e, run):
@@ -2578,44 +3212,49 @@ def build_run_cmd(e, run, flow_override=None, require_screen=False):
     None
     """
     params = run["params"]
-    envname = params.get("env", "local")
-    platform = params.get("platform", "ios")
-    device_id = params.get("deviceId")
     if e.tool == "maestro":
-        if flow_override is not None:
-            rel = flow_override.relative_to(REPO) \
-                if str(flow_override).startswith(str(REPO)) else flow_override
-        else:
-            src = find_source_by_qa_id(e.id, e.layer)
-            rel = src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
-        cmd = f"npm run qa:flow -- {rel}"
-        if e.role:
-            cmd += f" --role {e.role}"
-        if envname != "local":
-            cmd += f" --env {envname}"
-        # Preserve the run's platform (qa:flow defaults to iOS) and pin the device by a
-        # RESOLVABLE token. Without this, an android run re-ran on iOS — the core bug.
-        if platform != "ios":
-            cmd += f" --platform {platform}"
-        if platform != "web":
-            tok = _sim_token(device_id, platform)
-            if tok:
-                cmd += f" --device {tok}"
-            # Debug re-runs (cmd/movie/noisy) must have a visible screen.
-            # A headless sim yields BLACK screenshots/recordings, defeating the whole point.
-            # when `--require-screen` is present, then "qa" and "qa:flow" refuse to run on a headless device.
-            if require_screen:
-                cmd += " --require-screen"
-        return cmd
+        return _maestro_run_cmd(e, params, flow_override, require_screen)
     base = params.get("apiBaseUrl", f"http://localhost:{API_PORT}")
+    src = find_source_by_qa_id(e.id, e.layer)
     if e.tool == "vitest":
-        src = find_source_by_qa_id(e.id, e.layer)
         rel = src.relative_to(REPO) if src else f"tests/headless/<test for {e.id}>.ts"
         return (f"QA_BASE_URL={base} npx vitest run "
                 f"--config tests/headless/vitest.headless.config.ts {rel}")
-    src = find_source_by_qa_id(e.id, e.layer)
     rel = src.relative_to(REPO) if src else "tests/headless/contract/contract-smoke.postman_collection.json"
     return f"npx newman run {rel} --env-var baseUrl={base} --reporters cli"
+
+
+def _maestro_flow_rel(e, flow_override):
+    if flow_override is not None:
+        return (flow_override.relative_to(REPO)
+                if str(flow_override).startswith(str(REPO)) else flow_override)
+    src = find_source_by_qa_id(e.id, e.layer)
+    return src.relative_to(REPO) if src else f"tests/e2e/<flow for {e.id}>.yaml"
+
+
+def _maestro_run_cmd(e, params, flow_override, require_screen):
+    cmd = f"npm run qa:flow -- {_maestro_flow_rel(e, flow_override)}"
+    if e.role:
+        cmd += f" --role {e.role}"
+    envname = params.get("env", "local")
+    if envname != "local":
+        cmd += f" --env {envname}"
+    # Preserve the run's platform (qa:flow defaults to iOS) and pin the device by a
+    # RESOLVABLE token. Without this, an android run re-ran on iOS — the core bug.
+    platform = params.get("platform", "ios")
+    if platform != "ios":
+        cmd += f" --platform {platform}"
+    if platform == "web":
+        return cmd
+    tok = _sim_token(params.get("deviceId"), platform)
+    if tok:
+        cmd += f" --device {tok}"
+    # Debug re-runs (cmd/movie/noisy) must have a visible screen.
+    # A headless sim yields BLACK screenshots/recordings, defeating the whole point.
+    # when `--require-screen` is present, then "qa" and "qa:flow" refuse to run on a headless device.
+    if require_screen:
+        cmd += " --require-screen"
+    return cmd
 
 
 def cmd_run_cmd(e, run):
@@ -2722,46 +3361,41 @@ def cmd_run_movie(e, run):
     print(f"     The alias \"action\" is linked to the function, for convenience")
 
 
-def cmd_show_params(e, run):
-    p = run["params"]
-    platform = p.get("platform", "ios")
-    device_id = p.get("deviceId")
-    src = find_source_by_qa_id(e.id, e.layer)
-    print(f"  test     : {e.id}" + (f" [{e.role}]" if e.role else ""))
-    print(f"  runner   : {e.tool} (layer {e.layer})")
-    print(f"  status   : {e.status}" + (f"  ({(e.duration_ms or 0) / 1000:.4f}s)" if e.duration_ms else ""))
-    begin, end, fail = _maestro_log_times(e.artifacts)
-    if begin or end:
-        end_label = f"{end}" + ("   ⟵ error" if fail and fail == end else "")
-        print(f"  begin    : {begin or '?'}")
-        print(f"  end      : {end_label or '?'}")
-        if fail and fail != end:
-            print(f"  error at : {fail}")
-    if e.tags:
-        # Flows are iOS-authored, so an 'ios'/'android' tag is about the flow's origin,
-        # NOT the platform this run executed on. Call it out to avoid the classic trap.
-        note = ""
-        if platform != "ios" and "ios" in e.tags:
-            note = f"   (⚠ 'ios' is a flow-authoring tag — this run was {platform})"
-        elif platform == "ios" and "android" in e.tags:
-            note = "   (⚠ 'android' is a flow-authoring tag — this run was ios)"
-        print(f"  tags     : {', '.join(e.tags)}{note}")
-    if e.reason:
-        print(f"  reason   : {e.reason}")
-    if e.tool == "maestro":
-        print(f"  flow     : {src.relative_to(REPO) if src else '(source not found by qa-id)'}")
-    print("  ── how this was run ──────────────────────────────")
-    print(f"  platform : {platform}")
-    if platform != "web":
-        aliases = _device_aliases(device_id)
-        hl = "   [likely headless — black screen on this host]" if _looks_headless(device_id, platform) else ""
-        print(f"  device   : {' / '.join(aliases) if aliases else '(unknown)'}{hl}")
-    print(f"  env      : {p.get('env', 'local')}    api: {p.get('apiBaseUrl', '?')}    db: {p.get('dbClassification', '?')}")
-    print(f"  command  : {build_run_cmd(e, run)}")
-    load_gate = next((g for g in run["gates"] if g.get("name") == "load-average"), None)
-    if load_gate:
-        print(f"  load     : {load_gate.get('message')}")
-    # Run-level provenance, compact — no 138-id selectedTestIds dump (the old noise).
+def _print_maestro_times(artifacts):
+    begin, end, fail = _maestro_log_times(artifacts)
+    if not (begin or end):
+        return
+    end_label = f"{end}" + ("   ⟵ error" if fail and fail == end else "")
+    print(f"  begin    : {begin or '?'}")
+    print(f"  end      : {end_label or '?'}")
+    if fail and fail != end:
+        print(f"  error at : {fail}")
+
+
+def _print_tags_line(e, platform):
+    if not e.tags:
+        return
+    # Flows are iOS-authored, so an 'ios'/'android' tag is about the flow's origin,
+    # NOT the platform this run executed on. Call it out to avoid the classic trap.
+    note = ""
+    if platform != "ios" and "ios" in e.tags:
+        note = f"   (⚠ 'ios' is a flow-authoring tag — this run was {platform})"
+    elif platform == "ios" and "android" in e.tags:
+        note = "   (⚠ 'android' is a flow-authoring tag — this run was ios)"
+    print(f"  tags     : {', '.join(e.tags)}{note}")
+
+
+def _print_device_line(device_id, platform):
+    if platform == "web":
+        return
+    aliases = _device_aliases(device_id)
+    hl = ("   [likely headless — black screen on this host]"
+          if _looks_headless(device_id, platform) else "")
+    print(f"  device   : {' / '.join(aliases) if aliases else '(unknown)'}{hl}")
+
+
+def _run_scope_bits(p):
+    """Run-level provenance, compact — no 138-id selectedTestIds dump (the old noise)."""
     scope = []
     if p.get("roles"):
         scope.append(f"{len(p['roles'])} roles")
@@ -2769,6 +3403,35 @@ def cmd_show_params(e, run):
         scope.append("+".join(p["layers"]))
     if p.get("selectedTestIds"):
         scope.append(f"{len(p['selectedTestIds'])} tests selected")
+    return scope
+
+
+def _print_params_header(e):
+    print(f"  test     : {e.id}" + (f" [{e.role}]" if e.role else ""))
+    print(f"  runner   : {e.tool} (layer {e.layer})")
+    print(f"  status   : {e.status}" + (f"  ({(e.duration_ms or 0) / 1000:.4f}s)" if e.duration_ms else ""))
+
+
+def cmd_show_params(e, run):
+    p = run["params"]
+    platform = p.get("platform", "ios")
+    src = find_source_by_qa_id(e.id, e.layer)
+    _print_params_header(e)
+    _print_maestro_times(e.artifacts)
+    _print_tags_line(e, platform)
+    if e.reason:
+        print(f"  reason   : {e.reason}")
+    if e.tool == "maestro":
+        print(f"  flow     : {src.relative_to(REPO) if src else '(source not found by qa-id)'}")
+    print("  ── how this was run ──────────────────────────────")
+    print(f"  platform : {platform}")
+    _print_device_line(p.get("deviceId"), platform)
+    print(f"  env      : {p.get('env', 'local')}    api: {p.get('apiBaseUrl', '?')}    db: {p.get('dbClassification', '?')}")
+    print(f"  command  : {build_run_cmd(e, run)}")
+    load_gate = next((g for g in run["gates"] if g.get("name") == "load-average"), None)
+    if load_gate:
+        print(f"  load     : {load_gate.get('message')}")
+    scope = _run_scope_bits(p)
     print(f"  run      : {p.get('startedAt', run['dir'].name)}  @{p.get('gitSha', '?')}"
           + (f"   ({', '.join(scope)})" if scope else ""))
     print(f"  artifacts: {e.artifacts}")
@@ -2794,46 +3457,52 @@ def runner_version(tool):
         return tool
 
 
-def fill_template(template_name, e, run, interactive):
-    tpl_path = SCRIPTS_DIR / template_name
-    try:
-        tpl = _string.Template(tpl_path.read_text())
-    except OSError:
-        print(f"  ⚠️  template missing: {tpl_path}")
-        return None
-    params = run["params"]
-    platform = params.get("platform", "ios")
-    target = ("an iOS simulator" if e.layer == "e2e" and platform == "ios"
-              else "a desktop web browser" if e.layer == "e2e"
-              else "the API over HTTP (headless)")
-    logs = sorted(str(p.relative_to(run["dir"])) for p in e.artifacts.glob("*")
-                  if p.suffix in (".log", ".json", ".html"))
-    code = ""
+def _template_code_snippet(e):
     files = flow_files(e) if e.tool == "maestro" else \
         [f for f in [first_glob(e.artifacts, "*.headless.test.ts", "*postman_collection*.json")] if f]
     for f in files[:1]:
         try:
-            code = f.read_text(errors="replace")
+            return f.read_text(errors="replace")
         except OSError:
             pass
-    values = {
+    return ""
+
+
+def _template_target(e, platform):
+    if e.layer != "e2e":
+        return "the API over HTTP (headless)"
+    return "an iOS simulator" if platform == "ios" else "a desktop web browser"
+
+
+def _template_log_list(e, run):
+    logs = sorted(str(p.relative_to(run["dir"])) for p in e.artifacts.glob("*")
+                  if p.suffix in (".log", ".json", ".html"))
+    return "\n".join(f"  - {l}" for l in logs) or "  (none)"
+
+
+def _template_values(e, run):
+    params = run["params"]
+    return {
         "test_id": e.id,
         "role": short_role(e.role) or "n/a",
         "layer": e.layer,
-        "target": target,
+        "target": _template_target(e, params.get("platform", "ios")),
         "failing_step": get_failure_text(e) or "(no failing step captured — test may have passed)",
-        "test_script": code or "(test source not found)",
+        "test_script": _template_code_snippet(e) or "(test source not found)",
         "run_cmd": build_run_cmd(e, run),
         "runner_version": runner_version(e.tool),
         "parameters": json.dumps({k: v for k, v in params.items() if k != "selectedTestIds"}),
         "artifacts_dir": str(e.artifacts),
-        "log_files": "\n".join(f"  - {l}" for l in logs) or "  (none)",
+        "log_files": _template_log_list(e, run),
         "run_id": params.get("startedAt", run["dir"].name),
         "git_sha": params.get("gitSha", "unknown"),
         "reason": e.reason or "(none)",
         "use_cases": ", ".join(f"UC {u}" for u in use_case_numbers(e)) or "(none)",
     }
-    # Tiny wizard: any $placeholder the script can't answer gets asked, with a default.
+
+
+def _ask_missing_placeholders(tpl, values, interactive):
+    """Tiny wizard: any $placeholder the script can't answer gets asked, with a default."""
     for key in sorted(set(re.findall(r"\$\{?(\w+)\}?", tpl.template)) - set(values)):
         default = "(unknown)"
         if interactive:
@@ -2841,6 +3510,17 @@ def fill_template(template_name, e, run, interactive):
             values[key] = ans or default
         else:
             values[key] = default
+
+
+def fill_template(template_name, e, run, interactive):
+    tpl_path = SCRIPTS_DIR / template_name
+    try:
+        tpl = _string.Template(tpl_path.read_text())
+    except OSError:
+        print(f"  ⚠️  template missing: {tpl_path}")
+        return None
+    values = _template_values(e, run)
+    _ask_missing_placeholders(tpl, values, interactive)
     return tpl.safe_substitute(values)
 
 
@@ -3037,29 +3717,43 @@ def _iter_blocks(body_lines):
     return blocks
 
 
-def _parse_runflow(body):
-    """For a `runFlow` block, return (file_path_or_None, {env KEY: VALUE})."""
-    file_path, env, env_indent = None, {}, None
+def _runflow_file(body):
+    file_path = None
     for line in body:
         m = re.match(r"^\s+file:\s*(.+?)\s*$", line)
         if m:
             file_path = m.group(1).strip().strip("\"'")
-    for line in body:
-        if env_indent is None:
-            m = re.match(r"^(\s+)env:\s*$", line)
-            if m:
-                env_indent = len(m.group(1))
+    return file_path
+
+
+def _env_block_start(body):
+    """(indent, first-body-index) of the `env:` block, or (None, 0)."""
+    for i, line in enumerate(body):
+        m = re.match(r"^(\s+)env:\s*$", line)
+        if m:
+            return len(m.group(1)), i + 1
+    return None, 0
+
+
+def _runflow_env(body):
+    env_indent, start = _env_block_start(body)
+    if env_indent is None:
+        return {}
+    env = {}
+    for line in body[start:]:
+        if not line.strip():
             continue
-        if line.strip() == "":
-            continue
-        indent = len(line) - len(line.lstrip())
-        if indent > env_indent:
-            mm = re.match(r"^\s+([A-Za-z_]\w*):\s*(.*?)\s*$", line)
-            if mm:
-                env[mm.group(1)] = mm.group(2).strip().strip("\"'")
-        else:
+        if len(line) - len(line.lstrip()) <= env_indent:
             break  # dedent ends the env block
-    return file_path, env
+        mm = re.match(r"^\s+([A-Za-z_]\w*):\s*(.*?)\s*$", line)
+        if mm:
+            env[mm.group(1)] = mm.group(2).strip().strip("\"'")
+    return env
+
+
+def _parse_runflow(body):
+    """For a `runFlow` block, return (file_path_or_None, {env KEY: VALUE})."""
+    return _runflow_file(body), _runflow_env(body)
 
 
 def _subst_env(text, env_map):
@@ -3084,20 +3778,27 @@ def flatten_flow(path, env_map, seen, includes, depth=0):
     text = _subst_env(raw, env_map) if depth else raw
     out = []
     for blk in _iter_blocks(_flow_body(text)):
-        if blk["cmd"] == "runFlow":
-            sub_file, sub_env = _parse_runflow(blk["body"])
-            if sub_file:
-                sub_path = (path.parent / sub_file).resolve()
-                rel = sub_path.relative_to(REPO) if str(sub_path).startswith(str(REPO)) else sub_path
-                includes.append(rel)
-                # Map the child's incoming env values through our own substitution first.
-                child_env = {k: _subst_env(v, env_map) for k, v in sub_env.items()}
-                out.append({"leading": blk["leading"] + [f"# ── begin include: {rel} ──"],
-                            "body": [], "cmd": None})
-                out += flatten_flow(sub_path, child_env, seen, includes, depth + 1)
-                out.append({"leading": [f"# ── end include: {rel} ──"], "body": [], "cmd": None})
-                continue
-        out.append(blk)
+        spliced = (_flatten_include(blk, path, env_map, seen, includes, depth)
+                   if blk["cmd"] == "runFlow" else None)
+        out += [blk] if spliced is None else spliced
+    return out
+
+
+def _flatten_include(blk, path, env_map, seen, includes, depth):
+    """Inline one runFlow include. None when the block has no file: (the caller
+    then emits the block verbatim)."""
+    sub_file, sub_env = _parse_runflow(blk["body"])
+    if not sub_file:
+        return None
+    sub_path = (path.parent / sub_file).resolve()
+    rel = sub_path.relative_to(REPO) if str(sub_path).startswith(str(REPO)) else sub_path
+    includes.append(rel)
+    # Map the child's incoming env values through our own substitution first.
+    child_env = {k: _subst_env(v, env_map) for k, v in sub_env.items()}
+    out = [{"leading": blk["leading"] + [f"# ── begin include: {rel} ──"],
+            "body": [], "cmd": None}]
+    out += flatten_flow(sub_path, child_env, seen, includes, depth + 1)
+    out.append({"leading": [f"# ── end include: {rel} ──"], "body": [], "cmd": None})
     return out
 
 
@@ -3362,6 +4063,44 @@ def print_test_menu(entries, mode):
     return shown
 
 
+def _safe_configure(e, run):
+    try:
+        cmd_configure(e, run)
+    except (KeyboardInterrupt, EOFError):
+        print("\n  (canceled)")
+
+
+def _safe_dispatch(cmd, e, run, verbose):
+    try:
+        dispatch_command(cmd, e, run, verbose)
+    except (KeyboardInterrupt, EOFError):
+        print("\n  (canceled)")
+    except Exception as err:  # an inspector command must never kill the session
+        print(f"  ⚠️  {cmd[0]} failed: {err}")
+
+
+def _handle_inspect_input(raw, e, run):
+    """One inspector input. Returns 'quit'/'back' to leave the loop, None to stay."""
+    n = norm_input(raw)
+    if n in ("q", "quit", "exit"):
+        return "quit"
+    if n in ("t", "tests", "back", "b"):
+        return "back"
+    if n in ("h", "help", "menu") or raw.strip() == "?":
+        print_command_menu()
+        return None
+    if n in ("c", "config", "configure"):
+        _safe_configure(e, run)
+        return None
+    base, verbose = split_verbose(raw)
+    cmd = match_command(base)
+    if cmd is None:
+        print(f"  ❓ unknown command {raw!r} — type 'h' for the menu")
+        return None
+    _safe_dispatch(cmd, e, run, verbose)
+    return None
+
+
 def inspect_command_loop(e, run):
     print(f"\n▶ {e.id}" + (f" [{e.role}]" if e.role else "")
           + f" — {e.status} ({e.tool}, {e.layer})")
@@ -3375,31 +4114,9 @@ def inspect_command_loop(e, run):
             return "quit"
         if not raw:
             continue
-        n = norm_input(raw)
-        if n in ("q", "quit", "exit"):
-            return "quit"
-        if n in ("t", "tests", "back", "b"):
-            return "back"
-        if n in ("h", "help", "menu") or raw.strip() == "?":
-            print_command_menu()
-            continue
-        if n in ("c", "config", "configure"):
-            try:
-                cmd_configure(e, run)
-            except (KeyboardInterrupt, EOFError):
-                print("\n  (canceled)")
-            continue
-        base, verbose = split_verbose(raw)
-        cmd = match_command(base)
-        if cmd is None:
-            print(f"  ❓ unknown command {raw!r} — type 'h' for the menu")
-            continue
-        try:
-            dispatch_command(cmd, e, run, verbose)
-        except (KeyboardInterrupt, EOFError):
-            print("\n  (canceled)")
-        except Exception as err:  # an inspector command must never kill the session
-            print(f"  ⚠️  {cmd[0]} failed: {err}")
+        outcome = _handle_inspect_input(raw, e, run)
+        if outcome:
+            return outcome
 
 
 RECOGNIZED_KW = {"all", "last", "fails", "failing", "failed",
@@ -3418,49 +4135,66 @@ def _mode_from_kws(kws):
     return mode
 
 
+# Filter-mode aliases typed at the run menu.
+MODE_SWITCH = {"all": "all", "a": "all",
+               "fails": "fails", "f": "fails", "failing": "fails", "failed": "fails",
+               "passes": "passes", "p": "passes", "passing": "passes", "passed": "passes"}
+
+
+def _select_run_entry(raw, n, entries):
+    """(entry, error-message) from a numeric index or a forgiving spec."""
+    if n.isdigit():
+        idx = int(n)
+        if not (1 <= idx <= len(entries)):
+            return None, f"  no test #{idx} (this run has {len(entries)})"
+        return entries[idx - 1], None
+    sel, perr = parse_test_spec(raw, entries)
+    return sel, (f"🔴🥺 {perr}" if perr else None)
+
+
+def _open_selected_entry(raw, n, run, entries):
+    """Drill into the picked test. Returns 'quit' when the user quit from inside."""
+    sel, err = _select_run_entry(raw, n, entries)
+    if err:
+        print(err)
+        return None
+    return "quit" if inspect_command_loop(sel, run) == "quit" else None
+
+
+def _run_menu_once(run, entries, mode, from_recent):
+    """One run-menu prompt round → (action, mode); action ∈ 'quit'|'back'|None."""
+    shown = print_test_menu(entries, mode)
+    if not shown:
+        print("  (none in this view — try 'all')")
+    opts = ["# = test", "all/fails/passes = filter"]
+    if from_recent:
+        opts.append("'runs' = run list")
+    opts.append("'q' quits")
+    try:
+        raw = input(f"\nSelect ({', '.join(opts)}): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return "quit", mode
+    n = norm_input(raw)
+    if not raw:
+        return None, mode
+    if n in ("q", "quit", "exit"):
+        return "quit", mode
+    if n in MODE_SWITCH:
+        return None, MODE_SWITCH[n]
+    if from_recent and n in ("runs", "recent", "r", "back", "b"):
+        return "back", mode
+    return _open_selected_entry(raw, n, run, entries), mode
+
+
 def run_menu_loop(run, mode="fails", from_recent=False):
     """RUN level: list a run's tests (filtered), drill into one. Returns 'quit' or,
     when from_recent, 'back' to return to the run list."""
     entries = run["entries"]
     while True:
-        shown = print_test_menu(entries, mode)
-        if not shown:
-            print("  (none in this view — try 'all')")
-        opts = ["# = test", "all/fails/passes = filter"]
-        if from_recent:
-            opts.append("'runs' = run list")
-        opts.append("'q' quits")
-        try:
-            raw = input(f"\nSelect ({', '.join(opts)}): ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print()
-            return "quit"
-        if not raw:
-            continue
-        n = norm_input(raw)
-        if n in ("q", "quit", "exit"):
-            return "quit"
-        if n in ("all", "a"):
-            mode = "all"; continue
-        if n in ("fails", "f", "failing", "failed"):
-            mode = "fails"; continue
-        if n in ("passes", "p", "passing", "passed"):
-            mode = "passes"; continue
-        if from_recent and n in ("runs", "recent", "r", "back", "b"):
-            return "back"
-        if n.isdigit():
-            idx = int(n)
-            if not (1 <= idx <= len(entries)):
-                print(f"  no test #{idx} (this run has {len(entries)})")
-                continue
-            sel = entries[idx - 1]
-        else:
-            sel, perr = parse_test_spec(raw, entries)
-            if perr:
-                print(f"🔴🥺 {perr}")
-                continue
-        if inspect_command_loop(sel, run) == "quit":
-            return "quit"
+        action, mode = _run_menu_once(run, entries, mode, from_recent)
+        if action:
+            return action
 
 
 def recent_browser():
@@ -3489,133 +4223,231 @@ def recent_browser():
             return 0
 
 
-def cmd_inspect(spec_args, one_cmd, as_json):
-    try:
-        import readline  # noqa: F401 — line editing + history for input()
-    except ImportError:
-        pass
-
-    # Split positionals: a path (or anything with a "/") is the run dir; the rest are
-    # words — keywords (recent/all/last/fails/passes) and/or numbers (test #, item #).
+def _split_inspect_args(spec_args):
+    """Split positionals: a path (or anything with a "/") is the run dir; the rest
+    are words — keywords (recent/all/last/fails/passes) and/or numbers."""
     run_arg, words = None, []
     for a in spec_args or []:
         if run_arg is None and ("/" in a or Path(a).expanduser().exists()):
             run_arg = a
         else:
             words.append(a)
-    first = words[0].lower() if words else ""
-    interactive = sys.stdin.isatty()
+    return run_arg, words
 
-    # `inspect recent` → browse ALL runs in the window, then drill in.
-    if first in ("recent", "runs"):
-        if as_json:
-            rows = _collect_recent_runs()
-            print(json.dumps({"recent": [
-                {"dir": str(r["dir"]), "started": r["started"], "platform": r["platform"],
-                 "runtimeHours": r["runtime"], "result": r["result"]} for r in rows]}, indent=2))
-            return 0
-        if not interactive:
-            _recent_runs_table(numbered=True)
-            return 0
-        return recent_browser()
 
+def _inspect_recent(as_json, interactive):
+    """`inspect recent` → browse ALL runs in the window, then drill in."""
+    if as_json:
+        rows = _collect_recent_runs()
+        print(json.dumps({"recent": [
+            {"dir": str(r["dir"]), "started": r["started"], "platform": r["platform"],
+             "runtimeHours": r["runtime"], "result": r["result"]} for r in rows]}, indent=2))
+        return 0
+    if not interactive:
+        _recent_runs_table(numbered=True)
+        return 0
+    return recent_browser()
+
+
+def _inspect_json_summary(run, entries):
+    failing = [e for e in entries if e.failing]
+    print(json.dumps({
+        "runDir": str(run["dir"]), "live": run["live"],
+        "failing": [{"id": e.id, "role": e.role, "tool": e.tool, "status": e.status,
+                     "reason": e.reason, "artifactsDir": str(e.artifacts)} for e in failing],
+        "total": len(entries),
+    }, indent=2))
+    return 0
+
+
+def _select_by_number(leftover, entries):
+    idx = int(leftover[0])
+    if not (1 <= idx <= len(entries)):
+        print(f"🔴🥺 no test #{idx} (this run has {len(entries)})")
+        return None, None, 2
+    return entries[idx - 1], (leftover[1] if len(leftover) > 1 else None), None
+
+
+def _select_by_spec(leftover, entries, one_cmd, interactive):
+    selected, err = parse_test_spec(" ".join(leftover), entries)
+    if err:
+        print(f"🔴🥺 {err}")
+        if one_cmd or not interactive:
+            return None, None, 2
+    return selected, None, None
+
+
+def _select_from_words(words, entries, one_cmd, interactive):
+    """Pick the target test from word args → (selected, item, exit_code). Pure-number
+    args are canonical indices (test #, then item #); anything with a non-keyword
+    word is a forgiving spec ("auth 100, site admin"). exit_code is None unless the
+    command must stop now."""
+    leftover = [w for w in words if w.lower() not in RECOGNIZED_KW]
+    if not leftover:
+        return None, None, None
+    if all(w.isdigit() for w in leftover):
+        return _select_by_number(leftover, entries)
+    return _select_by_spec(leftover, entries, one_cmd, interactive)
+
+
+def _maybe_run_item(selected, run, run_item, interactive):
+    """A menu item on the command line (the B in `inspect N B`) or --cmd runs at
+    once. Returns an exit code to stop with, or None to continue into the menus."""
+    if not (selected and run_item):
+        return None
+    norm = norm_input(run_item)
+    if norm in ("h", "help", "menu") or run_item.strip() == "?":
+        print_command_menu()
+        return 0
+    if norm in ("c", "config", "configure"):
+        cmd_configure(selected, run)
+        return 0
+    base, verbose = split_verbose(run_item)
+    cmd = match_command(base)
+    if cmd is None:
+        print_command_menu()
+        return 2
+    dispatch_command(cmd, selected, run, verbose)
+    return 0 if not interactive else None
+
+
+def _print_no_tty_menu(entries, mode):
+    shown = print_test_menu(entries, mode)
+    if not shown:
+        print("  (none)")
+    print("\n(no tty — `inspect <N>` then a menu number, or --cmd <command>, runs one step)")
+
+
+def _interactive_inspect(selected, run, mode):
+    """A chosen test drops into its menu; 'back' falls through to the run menu, so
+    the whole run stays navigable from a deep-link."""
+    if selected and inspect_command_loop(selected, run) == "quit":
+        return 0
+    run_menu_loop(run, mode=mode)
+    return 0
+
+
+def _enable_readline():
+    try:
+        import readline  # noqa: F401 — line editing + history for input()
+    except ImportError:
+        pass
+
+
+def _print_run_header(run, entries):
+    failing = sum(1 for e in entries if e.failing)
+    state = "in progress / no summary" if run["live"] else "finished"
+    print(f"Run {run['dir'].name}  ({state}; {failing} failing of {len(entries)})")
+
+
+def _inspect_run(run_arg, words, one_cmd, as_json, interactive):
     run = load_run(find_run_dir(run_arg))
     entries = run["entries"]
     if not entries:
         print(f"No test artifacts found in {run['dir']}")
         return 1
-    failing = [e for e in entries if e.failing]
-
     if as_json:
-        print(json.dumps({
-            "runDir": str(run["dir"]), "live": run["live"],
-            "failing": [{"id": e.id, "role": e.role, "tool": e.tool, "status": e.status,
-                         "reason": e.reason, "artifactsDir": str(e.artifacts)} for e in failing],
-            "total": len(entries),
-        }, indent=2))
-        return 0
-
-    state = "in progress / no summary" if run["live"] else "finished"
-    print(f"Run {run['dir'].name}  ({state}; {len(failing)} failing of {len(entries)})")
-
-    # Parse word args. Pure-number args are canonical indices (test #, then item #);
-    # anything with a non-keyword word is a forgiving spec ("auth 100, site admin").
-    kws = [w.lower() for w in words]
-    mode = _mode_from_kws(kws)
-    leftover = [w for w in words if w.lower() not in RECOGNIZED_KW]
-    selected, item = None, None
-    if leftover and all(w.isdigit() for w in leftover):
-        idx = int(leftover[0])
-        if not (1 <= idx <= len(entries)):
-            print(f"🔴🥺 no test #{idx} (this run has {len(entries)})")
-            return 2
-        selected = entries[idx - 1]
-        item = leftover[1] if len(leftover) > 1 else None
-    elif leftover:
-        selected, err = parse_test_spec(" ".join(leftover), entries)
-        if err:
-            print(f"🔴🥺 {err}")
-            if one_cmd or not interactive:
-                return 2
-
-    # A menu item on the command line (the B in `inspect N B`) or --cmd runs at once.
-    run_item = item or one_cmd
-    if selected and run_item:
-        norm = norm_input(run_item)
-        if norm in ("h", "help", "menu") or run_item.strip() == "?":
-            print_command_menu()
-            return 0
-        if norm in ("c", "config", "configure"):
-            cmd_configure(selected, run)
-            return 0
-        base, verbose = split_verbose(run_item)
-        cmd = match_command(base)
-        if cmd is None:
-            print_command_menu()
-            return 2
-        dispatch_command(cmd, selected, run, verbose)
-        if not interactive:
-            return 0
-
+        return _inspect_json_summary(run, entries)
+    _print_run_header(run, entries)
+    mode = _mode_from_kws([w.lower() for w in words])
+    selected, item, code = _select_from_words(words, entries, one_cmd, interactive)
+    if code is not None:
+        return code
+    code = _maybe_run_item(selected, run, item or one_cmd, interactive)
+    if code is not None:
+        return code
     if not interactive:
-        shown = print_test_menu(entries, mode)
-        if not shown:
-            print("  (none)")
-        print("\n(no tty — `inspect <N>` then a menu number, or --cmd <command>, runs one step)")
+        _print_no_tty_menu(entries, mode)
         return 0
+    return _interactive_inspect(selected, run, mode)
 
-    # Interactive: a chosen test drops into its menu; 'back' falls through to the run
-    # menu, so the whole run stays navigable from a deep-link.
-    if selected:
-        if inspect_command_loop(selected, run) == "quit":
-            return 0
-    run_menu_loop(run, mode=mode)
-    return 0
+
+def cmd_inspect(spec_args, one_cmd, as_json):
+    _enable_readline()
+    run_arg, words = _split_inspect_args(spec_args)
+    interactive = sys.stdin.isatty()
+    if words and words[0].lower() in ("recent", "runs"):
+        return _inspect_recent(as_json, interactive)
+    return _inspect_run(run_arg, words, one_cmd, as_json, interactive)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
-def main():
-    ap = argparse.ArgumentParser(description="status / nuke / health for the Bubble test platform")
+# ── CLI: root help + parser ──────────────────────────────────────────────────────
+
+_ROOT_HELP_COMMANDS = [
+    ("health", "diagnose the environment (are machines running)"),
+    ("ability", "diagnose the testing possibilities with this environment"),
+    ("status", "show tests in progress [default]"),
+    ("inspect", "diagnostic tool to use after a test run"),
+    ("nuke", "stop all test runners immediately"),
+]
+_ROOT_HELP_FRAMEWORK = [
+    ("driver-health", "probe the Maestro device driver"),
+    ("lock SUB_CMD", "manage mutual-exclusion locks between parallel tests. "
+                     "SUB_CMD: status acquire release"),
+]
+_ROOT_HELP_OPTIONS = [
+    ("--fix", 'This option only applies to "health" and "ability".\n'
+              "It tries to fix the problem or tells you how"),
+    ("--env ENV", "The default environment is LOCAL. PROD and STAGING are two alternatives."),
+    ("--json", "Machine-readable output of this command"),
+    ("-v, --verbose", "Add more detail to each command's output"),
+    ("-h, --help", "show this help message and exit"),
+]
+
+
+def print_root_help():
+    print(f"{_style('Usage:', 'bold')} testctl.py [-h] [-v] [--json] [--env=ENV] "
+          "[--fix] [COMMAND]\n")
+    print("TestCtl is the way to control and check on the environments where tests "
+          "will be run.\nYou can dig into the details of a failing test.\n")
+    for header, rows in ((_style("COMMANDS", "bold"), _ROOT_HELP_COMMANDS),
+                         (_style("TEST FRAMEWORK COMMANDS", "bold"), _ROOT_HELP_FRAMEWORK)):
+        print(header + "\n")
+        for name, desc in rows:
+            print(f"    {_style(name.ljust(16), 'green')}{desc}")
+        print()
+    print(_style("Options:", "bold") + "\n")
+    for flag, desc in _ROOT_HELP_OPTIONS:
+        first, *rest = desc.split("\n")
+        print(f"  {_style(flag.ljust(18), 'cyan')}{first}")
+        for line in rest:
+            print(f"  {'':18}{line}")
+
+
+class _RootHelpAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        print_root_help()
+        parser.exit(0)
+
+
+def build_parser():
+    ap = argparse.ArgumentParser(
+        add_help=False,
+        description="status / nuke / health / ability for the Bubble test platform")
+    ap.add_argument("-h", "--help", nargs=0, action=_RootHelpAction,
+                    help=argparse.SUPPRESS)
     ap.add_argument("--json", action="store_true", help="machine-readable output")
-    sub = ap.add_subparsers(dest="command", required=True)
-    # --json is accepted both before and after the subcommand.
-    p_status = sub.add_parser("status", help="show tests in progress")
-    p_nuke = sub.add_parser("nuke", help="stop test runners")
+    ap.add_argument("-v", "--verbose", action="store_true",
+                    help="add more detail to each command's output")
+    ap.add_argument("--env", metavar="ENV",
+                    help="target environment: LOCAL (default), PROD, STAGING (L/P/S ok)")
+    ap.add_argument("--fix", action="store_true",
+                    help="health/ability: try to fix problems or say how")
+    sub = ap.add_subparsers(dest="command")   # optional — default command is status
+    p_status = sub.add_parser("status", help="show tests in progress [default]")
+    p_nuke = sub.add_parser("nuke", help="stop all test runners immediately")
     p_nuke.add_argument("targets", nargs="?", metavar="LIST",
                         help="comma list: qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all")
     p_nuke.add_argument("--nuke", metavar="LIST",
                         help="same as the positional LIST (kept for npm qa:nuke compatibility)")
-    p_health = sub.add_parser("health", help="diagnose the local test environment")
-    p_health.add_argument("-v", "--verbose", action="store_true",
-                          help="narrate what/why, show always-green checks, "
-                               "run on-device probes")
-    p_health.add_argument("--fix", action="store_true",
-                          help="auto-fix what's safe (background server restarts, adb "
-                               "tunnels, boot last device); print commands for the rest")
-    p_driver = sub.add_parser("driver-health",
-                              help="probe the Maestro Android driver (gRPC deviceInfo if live, else lsof :7001)")
-    p_lock = sub.add_parser("lock", help="test-runner mutual-exclusion lock (acquire/release/status)")
+    p_health = sub.add_parser("health", help="diagnose the environment (are machines running)")
+    p_ability = sub.add_parser("ability",
+                               help="diagnose the testing possibilities with this environment")
+    p_driver = sub.add_parser("driver-health", help="probe the Maestro device driver")
+    p_lock = sub.add_parser("lock",
+                            help="manage mutual-exclusion locks between parallel tests")
     p_lock.add_argument("action", choices=["acquire", "release", "status"])
     p_lock.add_argument("--runner", default="?", help="runner name for the report (qa/qa:flow/…)")
     p_lock.add_argument("--pid", type=int, default=0, help="the runner's own pid (owner)")
@@ -3630,27 +4462,47 @@ def main():
                                 "and/or a run directory (default: current or newest run)")
     p_inspect.add_argument("--cmd", metavar="NAME",
                            help="run one menu command non-interactively (failure, code, run, …)")
-    for p in (p_status, p_nuke, p_health, p_driver, p_inspect, p_lock):
+    # Global flags are accepted both before and after the subcommand.
+    for p in (p_status, p_nuke, p_health, p_ability, p_driver, p_inspect, p_lock):
         p.add_argument("--json", action="store_true", dest="json_sub", help=argparse.SUPPRESS)
-    args = ap.parse_args()
-    args.json = args.json or args.json_sub
+        p.add_argument("-v", "--verbose", action="store_true", dest="verbose_sub",
+                       help=argparse.SUPPRESS)
+        p.add_argument("--env", dest="env_sub", metavar="ENV", help=argparse.SUPPRESS)
+        p.add_argument("--fix", action="store_true", dest="fix_sub", help=argparse.SUPPRESS)
+    return ap
 
-    if args.command == "status":
-        return cmd_status(args.json)
-    if args.command == "nuke":
+
+def dispatch(cmd, args, ap):
+    verbose = args.verbose or args.verbose_sub
+    fix = args.fix or args.fix_sub
+    if cmd == "nuke":
         spec = args.nuke or args.targets
         if not spec:
             ap.error("nuke needs targets: `nuke all` or `nuke --nuke=LIST`")
         return cmd_nuke(spec, args.json)
-    if args.command == "health":
-        return cmd_health(args.json, verbose=args.verbose, fix=args.fix)
-    if args.command == "driver-health":
-        return cmd_driver_health(args.json)
-    if args.command == "lock":
-        return cmd_lock(args.action, args)
-    if args.command == "inspect":
-        return cmd_inspect(args.spec, args.cmd, args.json)
-    return 2
+    table = {
+        "status": lambda: cmd_status(args.json),
+        "health": lambda: cmd_health(args.json, verbose=verbose, fix=fix),
+        "ability": lambda: cmd_ability(args.json, verbose=verbose, fix=fix),
+        "driver-health": lambda: cmd_driver_health(args.json, verbose=verbose),
+        "lock": lambda: cmd_lock(args.action, args),
+        "inspect": lambda: cmd_inspect(args.spec, args.cmd, args.json),
+    }
+    fn = table.get(cmd)
+    return fn() if fn else 2
+
+
+def main():
+    ap = build_parser()
+    args = ap.parse_args()
+    if args.command is None:                      # default: `status --env LOCAL`
+        args.command = "status"
+        args.json_sub = args.verbose_sub = args.fix_sub = False
+        args.env_sub = None
+    global ENV
+    ENV = resolve_env(args.env_sub or args.env)
+    args.json = args.json or args.json_sub
+    return dispatch(args.command, args, ap)
 
 
 # ── test-runner mutual-exclusion lock ───────────────────────────────────────────
@@ -3806,56 +4658,68 @@ def _acquire_once(runner, pid, ppid, cmd):
         os.close(gfd)
 
 
+def _lock_status(as_json):
+    rec = _read_lock()
+    if as_json:
+        print(json.dumps(rec or {}, indent=2))
+        return 0
+    if not rec:
+        print("test-runner lock: FREE")
+        return 0
+    reclaimable, reason = _lock_holder_state(rec)
+    print(f"test-runner lock: {'STALE/reclaimable' if reclaimable else 'HELD'}")
+    print(f"  runner={rec.get('runner')} pid={rec.get('pid')} ppid={rec.get('ppid')} "
+          f"age={_age_hours(rec):.1f}h  host={rec.get('host')}")
+    print(f"  cmd: {rec.get('cmd')}")
+    if reclaimable:
+        print(f"  (reclaimable: {reason})")
+    return 0
+
+
+def _lock_release(pid):
+    gfd = os.open(str(LOCK_GUARD), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(gfd, fcntl.LOCK_EX)
+        rec = _read_lock()
+        if rec and rec.get("pid") == pid:
+            try:
+                LOCK_FILE.unlink()
+            except OSError:
+                pass
+            print(f"🔓 lock released (pid {pid})", file=sys.stderr)
+        elif rec:
+            print(f"lock NOT released — owned by pid {rec.get('pid')}, not {pid}", file=sys.stderr)
+        return 0
+    finally:
+        fcntl.flock(gfd, fcntl.LOCK_UN)
+        os.close(gfd)
+
+
+def _lock_acquire(args):
+    attempts = max(1, args.retries)
+    for i in range(1, attempts + 1):
+        ok, msg = _acquire_once(args.runner, args.pid, args.ppid, args.cmd)
+        if ok:
+            extra = f" — {msg}" if msg else ""
+            print(f"🔒 test-runner lock acquired ({args.runner} pid={args.pid}){extra}",
+                  file=sys.stderr)
+            return 0
+        print(f"⛔ cannot start test runner (attempt {i}/{attempts}):\n{msg}", file=sys.stderr)
+        if i < attempts:
+            print(f"   retrying in {args.interval}s…", file=sys.stderr)
+            time.sleep(args.interval)
+    print("✗ giving up — another test runner holds the lock (correctness guard: only one at a time).",
+          file=sys.stderr)
+    return 1
+
+
 def cmd_lock(action, args):
     if action == "status":
-        rec = _read_lock()
-        if args.json:
-            print(json.dumps(rec or {}, indent=2))
-            return 0
-        if not rec:
-            print("test-runner lock: FREE")
-            return 0
-        reclaimable, reason = _lock_holder_state(rec)
-        print(f"test-runner lock: {'STALE/reclaimable' if reclaimable else 'HELD'}")
-        print(f"  runner={rec.get('runner')} pid={rec.get('pid')} ppid={rec.get('ppid')} "
-              f"age={_age_hours(rec):.1f}h  host={rec.get('host')}")
-        print(f"  cmd: {rec.get('cmd')}")
-        if reclaimable:
-            print(f"  (reclaimable: {reason})")
-        return 0
+        return _lock_status(args.json)
     if action == "release":
-        gfd = os.open(str(LOCK_GUARD), os.O_CREAT | os.O_RDWR, 0o644)
-        try:
-            fcntl.flock(gfd, fcntl.LOCK_EX)
-            rec = _read_lock()
-            if rec and rec.get("pid") == args.pid:
-                try:
-                    LOCK_FILE.unlink()
-                except OSError:
-                    pass
-                print(f"🔓 lock released (pid {args.pid})", file=sys.stderr)
-            elif rec:
-                print(f"lock NOT released — owned by pid {rec.get('pid')}, not {args.pid}", file=sys.stderr)
-            return 0
-        finally:
-            fcntl.flock(gfd, fcntl.LOCK_UN)
-            os.close(gfd)
+        return _lock_release(args.pid)
     if action == "acquire":
-        attempts = max(1, args.retries)
-        for i in range(1, attempts + 1):
-            ok, msg = _acquire_once(args.runner, args.pid, args.ppid, args.cmd)
-            if ok:
-                extra = f" — {msg}" if msg else ""
-                print(f"🔒 test-runner lock acquired ({args.runner} pid={args.pid}){extra}",
-                      file=sys.stderr)
-                return 0
-            print(f"⛔ cannot start test runner (attempt {i}/{attempts}):\n{msg}", file=sys.stderr)
-            if i < attempts:
-                print(f"   retrying in {args.interval}s…", file=sys.stderr)
-                time.sleep(args.interval)
-        print("✗ giving up — another test runner holds the lock (correctness guard: only one at a time).",
-              file=sys.stderr)
-        return 1
+        return _lock_acquire(args)
     return 2
 
 

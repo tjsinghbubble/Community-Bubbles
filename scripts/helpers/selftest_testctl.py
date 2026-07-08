@@ -285,8 +285,42 @@ def test_eas_helpers():
     check("missing profile flagged", gaps.get("production") == ["<profile missing>"])
 
 
-def _spec(name, suppress_ok=False, verbose_only=False):
-    return t.HealthSpec(name, lambda: None, suppress_ok, verbose_only)
+def test_env_resolution():
+    check("env default LOCAL", t.resolve_env(None).name == "LOCAL"
+          and t.resolve_env(None).is_local)
+    check("env P alias → PROD host", t.resolve_env("p").name == "PROD"
+          and t.resolve_env("P").host == t.PROD_HOSTNAME
+          and not t.resolve_env("prod").is_local)
+    check("env L alias", t.resolve_env("l").is_local)
+    os.environ["STAGING_HOSTNAME"] = "stage.example.com"
+    try:
+        check("env S uses STAGING_HOSTNAME",
+              t.resolve_env("s").api_base == "https://stage.example.com")
+    finally:
+        os.environ.pop("STAGING_HOSTNAME", None)
+    for bad, label in (("STAGING", "env STAGING without hostname is fatal"),
+                       ("banana", "unknown env is fatal")):
+        try:
+            t.resolve_env(bad)
+            check(label, False)
+        except SystemExit:
+            check(label, True)
+
+
+def test_api_state():
+    ok_body = '{"status":"ok","services":{"database":{"status":"up"}}}'
+    check("api state Healthy", t._api_state(200, ok_body) == ("Healthy", "ok",
+          "/api/v1/health → 200, status=ok, db=up"))
+    check("api state Partial Fail on 503",
+          t._api_state(503, '{"status":"critical","services":{}}')[0] == "Partial Fail")
+    check("api state Partial Fail on non-JSON",
+          t._api_state(200, "<html>")[:2] == ("Partial Fail", "warn"))
+    check("api state Not Running", t._api_state(None, "connection refused")
+          == ("Not Running", "fail", "connection refused"))
+
+
+def _spec(name, suppress_ok=False, verbose_only=False, local_only=False):
+    return t.HealthSpec(name, lambda: None, suppress_ok, verbose_only, local_only)
 
 
 def _fake_results():
@@ -360,6 +394,8 @@ def main():
     test_alias_selection()
     test_secrets_helpers()
     test_eas_helpers()
+    test_env_resolution()
+    test_api_state()
     test_fix_plan()
     test_health_render()
     test_generated_shell_lints()
