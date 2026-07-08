@@ -2542,7 +2542,10 @@ def _expect_seeds_value(f, seeded_env):
 def _derive_caps_backend(rows, f):
     """Rows tied to which API server is up and how it was started."""
     api_ok, seeded_env, shared_ok = _backend_flags(f)
-    mode_note = "" if seeded_env else f" — current: {f['server_mode'] or 'down'}"
+    mode_note = ""
+    if not seeded_env:
+        mode_note = (f" — current: {f['server_mode'] or 'down'}" if ENV.is_local
+                     else f" — {ENV.name} is not the qa server")
     _cap(rows, "write seeded values", seeded_env, "qa api server only" + mode_note,
          fix="start it: `npm run qa:server`")
     _cap(rows, "expect seeded values", _expect_seeds_value(f, seeded_env),
@@ -2560,6 +2563,18 @@ def _derive_caps_backend(rows, f):
     _cap(rows, "sign in email/pwd (seeded)",
          bool(f["seeds"]) if f["seeds"] is not None else None,
          seeds_note, fix="seed LOCAL: `npm run qa:seed`")
+
+
+def _sentry_row(f, local):
+    """(possible, note) for the Sentry row. Only the LOCAL .env is inspectable —
+    a remote deployment's Sentry config is invisible from here, so remote is ❔."""
+    if not local:
+        return None, ("cannot inspect a remote deployment's Sentry config (WIP) — "
+                      "if Sentry is live there, automated tests are MANUAL ONLY")
+    if f["sentry_dsn"] and f["sentry_local_on"]:
+        return False, ("Sentry active ⇒ MANUAL ONLY — `npm run qa` must ban "
+                       "automated tests (gating WIP)")
+    return True, "Sentry inactive here — automated runs are safe"
 
 
 def _tri(prod_val, local_val, staging_val=None):
@@ -2586,10 +2601,7 @@ def _derive_caps_integrations(rows, f):
     _cap(rows, "Comet Chat flows", ENV.name in ("LOCAL", "STAGING") and f["cometchat"],
          "needs EXPO_PUBLIC_COMETCHAT_APP_ID; LOCAL/STAGING only (no comet-chat tag yet — WIP)",
          fix="set EXPO_PUBLIC_COMETCHAT_APP_ID in mobile/.env")
-    sentry_on = f["sentry_dsn"] and (not local or f["sentry_local_on"])
-    _cap(rows, "automated runs with Sentry enabled", False if sentry_on else True,
-         "Sentry active ⇒ MANUAL ONLY — `npm run qa` must ban automated tests (gating WIP)"
-         if sentry_on else "Sentry inactive here — automated runs are safe")
+    _cap(rows, "automated runs with Sentry enabled", *_sentry_row(f, local))
     _cap(rows, "Google Places flows", f["places"] if local else None,
          "needs the key in mobile/.env AND root .env (server proxy); test tagging for "
          "this dependency is WIP",
