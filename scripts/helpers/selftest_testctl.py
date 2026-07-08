@@ -298,13 +298,23 @@ def test_env_resolution():
               t.resolve_env("s").api_base == "https://stage.example.com")
     finally:
         os.environ.pop("STAGING_HOSTNAME", None)
-    for bad, label in (("STAGING", "env STAGING without hostname is fatal"),
-                       ("banana", "unknown env is fatal")):
-        try:
-            t.resolve_env(bad)
-            check(label, False)
-        except SystemExit:
-            check(label, True)
+    check("staging host parsed from env text",
+          t._parse_staging_host('FOO=1\nSTAGING_HOSTNAME="stage.x.io"  # note\n')
+          == "stage.x.io" and t._parse_staging_host("FOO=1\n") == "")
+    # The fatal must fire even when the real root .env carries the var — patch
+    # the fallback out so this test doesn't depend on the developer's .env.
+    orig = t._staging_hostname
+    t._staging_hostname = lambda: ""
+    try:
+        for bad, label in (("STAGING", "env STAGING without hostname is fatal"),
+                           ("banana", "unknown env is fatal")):
+            try:
+                t.resolve_env(bad)
+                check(label, False)
+            except SystemExit:
+                check(label, True)
+    finally:
+        t._staging_hostname = orig
 
 
 def test_api_state():

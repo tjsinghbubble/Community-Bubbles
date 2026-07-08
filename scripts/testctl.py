@@ -92,6 +92,24 @@ _ENV_ALIASES = {"L": "LOCAL", "P": "PROD", "S": "STAGING"}
 PROD_HOSTNAME = "trybubble.io"
 
 
+def _parse_staging_host(text):
+    """STAGING_HOSTNAME value from env-file text ('' when absent)."""
+    m = re.search(r"^STAGING_HOSTNAME=[\"']?([^\"'\s#]+)", text or "", re.M)
+    return m.group(1) if m else ""
+
+
+def _staging_hostname():
+    """$STAGING_HOSTNAME, falling back to the root .env (gitignored; the hostname
+    is not a secret but lives with the rest of the env config)."""
+    host = os.environ.get("STAGING_HOSTNAME", "").strip()
+    if host:
+        return host
+    try:
+        return _parse_staging_host((REPO / ".env").read_text())
+    except OSError:
+        return ""
+
+
 def resolve_env(raw):
     """--env value → EnvCfg. Fatal (SystemExit) on STAGING without STAGING_HOSTNAME
     and on unknown names — a typo must not silently probe the wrong deployment."""
@@ -103,13 +121,14 @@ def resolve_env(raw):
     if key == "PROD":
         return EnvCfg("PROD", PROD_HOSTNAME, f"https://{PROD_HOSTNAME}", False)
     if key == "STAGING":
-        host = os.environ.get("STAGING_HOSTNAME", "").strip()
+        host = _staging_hostname()
         if not host:
             raise SystemExit(
-                "testctl: --env STAGING needs the STAGING_HOSTNAME environment variable.\n"
+                "testctl: --env STAGING needs a STAGING_HOSTNAME.\n"
                 "The staging deployment has no fixed hostname (it moves between hosting "
-                "providers), so testctl refuses to guess. Set it first, e.g.\n"
-                "    export STAGING_HOSTNAME=staging.trybubble.io")
+                "providers), so testctl refuses to guess. Set it either way:\n"
+                "    export STAGING_HOSTNAME=staging.trybubble.io\n"
+                "    — or add a STAGING_HOSTNAME=… line to the root .env")
         return EnvCfg("STAGING", host, f"https://{host}", False)
     raise SystemExit(f"testctl: unknown --env {raw!r} — use LOCAL, PROD, or STAGING "
                      "(L, P, S also accepted)")
