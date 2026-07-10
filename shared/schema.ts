@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, serial, unique, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -30,8 +30,8 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   emailHash: text("email_hash").unique(),
   password: text("password").notNull(),
-  googleId: text("google_id").unique(),
-  appleId: text("apple_id").unique(),
+  googleId: text("google_id"),
+  appleId: text("apple_id"),
   socialAuthPending: boolean("social_auth_pending").notNull().default(false),
   gender: text("gender"),
   dateOfBirth: text("date_of_birth"),
@@ -50,7 +50,10 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by"),
-});
+}, (table) => [
+  uniqueIndex("users_google_id_unique").on(table.googleId).where(sql`google_id IS NOT NULL`),
+  uniqueIndex("users_apple_id_unique").on(table.appleId).where(sql`apple_id IS NOT NULL`),
+]);
 
 export const userProfiles = pgTable("user_profiles", {
   userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
@@ -95,7 +98,9 @@ export const bubbles = pgTable("bubbles", {
   shortId: text("short_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   deletedAt: timestamp("deleted_at"),
-});
+}, (table) => [
+  index("idx_bubbles_created_by").on(table.createdBy),
+]);
 
 export const memberships = pgTable("memberships", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -105,7 +110,10 @@ export const memberships = pgTable("memberships", {
   membershipStatus: text("membership_status").notNull().default('approved'),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("idx_memberships_user_bubble").on(table.userId, table.bubbleId),
+  index("idx_memberships_created_at").on(table.createdAt),
+]);
 
 export const verificationCodes = pgTable("verification_codes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -203,7 +211,11 @@ export const events = pgTable("events", {
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
   shortId: text("short_id").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_events_bubble_start").on(table.bubbleId, table.startTime),
+  index("idx_events_created_at").on(table.createdAt),
+  index("idx_events_created_by").on(table.createdBy),
+]);
 
 // Event attendees join table
 export const eventAttendees = pgTable("event_attendees", {
@@ -214,7 +226,10 @@ export const eventAttendees = pgTable("event_attendees", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   reminder24hSent: boolean("reminder_24h_sent").notNull().default(false),
   reminder1hSent: boolean("reminder_1h_sent").notNull().default(false),
-});
+}, (table) => [
+  uniqueIndex("idx_event_attendees_event_user").on(table.eventId, table.userId),
+  index("idx_event_attendees_created_at").on(table.createdAt),
+]);
 
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
@@ -258,7 +273,9 @@ export const userSessions = pgTable("user_sessions", {
   startedAt: timestamp("started_at").notNull().defaultNow(),
   endedAt: timestamp("ended_at"),
   durationSeconds: integer("duration_seconds"),
-});
+}, (table) => [
+  index("idx_user_sessions_user_id").on(table.userId),
+]);
 
 export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
   id: true,
@@ -275,7 +292,9 @@ export const bubbleVisits = pgTable("bubble_visits", {
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),
   userId: varchar("user_id").references(() => users.id),
   visitedAt: timestamp("visited_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_bubble_visits_user_bubble").on(table.userId, table.bubbleId),
+]);
 
 export const insertBubbleVisitSchema = createInsertSchema(bubbleVisits).omit({
   id: true,
@@ -322,7 +341,12 @@ export const reports = pgTable("reports", {
   visibleTo: text("visible_to").notNull().default("superadmin"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_reports_status").on(table.status),
+  index("idx_reports_reporter_id").on(table.reporterUserId),
+  index("idx_reports_reported_user_id").on(table.reportedUserId),
+  index("idx_reports_created_at").on(table.createdAt),
+]);
 
 export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,
@@ -365,6 +389,8 @@ export const adminMemberChats = pgTable("admin_member_chats", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => [
   unique("admin_member_chats_bubble_member_unique").on(table.bubbleId, table.memberId),
+  index("idx_admin_chats_member_id").on(table.memberId),
+  index("idx_admin_chats_created").on(table.createdAt),
 ]);
 
 export const insertAdminMemberChatSchema = createInsertSchema(adminMemberChats).omit({
@@ -384,7 +410,9 @@ export const notifications = pgTable("notifications", {
   metadata: text("metadata"),
   read: boolean("read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_notifications_recipient_created").on(table.recipientId, table.createdAt),
+]);
 
 export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
@@ -471,7 +499,11 @@ export const bulletinPosts = pgTable("bulletin_posts", {
   createdBy: varchar("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_bulletin_posts_board_created").on(table.boardId, table.createdAt),
+  index("idx_bulletin_posts_author_id").on(table.authorId),
+  index("idx_bulletin_posts_created_by").on(table.createdBy),
+]);
 
 export const bulletinReplies = pgTable("bulletin_replies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -482,7 +514,10 @@ export const bulletinReplies = pgTable("bulletin_replies", {
   createdBy: varchar("created_by").references(() => users.id),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by").references(() => users.id),
-});
+}, (table) => [
+  index("idx_bulletin_replies_post_created").on(table.postId, table.createdAt),
+  index("idx_bulletin_replies_author_id").on(table.authorId),
+]);
 
 export const insertBulletinBoardSchema = createInsertSchema(bulletinBoards).omit({
   id: true,
@@ -686,7 +721,11 @@ export const crashReports = pgTable("crash_reports", {
   userId: text("user_id"),
   username: text("username"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("crash_reports_user_id_idx").on(table.userId),
+  index("crash_reports_created_at_idx").on(table.createdAt),
+  index("crash_reports_is_fatal_idx").on(table.isFatal),
+]);
 
 export const insertCrashReportSchema = createInsertSchema(crashReports).omit({
   id: true,
@@ -714,6 +753,8 @@ export const latencyBuckets = pgTable(
   },
   (table) => [
     unique("latency_buckets_endpoint_method_ts_unique").on(table.method, table.endpoint, table.bucketTs),
+    index("latency_buckets_endpoint_method_idx").on(table.method, table.endpoint),
+    index("latency_buckets_bucket_ts_idx").on(table.bucketTs),
   ],
 );
 
@@ -760,7 +801,10 @@ export const feedback = pgTable("feedback", {
   message: text("message").notNull(),
   userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_feedback_user_id").on(table.userId),
+  index("idx_feedback_created_at").on(table.createdAt),
+]);
 
 export type Feedback = typeof feedback.$inferSelect;
 export type InsertFeedback = typeof feedback.$inferInsert;
