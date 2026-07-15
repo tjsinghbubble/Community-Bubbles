@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble - Join Our Community</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: #F0F4F8;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 80px 48px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 80px;
+            align-items: center;
+        }
+
+        .left-col { }
+        .right-col { }
+
+        /* PHOTO GRID */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 32px;
+        }
+
+        .photo-grid img {
+            display: block;
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+
+        /* BRANDING */
+        .branding {
+            text-align: left;
+            margin-bottom: 24px;
+        }
+
+        .logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .logo-row svg {
+            width: 34px;
+            height: 31px;
+            color: #35A8F7;
+        }
+
+        .logo-row span {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #35A8F7;
+        }
+
+        .tagline {
+            font-size: 0.95rem;
+            color: #969696;
+        }
+
+        /* AUTH CARD */
+        .auth-card {
+            background: white;
+            border: 1px solid #E2E2E2;
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .auth-card h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1E1F26;
+            margin-bottom: 16px;
+        }
+
+        .auth-card input[type="email"] {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid #969696;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            color: #4D4D4D;
+            margin-bottom: 16px;
+            box-sizing: border-box;
+        }
+
+        .auth-card input[type="email"]::placeholder {
+            color: #969696;
+        }
+
+        /* BUTTON */
+        .cta-button {
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 999px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, #35A8F7 0%, #35A8F7 70%, #6FC3F9 100%);
+            color: white;
+        }
+
+        .cta-button:hover {
+            opacity: 0.9;
+        }
+
+        .cta-button:disabled {
+            background: #E2E2E2;
+            color: #969696;
+            cursor: not-allowed;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: #969696;
+            font-size: 0.875rem;
+        }
+
+        .divider .line {
+            flex: 1;
+            height: 1px;
+            background: #E2E2E2;
+        }
+
+        .social-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px solid #E2E2E2;
+            border-radius: 8px;
+            padding: 13px 16px;
+            background: white;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #1E1F26;
+            text-decoration: none;
+            margin-bottom: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .social-button:hover {
+            background: #F7F9FB;
+        }
+
+        .google-mark {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #E2E2E2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #4285F4;
+            flex-shrink: 0;
+        }
+
+        .apple-mark {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        /* TEST ACCOUNT TEXT */
+        .test-account {
+            text-align: center;
+            color: #999;
+            font-size: 0.85rem;
+            margin-top: 16px;
+            margin-bottom: 0;
+        }
+
+        /* TERMS TEXT (OUTSIDE BOX) */
+        .terms-text-outside {
+            font-size: 0.8rem;
+            color: #969696;
+            text-align: center;
+            line-height: 1.6;
+            margin-top: 20px;
+        }
+
+        .terms-text-outside a {
+            color: #35A8F7;
+            text-decoration: underline;
+        }
+
+        /* FOOTER */
+        footer {
+            background: white;
+            padding: 48px 115px 32px;
+            border-top: 1px solid #E5E7EB;
+            margin-top: 60px;
+        }
+
+        .footer-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 48px;
+            max-width: 1400px;
+            margin: 0 auto;
+            margin-bottom: 32px;
+        }
+
+        .footer-section h3 {
+            font-weight: 700;
+            color: #1E1F26;
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+
+        .footer-section p {
+            color: #999;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .social-icons {
+            display: flex;
+            gap: 12px;
+        }
+
+        .social-icon {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            background: #F0F4F8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #999;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .social-icon:hover {
+            background: #E5E7EB;
+        }
+
+        .footer-links {
+            list-style: none;
+            padding: 0;
+        }
+
+        .footer-links li {
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.3s;
+        }
+
+        .footer-links a:hover {
+            color: #4D4D4D;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            color: #999;
+            font-size: 0.8rem;
+            border-top: 1px solid #E5E7EB;
+            padding-top: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+                max-width: 480px;
+                padding: 48px 24px 80px;
+                gap: 32px;
+            }
+
+            .branding {
+                text-align: center;
+            }
+
+            .logo-row {
+                justify-content: center;
+            }
+
+            footer {
+                padding: 48px 48px 32px;
+            }
+
+            .footer-container {
+                gap: 32px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            main {
+                padding: 32px 20px 64px;
+            }
+
+            footer {
+                padding: 32px 24px;
+            }
+
+            .footer-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+      <div class="left-col">
+        <div class="branding">
+            <div class="logo-row">
+                <svg viewBox="0 0 73 67" fill="none" aria-hidden="true">
+                    <path d="M51.5265 2C46.3601 2.00311 41.4063 4.07912 37.7524 7.76734C34.1017 11.4587 32.0468 16.4634 32.0437 21.6831C33.1158 47.8271 69.9371 47.8271 71.0089 21.6831C71.0058 16.4636 68.9509 11.4588 65.3002 7.76734C61.6464 4.07912 56.6931 2.00311 51.5265 2ZM51.5265 38.8758C47.0132 38.8727 42.6879 37.0613 39.4961 33.8368C36.3043 30.6123 34.5115 26.2426 34.5084 21.6827C35.4449 -1.12513 67.6082 -1.12513 68.5443 21.6827C68.5382 26.2394 66.7421 30.6091 63.5535 33.8337C60.3619 37.055 56.0368 38.8696 51.5265 38.8758Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                    <path d="M51.5261 9.95525C50.2939 9.95525 48.1004 9.85565 48.3223 11.6235C48.3839 11.9503 48.5749 12.2366 48.846 12.4202C49.1202 12.607 49.4529 12.6723 49.7763 12.607C53.0049 11.9907 56.3135 13.1641 58.4483 15.6882C60.5831 18.2092 61.2178 21.695 60.1149 24.8198C59.9732 25.2026 60.0256 25.6321 60.2566 25.9682C60.4877 26.3013 60.8697 26.5004 61.2733 26.5004C61.7908 26.5004 62.256 26.1705 62.4317 25.6788C63.7286 22.081 63.208 18.0692 61.0392 14.929C58.8674 11.7887 55.3185 9.91505 51.5266 9.90573L51.5261 9.95525Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                    <path d="M16.1098 23.4006C12.3699 23.4068 8.78397 24.9101 6.14051 27.5836C3.49421 30.254 2.00627 33.8767 2.00012 37.6553C2.77645 56.5655 29.4426 56.5655 30.2186 37.6553C30.2125 33.877 28.7246 30.2542 26.0783 27.5836C23.435 24.9101 19.8492 23.4068 16.109 23.4006H16.1098ZM16.1098 49.4194C13.0229 49.4163 10.0624 48.1745 7.8779 45.971C5.69682 43.7644 4.46764 40.7734 4.46456 37.6545C5.09302 22.0556 27.1255 22.0684 27.7541 37.6545C27.751 40.773 26.5218 43.764 24.3407 45.971C22.1566 48.1745 19.1961 49.4163 16.1088 49.4194H16.1098Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                    <path d="M13.6085 29.7264C10.1828 30.8157 7.85693 34.0276 7.86624 37.6565C7.86624 38.7272 7.86624 40.5199 9.28336 40.5448C9.66536 40.5541 10.032 40.386 10.2722 40.0841C10.5125 39.7854 10.605 39.3901 10.5156 39.0135C10.4078 38.5684 10.3523 38.114 10.3554 37.6565C10.34 35.1293 11.945 32.8853 14.3233 32.1041C14.9332 31.8738 15.2598 31.2046 15.0718 30.5759C14.8839 29.9472 14.2431 29.5739 13.6085 29.7264Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                    <path d="M35.5252 51.2282C34.2814 51.8491 33.5987 52.912 33.8396 53.8523C33.9096 54.13 34.0269 54.595 34.5725 54.4614C34.7197 54.4261 34.8494 54.3463 34.9219 54.2443C34.9946 54.143 35.0043 54.0314 34.9453 53.9425C34.8748 53.8377 34.8238 53.7254 34.7951 53.6064C34.6239 52.9524 35.0932 52.2118 35.955 51.7743C36.1741 51.6543 36.2557 51.4485 36.1425 51.304C36.0292 51.1595 35.7588 51.1259 35.5252 51.2282Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                    <path d="M39.4618 44.6392C33.8797 44.6455 29.3577 49.2206 29.3577 54.86C29.8629 68.3801 49.0738 68.3801 49.5793 54.86C49.5732 49.2174 45.0469 44.6456 39.4618 44.6392ZM39.4618 62.579C35.2444 62.5727 31.8279 59.1212 31.8218 54.8604C32.1791 44.6396 46.7572 44.6396 47.1144 54.8604C47.1083 59.1243 43.6822 62.579 39.4618 62.579Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
+                </svg>
+                <span>Bubble</span>
+            </div>
+            <p class="tagline">Connect locally. Build lasting community.</p>
+        </div>
+
+        <div class="photo-grid">
+            <img src="images/landing/pickleball.jpg" alt="">
+            <img src="images/landing/dog_meeting.png" alt="">
+            <img src="images/landing/volunteer_group.png" alt="">
+            <img src="images/landing/group_cheers.jpg" alt="">
+            <img src="images/landing/fitness_class.jpg" alt="">
+            <img src="images/landing/picnic.jpg" alt="">
+            <img src="images/landing/group_craft.jpg" alt="">
+            <img src="images/landing/badminton.jpg" alt="">
+            <img src="images/landing/mask_group.jpg" alt="">
+        </div>
+      </div>
+
+      <div class="right-col">
+        <form class="auth-card" id="welcome-form">
+            <h1>Log in or sign up</h1>
+            <input type="email" id="welcome-email" placeholder="Email address" autocomplete="email" required>
+            <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
+
+            <div class="divider">
+                <span class="line"></span>
+                <span>or</span>
+                <span class="line"></span>
+            </div>
+
+            <button type="button" class="social-button" id="google-btn">
+                <span class="google-mark">G</span>
+                Continue with Google
+            </button>
+            <button type="button" class="social-button" id="apple-btn">
+                <svg class="apple-mark" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 6.528V3a1 1 0 0 1 1-1h0" />
+                    <path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21" />
+                </svg>
+                Continue with Apple
+            </button>
+        </form>
+
+        <p class="terms-text-outside">
+            By continuing, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.
+        </p>
+      </div>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>Bubble</h3>
+                <p>Building authentic community through hyper-local connection. Starting with Berkeley, SF, and the Bay Area.</p>
+                <div class="social-icons">
+                    <a href="#" class="social-icon">f</a>
+                    <a href="#" class="social-icon">𝕏</a>
+                    <a href="#" class="social-icon">in</a>
+                    <a href="#" class="social-icon">ig</a>
+                </div>
+            </div>
+
+            <div class="footer-section">
+                <h3>Product</h3>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How It Works</a></li>
+                    <li><a href="community.html">Community Examples</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Company</h3>
+                <ul class="footer-links">
+                    <li><a href="about.html">Our Story</a></li>
+                    <li><a href="waitlist.html">Join Waitlist</a></li>
+                    <li><a href="careers.html">Careers</a></li>
+                    <li><a href="press.html">Press</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <ul class="footer-links">
+                    <li><a href="mailto:hello@trybubble.io">hello@trybubble.io</a></li>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="terms.html">Terms of Service</a></li>
+                    <li><a href="community-guidelines.html">Community Guidelines</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2026 Bubble. All rights reserved. Built with ❤️ in the Bay Area.</p>
+        </div>
+    </footer>
+
+    <script>
+        // This card is a preview only — it hands off to the real app at /auth,
+        // which owns the actual email-check / login / signup logic. Nothing here
+        // calls the API, so there's no auth logic duplicated between this static
+        // site and the React app.
+        const emailInput = document.getElementById('welcome-email');
+        const continueBtn = document.getElementById('continue-btn');
+        const welcomeForm = document.getElementById('welcome-form');
+        const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        function goToAuth(email) {
+            const url = email ? `/auth?email=${encodeURIComponent(email)}` : '/auth';
+            window.location.href = url;
+        }
+
+        emailInput.addEventListener('input', function() {
+            continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
+        });
+
+        welcomeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!EMAIL_REGEX.test(emailInput.value.trim())) return;
+            goToAuth(emailInput.value.trim());
+        });
+
+        document.getElementById('google-btn').addEventListener('click', function() {
+            goToAuth(emailInput.value.trim());
+        });
+        document.getElementById('apple-btn').addEventListener('click', function() {
+            goToAuth(emailInput.value.trim());
+        });
+    </script>
+</body>
+</html>
