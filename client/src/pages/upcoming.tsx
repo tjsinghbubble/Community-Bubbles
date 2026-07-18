@@ -9,6 +9,7 @@ import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,18 +44,39 @@ function ReportModal({
   open,
   onClose,
   title,
+  bubbleId,
+  eventId,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  bubbleId: string;
+  eventId: string;
 }) {
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
 
+  const reportMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/reports", {
+        bubbleId,
+        eventId,
+        reportType: "event",
+        reason: "Other",
+        freeText: reason.trim(),
+      }),
+    onSuccess: () => {
+      setSent(true);
+      setTimeout(() => { onClose(); setSent(false); setReason(""); }, 1500);
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't submit report", description: err.message || "Please try again." });
+    },
+  });
+
   const submit = () => {
-    if (!reason.trim()) return;
-    setSent(true);
-    setTimeout(() => { onClose(); setSent(false); setReason(""); }, 1500);
+    if (!reason.trim() || reportMutation.isPending) return;
+    reportMutation.mutate();
   };
 
   return (
@@ -82,10 +104,11 @@ function ReportModal({
             />
             <button
               onClick={submit}
-              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white"
+              disabled={!reason.trim() || reportMutation.isPending}
+              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white disabled:opacity-60"
               style={{ background: `linear-gradient(135deg, ${BLUE}, #6C63FF)` }}
             >
-              Submit Report
+              {reportMutation.isPending ? "Submitting…" : "Submit Report"}
             </button>
           </div>
         )}
@@ -138,7 +161,7 @@ function EventKebabMenu({ event, isOrganizer }: { event: any; isOrganizer?: bool
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
               style={{ color: BLUE }}
-              onClick={() => navigate(`/bubble/${event.bubbleId}`)}
+              onClick={() => navigate(`/event/${event.id}/edit`)}
               data-testid={`action-manage-event-${event.id}`}
             >
               <Crown className="h-[18px] w-[18px]" style={{ color: BLUE }} />
@@ -175,11 +198,15 @@ function EventKebabMenu({ event, isOrganizer }: { event: any; isOrganizer?: bool
         open={reportConcern}
         onClose={() => setReportConcern(false)}
         title="Report a Concern"
+        bubbleId={event.bubbleId}
+        eventId={event.id}
       />
       <ReportModal
         open={reportEvent}
         onClose={() => setReportEvent(false)}
         title="Report this Event"
+        bubbleId={event.bubbleId}
+        eventId={event.id}
       />
     </>
   );
@@ -196,7 +223,7 @@ function EventCard({ event, userId }: { event: any; userId?: string }) {
     <div className="relative w-full" data-testid={`card-event-${event.id}`}>
       <button
         className="w-full text-left"
-        onClick={() => navigate(`/bubble/${event.bubbleId}`)}
+        onClick={() => navigate(`/event/${event.id}`)}
       >
         {/* Image */}
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-black/5">

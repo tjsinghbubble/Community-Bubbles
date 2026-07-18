@@ -1016,7 +1016,8 @@ export default function BubbleDetails() {
                 {(bubbleEvents ?? []).map((ev: any) => (
                   <div
                     key={ev.id}
-                    className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
+                    onClick={() => navigate(`/event/${ev.id}`)}
+                    className="flex cursor-pointer gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
                     data-testid={`row-event-${ev.id}`}
                   >
                     {ev.coverImage && (
