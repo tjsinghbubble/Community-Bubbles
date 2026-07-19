@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 function RadioRow({
   label,
@@ -71,11 +75,57 @@ function Toggle({
   );
 }
 
+type PrivacySettings = {
+  profileVisibility: "public" | "members" | "private";
+  showInterests: boolean;
+  showBubbles: boolean;
+};
+
+const DEFAULT_SETTINGS: PrivacySettings = {
+  profileVisibility: "public",
+  showInterests: true,
+  showBubbles: true,
+};
+
 export default function ProfilePrivacy() {
   const [, navigate] = useLocation();
-  const [profileVisibility, setProfileVisibility] = useState<"public" | "members" | "private">("public");
-  const [showInterests, setShowInterests] = useState(true);
-  const [showBubbles, setShowBubbles] = useState(true);
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS);
+
+  const { data, isLoading } = useQuery<PrivacySettings>({
+    queryKey: ["/api/privacy-settings"],
+    queryFn: () => apiRequest("GET", "/api/privacy-settings").then((r) => r.json()),
+    enabled: !!user,
+  });
+
+  useEffect(() => {
+    if (data) setSettings({ ...DEFAULT_SETTINGS, ...data });
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: (updates: Partial<PrivacySettings>) => apiRequest("PUT", "/api/privacy-settings", updates),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/privacy-settings"] }),
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't save", description: err.message || "Please try again." });
+      if (data) setSettings({ ...DEFAULT_SETTINGS, ...data });
+    },
+  });
+
+  const updateVisibility = (v: PrivacySettings["profileVisibility"]) => {
+    setSettings((s) => ({ ...s, profileVisibility: v }));
+    saveMutation.mutate({ profileVisibility: v });
+  };
+  const updateShowInterests = (v: boolean) => {
+    setSettings((s) => ({ ...s, showInterests: v }));
+    saveMutation.mutate({ showInterests: v });
+  };
+  const updateShowBubbles = (v: boolean) => {
+    setSettings((s) => ({ ...s, showBubbles: v }));
+    saveMutation.mutate({ showBubbles: v });
+  };
+
+  const disabled = isLoading || !user;
 
   return (
     <AppShell active="profile">
@@ -102,22 +152,22 @@ export default function ProfilePrivacy() {
               <RadioRow
                 label="Public"
                 sublabel="Anyone can view your profile"
-                selected={profileVisibility === "public"}
-                onClick={() => setProfileVisibility("public")}
+                selected={settings.profileVisibility === "public"}
+                onClick={() => !disabled && updateVisibility("public")}
                 testId="radio-public"
               />
               <RadioRow
                 label="Bubble Members Only"
                 sublabel="Only people in your bubbles can see you"
-                selected={profileVisibility === "members"}
-                onClick={() => setProfileVisibility("members")}
+                selected={settings.profileVisibility === "members"}
+                onClick={() => !disabled && updateVisibility("members")}
                 testId="radio-members"
               />
               <RadioRow
                 label="Private"
                 sublabel="Only you can see your full profile"
-                selected={profileVisibility === "private"}
-                onClick={() => setProfileVisibility("private")}
+                selected={settings.profileVisibility === "private"}
+                onClick={() => !disabled && updateVisibility("private")}
                 testId="radio-private"
               />
             </div>
@@ -133,15 +183,15 @@ export default function ProfilePrivacy() {
               <Toggle
                 label="Interests"
                 sublabel="Show your interest tags on your profile"
-                value={showInterests}
-                onChange={setShowInterests}
+                value={settings.showInterests}
+                onChange={updateShowInterests}
                 testId="toggle-show-interests"
               />
               <Toggle
                 label="My Bubbles"
                 sublabel="Show which communities you belong to"
-                value={showBubbles}
-                onChange={setShowBubbles}
+                value={settings.showBubbles}
+                onChange={updateShowBubbles}
                 testId="toggle-show-bubbles"
               />
             </div>

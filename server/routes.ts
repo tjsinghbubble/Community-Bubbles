@@ -3904,6 +3904,38 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/privacy-settings", authMiddleware, async (req, res) => {
+    try {
+      const settings = await storage.getUserPrivacySettings(req.userId!);
+      if (!settings) {
+        return res.json({
+          userId: req.userId,
+          profileVisibility: "public",
+          showInterests: true,
+          showBubbles: true,
+        });
+      }
+      res.json(settings);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  app.put("/api/privacy-settings", authMiddleware, async (req, res) => {
+    try {
+      const updates: Record<string, boolean | string> = {};
+      if (["public", "members", "private"].includes(req.body.profileVisibility)) {
+        updates.profileVisibility = req.body.profileVisibility;
+      }
+      if (typeof req.body.showInterests === "boolean") updates.showInterests = req.body.showInterests;
+      if (typeof req.body.showBubbles === "boolean") updates.showBubbles = req.body.showBubbles;
+      const settings = await storage.upsertUserPrivacySettings(req.userId!, updates);
+      res.json(settings);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
   // ===== DEVICE PUSH TOKENS =====
   app.post("/api/device-push-tokens", authMiddleware, async (req, res) => {
     try {

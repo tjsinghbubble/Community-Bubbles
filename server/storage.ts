@@ -91,6 +91,9 @@ import {
   notificationPreferences,
   type NotificationPreferences,
   type InsertNotificationPreferences,
+  userPrivacySettings,
+  type UserPrivacySettings,
+  type InsertUserPrivacySettings,
   feedback,
   type Feedback,
 } from "@shared/schema";
@@ -275,6 +278,10 @@ export interface IStorage {
   // Notification Preferences
   getNotificationPreferences(userId: string): Promise<NotificationPreferences | undefined>;
   upsertNotificationPreferences(userId: string, prefs: Partial<Omit<InsertNotificationPreferences, 'userId'>>): Promise<NotificationPreferences>;
+
+  // Privacy Settings
+  getUserPrivacySettings(userId: string): Promise<UserPrivacySettings | undefined>;
+  upsertUserPrivacySettings(userId: string, settings: Partial<Omit<InsertUserPrivacySettings, 'userId'>>): Promise<UserPrivacySettings>;
 
   // Audit Logs
   insertAuditLog(entry: { action: string; adminId: string; targetId: string; ip?: string; extra?: string }): Promise<AuditLog>;
@@ -2198,6 +2205,31 @@ export class DatabaseStorage implements IStorage {
     }
     const result = await db.insert(notificationPreferences)
       .values({ userId, ...prefs })
+      .returning();
+    return result[0];
+  }
+
+  async getUserPrivacySettings(userId: string): Promise<UserPrivacySettings | undefined> {
+    const result = await db.select().from(userPrivacySettings)
+      .where(eq(userPrivacySettings.userId, userId))
+      .limit(1);
+    return result[0];
+  }
+
+  async upsertUserPrivacySettings(
+    userId: string,
+    settings: Partial<Omit<InsertUserPrivacySettings, 'userId'>>,
+  ): Promise<UserPrivacySettings> {
+    const existing = await this.getUserPrivacySettings(userId);
+    if (existing) {
+      const result = await db.update(userPrivacySettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(userPrivacySettings.userId, userId))
+        .returning();
+      return result[0];
+    }
+    const result = await db.insert(userPrivacySettings)
+      .values({ userId, ...settings })
       .returning();
     return result[0];
   }
