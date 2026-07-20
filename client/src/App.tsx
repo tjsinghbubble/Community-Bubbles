@@ -18,6 +18,12 @@ import Profile from "./pages/profile";
 import ProfileEdit from "./pages/profile-edit";
 import ProfileNotifications from "./pages/profile-notifications";
 import ProfilePrivacy from "./pages/profile-privacy";
+import GetHelp from "./pages/get-help";
+import HelpCenter from "./pages/help-center";
+import GiveFeedback from "./pages/give-feedback";
+import FeatureRequest from "./pages/feature-request";
+import DefectReport from "./pages/defect-report";
+import ReportConcern from "./pages/report-concern";
 import Legal from "./pages/legal";
 import AdminPending from "./pages/admin-pending";
 import AdminRules from "./pages/admin-rules";
@@ -66,6 +72,12 @@ function Router() {
       <Route path="/profile/edit" component={ProfileEdit} />
       <Route path="/profile/notifications" component={ProfileNotifications} />
       <Route path="/profile/privacy" component={ProfilePrivacy} />
+      <Route path="/get-help" component={GetHelp} />
+      <Route path="/help-center" component={HelpCenter} />
+      <Route path="/give-feedback" component={GiveFeedback} />
+      <Route path="/feature-request" component={FeatureRequest} />
+      <Route path="/defect-report" component={DefectReport} />
+      <Route path="/report-concern" component={ReportConcern} />
       <Route path="/legal/:page" component={Legal} />
       <Route path="/admin/pending" component={AdminPending} />
       <Route path="/admin/rules" component={AdminRules} />
