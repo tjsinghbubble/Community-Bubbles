@@ -1,0 +1,126 @@
+name: Sync develop → main
+
+# Runs automatically after a successful production EAS build (tag push).
+# Can also be triggered manually at any time via the GitHub Actions UI.
+#
+# The job opens a PR from develop into main so that main never lags behind
+# by more than one release cycle. If a PR for this sync already exists it
+# is left unchanged (idempotent).
+
+on:
+  workflow_run:
+    workflows: ['EAS Production Build']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run — check divergence without opening a PR'
+        required: false
+        default: 'false'
+
+jobs:
+  sync:
+    name: Open develop → main sync PR
+    runs-on: ubuntu-latest
+    # For automatic triggers, only run when the production build succeeded.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use ADMIN_PAT so the PR can be merged even on protected branches.
+          token: ${{ secrets.ADMIN_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: Check divergence between develop and main
+        id: divergence
+        run: |
+          git fetch origin develop main
+
+          BEHIND=$(git rev-list --count origin/main..origin/develop)
+          AHEAD=$(git rev-list --count origin/develop..origin/main)
+
+          echo "develop is ${BEHIND} commit(s) ahead of main"
+          echo "main is ${AHEAD} commit(s) ahead of develop (should be 0 in normal flow)"
+
+          echo "behind=${BEHIND}" >> "$GITHUB_OUTPUT"
+          echo "ahead=${AHEAD}"   >> "$GITHUB_OUTPUT"
+
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "branches_in_sync=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "branches_in_sync=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip — branches already in sync
+        if: steps.divergence.outputs.branches_in_sync == 'true'
+        run: |
+          echo "✅ develop and main are already in sync. Nothing to do."
+
+      - name: Skip — dry run requested
+        if: >
+          steps.divergence.outputs.branches_in_sync == 'false' &&
+          github.event.inputs.dry_run == 'true'
+        run: |
+          echo "🔍 Dry run: develop is ${{ steps.divergence.outputs.behind }} commit(s) ahead of main."
+          echo "A PR would be opened — re-run without dry_run to create it."
+
+      - name: Create sync PR (develop → main)
+        if: >
+          steps.divergence.outputs.branches_in_sync == 'false' &&
+          github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.ADMIN_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          BEHIND="${{ steps.divergence.outputs.behind }}"
+
+          PR_TITLE="chore: sync develop → main ($BEHIND commit(s))"
+          PR_BODY="## Automated develop → main sync
+
+          This PR was opened automatically after a successful production EAS build.
+
+          **Commits ahead:** \`develop\` is ${BEHIND} commit(s) ahead of \`main\`.
+
+          ### What to do
+          1. Review the diff — confirm no unintended changes are included.
+          2. If there are conflicts, resolve them in a local branch then push to this PR.
+          3. Approve and merge using **Merge commit** (not squash) to preserve history.
+
+          ### Why this matters
+          Keeping \`main\` within a few commits of \`develop\` prevents large divergence
+          that causes merge conflicts during future syncs (like the one in
+          \`UpcomingScreen.tsx\` that prompted this automation).
+
+          ---
+          _Opened by the \`sync-develop-to-main\` GitHub Actions workflow._"
+
+          # Check if a sync PR already exists to stay idempotent.
+          EXISTING=$(gh pr list \
+            --base main \
+            --head develop \
+            --state open \
+            --json number \
+            --jq '.[0].number' 2>/dev/null || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "ℹ️  A sync PR already exists: #${EXISTING}. Skipping creation."
+          else
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY" \
+              --label "sync" 2>/dev/null || \
+            gh pr create \
+              --base main \
+              --head develop \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY"
+            echo "✅ Sync PR opened."
+          fi
