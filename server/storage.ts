@@ -205,6 +205,8 @@ export interface IStorage {
   getCampusBubbles(campusId: string): Promise<Bubble[]>;
   getPublicEvents(): Promise<(Event & { bubble: Bubble })[]>;
   getUpcomingEvents(): Promise<(Event & { bubble: Bubble })[]>;
+  getUpcomingEventsForUser(userId: string): Promise<(Event & { bubble: Bubble } & { rsvpStatus: string | null })[]>;
+  getPastAttendedEvents(userId: string): Promise<(Event & { bubble: Bubble })[]>;
   getCampusEvents(campusId: string): Promise<(Event & { bubble: Bubble })[]>;
 
   // Analytics
@@ -1661,6 +1663,63 @@ export class DatabaseStorage implements IStorage {
         isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
+
+    return result.map(row => ({
+      ...row.events,
+      bubble: row.bubbles,
+    }));
+  }
+
+  async getUpcomingEventsForUser(userId: string): Promise<(Event & { bubble: Bubble } & { rsvpStatus: string | null })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await db
+      .select({
+        events: events,
+        bubbles: bubbles,
+        rsvpStatus: eventAttendees.status,
+      })
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .leftJoin(eventAttendees, and(
+        eq(eventAttendees.eventId, events.id),
+        eq(eventAttendees.userId, userId),
+      ))
+      .where(and(
+        isNull(events.campusId),
+        eq(events.visibility, 'public'),
+        eq(events.status, 'approved'),
+        ne(bubbles.privacy, 'Private'),
+        gte(events.date, today),
+        isNull(bubbles.deletedAt)
+      ))
+      .orderBy(events.date, events.startTime);
+
+    return result.map(row => ({
+      ...row.events,
+      bubble: row.bubbles,
+      rsvpStatus: row.rsvpStatus ?? null,
+    }));
+  }
+
+  async getPastAttendedEvents(userId: string): Promise<(Event & { bubble: Bubble })[]> {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await db
+      .select({
+        events: events,
+        bubbles: bubbles,
+      })
+      .from(events)
+      .innerJoin(bubbles, eq(events.bubbleId, bubbles.id))
+      .innerJoin(eventAttendees, and(
+        eq(eventAttendees.eventId, events.id),
+        eq(eventAttendees.userId, userId),
+        eq(eventAttendees.status, 'going'),
+      ))
+      .where(and(
+        lt(events.date, today),
+        isNull(bubbles.deletedAt)
+      ))
+      .orderBy(desc(events.date), desc(events.startTime));
 
     return result.map(row => ({
       ...row.events,
