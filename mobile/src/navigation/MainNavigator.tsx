@@ -116,8 +116,9 @@ export default function MainNavigator() {
         name="Upcoming"
         component={UpcomingNavigator}
         options={{
-          tabBarTestID: 'tab-upcoming',
-          tabBarAccessibilityLabel: 'Upcoming',
+          title: 'Events',
+          tabBarTestID: 'tab-events',
+          tabBarAccessibilityLabel: 'Events',
           tabBarIcon: ({ color, size }) => (
             <UpcomingIcon size={size} color={color} />
           ),
