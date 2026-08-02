@@ -74,7 +74,7 @@ function main(): void {
   // --sim implies its platform; --platform+--sim must agree (same rule as the qa runner).
   // Without this, `--sim <android-avd>` kept platform=ios and ran iOS flows on the emulator.
   if (sim && platform !== "web") {
-    const k = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--kind-of", sim], { encoding: "utf8" });
+    const k = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--kind-of", sim], { encoding: "utf8" });
     const kind = (k.stdout ?? "").trim();
     if (k.status !== 0 || (kind !== "ios" && kind !== "android")) {
       console.error(`error: --sim '${sim}' could not be resolved to a device: ${(k.stderr ?? "").trim() || "unknown"}`);
@@ -124,7 +124,7 @@ function main(): void {
   let resolvedDeviceName = "";
   if (platform !== "web") {
     const simId = sim || platform;
-    const r = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--resolve", simId],
+    const r = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--resolve", simId],
       { encoding: "utf8" });
     resolvedDeviceId = (r.stdout ?? "").trim();
     if (r.status === 0 && resolvedDeviceId) {
@@ -142,12 +142,12 @@ function main(): void {
     // returns BLACK screenshots/recordings here (swiftshader), so a debug re-run that wants
     // to SEE the screen (noisy/movie/cmd) must fail loudly rather than capture black frames.
     if (requireScreen) {
-      const h = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--headless-of", simId],
+      const h = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--headless-of", simId],
         { encoding: "utf8" });
       const mode = (h.stdout ?? "").trim();
       if (mode === "headless" || (mode === "unknown" && platform === "android")) {
         console.error(`error: --require-screen: device '${simId}' is ${mode === "headless" ? "headless (-no-window)" : "not confirmed windowed"} — screenshots/recordings would be BLACK.`);
-        console.error(`       boot it WINDOWED first:  python3 scripts/manage_devices.py --kill ${simId} && python3 scripts/manage_devices.py --start ${simId}`);
+        console.error(`       boot it WINDOWED first:  python3 scripts/manage_devices --kill ${simId} && python3 scripts/manage_devices --start ${simId}`);
         process.exit(2);
       }
     }
@@ -183,7 +183,7 @@ function main(): void {
   // only (no stdout id), best-effort — never fail the run on this.
   if (platform !== "web" && (res.status ?? 1) === 0) {
     const simId = sim || platform;
-    spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--mark-used", simId],
+    spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--mark-used", simId],
       { stdio: "ignore" });
   }
 

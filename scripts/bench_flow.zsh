@@ -43,7 +43,7 @@ STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 LOGDIR=tmp/benchflow-$STAMP
 mkdir -p $LOGDIR
 PROGRESS=$LOGDIR/progress.log
-MD=scripts/manage_devices.py
+MD=scripts/manage_devices
 
 note() { print -r -- "$(date +'%H:%M:%S')  $*" | tee -a $PROGRESS }
 
@@ -90,8 +90,8 @@ for round in {1..$ROUNDS}; do
   for sim in $LIVE; do
     plat=$(python3 $MD --kind-of $sim 2>/dev/null) || plat="?"
     note "----- $sim ($plat) : round $round -----"
-    note "  timed boot (--warmup → history)"
-    if ! python3 $MD --warmup $sim >$LOGDIR/warmup-$sim-r$round.out 2>&1; then
+    note "  timed boot (--start:headless → history)"
+    if ! python3 $MD --start:headless $sim >$LOGDIR/warmup-$sim-r$round.out 2>&1; then
       note "  ✗✗ $sim FAILED TO BOOT — DROPPING it from all remaining rounds (see warmup log)"
       DEAD_SIMS+=($sim)
       LIVE=(${LIVE:#$sim})

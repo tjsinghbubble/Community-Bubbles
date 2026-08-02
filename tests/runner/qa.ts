@@ -228,14 +228,14 @@ function setupAdbReverse(ports: number[], serial?: string): void {
 }
 
 /**
- * Resolve the e2e target device via manage_devices.py so the run pins Maestro to ONE
+ * Resolve the e2e target device via manage_devices so the run pins Maestro to ONE
  * device. Without this, `maestro test` auto-selects among connected devices and — with
  * both an iOS sim and an Android emulator booted — silently ran iOS flows on Android.
  * `simId` is either an explicit --sim value or the platform alias ('ios'/'android').
  * Returns the bare maestro device id (UDID / adb serial) plus a human description.
  */
 function resolveE2eDevice(simId: string): { ok: boolean; deviceId: string; name: string; desc: string; message: string } {
-  const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--resolve", simId],
+  const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--resolve", simId],
     { encoding: "utf8" });
   const deviceId = (res.stdout ?? "").trim();
   const desc = (res.stderr ?? "").trim();
@@ -260,7 +260,7 @@ function resolveE2eDevice(simId: string): { ok: boolean; deviceId: string; name:
  */
 function reconcilePlatformSim(args: Args): void {
   if (!args.sim || args.platform === "web") return;
-  const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--kind-of", args.sim],
+  const res = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--kind-of", args.sim],
     { encoding: "utf8" });
   const kind = (res.stdout ?? "").trim();   // 'ios' | 'android'
   if (res.status !== 0 || (kind !== "ios" && kind !== "android")) {
@@ -274,7 +274,7 @@ function reconcilePlatformSim(args: Args): void {
   }
   args.platform = kind;
   // Flavor (real vs simulated) drives the build/install guard below. Offline query.
-  const fres = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices.py"), "--flavor-of", args.sim],
+  const fres = spawnSync("python3", [join(REPO_ROOT, "scripts/manage_devices"), "--flavor-of", args.sim],
     { encoding: "utf8" });
   const flavor = (fres.stdout ?? "").trim();
   if (flavor === "real" || flavor === "simulated") args.flavor = flavor;

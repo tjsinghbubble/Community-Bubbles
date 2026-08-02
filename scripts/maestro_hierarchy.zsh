@@ -41,7 +41,7 @@ csv="$outdir/hierarchy-$ts.csv"
 
 dev_args=()
 if [[ -n "$sim" ]]; then
-  id="$(python3 "$REPO/scripts/manage_devices.py" --resolve "$sim" 2>/dev/null)" || true
+  id="$(python3 "$REPO/scripts/manage_devices" --resolve "$sim" 2>/dev/null)" || true
   if [[ -z "$id" ]]; then
     print -u2 "could not resolve --sim '$sim' via manage_devices"
     exit 1

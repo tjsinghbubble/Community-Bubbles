@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
 # check_tooling.zsh — internal regression guard for the dev tooling itself.
 # Cheap checks first (syntax/import), then behavioural smoke. Re-run after each
-# change to scripts/manage_devices.py, scripts/testctl.py, or scripts/helpers/*.
+# change to scripts/manage_devices, scripts/testctl.py, or scripts/helpers/*.
 # See the native-device plan (Phase 9). NOT the app test suite — this exercises
 # the TOOLS.
 #
@@ -13,7 +13,7 @@ emulate -L zsh
 
 SCRIPT_DIR=${0:A:h}
 REPO=${SCRIPT_DIR:h}
-MD="$SCRIPT_DIR/manage_devices.py"
+MD="$SCRIPT_DIR/manage_devices"
 TC="$SCRIPT_DIR/testctl.py"
 fail=0
 pass=0
@@ -38,7 +38,7 @@ done
 # --- 2. import (no import-time side effects, lazy DB) ------------------------
 note "▶ import"
 tmpdb=$(mktemp -u /tmp/check_tooling_import_XXXX.db)
-if MANAGE_DEVICES_DB="$tmpdb" python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR'); import manage_devices" 2>/tmp/check_tooling.err; then
+if MANAGE_DEVICES_DB="$tmpdb" python3 -c "import sys; sys.path.insert(0, '$SCRIPT_DIR'); from helpers import load_script; load_script('manage_devices')" 2>/tmp/check_tooling.err; then
   ok "import manage_devices"
 else
   bad "import manage_devices"; cat /tmp/check_tooling.err
@@ -81,7 +81,7 @@ c.execute("INSERT INTO devices(udid,flavor,type) VALUES('OLD-1','Simulated','iOS
 c.commit()
 PY
 if MANAGE_DEVICES_DB="$olddb" python3 -c "
-import sys; sys.path.insert(0,'$SCRIPT_DIR'); import manage_devices as m
+import sys; sys.path.insert(0,'$SCRIPT_DIR'); from helpers import load_script; m = load_script('manage_devices')
 c=m.db(); cols={r[1] for r in c.execute('PRAGMA table_info(devices)')}
 assert {'personal','claim_owner','claim_pid','claim_heartbeat_at','last_reachable_at'} <= cols, 'native cols not added'
 assert c.execute('PRAGMA user_version').fetchone()[0]==m.hmd.SCHEMA_VERSION, 'version not bumped'
@@ -92,11 +92,20 @@ rm -f "$olddb"*(N) 2>/dev/null
 # --- 5. CLI behaviour: hidden switches rejected, kept ones live --------------
 note "▶ CLI surface"
 clidb=$(mktemp -u /tmp/check_tooling_cli_XXXX.db)
-for sw in --start:headless --bake --save-quickboot --warm:low; do
+for sw in --save-quickboot --warm:low --warm:medium --warm:hot --bake:low; do
   if MANAGE_DEVICES_DB="$clidb" python3 "$MD" $sw X >/dev/null 2>&1; then
     bad "hidden switch $sw should be rejected"
   else
     ok "hidden switch rejected: $sw"
+  fi
+done
+# 2026-07-08 start/bake rework: these switches are LIVE again (asserted via --help
+# so no device is actually started).
+for sw in --start:headless --bake --bake:medium --bake:hot; do
+  if MANAGE_DEVICES_DB="$clidb" python3 "$MD" --help 2>&1 | grep -q -- "$sw"; then
+    ok "live switch present in help: $sw"
+  else
+    bad "live switch missing from help: $sw"
   fi
 done
 if MANAGE_DEVICES_DB="$clidb" python3 "$MD" --help 2>&1 | grep -q -- '--headless-of'; then

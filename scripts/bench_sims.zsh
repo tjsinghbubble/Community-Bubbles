@@ -7,7 +7,7 @@
 #
 # This script ONLY orchestrates + logs progress. The DATA lives in two places, read back
 # with one command each AFTER the run:
-#   boot times : python3 scripts/manage_devices.py --history
+#   boot times : python3 scripts/manage_devices --history
 #   run times  : python3 scripts/testctl.py inspect recent     (Run Time col; per-test
 #                durationMs is in each tests/output/run-*/summary.json)
 #
@@ -28,7 +28,7 @@
 #                     Startup health is checked separately by preflight and isn't counted.
 #                     default 3
 #   --sims LIST       comma- or space-separated sim ids/aliases; any
-#                     format/platform manage_devices.py recognizes
+#                     format/platform manage_devices recognizes
 #                     (e.g. Jane,last-android,Pixel_9_Pro_XL,<UDID>). default last-ios
 #   --prep            shut down ALL stray iOS sims + Android emulators first (clean host).
 #   --dry-run         print scope/sims/time-estimate and exit (no preflight, no runs).
@@ -136,7 +136,7 @@ for pair in "rounds:$ROUNDS" "settle:$SETTLE" "abort-after:$ABORT_AFTER"; do
 done
 [[ $SCOPE == flow && ! -f $FLOW ]] && { print -u2 "error: --flow file not found: $FLOW"; exit 2; }
 
-MD=scripts/manage_devices.py
+MD=scripts/manage_devices
 TC=scripts/testctl.py
 
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -319,8 +319,8 @@ for round in {1..$ROUNDS}; do
     fi
     plat=$(python3 $MD --kind-of $sim 2>/dev/null) || plat="?"
     note "  platform=$plat  (per-sim; qa infers --platform from --sim)"
-    note "  timed boot (--warmup → history)"
-    if ! python3 $MD --warmup $sim >$LOGDIR/warmup-$sim-r$round.out 2>&1; then
+    note "  timed boot (--start:headless → history)"
+    if ! python3 $MD --start:headless $sim >$LOGDIR/warmup-$sim-r$round.out 2>&1; then
       note "  ✗✗ $sim FAILED TO BOOT — DROPPING it from all remaining rounds"
       note "      (see $LOGDIR/warmup-$sim-r$round.out)"
       DEAD_SIMS+=($sim); LIVE=(${LIVE:#$sim}); continue

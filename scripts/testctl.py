@@ -61,11 +61,14 @@ from urllib.error import URLError, HTTPError
 # Sibling dev-tools imported as modules (same pattern scripts/helpers/selftest_* uses):
 # manage_devices for device discovery + aliases, helper_toolchain for the toolchain
 # capability probe. Both are pure at import (no DB or subprocess side effects).
+# manage_devices is an extensionless CLI, so it loads via helpers.load_script.
 _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
-import manage_devices as md
+from helpers import load_script
 from helpers import helper_toolchain as htc
+
+md = load_script("manage_devices")
 
 REPO = Path(__file__).resolve().parent.parent
 OUTPUT_ROOT = REPO / "tests" / "output"
@@ -596,11 +599,18 @@ def _sim_token(device_id, platform):
     return _last_alias_for(device_id) or device_id
 
 
-def _looks_headless(_device_id, platform):
-    """Best-effort 'will the screen be black?' check. On this host the Android emulator
-    boots -no-window + swiftshader (screenshots/recordings come back BLACK); iOS sims are
-    windowed. There is no persisted headless flag, so this is a 'likely', not a certainty."""
-    return platform == "android"
+def _looks_headless(device_id, platform):
+    """Best-effort 'will the screen be black?' check. Since the 2026-07-08 start/bake
+    rework the default emulator boot is WINDOWED (--start:headless is the opt-in), so
+    probe the live process args via manage_devices. There is no persisted headless
+    flag; un-probeable (not running / no pid) stays the conservative 'likely'."""
+    if platform != "android":
+        return False
+    try:
+        hl = md.looks_headless(md.resolve_one(device_id))
+    except Exception:
+        return True
+    return True if hl is None else hl
 
 
 def _fmt_started(epoch):
@@ -1146,7 +1156,7 @@ def pick_alias(udid, con=None):
 
 
 def _compile_levels():
-    """udid -> compile_level (low|medium|hot) for devices with a recorded warmup."""
+    """udid -> compile_level (medium|hot) for devices with a recorded --bake level."""
     con = _ro_device_db()
     if con is None:
         return {}
@@ -1175,9 +1185,9 @@ def _last_device_fix(platform):
     if not row:
         return {}
     return {"fix": f"boot the last-used {platform} device: "
-                   f"`manage_devices.py --start last-{platform}`",
+                   f"`manage_devices --start last-{platform}`",
             "fix_kind": "auto",
-            "fix_cmd": ["python3", "scripts/manage_devices.py", "--start", f"last-{platform}"]}
+            "fix_cmd": ["python3", "scripts/manage_devices", "--start", f"last-{platform}"]}
 
 
 def _device_line(alias, name, os_label, extras=()):
@@ -1496,8 +1506,8 @@ def check_ios_sims():
         base = {"name": "ios-simulators", "status": "fail",
                 "detail": f"{count_phrase(0, 'iOS simulator', 'running')} — "
                           f"{installed} {is_are(installed)} installed",
-                "fix": "boot one: `manage_devices.py --start <alias>` "
-                       "(list: `manage_devices.py -l`)",
+                "fix": "boot one: `manage_devices --start <alias>` "
+                       "(list: `manage_devices -l`)",
                 "fix_kind": "manual"}
         base.update(_last_device_fix("ios"))
         return base
@@ -1530,8 +1540,9 @@ def check_android_emulators():
     levels = _compile_levels()
     optimized = sum(1 for d in devs if levels.get(d["id"]))
     counts = f"{installed} {is_are(installed)} installed, {optimized} optimized"
-    why = ("'optimized' = a recorded AOT warmup level (low/medium/hot) from "
-           "`manage_devices --warmup`; warmups take 20-90 min so they are never auto-run")
+    why = ("'optimized' = a recorded AOT bake level (medium/hot) from "
+           "`manage_devices --bake:medium|hot`; bakes take 20-90 min so they are "
+           "never auto-run")
     if not devs:
         return {"name": "android-emulators", "status": "fail",
                 "detail": "no Android emulator AVDs defined",
@@ -1541,8 +1552,8 @@ def check_android_emulators():
     if not live:
         base = {"name": "android-emulators", "status": "fail",
                 "detail": f"{count_phrase(0, 'Android emulator', 'running')} — {counts}",
-                "fix": "boot one: `manage_devices.py --start <alias>` "
-                       "(list: `manage_devices.py -l`)",
+                "fix": "boot one: `manage_devices --start <alias>` "
+                       "(list: `manage_devices -l`)",
                 "fix_kind": "manual", "why": why}
         base.update(_last_device_fix("android"))
         return base
@@ -2268,9 +2279,9 @@ def apply_fixes(results, verbose=False, narrate=True):
 MANUAL_START_ADVICE = {
     "api-server": ("the API server", "QA Server", "npm run qa:server"),
     "metro": ("the Metro Server", "Metro Bundler", "npm run metro_bundler"),
-    "ios-simulators": ("an iOS simulator", None, "manage_devices.py --start last-ios"),
+    "ios-simulators": ("an iOS simulator", None, "manage_devices --start last-ios"),
     "android-emulators": ("an Android emulator", None,
-                          "manage_devices.py --start last-android"),
+                          "manage_devices --start last-android"),
     "adb-reverse": ("the adb reverse tunnels", None, "bash scripts/dev-connect.sh android"),
 }
 
@@ -3317,7 +3328,7 @@ def _movie_function_body(fn, fn_leaf, platform, dev, role, rel, env_arg):
   [[ -n "${{DEBUG_MOVIE}}" ]] && set -x
   : platform is $platform, device is $device, role is $role
   local native_ID
-  native_ID="$(manage_devices.py --resolve "$device")" || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
+  native_ID="$(manage_devices --resolve "$device")" || {{ print -u2 "movie: cannot resolve device '$device'"; return 1; }}
   mkdir -p tmp/maestro
   local mp4_file="tmp/maestro/movie-{fn_leaf}-$(date +%Y%m%dt%H%M%S).mp4"
   local -a flow=(npm run qa:flow -- {rel}{env_arg})
@@ -3943,7 +3954,8 @@ def cmd_edit(e, run):
         print("  ⚠️  This device is headless. You can't see progress on the screen and "
               "screenshots will probably not work (you will only collect solid black images).")
         print(f"      To watch the flow, boot a visible {platform} screen first, e.g.:")
-        print(f"       manage_devices --start {alias}   (default emulator boot is -no-window)")
+        print(f"       manage_devices --start {alias}   (windowed by default; "
+              f"--start:headless is the -no-window mode)")
     # Prefer the artifact's flow copy (its subflows sit beside it, so runFlow: ../common/…
     # paths resolve, and it lives under gitignored tests/output/). Fall back to the repo src.
     files = flow_files(e)

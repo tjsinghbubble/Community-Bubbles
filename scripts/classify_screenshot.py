@@ -4,7 +4,7 @@
 The GPU sweep needs to mechanically tell "renders with valid pixels" from the all-zero
 "black readback" that swiftshader's screencap produces on this host. ImageMagick/Pillow
 aren't installed, so this is a stdlib-only PNG reader (zlib + manual unfilter) — same
-no-deps convention as testctl.py / manage_devices.py.
+no-deps convention as testctl.py / manage_devices.
 
 Usage:
   classify_screenshot.py <file.png> [--threshold N] [--min-frac F] [--json]

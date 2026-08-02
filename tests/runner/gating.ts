@@ -403,7 +403,20 @@ export async function gateAppInstalled(opts: {
       return { name: "app-installed", status: "fail", waited: true,
         message: `test canceled: failed to install APK on ${deviceId} (${err?.stderr?.toString().trim() || err?.message || err})` };
     }
-    return { name: "app-installed", status: "pass", waited: true, message: `installed ${appId} from ${apk}` };
+    // AOT-compile the fresh install (seconds): install -r resets the package's compile
+    // state, so an overnight `manage_devices --bake` can never cover the app-under-test —
+    // this per-install pass is the only place its JIT churn (test-timing noise) can be
+    // trimmed. Maestro's driver, if present, gets the same treatment. Best-effort: a
+    // failed compile never blocks the run.
+    const aoted: string[] = [];
+    for (const pkg of [appId, "dev.mobile.maestro", "dev.mobile.maestro.test"]) {
+      try {
+        execSync(`${adb} -s ${deviceId} shell cmd package compile -m speed-profile ${pkg}`, { stdio: "pipe" });
+        aoted.push(pkg);
+      } catch { /* not installed or compile unsupported — fine */ }
+    }
+    const aotNote = aoted.length ? ` + AOT speed-profile (${aoted.join(", ")})` : "";
+    return { name: "app-installed", status: "pass", waited: true, message: `installed ${appId} from ${apk}${aotNote}` };
   }
   return { name: "app-installed", status: "pass", waited: false, message: `no app install step for platform '${platform}'` };
 }

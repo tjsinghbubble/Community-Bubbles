@@ -17,7 +17,10 @@ HERE = Path(__file__).resolve().parent
 SCRIPTS = HERE.parent
 sys.path.insert(0, str(SCRIPTS))
 
-import manage_devices as m  # noqa: E402
+# manage_devices is an extensionless CLI script; load it via the helpers loader.
+from helpers import load_script  # noqa: E402
+
+m = load_script("manage_devices")
 
 _passed = 0
 _failed = 0
@@ -42,22 +45,39 @@ def main():
     old = {"compile_level", "has_default_boot", "last_warmed_at", "last_used"}
     check("fresh DB has native columns", native <= cols)
     check("fresh DB has readiness columns", old <= cols)
+    check("fresh DB has api_level column (v2)", "api_level" in cols)
+    check("fresh DB dropped serial column (v2)", "serial" not in cols)
+    check("fresh DB has v3 screen/boot/google columns",
+          {"resolution", "density", "boot_option", "google_support"} <= cols)
+    check("fresh DB has v4 default_boot_windowed column", "default_boot_windowed" in cols)
     check("fresh DB user_version == SCHEMA_VERSION",
           c.execute("PRAGMA user_version").fetchone()[0] == m.hmd.SCHEMA_VERSION)
     check("ref_flavor seeds Real",
           "Real" in {r[0] for r in c.execute("SELECT name FROM ref_flavor")})
+    tabs = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    check("v2 tables ref_api_level + device_transports exist",
+          {"ref_api_level", "device_transports"} <= tabs)
+    check("ref_api_level seeds 'API 34' and 'API 37'",
+          {"API 34", "API 37"} <= {r[0] for r in c.execute("SELECT name FROM ref_api_level")})
+
+    # api level ↔ marketing release: os_version stays a release, api_level is 'API NN'
+    check("release_from_api maps 34→14, 37→17",
+          m._release_from_api(34) == "14" and m._release_from_api(37) == "17")
+    check("release_from_api(unknown) is None (no 'API NN' leak into os_version)",
+          m._release_from_api(999) is None)
+    check("api_level_str formats 'API 37'", m._api_level_str(37) == "API 37")
 
     # gpu decision
     check("gpu_default() == 'auto'", m.gpu_default() == "auto")
-    src = (SCRIPTS / "manage_devices.py").read_text()
+    src = (SCRIPTS / "manage_devices").read_text()
     code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
     check("no swiftshader_indirect in code (comments aside)", "swiftshader" not in code)
 
     # seed two real devices (one personal, one test) + one sim
-    c.execute("INSERT INTO devices(udid,flavor,type,os_name,display_name,serial,state,present,personal)"
-              " VALUES('SER-A','Real','Android','AndroidOS','Pixel 8','SER-A','Running',1,0)")
-    c.execute("INSERT INTO devices(udid,flavor,type,os_name,display_name,serial,state,present,personal)"
-              " VALUES('UD-I','Real','iOS','iOS','Schmante',NULL,'Running',1,1)")
+    c.execute("INSERT INTO devices(udid,flavor,type,os_name,display_name,api_level,state,present,personal)"
+              " VALUES('SER-A','Real','Android','AndroidOS','Pixel 8','API 34','Running',1,0)")
+    c.execute("INSERT INTO devices(udid,flavor,type,os_name,display_name,state,present,personal)"
+              " VALUES('UD-I','Real','iOS','iOS','Schmante','Running',1,1)")
     c.execute("INSERT INTO devices(udid,flavor,type,os_name,display_name,state,present,personal)"
               " VALUES('SIM-1','Simulated','iOS','iOS','iPhone 17','Shutdown',1,0)")
     c.commit()

@@ -16,9 +16,20 @@ cannot be parameterized; the few that are interpolated come only from the truste
 constants in this module, never user input.
 """
 
-# Bump when the canonical schema gains columns; add the new columns to
-# _DEVICE_COLUMNS_ADDED so existing DBs converge.
-SCHEMA_VERSION = 1
+# Bump when the canonical schema changes; add new columns to _DEVICE_COLUMNS_ADDED
+# and columns to remove to _DEVICE_COLUMNS_DROPPED so existing DBs converge.
+#   v1: initial versioned schema (readiness + native real-device columns).
+#   v2: + devices.api_level (Android API, e.g. 'API 37') + ref_api_level table
+#       + device_transports (adb handle -> canonical udid resolution cache);
+#       - devices.serial (transient adb handle; now derived live / cached in
+#         device_transports, never a stored device identity).
+#   v3: + devices.resolution ('1080x2424' px), density (dpi int), boot_option
+#       ('Quick Boot'|'Cold Boot'), google_support ('Full'|'APIs only'|'None')
+#       — Android screen/boot/system-image facts surfaced in verbose listings.
+#   v4: + devices.default_boot_windowed (1 = the default_boot snapshot was baked
+#       WINDOWED, so a windowed --start can quick-boot it; 0/NULL = headless-baked,
+#       windowed --start must cold-boot). See --bake:windowed.
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -29,6 +40,7 @@ PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS ref_flavor (name TEXT PRIMARY KEY);   -- Simulated|Real|Native|Remote
 CREATE TABLE IF NOT EXISTS ref_type   (name TEXT PRIMARY KEY);   -- Android|iOS|web
 CREATE TABLE IF NOT EXISTS ref_os     (name TEXT PRIMARY KEY);   -- AndroidOS|MacOS|iOS|Graphene|CalyxOS|Other
+CREATE TABLE IF NOT EXISTS ref_api_level (name TEXT PRIMARY KEY);-- Android API levels: 'API 21' … 'API 37'
 
 -- A. Devices. Dynamically reconciled with the live toolchain each sync.
 -- Canonical column set (fresh DBs match this exactly; existing DBs are migrated
@@ -38,12 +50,16 @@ CREATE TABLE IF NOT EXISTS devices (
   flavor       TEXT REFERENCES ref_flavor(name),
   type         TEXT REFERENCES ref_type(name),
   os_name      TEXT REFERENCES ref_os(name),
-  os_version   TEXT,
+  os_version   TEXT,                  -- marketing release ('14', '18.6'); NEVER an API level
+  api_level    TEXT REFERENCES ref_api_level(name),  -- Android only ('API 34'); NULL for iOS
+  resolution   TEXT,                  -- Android screen pixels 'WxH' ('1080x2424')
+  density      INTEGER,               -- Android screen density (dpi), for the diagonal calc
+  boot_option  TEXT,                  -- Android AVD boot: 'Quick Boot' | 'Cold Boot'
+  google_support TEXT,                -- Android system image: 'Full' | 'APIs only' | 'None'
   manufacturer TEXT,
   model        TEXT,
   display_name TEXT,
-  serial       TEXT,                  -- adb serial when running (android)
-  ipv4 TEXT, ipv6 TEXT, hostname TEXT DEFAULT 'localhost',
+  ipv4 TEXT, ipv6 TEXT, hostname TEXT DEFAULT 'localhost',  -- ipv4/ipv6: real device last-seen LAN address
   state        TEXT,                  -- last-seen state
   present      INTEGER DEFAULT 1,     -- still exists in the toolchain (0 = gone)
   notes        TEXT,
@@ -51,6 +67,7 @@ CREATE TABLE IF NOT EXISTS devices (
   -- readiness columns (shipped before versioning, see _DEVICE_COLUMNS_ADDED):
   compile_level    TEXT,             -- last AOT/dexopt level (low|medium|hot|NULL)
   has_default_boot INTEGER DEFAULT 0,-- 1 once a default_boot snapshot exists
+  default_boot_windowed INTEGER DEFAULT 0, -- 1 = snapshot baked windowed (see --bake:windowed)
   last_warmed_at   TEXT,             -- ISO ts of last warm/bake/save-quickboot
   last_used        TEXT,             -- ISO ts of last resolve/start/kill/warm
   -- native real-device support (v1):
@@ -113,12 +130,33 @@ CREATE TABLE IF NOT EXISTS hosts (
   logical_cores INTEGER, physical_cores INTEGER, mem_gb REAL,
   os_version TEXT, updated_at TEXT
 );
+
+-- G. adb-handle → canonical device resolution. One physical phone answers to
+-- several TRANSIENT adb handles (USB serial 'ZL8325PRBD', WiFi 'ip:port',
+-- emulator 'emulator-5554'); all report the SAME hardware serial (getprop
+-- ro.serialno) which we adopt as the canonical devices.udid. This caches the
+-- mapping so a WiFi handle resolves without re-probing, and records the
+-- last-seen transport/address. Handles are ephemeral rows; devices.udid is not.
+CREATE TABLE IF NOT EXISTS device_transports (
+  handle    TEXT PRIMARY KEY,       -- adb serial as `adb devices` reports it
+  udid      TEXT NOT NULL,          -- canonical devices.udid it resolves to
+  transport TEXT,                   -- 'usb' | 'wifi' | 'emulator'
+  ipv4      TEXT,
+  port      INTEGER,                -- adb tcpip port (WiFi; often 5555, may vary)
+  last_seen TEXT
+);
 """
 
+# Android API levels we seed as reference values (stored form is 'API NN', per the
+# request). Covers everything currently in the pool (API 34 real/34 AVDs … API 37
+# Pixel_10) with headroom below and one above; add new levels here as Android ships.
+API_LEVELS = [f"API {n}" for n in range(21, 41)]
+
 REF_SEED = {
-    "ref_flavor": ["Simulated", "Real", "Native", "Remote"],
-    "ref_type":   ["Android", "iOS", "web"],
-    "ref_os":     ["AndroidOS", "MacOS", "iOS", "Graphene", "CalyxOS", "Other"],
+    "ref_flavor":    ["Simulated", "Real", "Native", "Remote"],
+    "ref_type":      ["Android", "iOS", "web"],
+    "ref_os":        ["AndroidOS", "MacOS", "iOS", "Graphene", "CalyxOS", "Other"],
+    "ref_api_level": API_LEVELS,
 }
 
 # Every column ever added to `devices` after its first ship, in order. Folded into
@@ -136,13 +174,31 @@ _DEVICE_COLUMNS_ADDED = [
     ("claim_owner",       "TEXT"),
     ("claim_pid",         "INTEGER"),
     ("claim_heartbeat_at", "TEXT"),
+    # v2
+    ("api_level",         "TEXT"),   # 'API NN' (Android); references ref_api_level
+    # v3 (Android screen / boot / system-image facts)
+    ("resolution",        "TEXT"),
+    ("density",           "INTEGER"),
+    ("boot_option",       "TEXT"),
+    ("google_support",    "TEXT"),
+    # v4
+    ("default_boot_windowed", "INTEGER DEFAULT 0"),
 ]
+
+# Columns removed after first ship, dropped once (ALTER TABLE … DROP COLUMN, guarded
+# by table_info so fresh/already-migrated DBs are safe). SQLite >= 3.35 (2021).
+#   v2: serial — the transient adb handle. Emulator handles are re-probed live each
+#       run; real-device handles now live in device_transports keyed to the canonical
+#       udid. A stored 'serial' was stale-by-design and duplicated the udid for USB
+#       real devices, so it carried no information the live probe / cache doesn't.
+_DEVICE_COLUMNS_DROPPED = ["serial"]
 
 # Fixed INSERTs for the reference tables (avoids interpolating the table name).
 _REF_INSERTS = {
-    "ref_flavor": "INSERT OR IGNORE INTO ref_flavor(name) VALUES (?)",
-    "ref_type":   "INSERT OR IGNORE INTO ref_type(name) VALUES (?)",
-    "ref_os":     "INSERT OR IGNORE INTO ref_os(name) VALUES (?)",
+    "ref_flavor":    "INSERT OR IGNORE INTO ref_flavor(name) VALUES (?)",
+    "ref_type":      "INSERT OR IGNORE INTO ref_type(name) VALUES (?)",
+    "ref_os":        "INSERT OR IGNORE INTO ref_os(name) VALUES (?)",
+    "ref_api_level": "INSERT OR IGNORE INTO ref_api_level(name) VALUES (?)",
 }
 
 
@@ -171,5 +227,8 @@ def migrate_db(conn):
     for col, decl in _DEVICE_COLUMNS_ADDED:
         if col not in have:
             conn.execute("ALTER TABLE devices ADD COLUMN " + col + " " + decl)
+    for col in _DEVICE_COLUMNS_DROPPED:
+        if col in have:
+            conn.execute("ALTER TABLE devices DROP COLUMN " + col)
     conn.execute("PRAGMA user_version = " + str(int(SCHEMA_VERSION)))
     conn.commit()
