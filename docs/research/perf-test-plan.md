@@ -1,27 +1,55 @@
-# Performance test plan (hosting research)
+# Performance testing: how we measured, and what we found
 
-Measures the numbers cloud pricing calculators need, per usage scenario, against the **local docker experiment stack** — never the live Replit deployment. Every test < 1 hour. Scripts live in `scripts/one-off/` and plan docs in `tests/plan/` — deliberately **outside** the qa runner's discovery paths (`tests/e2e/`, `tests/headless/`), so `npm run qa -- --all` can never execute them.
+*Part of the [Move-from-Replit](Move-from-Replit.md) research set. Written and executed 2026-07-03.*
 
-*Written 2026-07-03. Companion: [usage-scenarios-to-load-model.md](usage-scenarios-to-load-model.md) (arithmetic model), tests/plan/areas/hosting.md (unit specs hosting-0100…0400).*
+## What this document is
 
-## Measurement matrix
+To price hosting honestly, we needed measurements, not guesses: how much computing power does Bubble actually use at each usage level, how big are its responses, how large is its database? This document describes the tests we ran to get those numbers and reports the results in full. The companion [usage-scenarios-to-load-model.md](usage-scenarios-to-load-model.md) explains how usage scenarios became target traffic rates; this one shows what happened when we generated that traffic for real.
 
-| calculator input | measured by | script |
-|---|---|---|
-| vCPU / RAM (steady + peak) | `docker stats` sampled 5 s during load | `hosting-resource-sample.sh` |
-| req/s capacity, p50/p95/p99 | k6 constant-arrival-rate per scenario | `hosting-loadtest.sh` → `hosting-loadtest.js` |
-| avg response bytes → API egress GB/mo | k6 `data_received / http_reqs` × model | `hosting-egress-report.sh` |
-| DB size, bytes/user, block I/O, connections | SQL snapshot | `hosting-db-size.sh` + `.sql` |
-| object storage GB + bandwidth | model knobs (photos measured per-object in app) | load-model doc |
-| image/volume GB (block storage) | `docker image ls`, volume du | build script output |
+## The findings, up front
 
-## Tooling
+1. **One small server (2 CPUs, 4 GB memory) handles every usage scenario with about four times capacity to spare.** At the most aggressive scenario's peak — about 52 requests per second, corresponding to 1,500 daily / 6,000 weekly users — the application used well under half of one CPU and about 100 MB of memory. Pushed to 200 requests per second (a level no scenario reaches), it still answered everything in under a hundredth of a second with **zero failures**, and even then was not fully saturated. Practical conclusion: buy the smallest sensible always-on server and choose the vendor on backup quality and bandwidth pricing, not computing power.
 
-- **k6** (external binary, `brew install k6` — no package.json change). Weighted read-heavy endpoint mix (bubbles, campus events, categories, me, login) with a seeded auth user (`scripts/seed-test-data.ts`: `test@example.com`).
-- Rates per scenario = peak req/s from the load model (mean × 10), min 1 req/s: zero-growth/low 1, moderate 2, fast 4, insane 52, plus a synthetic `headroom` probe at 200 req/s to find the single-container ceiling.
-- Outputs under `tmp/hosting-perf/run-<scenario>-<UTC>/` (gitignored): `k6-summary.json`, `resources.tsv`, `report.tsv`.
+2. **The application's responses are much smaller than we had assumed** — about 2.8 KB on average versus the 15 KB planning assumption. Real data bandwidth is therefore about a fifth of the earlier estimate, which reinforced the cost finding that **photo traffic, not application data, is what drives the bandwidth bill** as usage grows.
 
-## Run procedure
+3. **The database barely registers.** It stayed nearly idle through every test, its size is dominated by fixed overhead rather than per-user data, and the application held only 2 database connections even at peak — far below any managed-database limit.
+
+4. **Response speed is not a concern at these volumes.** Worst-case response times stayed around a hundredth of a second at every traffic level tested. (These were same-machine tests; real-world times will add normal internet latency.)
+
+## How the tests worked, in brief
+
+- We packaged the application exactly as it would be deployed (see [dockerization-plan.md](dockerization-plan.md)) and ran it, with its database, on a developer's machine — **never against the live Replit site**.
+- An industry-standard load-testing tool (k6) simulated users performing a realistic mix of the app's common actions — browsing bubbles, viewing campus events, checking categories, logging in — at precisely controlled rates: one test per scenario at that scenario's busiest-hour rate, plus a deliberate stress probe at 200 requests/second to find the ceiling.
+- While each test ran, a sampler recorded the application's and database's CPU and memory use every five seconds, and the tooling recorded response times, failures, response sizes, and database growth.
+- Each scenario ran for a 10-minute steady state; the whole matrix completes in under an hour.
+
+## The measured results (run of 2026-07-03)
+
+| Test | Target requests/sec | Achieved | Slowest 5% of responses | Failures | Avg response size | Peak app CPU (% of one core) | Peak app memory |
+|---|---|---|---|---|---|---|---|
+| Zero growth | 1 | 1.00 | 11.2 ms | 0 | 2.8 KB | 4.9% | 67 MB |
+| Low usage | 1 | 1.00 | 11.4 ms | 0 | 2.9 KB | 5.2% | 69 MB |
+| Moderate usage | 2 | 2.00 | 10.1 ms | 0 | 3.0 KB | 4.8% | 70 MB |
+| Fast growth | 4 | 4.00 | 9.5 ms | 0 | 2.8 KB | 5.7% | 83 MB |
+| Insane growth | 52 | 51.98 | 8.5 ms | 0 | 2.8 KB | 43.0% | 103 MB |
+| Stress probe | 200 | 199.59 | 8.5 ms | 0 | 2.8 KB | 88.3% | 115 MB |
+
+The database container never exceeded 15% of a core or 36 MB of memory through the insane scenario (34% / 51 MB at the stress probe). Database size was 9.9 MB with 8 seeded users — mostly fixed schema overhead; per-user growth is small enough that even 6,000 weekly users stay in single-digit gigabytes.
+
+## Honest limitations — read before quoting these numbers
+
+- **The tests ran on a laptop** (in Docker on macOS), so absolute speeds are approximate. Treat the results as sizing guidance — "does a 2-CPU class of machine cope?" (yes, easily) — not as service-level promises. Re-running the same tests on the actual candidate cloud server is cheap and is the point of [How-to-test-on-Linode.md](How-to-test-on-Linode.md).
+- **Photo downloads were not load-tested here** — the local stand-in for photo storage doesn't behave like the real thing, so photo bandwidth is modeled, not measured (see [image-costs-and-caching.md](image-costs-and-caching.md) for what direct image measurements later found).
+- **Outside services (chat, email, error reporting) were stubbed out** with dummy credentials. Their traffic isn't on our hosting bill in any case.
+- **A practical trap for future testers:** the application intentionally limits login attempts (10 per 15 minutes per address) to slow down password-guessing. A load test coming from one machine hits this immediately — our first attempt failed exactly this way. Real traffic from many users won't, but any test setup must raise the limit via the `RATE_LIMIT_AUTH_*` settings on the stack under test (the experiment stack does this already).
+
+## Appendix — mechanics (for whoever re-runs this)
+
+Scripts live in `scripts/one-off/` and plan documents in `tests/plan/`, both deliberately outside the automated test runner's discovery paths so `npm run qa -- --all` can never trigger a load test.
+
+**Tooling.** k6 (`brew install k6`; an external binary, no package.json change). The test mix is a weighted, read-heavy set of endpoints (bubbles, campus events, categories, me, login) using a seeded account from `scripts/seed-test-data.ts` (`test@example.com`). Rates per scenario are the load model's peak rates (minimum 1/s): zero-growth/low 1, moderate 2, fast 4, insane 52, stress probe 200. Outputs land under `tmp/hosting-perf/run-<scenario>-<UTC>/` (gitignored): `k6-summary.json`, `resources.tsv`, `report.tsv`.
+
+**Run procedure:**
 
 ```bash
 scripts/one-off/hosting-docker-build.sh
@@ -34,34 +62,16 @@ scripts/one-off/hosting-loadtest.sh headroom 5m
 scripts/one-off/hosting-db-size.sh
 ```
 
-Time budget: five scenarios ≈ 55 min sequential; in practice run {insane, headroom} + one low scenario (~30 min) — the small scenarios are arithmetic below measurable noise.
+Time budget: all five scenarios ≈ 55 minutes sequentially. In practice run {insane, headroom} plus one small scenario (~30 minutes) — the small scenarios produce load below measurable noise.
 
-## Caveats
+**Measurement matrix** (which script produces which pricing input):
 
-- Numbers are relative to the dev machine (Docker Desktop on macOS, virtualized). Treat as **sizing guidance** (does a 2 vCPU class cope? what's the bytes/response?), not SLOs. Re-run on a candidate cloud VM before final commitment.
-- CometChat/Resend/Sentry calls are not exercised (dummy creds); their egress is not on our bill anyway.
-- Object download egress is modeled (photos × avg bytes), not load-tested — fake-gcs bytes are not representative.
+| Pricing input | Measured by | Script |
+|---|---|---|
+| CPU / memory (steady + peak) | container stats sampled every 5 s during load | `hosting-resource-sample.sh` |
+| Requests/sec capacity, response-time percentiles | k6 constant-arrival-rate per scenario | `hosting-loadtest.sh` → `hosting-loadtest.js` |
+| Average response bytes → data bandwidth | k6 `data_received / http_reqs` × the load model | `hosting-egress-report.sh` |
+| Database size, bytes/user, block I/O, connections | SQL snapshot | `hosting-db-size.sh` + `.sql` |
+| Container image + data volume sizes | `docker image ls`, volume `du` | build script output |
 
-## Results (run 2026-07-03, Docker Desktop 4.8.0 on macOS host, 10 min steady state each; headroom 5 min)
-
-| run | target req/s | achieved | p95 ms | fail rate | avg resp bytes | peak api CPU% (1 core=100) | peak api mem |
-|---|---|---|---|---|---|---|---|
-| zero-growth | 1 | 1.00 | 11.2 | 0 | 2,835 | 4.9 | 67 MiB |
-| low-usage | 1 | 1.00 | 11.4 | 0 | 2,888 | 5.2 | 69 MiB |
-| moderate-usage | 2 | 2.00 | 10.1 | 0 | 3,046 | 4.8 | 70 MiB |
-| fast-usage | 4 | 4.00 | 9.5 | 0 | 2,787 | 5.7 | 83 MiB |
-| insane-usage | 52 | 51.98 | 8.5 | 0 | 2,843 | 43.0 | 103 MiB |
-| headroom | 200 | 199.59 | 8.5 | 0 | 2,848 | 88.3 | 115 MiB |
-
-DB container: ≤15% CPU / 36 MiB through insane; 34% / 51 MiB at the 200 req/s probe. DB size 9.9 MB at 8 seeded users (mostly base schema overhead; per-user marginal bytes are small — single-digit GB even at insane WAU). Peak DB connections observed: 2 (pool default; far below any managed-PG limit).
-
-### Conclusions
-
-1. **One 2 vCPU / 4 GB instance covers every scenario with ~4× headroom.** Insane-usage (52 req/s peak) used 43% of one core and ~103 MiB RSS; the API served 200 req/s at 88% of one core with p95 8.5 ms and zero failures — it never saturated even there. The smallest always-on tier at any vendor suffices; pick on backup quality and egress model, not compute.
-2. **Real avg API response is ~2.8 KB** (fallback assumption was 15 KB). Measured API egress at insane-usage: ~39 GB/mo (model's 15 KB guess said 205). **Photo/object egress dominates the egress bill**, reinforcing the R2/pooled-transfer lever in [hosting-pricing-parameters.md](hosting-pricing-parameters.md).
-3. p95 stayed ≤11.4 ms at all rates (local network; treat as relative). Latency is not a sizing constraint at these volumes.
-4. Auth rate limiting (10/15 min per IP, `server/routes.ts:40`) is the first thing a load test hits — round 1 failed on it. Real multi-user traffic won't, but any future perf work must set `RATE_LIMIT_AUTH_*` on the stack under test.
-
-## Runner-integration discuss-item
-
-If the team wants `npm run qa -- --area hosting` to drive these, `tests/runner/select.ts` needs a new excluded-by-default tag set (the existing `unverified` filter is bypassed by `--all`); ~20 lines in `select.ts:selectTests()` + `qa.ts` tag resolution. Until then these stay manual by design.
+**Test-runner integration** remains a team decision: wiring these into `npm run qa -- --area hosting` needs a new excluded-by-default tag mechanism in `tests/runner/select.ts` (~20 lines) — until then the tests stay manual by design.

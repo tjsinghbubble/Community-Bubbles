@@ -1,61 +1,79 @@
-# Cross-vendor pricing parameters (merged)
+# What cloud vendors charge for: the cross-vendor comparison
 
-What the seven vendors' pricing calculators actually ask for, merged from the per-vendor research in [pricing/](pricing/) (all quoted 2026-07-03, US regions, on-demand USD). Machine-readable unit prices: `scripts/one-off/hosting-unit-prices.tsv`; scenario × vendor totals: [hosting-cost-estimates.md](hosting-cost-estimates.md).
+*Part of the [Move-from-Replit](Move-from-Replit.md) research set. All prices quoted 2026-07-03, US regions, standard on-demand rates in USD. Per-vendor source worksheets: [pricing/](pricing/). Bottom-line monthly totals: [hosting-cost-estimates.md](hosting-cost-estimates.md).*
 
-## The calculator inputs (what we must know about our workload)
+## What this document is
 
-Every calculator reduces to these knobs — the perf tests ([perf-test-plan.md](perf-test-plan.md)) measure the starred ones:
+Seven vendors were researched — Amazon (AWS), Google (GCP), Microsoft (Azure), IBM, Vultr, Akamai/Linode, and Cloudflare. Their pricing pages look bewilderingly different, but every one of them ultimately charges for the same handful of things. This document names those things in plain language, shows what each vendor charges for each, and draws the conclusions that matter for the decision.
 
-1. **compute**: vCPU/RAM class*, region, OS, on-demand vs committed, always-on hours (730/mo — we cannot scale to zero)
-2. **block storage**: GB, type/IOPS
-3. **object storage**: GB stored*, request counts, **egress GB***
-4. **managed Postgres**: instance class*, storage GB*, HA y/n, backup retention, PG 16 support
-5. **network**: internet egress GB/mo*, public IPv4 (now ~$2–4.4/mo everywhere), NAT (avoidable)
-6. **LB/TLS**: skippable at our scale (Caddy on the VM); managed LB floor is $10–22/mo
-7. **firewall**: security groups/cloud firewalls are free at every vendor; paid WAF optional
+## The conclusions, up front
 
-## 2 vCPU / 4 GB always-on VM ($/mo)
+1. **From launch through the "fast growth" scenario, every vendor's bill is essentially flat — so the comparison is simply each vendor's floor price.** For a small always-on server, a managed database, and 50 GB of photo storage: **Linode ~$45/month, Azure ~$51, AWS ~$55, Vultr ~$60, GCP ~$83, IBM ~$142.**
 
-| | AWS | GCP | Azure | IBM | Vultr | Linode | Cloudflare |
-|---|---|---|---|---|---|---|---|
-| VM | 24.53 (t4g.medium) | 24.46 (e2-medium, shared) | 30.37 (B2s) | 53.86 (cx2-2x4) | 24 (High Perf, 5TB transfer incl.) | 24 (Linode 4GB, 4TB incl.) | n/a |
-| container alt | 57.70 (Fargate) | 152 (Cloud Run min=1) | 152 (Container Apps active) | 213 (Code Engine min=1) | — | — | ~13 (Containers, 0.25vCPU/1GiB) |
+2. **Only the "insane growth" scenario separates vendors, and the entire difference is photo bandwidth.** The big three charge ~$0.09–0.12 per GB transferred, adding $85–105/month at that scale. Vultr and Linode bundle multi-terabyte allowances with the server (bill stays flat), and Cloudflare's R2 storage charges **nothing** for outbound transfer, by design.
 
-Managed always-on containers cost 2–6× the equivalent VM at every hyperscaler — the in-process schedulers force always-active billing. **VM + docker compose is the economical shape.**
+3. **Cloudflare R2 is the standout cost lever for photos** — and it works as an add-on with *any* vendor's servers, because it speaks the same protocol as Amazon's storage. Worth pricing into any final configuration as growth insurance.
 
-## Managed Postgres 16, smallest production tier ($/mo)
+4. **Renting a plain server and running our containers on it is the economical shape.** Every vendor also sells fancier "managed container" services, but because our application must run continuously, those cost 2–6× the equivalent plain server. No thank you.
+
+5. **IBM is not competitive** for this workload (its database floor is structurally doubled, its servers are priciest, and its pricing is opaque). It can be dropped.
+
+6. **Replit's actual current cost** (reserved machine + database + storage) should be placed beside these numbers in the team discussion as the negotiating baseline.
+
+## The seven things vendors charge for
+
+1. **The server** — sized by CPUs and memory, billed by the hour, running 24/7 in our case (the application cannot pause when idle; see [Move-from-Replit.md](Move-from-Replit.md)).
+2. **Server disk** — a modest fixed amount; bundled free with the server at some vendors.
+3. **Photo storage** — billed per GB stored, plus (crucially) per GB *downloaded*.
+4. **Managed database** — a small always-on service; the real differentiators are backup quality and whether high-availability doubles the price.
+5. **Network** — outbound data transfer (the photo-bandwidth item again), plus a public address (~$2–4/month everywhere now).
+6. **Load balancer and HTTPS certificates** — skippable at our scale: free software on the server does both jobs. Vendors' managed versions run $10–22/month.
+7. **Firewall** — free at every vendor.
+
+## Vendor comparison, item by item
+
+### A small always-on server (2 CPUs / 4 GB) — $/month
+
+| | AWS | GCP | Azure | IBM | Vultr | Linode |
+|---|---|---|---|---|---|---|
+| Plain server | $24.53 | $24.46 | $30.37 | $53.86 | $24 (5 TB transfer included) | **$24 (4 TB transfer included)** |
+| "Managed container" alternative | $57.70 | $152 | $152 | $213 | — | — |
+
+The managed-container row is why we rent plain servers: our always-on requirement forces those services into their most expensive billing mode.
+
+### Smallest production-worthy managed database (PostgreSQL 16) — $/month
 
 | AWS | GCP | Azure | IBM | Vultr | Linode |
 |---|---|---|---|---|---|
-| 25.66 (db.t4g.small + 20GB) | 54 (1vCPU/3.75GB + 20GB) | 16.09 (B1ms + 32GB) | 82.54 (2 mandatory members) | 18 (1GB, no PITR) | 16 (Aiven 1GB shared) |
+| $25.66 | $54 | $16.09 | $82.54 | $18 | **$16** |
 
-HA roughly doubles everywhere. Given the Replit data-loss incident: weight PITR/backup quality — Azure B1ms and Linode/Aiven are the cheap-with-real-backups options; Vultr's entry tier lacks PITR; IBM's floor is structurally 2× (mandatory dual data members).
+High availability (a permanently synchronized second copy) roughly doubles the price everywhere. Given the Replit data-loss incident, weigh backup and point-in-time-recovery quality heavily: **Azure and Linode are the "cheap with real backups" options** (Linode's includes daily backups with 14-day point-in-time recovery); Vultr's entry tier lacks point-in-time recovery; IBM's floor price is structurally doubled.
 
-## Object storage + egress (the only line that grows with usage)
+### Photo storage and bandwidth — the only line that grows with usage
 
-| | storage $/GB-mo | egress $/GB | free egress |
+| | Storage $/GB-month | Download $/GB | Free download allowance |
 |---|---|---|---|
-| AWS S3 | 0.023 | 0.09 | 100 GB/mo |
-| GCP GCS | 0.020 | 0.12 (premium) | 200 GB/mo (standard tier) |
-| Azure Blob | 0.0208 | 0.087 | 100 GB/mo |
-| IBM COS | 0.0227 | 0.09 | — (One-Rate alt.) |
-| Vultr | $18/mo base incl. 1 TB | 0.01 overage | pooled with VM (3–5 TB) |
-| Linode | $5/mo base incl. 250 GB | 0.005 overage | pooled with VM (4 TB) |
-| **Cloudflare R2** | **0.015** | **0** | **all of it** |
+| AWS | 0.023 | 0.09 | 100 GB/month |
+| GCP | 0.020 | 0.12 | 200 GB/month |
+| Azure | 0.0208 | 0.087 | 100 GB/month |
+| IBM | 0.0227 | 0.09 | — |
+| Vultr | $18/month flat incl. 1 TB stored | 0.01 overage | pooled with server (3–5 TB) |
+| Linode | $5/month flat incl. 250 GB stored | 0.005 overage | pooled with server (4 TB) |
+| **Cloudflare R2** | **0.015** | **$0** | **all of it** |
 
-At insane-usage (~1 TB egress/mo) this line is ~$86–115/mo on hyperscalers, ~$0 on Vultr/Linode (inside pooled transfer), and $0 on R2 by design. **R2 for photos is the standout cost lever and works as an adjunct to any compute vendor** (S3-compatible; pairs with discuss-item #1 in [dockerization-plan.md](dockerization-plan.md)).
+At insane growth (~900 GB downloaded/month) this line is ~$86–115/month at the big three, roughly $0 at Vultr/Linode (inside the bundled allowance), and $0 at R2 by design.
 
-## Network / security fixed costs
+### Fixed odds and ends
 
-- Public IPv4: AWS/GCP/Azure 3.65, IBM 4.38, Vultr 3 (first one free with VM), Linode 2 (first free) $/mo.
-- VPC, security groups, cloud firewalls: free everywhere. NAT gateways (AWS ~$33/mo, GCP/Azure similar) are avoidable — public subnet + own nftables.
-- LB+TLS: managed 10–22 $/mo; $0 with Caddy/nginx on the VM (our plan).
-- DDoS baseline: included at Cloudflare (free tier), Vultr/Linode (basic); paid add-ons elsewhere; unnecessary at our scale.
+- Public internet address: $2–4.40/month depending on vendor (first one free at Vultr and Linode).
+- Firewalls: free everywhere. (Avoid AWS/GCP/Azure "NAT gateways" — ~$33/month and unnecessary for our shape.)
+- HTTPS and traffic routing: $0 using free software (Caddy) on the server — our plan; managed equivalents $10–22/month.
+- Basic protection against traffic-flood attacks: included free at Cloudflare, Vultr, and Linode; a paid add-on at the big three; not a concern at our scale either way.
 
-## Read of the numbers (for the team discussion)
+## Appendix — measurement contract and machine-readable data
 
-1. **Zero-growth through fast-usage price identically within each vendor** (~flat: smallest always-on tier + tiny egress). The comparison is a floor-price comparison: **Linode ~$45, Azure ~$51, AWS ~$55, Vultr ~$60, GCP ~$83, IBM ~$142** for VM + managed PG + 50 GB photos.
-2. **Only insane-usage separates vendors**, entirely via egress: hyperscalers +$85–105/mo; Vultr/Linode/R2 flat.
-3. IBM Cloud is not competitive for this workload (2× PG floor, priciest VM, opaque pricing).
-4. Cloudflare alone cannot host the stack (no VM, no managed PG; Workers can't run the scheduler monolith) — but R2 hybrid is worth pricing into any final shape.
-5. Replit today (Reserved VM + PG + object storage) should be priced side-by-side in the discussion; these numbers give the negotiating baseline.
+Every vendor calculator reduces to knobs the performance tests measured (starred) or the load model computes: server class*, always-on hours (730/month), disk GB, photos stored GB*, photos downloaded GB*, database class* and storage*, high-availability yes/no, backup retention, outbound transfer GB/month*, public addresses.
+
+- Unit prices in machine-readable form: `scripts/one-off/hosting-unit-prices.tsv`
+- The model that turns these into the scenario totals: `scripts/one-off/hosting-pricing-model.sh`
+- Per-vendor research worksheets with sources, caveats, and vendor-specific traps: [pricing/](pricing/) (one file per vendor; the Linode file also documents its pooled-transfer and billing quirks that matter for testing)

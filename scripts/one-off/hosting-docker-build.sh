@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # hosting-docker-build.sh — build the Bubble hosting-research container images.
-# Part of the hosting research set (docs/research/hosting-README.md).
+# Part of the hosting research set (docs/research/Move-from-Replit.md).
 # NOT wired into any test runner or CI; run manually.
 #
 # Usage: scripts/one-off/hosting-docker-build.sh [--no-cache]

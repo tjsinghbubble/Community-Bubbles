@@ -1,4 +1,10 @@
-# one-off scripts
+# What is this directory `one-off`?
 
-Ad-hoc / single-use scripts kept out of the main `scripts/` namespace.
-Not wired into any runner or CI. Move throwaway helpers here manually.
+These are primarily ad-hoc or single-use scripts. 
+
+They are kept out of the main `scripts/` namespace because they may be used only rarely. 
+That may be during experiments or for unique situations.
+
+None of these scripts are invoked by other scripts, test runners, or CI processes. 
+
+Move scripts here manually, then check for impact using script-testing.

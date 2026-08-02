@@ -69,12 +69,12 @@ is the recognized market leader in its niche — for many parents and teachers,
 
 **The business model.** A free, ad-supported tier drives viral adoption (every
 participant sees the product and may become the next organizer). Paid tiers —
-roughly $9 to $60 per month depending on plan and billing — remove ads and unlock
+roughly **\$9 to \$60 per month** depending on plan and billing — remove ads and unlock
 branding, text messaging, multiple administrators, and reporting. Payments collected
-through the platform carry a **5% + $0.50 per-transaction fee**, processed through
+through the platform carry a **5% + \$0.50 per-transaction fee**, processed through
 Stripe. For comparison, its closest competitor SignUp.com charges roughly
-2.9% + $0.30, and raw Stripe pricing is similar — so SignUpGenius takes a meaningful
-markup on every dollar a PTA or league collects.
+**2.9% + \$0.30.** Raw Stripe pricing is similar. SignUpGenius takes a meaningful
+and unjustifiable markup on every dollar that a PTA, charity, or league collects.
 
 **Where it is genuinely strong.** The evaluations agree on the moat: participants
 can sign up from a shared link without creating an account, organizers can build a
@@ -86,12 +86,16 @@ challenger has to match it as table stakes.
 
 - It fills slots, but it has **no memory of people across events**. There is no
   notion of "this family has already done three shifts this year" or "this person
-  always takes the easy jobs."
+  always takes the easy jobs." Speculation: it probably does not distinguish between 
+- "John Anderson", "John A."
 - It can *ask* custom questions ("Do you have insurance?") but it cannot **verify,
-  store, expire, or revoke** anything. There is no credential lifecycle.
-- Its interface is widely described as **dated**, and the free tier is cluttered
+  store, expire, or revoke** anything. There is no credential lifecycle, no records, no proof.
+- Its interface is widely described as **dated**. The free tier is cluttered
   with ads.
-- Reporting is administrative (who signed up, who paid), not longitudinal.
+- Reporting is administrative (who signed up, who paid), never longitudinal. 
+  Speculation: it is difficult or impossible to determine
+  activity by a person or a family for a child, success or failure at 
+  filling a venue, changes over time. Unclear, though: it might be behind premier plans
 - One evaluation explicitly lists as a market threat: *"low barrier to entry for
   modern, design-centric startups."* That is us.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # hosting-pricing-model.sh — estimate monthly hosting cost per vendor per usage
-# scenario. Part of hosting research (docs/research/hosting-README.md); not
+# scenario. Part of hosting research (docs/research/Move-from-Replit.md); not
 # wired into any runner.
 #
 # Usage:

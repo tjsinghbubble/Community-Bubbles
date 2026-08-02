@@ -6,7 +6,7 @@ docker stack for up to ~1 h and require docker + k6). They live outside the qa
 runner's discovery paths (`tests/e2e/`, `tests/headless/`) as standalone
 scripts under `scripts/one-off/`. Registering a `hosting` area with an
 excluded-by-default mechanism in `select.ts`/`qa.ts` is a **discuss-item** —
-see docs/research/hosting-README.md.
+see docs/research/Move-from-Replit.md.
 
 Purpose: produce the measured inputs that cloud pricing calculators need
 (vCPU/RAM under load, req/s capacity, bytes/response → egress GB/mo, DB
