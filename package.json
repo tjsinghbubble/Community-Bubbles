@@ -32,7 +32,7 @@
     "test:e2e:web-mobile": "maestro test -e APP_ID=com.apple.mobilesafari -e METRO_HOST=metro_host .maestro/web/",
     "qr": "node scripts/qr.mjs",
     "prepare": "husky",
-    "postinstall": "scripts/flag-temp-files.zsh",
+    "postinstall": "scripts/flag-temp-files.zsh || true",
     "type-check": "tsc --noEmit && (cd mobile && tsc --noEmit)",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
