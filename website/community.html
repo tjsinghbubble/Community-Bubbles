@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bubble - Join Our Community</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        main {
+            background: #F0F4F8;
+            padding: 6rem 2rem 3rem;
+            min-height: 100vh;
+        }
+
+        .signup-section {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .signup-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: center;
+        }
+
+        .signup-left h2 {
+            font-size: 1.5rem;
+            color: var(--bubble-blue);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .signup-left h1 {
+            font-size: 2.5rem;
+            color: var(--midnight);
+            margin-bottom: 2rem;
+            line-height: 1.3;
+        }
+
+        .signup-right {
+            display: flex;
+            justify-content: center;
+        }
+
+        .signup-card {
+            background: white;
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .signup-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #E5E7EB;
+            background: white;
+            color: var(--charcoal);
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            border-color: var(--bubble-blue);
+            color: var(--bubble-blue);
+            background: #F0F9FF;
+        }
+
+        .signup-card form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .signup-card label {
+            font-weight: 600;
+            color: var(--midnight);
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .signup-card input {
+            padding: 0.85rem 1.25rem;
+            border: 1px solid #D9D9D9;
+            border-radius: 25px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            color: var(--charcoal);
+            transition: border-color 0.3s ease;
+        }
+
+        .signup-card input::placeholder {
+            color: #999;
+        }
+
+        .signup-card input:focus {
+            outline: none;
+            border-color: var(--bubble-blue);
+            box-shadow: 0 0 0 3px rgba(53, 168, 247, 0.1);
+        }
+
+        .signup-card button {
+            padding: 1rem 1.5rem;
+            border: none;
+            background: linear-gradient(135deg, #7DD3FC 0%, #35A8F7 100%);
+            color: white;
+            font-weight: 700;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .signup-card button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(53, 168, 247, 0.3);
+        }
+
+        .signup-card button:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 900px) {
+            .signup-container {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .signup-left h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header-placeholder"></div>
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <img src="images/bubble-logo-new.png" alt="Bubble" class="logo-img" style="height: 70px; width: auto;">
+
+            </a>
+            <ul class="nav-links">
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="faq.html">FAQ</a></li>
+                <li><a href="waitlist.html" class="cta-button">Join Waitlist</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Community Examples</h1>
+                <p>Real people, real communities, real connections.</p>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <h2>Bubbles Happening Now</h2>
+                <p>From fitness groups to creative meetups, our community is diverse and welcoming. Here's what's happening in your area:</p>
+                <p style="margin-top: 2rem;">Whether you're into pickleball, book clubs, coffee meetups, or finding your people, Bubble connects you with like-minded individuals in your neighborhood.</p>
+            </div>
+        </section>
+
+        <section style="background: linear-gradient(135deg, #7DD3FC 0%, #35A8F7 100%); padding: 4rem 2rem; margin: 3rem 0; text-align: center; color: white;">
+            <div class="container">
+                <h2 style="color: white; margin-bottom: 1rem;">Ready to Find Your Community?</h2>
+                <p style="color: white; margin-bottom: 2rem;">Join thousands discovering authentic connection in their neighborhood.</p>
+                <a href="index.html" style="background: white; color: #35A8F7; padding: 1rem 2rem; border-radius: 50px; text-decoration: none; font-weight: 700; display: inline-block;">Join the Waitlist</a>
+            </div>
+        </section>
+    </main>
+
+    <div class="footer-separator"></div>
+
+
+    <script src="js/script.js"></script>
+<div class="footer-separator"></div>
+
+<footer>
+    <div class="footer-container">
+        <div class="footer-section">
+            <h3>Bubble</h3>
+            <p>Building authentic community through hyper-local connection. Starting with Berkeley, SF, and the Bay Area.</p>
+            <div class="social-icons">
+                <a href="#" class="social-icon">f</a>
+                <a href="#" class="social-icon">𝕏</a>
+                <a href="#" class="social-icon">in</a>
+                <a href="#" class="social-icon">ig</a>
+            </div>
+        </div>
+
+        <div class="footer-section">
+            <h3>Product</h3>
+            <ul class="footer-links">
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="community.html">Community Examples</a></li>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="faq.html">FAQ</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h3>Company</h3>
+            <ul class="footer-links">
+                <li><a href="about.html">Our Story</a></li>
+                <li><a href="waitlist.html">Join Waitlist</a></li>
+                <li><a href="careers.html">Careers</a></li>
+                <li><a href="press.html">Press</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h3>Contact</h3>
+            <ul class="footer-links">
+                <li><a href="mailto:hello@trybubble.io">hello@trybubble.io</a></li>
+                <li><a href="privacy.html">Privacy Policy</a></li>
+                <li><a href="terms.html">Terms of Service</a></li>
+                <li><a href="community-guidelines.html">Community Guidelines</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <p>© 2025 Bubble. All rights reserved. Built with ❤️ in the Bay Area.</p>
+    </div>
+</footer>
+
+</body>
+</html>

@@ -290,7 +290,7 @@ export async function registerRoutes(
       applinks: {
         apps: [],
         details: [{
-          appID: "762F5X3N9L.io.trybubble.app",
+          appID: `${teamId ?? "762F5X3N9L"}.io.trybubble.app`,
           paths: ["/b/*", "/e/*"],
         }],
       },
@@ -2524,10 +2524,25 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/events/upcoming", async (req, res) => {
+  app.get("/api/events/upcoming", optionalAuthMiddleware, async (req: any, res) => {
     try {
       const baseUrl = getBaseUrl(req);
-      const events = await storage.getUpcomingEvents();
+      if (req.userId) {
+        const events = await storage.getUpcomingEventsForUser(req.userId);
+        res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
+      } else {
+        const events = await storage.getUpcomingEvents();
+        res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
+      }
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  app.get("/api/events/past-attended", authMiddleware, async (req: any, res) => {
+    try {
+      const baseUrl = getBaseUrl(req);
+      const events = await storage.getPastAttendedEvents(req.userId!);
       res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
     } catch (error: any) {
       serverError(res, error);

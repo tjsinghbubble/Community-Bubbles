@@ -13,7 +13,7 @@ test.describe("Universal link verification files", () => {
     expect(body).toHaveProperty("applinks");
     const details: any[] = body.applinks?.details ?? [];
     const bundleIds = details.flatMap((d: any) => d.appIDs ?? [d.appID ?? ""]);
-    expect(bundleIds.some((id: string) => id.includes("io.bubble.app"))).toBe(true);
+    expect(bundleIds.some((id: string) => id.includes("io.trybubble.app"))).toBe(true);
   });
 
   test("GET /.well-known/assetlinks.json is valid JSON with package name", async ({
@@ -28,7 +28,7 @@ test.describe("Universal link verification files", () => {
       entry.target ? [entry.target.package_name ?? ""] : []
     );
     expect(
-      packageNames.some((p: string) => p.includes("com.bubble.mobile"))
+      packageNames.some((p: string) => p.includes("io.trybubble.app"))
     ).toBe(true);
   });
 });
