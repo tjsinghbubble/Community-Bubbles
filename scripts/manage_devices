@@ -169,11 +169,20 @@ def emulator_bin():
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+def _ts():
+    """The one wall-clock prefix every narrated line uses (HH:MM:SS.mmm)."""
+    return datetime.now().strftime('%H:%M:%S.%f')[:-3]
+
 def narrate(msg):
-    print(f"{datetime.now().strftime('%H:%M:%S.%f')[:-3]}    {msg}", flush=True)
+    print(f"{_ts()}    {msg}", flush=True)
 
 def err(msg):
     print(msg, file=sys.stderr, flush=True)
+
+def nerr(msg):
+    """err() with narrate()'s timestamp treatment — errors keep the stderr
+    stream but carry the same clock prefix as the surrounding narration."""
+    print(f"{_ts()}    {msg}", file=sys.stderr, flush=True)
 
 # --dry-run: when set, the mutating actions print the low-level commands (and the
 # implicit loops/waits) they WOULD run, and change no device state. Set from argv
@@ -1424,6 +1433,23 @@ def _running_singletons(live):
 def all_aliases_for(udid, sysmap):
     return sysmap.get(udid, []) + aliases_for(udid)
 
+def _alias_summary(dev):
+    """Rich device handle for start/summary lines: 'Skylar, ios, iPhone Air' —
+    the humanized pool name FIRST, then the other aliases (the last-ios/
+    last-android bookkeeping aliases are derivable noise and omitted), then the
+    hardware/display model. Deduped, order-preserving."""
+    row = _device_row(dev["id"])
+    human = [r["alias"] for r in db().execute(
+        "SELECT alias FROM aliases WHERE udid=? AND kind='name'", (dev["id"],))]
+    parts = []
+    for a in human + all_aliases_for(dev["id"], _system_alias_map()):
+        if a and a not in parts and a not in ("last-ios", "last-android"):
+            parts.append(a)
+    model = _display_short(dev, row)
+    if model and model not in parts:
+        parts.append(model)
+    return ", ".join(parts)
+
 def _maestro_id(dev):
     """The id Maestro's --device wants: adb serial for a running Android emulator,
     UDID for an iOS sim. None for an Android device that isn't running yet (no serial)."""
@@ -1558,10 +1584,18 @@ def _visible_platforms():
     return PLATFORM_ORDER
 
 def _shortest_alias(udid, sysmap):
-    """The shortest alias for a device (its friendliest handle), else the udid.
-    Ties break alphabetically for stability."""
+    """The Name cell: the shortest NON-system alias (its friendliest handle),
+    else the udid. Ties break alphabetically for stability.
+
+    2026-08-04 (Travis): the computed system aliases never show as a device's
+    NAME — 'ios' used to beat 'Melody' on length, so starting a sim renamed its
+    row to 'ios' until another start moved the alias on. The ios/android
+    default-holder is marked with a trailing '*' instead; last-ios/last-android
+    are pure bookkeeping and get no marker."""
     al = all_aliases_for(udid, sysmap)
-    return min(al, key=lambda a: (len(a), a)) if al else udid
+    named = [a for a in al if a not in ("ios", "android", "last-ios", "last-android")]
+    base = min(named, key=lambda a: (len(a), a)) if named else udid
+    return base + ("*" if ("ios" in al or "android" in al) else "")
 
 def _c(s, *codes):
     """ANSI-wrap s (no-op when stdout isn't a TTY, so pipes/captures stay clean)."""
@@ -1634,8 +1668,8 @@ def _relative_last_used(row):
       ≤ 50 min ago                  → "within the hour"
       ≤ 18 h ago (same local day)   → "this morning/afternoon/evening", "early this morning"
       ≤ 18 h ago (crossed midnight) → "last evening", "yesterday morning/afternoon", …
-      > 18 h ago, within 7 days     → "Today" / "Yesterday" / weekday name
-      > 7 days                      → absolute timestamp
+      > 18 h ago, ≤ 1 calendar day  → "Today" / "Yesterday"
+      2+ days                       → absolute date (weekday names dropped 2026-08-04)
 
     NOTE (underspecified in the request, decided here): the 50–90 min band folds into the
     "this <time-of-day>" bucket (no gap), and the dangling ">3 hours ago" rule is omitted
@@ -1690,8 +1724,8 @@ def _coarse_when(secs, days, tl):
         return "Today"
     if days == 1:
         return "Yesterday"
-    if days <= 6:
-        return tl.strftime("%A")
+    # 2+ days: weekday names ('Wednesday' for 6 days ago) read as near-past and
+    # are wrong-feeling in every context (2026-08-04, Travis) — absolute date.
     return None
 
 def _day_part(hour):
@@ -2656,11 +2690,67 @@ def _start_basic(dev):
     touch(dev)
     return True
 
+# One monitor entry of `simctl bootstatus`: "[<ts>] Status=N, isTerminal=YES, …"
+# followed by an indented plain-text detail line ("Waiting on System App").
+_BOOTSTATUS_RE = re.compile(r"^\[.*?\]\s*Status=(\d+),\s*isTerminal=(YES|NO)")
+
+def _stream_bootstatus(udid):
+    """Block on `simctl bootstatus` and re-emit its monitor output through
+    narrate() as '[not] ready for use: <detail>' lines — one per CHANGE (the
+    raw feed repeats the same entry every poll). Status is re-printed SIGNED
+    when nonzero (bootstatus prints -1 as 4294967295).
+
+    The terminal entry / exit code are NOT a readiness verdict: bootstatus ends
+    with status=-1 'Finished' (and sometimes 'Data Migration Failed') on sims
+    that are fully usable — the caller must re-probe simctl for the REAL state.
+    Returns (status, is_terminal, detail) for the last entry, or None."""
+    p = subprocess.Popen(["xcrun", "simctl", "bootstatus", udid],
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         text=True)
+    last = final = pending = None
+    for raw in p.stdout:
+        s = raw.strip()
+        if not s or s.startswith("Monitoring boot status"):
+            continue
+        m = _BOOTSTATUS_RE.match(s)
+        if m:
+            status = int(m.group(1))
+            if status >= 2 ** 31:            # bootstatus prints -1 unsigned
+                status -= 2 ** 32
+            pending = (status, m.group(2) == "YES")
+            continue
+        if pending is None:
+            continue                         # stray text without a status entry
+        status, terminal = pending
+        pending = None
+        final = (status, terminal, s)
+        msg = ("ready for use" if terminal else "not ready for use") + f": {s}"
+        if terminal and status not in (0, -1):
+            msg += f" (status {status})"   # e.g. 3 'Data Migration Failed'
+        if msg != last:
+            narrate(f"    {msg}")
+            last = msg
+    p.wait()
+    return final
+
+def _ios_sim_state(udid):
+    """Fresh simctl probe of ONE sim's current state ('Running'/'Booting'/
+    'Shutdown'), or None when the sim is unknown to simctl."""
+    for d in ios_devices():
+        if d["id"] == udid:
+            return d["state"]
+    return None
+
 def _boot_ios(dev, mode):
     """Boot an iOS sim and block on `simctl bootstatus`.
 
     iOS has no headless boot: a sim without the Simulator app open is
     effectively windowless, so 'headless' just skips opening the window.
+
+    Readiness is decided by RE-PROBING the sim's actual simctl state, never by
+    bootstatus's verdict (bug: the pre-boot dev dict still said 'Shutdown', so
+    every fresh boot was declared NOT ready; bootstatus's own terminal entry is
+    also unreliable — -1 'Finished' / 'Data Migration Failed' on usable sims).
 
     Returns:
         tuple[bool, str | None]: (ok, fail_reason).
@@ -2671,10 +2761,13 @@ def _boot_ios(dev, mode):
     if mode != "headless":
         run(["open", "-a", "Simulator"], capture=False)
     narrate("  waiting for boot to complete (simctl bootstatus) …")
-    run(["xcrun", "simctl", "bootstatus", dev["id"]], capture=False)
-    if not is_running(dev):
-        return False, "simulator did not reach a booted state (simctl bootstatus)"
-    return True, None
+    _stream_bootstatus(dev["id"])
+    for _ in range(15):                      # normally ready on the first probe
+        dev["state"] = _ios_sim_state(dev["id"]) or dev["state"]
+        if is_running(dev):
+            return True, None
+        time.sleep(1)
+    return False, "simulator did not reach a Booted state (simctl list)"
 
 def _boot_android(dev, mode):
     """Launch the emulator (per-mode flags) and wait through both readiness
@@ -2752,16 +2845,23 @@ def start_one(dev, mode="optimized"):
     base = f"start:{mode}"
     log_history(dev["id"], "warmup", detail=(base if ok else base + ":FAILED"),
                 duration_ms=ms, sys_load=load, dev_load=cpu)
+    # Summary shape (2026-08-04, Travis): timestamped like every other line, no
+    # stylized glyphs, errors lead with 'Error: ', the device is named by its
+    # aliases (humanized name first), and host cpu/load go on their OWN line.
     cpu_s = f"{cpu:.1f}% host cpu" if cpu is not None else "process gone"
     load_s = f", load {load:.2f}" if load is not None else ""
+    host_line = f"  {cpu_s}{load_s}"
+    summary = _alias_summary(dev)
     if not ok:
         # Do NOT record last_warmed_at, and skip touch — the device is not usable.
-        err(f"✗ {dev['name']} NOT ready after {ms/1000:.0f}s — {fail_reason} "
-            f"({cpu_s}{load_s}); left running for inspection")
+        nerr(f"Error: {summary} NOT ready after {ms/1000:.0f}s — {fail_reason}; "
+             f"left running for inspection")
+        nerr(host_line)
         return False
     _device_set(dev["id"], last_warmed_at=now_iso())
     touch(dev)
-    narrate(f"{dev['name']} ready in {ms/1000:.0f}s ({cpu_s}{load_s})")
+    narrate(f"{summary} ready in {ms/1000:.0f}s")
+    narrate(host_line)
     return True
 
 def _start_plan(dev, mode):

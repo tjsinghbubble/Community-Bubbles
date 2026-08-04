@@ -451,6 +451,87 @@ def test_display_short_prefers_model_for_real(md):
     assert md._display_short(sim, None) == "iPhone 16"
 
 
+BOOTSTATUS_FEED = (
+    "Monitoring boot status for iPhone 17 Pro Max / 26.5 (8A5DD49C).\n"
+    "[2026-08-04 20:34:05 +0000] Status=1, isTerminal=NO, Elapsed=00:03.\n"
+    "\tWaiting on BackBoard\n"
+    "\n"
+    "[2026-08-04 20:34:10 +0000] Status=4, isTerminal=NO, Elapsed=00:09.\n"
+    "\tWaiting on System App\n"
+    "\n"
+    "[2026-08-04 20:34:20 +0000] Status=4, isTerminal=NO, Elapsed=00:19.\n"
+    "\tWaiting on System App\n"
+    "\n"
+    "[2026-08-04 20:34:28 +0000] Status=4294967295, isTerminal=YES, Elapsed=00:26.\n"
+    "\tFinished\n")
+
+
+def _fake_popen(feed):
+    return lambda *a, **k: SimpleNamespace(stdout=iter(feed.splitlines(True)),
+                                           wait=lambda: 0)
+
+
+def test_stream_bootstatus_parses_dedupes_and_signs(md, monkeypatch, capsys):
+    """Monitor entries re-emit as narrated '[not] ready for use: <detail>' lines,
+    consecutive repeats collapse, and the unsigned -1 status prints signed."""
+    monkeypatch.setattr(md.subprocess, "Popen", _fake_popen(BOOTSTATUS_FEED))
+    final = md._stream_bootstatus("8A5DD49C")
+    assert final == (-1, True, "Finished")
+    out = capsys.readouterr().out
+    lines = [l.split("    ", 1)[1] for l in out.splitlines()]   # strip HH:MM:SS.mmm
+    assert lines == ["    not ready for use: Waiting on BackBoard",
+                     "    not ready for use: Waiting on System App",
+                     "    ready for use: Finished"]
+    assert "4294967295" not in out
+
+
+def test_stream_bootstatus_surfaces_nonzero_terminal_status(md, monkeypatch, capsys):
+    feed = ("[2026-08-04 21:19:45 +0000] Status=3, isTerminal=YES, Elapsed=00:11.\n"
+            "\tData Migration Failed\n")
+    monkeypatch.setattr(md.subprocess, "Popen", _fake_popen(feed))
+    assert md._stream_bootstatus("X") == (3, True, "Data Migration Failed")
+    assert "ready for use: Data Migration Failed (status 3)" in capsys.readouterr().out
+
+
+def test_boot_ios_reprobes_actual_state(md, monkeypatch):
+    """Readiness comes from a FRESH simctl probe, not the stale pre-boot dict
+    (bug: every fresh boot was declared NOT ready) and not bootstatus's verdict."""
+    monkeypatch.setattr(md, "run", lambda cmd, capture=True: SimpleNamespace(stdout=""))
+    monkeypatch.setattr(md, "_stream_bootstatus", lambda udid: (-1, True, "Finished"))
+    monkeypatch.setattr(md, "_ios_sim_state", lambda udid: "Running")
+    dev = {"kind": "ios", "id": "U1", "name": "iPhone Air / 26.5", "state": "Shutdown"}
+    ok, reason = md._boot_ios(dev, "optimized")
+    assert ok and reason is None and dev["state"] == "Running"
+    # sim never reaches Booted → honest failure (no sleep: stub the retry clock)
+    monkeypatch.setattr(md.time, "sleep", lambda s: None)
+    monkeypatch.setattr(md, "_ios_sim_state", lambda udid: "Shutdown")
+    dev = {"kind": "ios", "id": "U1", "name": "iPhone Air / 26.5", "state": "Shutdown"}
+    ok, reason = md._boot_ios(dev, "optimized")
+    assert not ok and "Booted" in reason
+
+
+def test_shortest_alias_hides_platform_defaults(md):
+    """'ios'/'android' never win the Name cell; the holder gets a '*' suffix;
+    last-ios/last-android are ignored entirely."""
+    md.db().execute("INSERT INTO aliases(alias,udid,kind) VALUES('Melody','U1','name')")
+    md.db().commit()
+    assert md._shortest_alias("U1", {"U1": ["ios", "last-ios"]}) == "Melody*"
+    assert md._shortest_alias("U1", {"U1": ["last-ios"]}) == "Melody"
+    assert md._shortest_alias("U1", {}) == "Melody"
+    # no named alias at all → udid, still starred when it holds the default
+    assert md._shortest_alias("U2", {"U2": ["ios"]}) == "U2*"
+
+
+def test_alias_summary_humanized_first(md, monkeypatch):
+    _seed(md, "U1", flavor="Simulated", typ="iOS", display="iPhone Air / 26.5")
+    md.db().execute("INSERT INTO aliases(alias,udid,kind) VALUES('Skylar','U1','name')")
+    md.db().commit()
+    monkeypatch.setattr(md, "_system_alias_map",
+                        lambda live=None: {"U1": ["ios", "last-ios"]})
+    dev = {"kind": "ios", "id": "U1", "name": "iPhone Air / 26.5"}
+    assert md._alias_summary(dev) == "Skylar, ios, iPhone Air"
+
+
 def test_ios_real_model_enrichment(md, monkeypatch):
     """ios_real swaps the xctrace personal-name 'model' for the devicectl marketing
     model when available; name keeps the personal device name."""
@@ -499,7 +580,9 @@ def test_coarse_when_buckets(md):
     assert md._coarse_when(4 * 3600, 0, morning.replace(hour=3)) == "early this morning"
     assert md._coarse_when(20 * 3600, 0, morning) == "Today"
     assert md._coarse_when(30 * 3600, 1, morning) == "Yesterday"
-    assert md._coarse_when(4 * 86400, 4, morning) == morning.strftime("%A")
+    # 2+ days: weekday names dropped (ambiguous near a week) → absolute date
+    assert md._coarse_when(2 * 86400, 2, morning) is None
+    assert md._coarse_when(4 * 86400, 4, morning) is None
     assert md._coarse_when(7 * 86400, 8, morning) is None
 
 

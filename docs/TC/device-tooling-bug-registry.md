@@ -35,6 +35,15 @@ State suffix in `-r`/`-l` — best-effort, so (b)/(e) remain open.
 | l  | `--history <name>` has empty Detail/Duration/CPU/Load; some devices have no detail after a date; Detail not internally consistent; history doesn't infer apps started by hand via `emulator`/Device Manager | history write + `cmd_history()` render |
 | m  | **[FIXED 2026-08-04]** an adb-`unauthorized` phone (RSA dialog not accepted) vanished from the live probe and showed under AVAILABLE as an unplugged phone | `_adb_serials()` now keeps unauthorized entries (4th tuple element `authorized`); `android_real()` falls back to the DB row (getprop is dead); state `Unauthorized` renders under RUNNING; `reachable()` stays False |
 | n  | **[FIXED 2026-08-04]** a real iPhone's Device column showed the PERSONAL name ('Schmante') instead of the hardware model | `_ios_real_models()` (devicectl marketing name) + `_display_short()` prefers `model` for `flavor='Real'` |
+| o  | **[FIXED 2026-08-04]** `--start` of an iOS sim ALWAYS declared "NOT ready" after a successful boot — the readiness check consulted the stale pre-boot dev dict (`state='Shutdown'`) instead of re-probing; the failure also skipped `touch()`, so Last Used went stale | `_boot_ios()` now re-probes `_ios_sim_state()` (simctl list) after bootstatus; bootstatus's terminal verdict (-1 'Finished' / 3 'Data Migration Failed' on usable sims) is informational only |
+| p  | **[FIXED 2026-08-04]** `simctl bootstatus` output dumped raw: unsigned -1 status (4294967295), repeated poll lines, no MD timestamps | `_stream_bootstatus()` — narrated '[not] ready for use: <detail>' lines, emitted on CHANGE only, status re-printed signed (annotated on nonzero terminal); starting a sim that never boots still fails honestly |
+| q  | **[FIXED 2026-08-04]** starting a lone sim renamed its `-l` row to 'ios' (the platform default alias won the shortest-alias pick) | `_shortest_alias()` excludes ios/android/last-* from the Name cell; the ios/android holder shows a trailing `*` instead |
+
+**2026-08-04 — `--start` summary rework:** summaries use narrate/nerr timestamps (no
+`✗`), errors lead with `Error: `, the device is named by its aliases (humanized pool
+name first, e.g. `Skylar, ios, iPhone Air`), and host cpu/load moved to their own line.
+Last Used dropped the 2–6-day weekday-name bucket (`Wednesday` for six days ago reads
+as near-past) — 2+ days is always the absolute date.
 
 **2026-08-04 — list rework (explicit task):** rows sort DESCENDING OS version then
 DESCENDING Device name (`_order_within`); the AVAILABLE section renames Kind→OS and
