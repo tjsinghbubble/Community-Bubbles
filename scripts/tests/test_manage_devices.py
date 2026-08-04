@@ -70,8 +70,8 @@ def test_android_real_canonical_identity_and_transports(md, monkeypatch):
     both live handles are recorded, WiFi supplies ipv4, USB is the primary handle."""
     monkeypatch.setattr(md.htc, "capabilities", lambda: {"adb": True, "xcode": False})
     monkeypatch.setattr(md, "_adb_serials", lambda: [
-        ("ZL8325PRBD", False, False),           # USB
-        ("192.168.4.60:5555", False, True)])    # WiFi (same phone)
+        ("ZL8325PRBD", False, False, True),         # USB
+        ("192.168.4.60:5555", False, True, True)])  # WiFi (same phone)
     props = {"ro.serialno": "ZL8325PRBD", "ro.kernel.qemu": "",
              "ro.product.model": "moto g play - 2024",
              "ro.build.version.release": "14", "ro.build.version.sdk": "34"}
@@ -259,22 +259,28 @@ ADB_OUT = ("List of devices attached\n"
            "emulator-5554\tdevice\n"
            "192.168.56.101:5555\tdevice\n"
            "ZL8325PRBD\tdevice\n"
+           "ZL9999NOAUTH\tunauthorized\n"
            "dead-device\toffline\n")
 
 
 def test_adb_serials_classification(md, monkeypatch):
+    """State 'device' → authorized; 'unauthorized' → included with authorized=False
+    (an attached phone belongs in the running list even before the RSA dialog);
+    'offline' etc. are still skipped."""
     monkeypatch.setattr(md, "run",
                         lambda cmd, capture=True: SimpleNamespace(stdout=ADB_OUT))
-    assert md._adb_serials() == [("emulator-5554", True, False),
-                                 ("192.168.56.101:5555", False, True),
-                                 ("ZL8325PRBD", False, False)]
+    assert md._adb_serials() == [("emulator-5554", True, False, True),
+                                 ("192.168.56.101:5555", False, True, True),
+                                 ("ZL8325PRBD", False, False, True),
+                                 ("ZL9999NOAUTH", False, False, False)]
 
 
 def test_android_real_uses_getprop(md, monkeypatch):
     monkeypatch.setattr(md.htc, "capabilities",
                         lambda: {"adb": True, "xcode": False})
     monkeypatch.setattr(md, "_adb_serials",
-                        lambda: [("ZL1", False, False), ("emulator-5554", True, False)])
+                        lambda: [("ZL1", False, False, True),
+                                 ("emulator-5554", True, False, True)])
     props = {"ro.product.manufacturer": "motorola",
              "ro.product.model": "moto g play",
              "ro.build.version.release": "14"}
@@ -283,9 +289,31 @@ def test_android_real_uses_getprop(md, monkeypatch):
     assert d["id"] == "ZL1" and d["flavor"] == "Real" and d["model"] == "moto g play"
 
 
+def test_android_real_unauthorized_attached_phone(md, monkeypatch):
+    """An adb-unauthorized phone is still ATTACHED: it must surface as a Real device
+    with state 'Unauthorized' (→ RUNNING section, flagged), its fields recovered from
+    the stored DB row since every getprop fails, and it must count as live but NOT
+    running/reachable (nothing can execute on it)."""
+    _seed(md, "ZL1", flavor="Real", typ="Android", serial="ZL1",
+          display="moto g play - 2024", model="moto g play - 2024",
+          os_version="14")
+    monkeypatch.setattr(md.htc, "capabilities",
+                        lambda: {"adb": True, "xcode": False})
+    monkeypatch.setattr(md, "_adb_serials", lambda: [("ZL1", False, False, False)])
+    monkeypatch.setattr(md, "_getprop", lambda serial, prop: "")   # unauthorized: all fail
+    (d,) = md.android_real()
+    assert d["id"] == "ZL1" and d["flavor"] == "Real"
+    assert d["state"] == "Unauthorized"
+    assert d["name"] == "moto g play - 2024" and d["model"] == "moto g play - 2024"
+    assert d["os_version"] == "14"
+    assert md.is_live(d) and not md.is_running(d)
+    assert md._state_label(d) == "Unauthorized"
+    assert md.reachable(d) is False
+
+
 def test_reachable_real_android(md, monkeypatch):
     _seed(md, "ZL1", flavor="Real", typ="Android", serial="ZL1")
-    monkeypatch.setattr(md, "_adb_serials", lambda: [("ZL1", False, False)])
+    monkeypatch.setattr(md, "_adb_serials", lambda: [("ZL1", False, False, True)])
     assert md.reachable({"kind": "android", "id": "ZL1", "serial": "ZL1"}) is True
     monkeypatch.setattr(md, "_adb_serials", lambda: [])
     assert md.reachable({"kind": "android", "id": "ZL1", "serial": "ZL1"}) is False
@@ -385,6 +413,64 @@ def test_table_widths(md):
     assert md._table_widths(["ab", "c"], [["x", "yyyy"], ["zzz", ""]]) == [3, 4]
 
 
+def test_section_layout(md):
+    """AVAILABLE renames Kind→OS / Ready→Optimized and drops State; RUNNING keeps
+    the full column set (State varies there: Running/Booting/Unauthorized)."""
+    hdrs, cols = md._section_layout("RUNNING")
+    assert hdrs == md.SHORT_HEADERS and len(cols) == len(md.SHORT_HEADERS)
+    hdrs, cols = md._section_layout("AVAILABLE")
+    assert hdrs == md.AVAILABLE_HEADERS
+    assert "State" not in hdrs and "Kind" not in hdrs and "Ready" not in hdrs
+    assert "OS" in hdrs and "Optimized" in hdrs
+    assert md.STATE_COL not in cols and len(hdrs) == len(cols)
+
+
+def test_order_within_descending_os_then_device(md):
+    """Rows sort by DESCENDING OS version (numeric, '26.5' > '18.6' > '9'), then
+    DESCENDING Device name within the same version."""
+    devs = [
+        {"kind": "ios", "id": "A", "name": "iPad Air", "os_version": "18.6"},
+        {"kind": "ios", "id": "B", "name": "iPhone 17", "os_version": "26.5"},
+        {"kind": "ios", "id": "C", "name": "iPhone Air", "os_version": "26.5"},
+        {"kind": "ios", "id": "D", "name": "iPhone 16e", "os_version": "9"},
+        {"kind": "ios", "id": "E", "name": "iPhone 16", "os_version": None},
+    ]
+    assert [d["id"] for d in md._order_within(devs)] == ["C", "B", "A", "D", "E"]
+
+
+def test_display_short_prefers_model_for_real(md):
+    """A real device's Device cell is the HARDWARE model, not the personal name
+    ('Schmante' stays in display_name/aliases); sims keep display_name."""
+    real = {"kind": "ios", "id": "U1", "flavor": "Real", "model": "iPhone 14 Pro"}
+    assert md._display_short(real, None) == "iPhone 14 Pro"
+    _seed(md, "U2", flavor="Real", typ="iOS", display="Schmante",
+          model="iPhone 14 Pro")
+    row = md.db().execute("SELECT * FROM devices WHERE udid='U2'").fetchone()
+    assert md._display_short({"kind": "ios", "id": "U2"}, row) == "iPhone 14 Pro"
+    sim = {"kind": "ios", "id": "U3", "name": "iPhone 16 / iOS 18.6"}
+    assert md._display_short(sim, None) == "iPhone 16"
+
+
+def test_ios_real_model_enrichment(md, monkeypatch):
+    """ios_real swaps the xctrace personal-name 'model' for the devicectl marketing
+    model when available; name keeps the personal device name."""
+    monkeypatch.setattr(md.htc, "capabilities", lambda: {"adb": False, "xcode": True})
+    xctrace = ("== Devices ==\n"
+               "MacBook Pro (AAAAAAAA-111122223333444455556666)\n"
+               "Schmante (26.5.2) (00008120-001A795A14D0C01E)\n"
+               "== Simulators ==\n")
+    monkeypatch.setattr(md, "run",
+                        lambda cmd, capture=True: SimpleNamespace(stdout=xctrace))
+    monkeypatch.setattr(md, "_ios_real_models",
+                        lambda: {"00008120-001A795A14D0C01E": "iPhone 14 Pro"})
+    (d,) = md.ios_real()
+    assert d["name"] == "Schmante" and d["model"] == "iPhone 14 Pro"
+    # devicectl absent → keep the xctrace fallback (personal name)
+    monkeypatch.setattr(md, "_ios_real_models", lambda: {})
+    (d,) = md.ios_real()
+    assert d["model"] == "Schmante"
+
+
 def test_ready_marker(md):
     def r(compile_level, has_default_boot, windowed=0):
         return {"compile_level": compile_level, "has_default_boot": has_default_boot,
@@ -427,8 +513,10 @@ def test_relative_last_used_end_to_end(md):
     assert md._relative_last_used(
         {"last_used": (now + timedelta(hours=1)).isoformat()}) == "just now"
     old = {"last_used": (now - timedelta(days=30)).isoformat()}
-    assert md._relative_last_used(old).count("-") == 2      # absolute date
-    assert md._relative_last_used({"last_used": "garbage"}) == "garbage"[:16]
+    label = md._relative_last_used(old)
+    assert label.count("-") == 2 and ":" not in label       # date-only, no HH:MM
+    assert len(label) == 10                                 # YYYY-MM-DD
+    assert md._relative_last_used({"last_used": "garbage"}) == "garbage"[:10]
 
 
 # ── ini editing + AVD clone/rename on disk ─────────────────────────────────────

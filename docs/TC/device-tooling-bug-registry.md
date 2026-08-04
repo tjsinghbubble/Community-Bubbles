@@ -33,6 +33,13 @@ State suffix in `-r`/`-l` — best-effort, so (b)/(e) remain open.
 | j  | `-r -v` output is hallucinated/useless: omits ATD / Android version / API level / Google APIs vs Google Services / memory / gpu default, and repeats the device name across 3–4 columns | verbose running/list render |
 | k  | `-c <name>` fails because it only knows how to copy from `~/.android/avd` | `clone_avd()` / `cmd_copy()` |
 | l  | `--history <name>` has empty Detail/Duration/CPU/Load; some devices have no detail after a date; Detail not internally consistent; history doesn't infer apps started by hand via `emulator`/Device Manager | history write + `cmd_history()` render |
+| m  | **[FIXED 2026-08-04]** an adb-`unauthorized` phone (RSA dialog not accepted) vanished from the live probe and showed under AVAILABLE as an unplugged phone | `_adb_serials()` now keeps unauthorized entries (4th tuple element `authorized`); `android_real()` falls back to the DB row (getprop is dead); state `Unauthorized` renders under RUNNING; `reachable()` stays False |
+| n  | **[FIXED 2026-08-04]** a real iPhone's Device column showed the PERSONAL name ('Schmante') instead of the hardware model | `_ios_real_models()` (devicectl marketing name) + `_display_short()` prefers `model` for `flavor='Real'` |
+
+**2026-08-04 — list rework (explicit task):** rows sort DESCENDING OS version then
+DESCENDING Device name (`_order_within`); the AVAILABLE section renames Kind→OS and
+Ready→Optimized and drops the State column (State stays in RUNNING, where it now also
+carries `Unauthorized`); absolute Last Used timestamps are date-only (`YYYY-MM-DD`).
 
 ## Future tests (derived from this list)
 When the internal harness (`scripts/check_tooling.zsh`) grows beyond native coverage,

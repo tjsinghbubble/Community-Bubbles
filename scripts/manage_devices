@@ -56,6 +56,7 @@ stdlib only.
 """
 
 import argparse
+import json
 import os
 import platform
 import random
@@ -66,6 +67,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -445,18 +447,23 @@ def _adb_serials():
       anything else  -> USB-attached physical phone
 
     Returns:
-        list[tuple[str, bool, bool]]: (serial, is_emu, is_net) per attached
-        device (state 'device' only; offline/unauthorized entries are skipped).
+        list[tuple[str, bool, bool, bool]]: (serial, is_emu, is_net, authorized)
+        per attached device. adb state 'device' → authorized=True; 'unauthorized'
+        (the phone hasn't accepted this host's RSA key, so every `adb shell` /
+        getprop fails) → authorized=False but the device IS physically attached
+        and belongs in the running list. Other states (offline, recovery, …)
+        are skipped.
     """
     r = run([adb_bin(), "devices"])
     out = []
     for line in (r.stdout or "").splitlines()[1:]:
         parts = line.split()
-        if len(parts) < 2 or parts[1] != "device":
+        if len(parts) < 2 or parts[1] not in ("device", "unauthorized"):
             continue
         serial = parts[0]
         out.append((serial, serial.startswith("emulator-"),
-                    bool(re.match(r"^[\w.-]+:\d+$", serial))))
+                    bool(re.match(r"^[\w.-]+:\d+$", serial)),
+                    parts[1] == "device"))
     return out
 
 def _getprop(serial, prop):
@@ -533,7 +540,9 @@ def android_running():
         os_version is the marketing release straight from the live device.
     """
     out = []
-    for serial, is_emu, is_net in _adb_serials():
+    for serial, is_emu, is_net, authorized in _adb_serials():
+        if not authorized:
+            continue                     # can't getprop it; android_real owns unauthorized
         if not _handle_is_emulator(serial, is_emu, is_net):
             continue                                   # physical (USB/WiFi) → android_real
         name = _emu_display_name(serial, is_emu)
@@ -562,13 +571,18 @@ def android_real():
     if not htc.capabilities()["adb"]:
         return []
     byudid: "dict[str, dict]" = {}
-    for serial, is_emu, is_net in _adb_serials():
+    for serial, is_emu, is_net, authorized in _adb_serials():
         if _handle_is_emulator(serial, is_emu, is_net):
             continue                                   # emulator/qemu → android_running
-        udid = _canonical_udid(serial)
+        # (an unauthorized handle can't getprop, so a net handle lands here — right
+        # guess: an unauthorized ip:port is a real phone, not a VM we booted)
+        # Unauthorized: every getprop fails, so identity comes from the transport
+        # cache (WiFi ip:port → udid) else the handle itself (USB serial == the
+        # hardware serial), and the fields fall back to the phone's stored DB row.
+        udid = _canonical_udid(serial) if authorized else _resolve_handle_udid(serial)
         transport, ipv4, port = _handle_transport(serial, is_net)
         d = byudid.get(udid)
-        if d is None:
+        if d is None and authorized:
             manuf = _getprop(serial, "ro.product.manufacturer") or None
             model = _getprop(serial, "ro.product.model") or udid
             rel = _getprop(serial, "ro.build.version.release") or None
@@ -579,6 +593,19 @@ def android_real():
                 "os_version": rel, "api_level": api_level, "state": "Running",
                 "flavor": "Real", "manufacturer": manuf, "model": model,
                 "resolution": res, "density": dens, "ipv4": ipv4, "transports": []}
+        elif d is None:
+            row = _device_row(udid)
+            d = byudid[udid] = {
+                "kind": "android", "id": udid, "serial": serial,
+                "name": (row["display_name"] if row else None) or udid,
+                "os_version": row["os_version"] if row else None,
+                "api_level": row["api_level"] if row else None,
+                "state": "Unauthorized", "flavor": "Real",
+                "manufacturer": row["manufacturer"] if row else None,
+                "model": row["model"] if row else None,
+                "resolution": None, "density": None, "ipv4": ipv4, "transports": []}
+        elif authorized and d["state"] == "Unauthorized":
+            d["state"] = "Running"     # another handle of the same phone IS authorized
         d["transports"].append((serial, transport, ipv4, port))
         # USB is the more stable handle: prefer it as primary + keep a WiFi ipv4.
         if transport == "usb":
@@ -587,11 +614,32 @@ def android_real():
             d["ipv4"] = ipv4
     return list(byudid.values())
 
+def _ios_real_models():
+    """udid → hardware marketing model ('iPhone 14 Pro') for physical iOS devices,
+    via `devicectl list devices` JSON. xctrace reports only the PERSONAL device name
+    ('Schmante'), which belongs in Name/aliases — the model is the Device column's
+    job. Best-effort: {} when devicectl is absent or the JSON doesn't parse."""
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "devices.json"
+            run(["xcrun", "devicectl", "list", "devices", "--json-output", str(out)])
+            data = json.loads(out.read_text())
+        models = {}
+        for dev in (data.get("result") or {}).get("devices", []):
+            hw = dev.get("hardwareProperties") or {}
+            if hw.get("udid") and hw.get("marketingName"):
+                models[hw["udid"]] = hw["marketingName"]
+        return models
+    except Exception:
+        return {}
+
 def ios_real():
     """Physical iOS devices — LIST-ONLY this phase (no install/launch; signing
     unresolved). Best-effort parse of `xcrun xctrace list devices`; returns [] if
     xcrun is absent or nothing parses. Entries carry real_unsupported=True so the
-    resolve/runner paths can refuse execution with a clear message."""
+    resolve/runner paths can refuse execution with a clear message. `model` is the
+    hardware marketing model when devicectl can supply it (see _ios_real_models);
+    `name` stays the personal device name."""
     if not htc.capabilities()["xcode"]:
         return []
     try:
@@ -616,6 +664,10 @@ def ios_real():
         out.append({"kind": "ios", "id": udid, "serial": None, "name": name,
                     "os_version": ver, "state": "Running", "flavor": "Real",
                     "manufacturer": "Apple", "model": name, "real_unsupported": True})
+    if out:
+        models = _ios_real_models()
+        for d in out:
+            d["model"] = models.get(d["id"]) or d["model"]
     return out
 
 def android_booting_names(running_ids=None):
@@ -702,9 +754,9 @@ def reachable(dev):
         return True
     if dev.get("kind") == "android":
         udid = dev.get("id")
-        for serial, is_emu, _is_net in _adb_serials():
-            if is_emu:
-                continue
+        for serial, is_emu, _is_net, authorized in _adb_serials():
+            if is_emu or not authorized:
+                continue     # unauthorized: attached but unusable (no adb shell)
             if serial == udid or _resolve_handle_udid(serial) == udid:
                 return True  # USB serial == udid short-circuits (no probe)
         return False
@@ -746,19 +798,28 @@ def is_running(dev):
 def is_booting(dev):
     return dev.get("state") == "Booting"
 
+def is_unauthorized(dev):
+    """Physically attached but adb-unauthorized (RSA dialog not accepted)."""
+    return dev.get("state") == "Unauthorized"
+
 def is_live(dev):
-    """Running OR mid-boot — the membership test for the 'running' list/section."""
-    return is_running(dev) or is_booting(dev)
+    """Running, mid-boot, OR attached-but-unauthorized — the membership test for the
+    'running' list/section. An unauthorized phone is cabled to this machine right now,
+    so it belongs under RUNNING (flagged), not under AVAILABLE with the unplugged ones;
+    is_running stays False for it (nothing can execute on it)."""
+    return is_running(dev) or is_booting(dev) or is_unauthorized(dev)
 
 def _state_label(dev):
     """Display state for the STATE column: Running | Running (headless) | Booting |
-    Shutdown. Headless is a boot mode, not a stored property, so it can only be shown
-    for a live emulator whose process args are probeable (looks_headless); the marker
-    is best-effort — bug-registry (b) on multi-emulator probing remains open."""
+    Unauthorized | Shutdown. Headless is a boot mode, not a stored property, so it can
+    only be shown for a live emulator whose process args are probeable (looks_headless);
+    the marker is best-effort — bug-registry (b) on multi-emulator probing remains open."""
     if is_running(dev):
         return "Running (headless)" if looks_headless(dev) else "Running"
     if is_booting(dev):
         return "Booting"
+    if is_unauthorized(dev):
+        return "Unauthorized"
     return "Shutdown"
 
 def _android_await_boot(dev, tries=300):
@@ -887,7 +948,8 @@ def _upsert_live_device(d, now):
         typ, osn = "Android", "AndroidOS"
         manuf = d.get("manufacturer")
         model = d.get("model") or d["name"]
-    reach = now if dev_flavor == "Real" else None
+    # Unauthorized = attached but not usable (no adb shell) — don't stamp reachability.
+    reach = now if dev_flavor == "Real" and d["state"] != "Unauthorized" else None
     api_level = d.get("api_level")
     ipv4, ipv6 = d.get("ipv4"), d.get("ipv6")
     res, dens = d.get("resolution"), d.get("density")
@@ -1433,8 +1495,13 @@ _USE_COLOR = sys.stdout.isatty()
 # Non-verbose columns. The identifier (devices.udid) is second and always shown —
 # labeled per platform group: 'UDID' for iOS, 'Serial' for Android (see _id_header).
 SHORT_HEADERS = ["Name", "Serial/UDID", "Kind", "Device", "State", "Ready", "Last Used"]
+# AVAILABLE renames Kind→OS / Ready→Optimized and DROPS State (2026-08-04, Travis):
+# a shutdown device's state says nothing; State stays in RUNNING where it varies
+# (Running / Running (headless) / Booting / Unauthorized).
+AVAILABLE_HEADERS = ["Name", "Serial/UDID", "OS", "Device", "Optimized", "Last Used"]
 ID_COL = 1              # index of the Serial/UDID column in _short_cells
 DEVICE_COL = 3          # index of the Device column in _short_cells
+STATE_COL = 4           # index of the State column in _short_cells (dropped in AVAILABLE)
 NAME_CAP = 16           # non-verbose cap for the primary-name (shortest alias) column
 ID_CAP = 16             # non-verbose cap for the Serial/UDID column (UUIDs middle-elide)
 DEVICE_CAP = 16         # non-verbose cap for the Device (model) name
@@ -1529,6 +1596,13 @@ def _flavor_label(d, row):
     return label
 
 def _display_short(d, row):
+    # Real devices: the Device column shows the HARDWARE model ('iPhone 14 Pro',
+    # 'moto g play - 2024') — the personal device name ('Schmante') stays in
+    # display_name/aliases. Sims/AVDs keep display_name (model == name there).
+    if (d.get("flavor") or (row["flavor"] if row else None)) == "Real":
+        model = d.get("model") or (row["model"] if row else None)
+        if model:
+            return model
     # Personal display names pack the OS after a ' / ' — show only the model half.
     name = (row["display_name"] if row else None) or d.get("name") or ""
     return name.split(" / ")[0].strip()
@@ -1553,8 +1627,9 @@ def _ready_marker(d, row):
 
 def _relative_last_used(row):
     """Coarse, human relative time for the Last Used column when the device was used
-    within the last 7 days; absolute (YYYY-MM-DD HH:MM) beyond that. Time-of-day phrasing
-    keys off the LOCAL clock at the time of use.
+    within the last 7 days; absolute DATE-ONLY (YYYY-MM-DD, 2026-08-04 Travis: time of
+    day is noise at that age) beyond that. Time-of-day phrasing keys off the LOCAL
+    clock at the time of use.
 
       ≤ 50 min ago                  → "within the hour"
       ≤ 18 h ago (same local day)   → "this morning/afternoon/evening", "early this morning"
@@ -1571,7 +1646,7 @@ def _relative_last_used(row):
     try:
         t = datetime.fromisoformat(iso)
     except ValueError:
-        return iso.replace("T", " ")[:16]
+        return iso.replace("T", " ")[:10]
     if t.tzinfo is None:
         t = t.replace(tzinfo=timezone.utc)
     now = datetime.now(timezone.utc)
@@ -1580,10 +1655,10 @@ def _relative_last_used(row):
         return "just now"
     tl, nl = t.astimezone(), now.astimezone()        # local for clock-of-day + calendar day
     if secs > 7 * 86400:
-        return tl.strftime("%Y-%m-%d %H:%M")
+        return tl.strftime("%Y-%m-%d")
     label = _coarse_when(secs, (nl.date() - tl.date()).days, tl)
     if label is None:
-        return tl.strftime("%Y-%m-%d %H:%M")
+        return tl.strftime("%Y-%m-%d")
     # Within the last 24h, pin the coarse phrase to an exact local clock time (Travis): the
     # relative bucket says roughly when, the appended (HH:MM) says exactly when.
     if secs <= 24 * 3600:
@@ -1633,13 +1708,21 @@ def _short_cells(d, sysmap):
             _flavor_label(d, row), _display_short(d, row),
             _state_label(d), _ready_marker(d, row), _relative_last_used(row)]
 
-def _order_within(devs, plat, sysmap):
-    """Within a platform, the default-alias holder (ios/last-ios, android/last-android)
-    sorts first; then alphabetical."""
-    firsts = {"iOS": {"ios", "last-ios"},
-              "Android": {"android", "last-android"}}.get(plat, set())
-    return sorted(devs, key=lambda d: (
-        0 if set(all_aliases_for(d["id"], sysmap)) & firsts else 1, d["name"].lower()))
+def _os_version_key(d, row):
+    """Numeric sort key for an OS version ('26.5' → (26, 5), '14' → (14,)).
+    Unknown/unparseable versions sort as (-1,) — last under the descending order."""
+    ver = d.get("os_version") or (row["os_version"] if row else None) or ""
+    nums = tuple(int(x) for x in re.findall(r"\d+", ver))
+    return nums or (-1,)
+
+def _order_within(devs):
+    """Within a platform: DESCENDING OS version, then DESCENDING Device name
+    (2026-08-04, Travis — replaces the old default-alias-first / name-ascending rule).
+    udid is the final tiebreaker so the order is deterministic."""
+    def key(d):
+        row = _device_row(d["id"])
+        return (_os_version_key(d, row), _display_short(d, row).lower(), d["id"])
+    return sorted(devs, key=key, reverse=True)
 
 _LONG_HEADS = ["Name", "Device", "Kind", "State", "Ready", "Last Used"]
 
@@ -1719,7 +1802,7 @@ def _list_long(sections, sysmap):
             if not pdevs:
                 print("    No devices available")
                 continue
-            ordered = _order_within(pdevs, plat, sysmap)
+            ordered = _order_within(pdevs)
             r1 = {d["id"]: _long_row1(d, sysmap) for d in ordered}
             widths = _table_widths(_LONG_HEADS, r1.values())
             print("    " + _c("  ".join(h.ljust(widths[i])
@@ -1747,20 +1830,31 @@ def _table_widths(headers, rows):
             widths[i] = max(widths[i], len(c))
     return widths
 
-def _print_platform_group(devs, plat, plain, widths, sysmap):
+def _section_layout(section):
+    """(headers, cell-column indexes) for a section of the short table. AVAILABLE
+    drops State and renames Kind→OS / Ready→Optimized; everything else (RUNNING)
+    shows the full SHORT_HEADERS set. Cell indexes select from _short_cells."""
+    if section == "AVAILABLE":
+        return AVAILABLE_HEADERS, (0, 1, 2, 3, 5, 6)
+    return SHORT_HEADERS, (0, 1, 2, 3, 4, 5, 6)
+
+def _print_platform_group(devs, plat, plain, widths, section):
     """One platform block within a section: colored platform line, a column header
     whose id label is platform-specific (UDID / Serial), then the ordered device rows
-    (Name + Serial/UDID cells colored so the identifier stays prominent)."""
+    (Name + Serial/UDID cells colored so the identifier stays prominent). The column
+    set is per-section (see _section_layout); widths are shared across sections so
+    the common columns stay aligned."""
     print("  " + _c(plat, 4))
     if not devs:
         print("    No devices available")
         return
-    hdrs = list(SHORT_HEADERS)
+    hdrs, cols = _section_layout(section)
+    hdrs = list(hdrs)
     hdrs[ID_COL] = _id_label(plat)
-    print(("    " + _c("  ".join(h.ljust(widths[i])
-                                 for i, h in enumerate(hdrs)), 2)).rstrip())
-    for d in _order_within(devs, plat, sysmap):
-        cells = [c.ljust(widths[i]) for i, c in enumerate(plain[d["id"]])]
+    print(("    " + _c("  ".join(h.ljust(widths[c])
+                                 for h, c in zip(hdrs, cols)), 2)).rstrip())
+    for d in _order_within(devs):
+        cells = [plain[d["id"]][c].ljust(widths[c]) for c in cols]
         cells[0] = _c(cells[0], *ALIAS_COLOR)
         cells[ID_COL] = _c(cells[ID_COL], *ID_COLOR)
         print(("    " + "  ".join(cells)).rstrip())
@@ -1777,9 +1871,12 @@ def _render_short(sections, universe, sysmap):
         cells[ID_COL] = _fmt_id(cells[ID_COL], ID_CAP)
         cells[DEVICE_COL] = _cap(cells[DEVICE_COL], DEVICE_CAP)
         plain[d["id"]] = cells
-    # Size widths to the data and to BOTH id-label header variants (UDID / Serial).
+    # Size widths to the data and to EVERY header variant a column can carry:
+    # the id label (UDID / Serial) and the AVAILABLE renames (OS / Optimized).
     widths = _table_widths(SHORT_HEADERS, plain.values())
     widths[ID_COL] = max(widths[ID_COL], len("UDID"), len("Serial"))
+    for hdr, col in zip(AVAILABLE_HEADERS, _section_layout("AVAILABLE")[1]):
+        widths[col] = max(widths[col], len(hdr))
 
     for label, devs in sections:
         print(_c(label, 1))
@@ -1787,7 +1884,7 @@ def _render_short(sections, universe, sysmap):
             pdevs = [d for d in devs if _platform_of(d) == plat]
             if plat == "Genymotion" and not pdevs:
                 continue                       # only surface Genymotion when present
-            _print_platform_group(pdevs, plat, plain, widths, sysmap)
+            _print_platform_group(pdevs, plat, plain, widths, label)
         print()
 
 def cmd_list(verbose=False):
