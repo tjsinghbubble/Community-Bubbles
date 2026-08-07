@@ -48,6 +48,15 @@ function buildGoogleIosUrlScheme() {
   return `com.googleusercontent.apps.${stripped}`;
 }
 
+// Dev builds use a DISTINCT bundle id so they install alongside the store app
+// on real devices, and because the entire test platform targets it (every
+// Maestro flow's appId + CLAUDE.md say com.bubble.mobile). app.json holds the
+// store id (io.trybubble.app); until 2026-07 the dev id survived ONLY inside
+// stale gitignored prebuilds — any fresh `expo prebuild` silently produced a
+// store-id dev build the tests couldn't drive. This makes it explicit.
+const APP_ENV = process.env.APP_ENV ?? process.env.EAS_BUILD_PROFILE ?? 'development';
+const DEV_BUILD = APP_ENV === 'development';
+
 module.exports = {
   ...baseConfig.expo,
 
@@ -60,11 +69,13 @@ module.exports = {
 
   ios: {
     ...baseConfig.expo.ios,
+    bundleIdentifier: DEV_BUILD ? 'com.bubble.mobile' : baseConfig.expo.ios.bundleIdentifier,
     buildNumber: String(buildNumber),
   },
 
   android: {
     ...baseConfig.expo.android,
+    package: DEV_BUILD ? 'com.bubble.mobile' : baseConfig.expo.android.package,
     versionCode: parseInt(buildNumber, 10),
   },
 

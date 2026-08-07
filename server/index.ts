@@ -11,6 +11,7 @@ import { startEventReminderScheduler, startSlowCallPrunerScheduler, startFatalCr
 import { loadSlowCallConfigFromDb } from "./slow-call-config";
 import { storage } from "./storage";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { db } from "./db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -20,6 +21,18 @@ import { autoMigrate } from "./auto-migrate";
 import { assertEncryptionKey } from "./encryption";
 
 initialiseSentry();
+
+// Last-resort guards: a stray rejection or throw from a request handler (or the Vite
+// dev middleware) must not silently terminate the process. Log loudly and keep serving.
+// This is deliberately log-and-continue rather than the Node default (crash on
+// uncaughtException): for an always-on API the cost of dropping one request is far lower
+// than tearing down the whole server. Anything truly fatal still surfaces in the logs.
+process.on("unhandledRejection", (reason) => {
+  console.error(`[fatal-guard] unhandledRejection:`, reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error(`[fatal-guard] uncaughtException:`, err);
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -98,6 +111,10 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      // Client IP, real User-Agent, and the per-test tag. QA tests stamp X-Bubble-Test
+      // (test(<id>,r=<role>,pid=<n>)) — a dedicated header so the browser's real UA is
+      // preserved for web tests — letting requests/responses be synced to a test.
+      logLine += ` ip=${req.ip ?? "-"} ua="${req.get("user-agent") ?? "-"}" test=${req.get("x-bubble-test") ?? "-"}`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -182,6 +199,36 @@ app.use((req, res, next) => {
     if (count > 0) console.log(`Cleaned up ${count} stale push tokens`);
   }).catch(err => console.error('Push token cleanup failed:', err));
 
+  // Terminal /api handler. Any request reaching here matched no real API route. The SPA
+  // catch-all below must NEVER answer /api/* — returning index.html/200 would corrupt the
+  // JSON contract and make every forced-browse probe (e.g. /api/v1/.env) look like a hit.
+  //
+  //  - Modifying verbs (POST/PUT/PATCH/DELETE) from a caller without a VALID token -> 401:
+  //    don't reveal endpoint existence to anonymous writers; surface "auth required". We verify
+  //    the JWT SIGNATURE ONLY (no DB lookup) so junk traffic can't amplify into DB load — the
+  //    abuse vector the upcoming 429 work targets.
+  //  - Everything else unmatched under /api -> 404 JSON.
+  //
+  // The ip + any presented (possibly bad) user-id are logged so the 429/abuse phase has data.
+  const MODIFYING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+  app.use("/api", (req: Request, res: Response) => {
+    let userId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith("Bearer ") && process.env.JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET) as { userId?: string };
+        userId = decoded?.userId ?? null;
+      } catch {
+        userId = null; // present but invalid/expired -> treat as unauthorized
+      }
+    }
+    const unauthorizedWrite = MODIFYING_METHODS.has(req.method) && !userId;
+    const status = unauthorizedWrite ? 401 : 404;
+    log(`unmatched-api ${req.method} ${req.originalUrl} -> ${status} ip=${req.ip ?? "-"} uid=${userId ?? "-"}`);
+    if (unauthorizedWrite) return res.status(401).json({ error: "Unauthorized" });
+    return res.status(404).json({ error: "Not Found", method: req.method, path: req.originalUrl });
+  });
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -209,6 +256,17 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
+    // Fail closed: the Vite dev middleware must NEVER run on a deployed host. It serves
+    // the SPA in this same process, on-the-fly transforms source from disk, and exposes
+    // the dev surface (/@vite/client, HMR) — a deployed instance must serve the prebuilt
+    // static bundle with NODE_ENV=production instead. Refuse to start otherwise.
+    const onDeployedHost = !!(process.env.REPLIT_DEPLOYMENT || process.env.BUBBLE_DEPLOYED);
+    if (onDeployedHost) {
+      throw new Error(
+        "Refusing to start the Vite dev middleware on a deployed host. Build the client " +
+          "and serve the static bundle with NODE_ENV=production (npm start / `node dist/index.cjs`).",
+      );
+    }
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
@@ -218,16 +276,26 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.API_WEB_SERVER_PORT || "5000", 10);
+  // Default bind is IPv4 wildcard (unchanged for the firewalled deploy). Set API_BIND_HOST=::
+  // to bind dual-stack (IPv6 + IPv4-mapped) so `localhost` works for clients that prefer IPv6 —
+  // the qa:server script does this so the test runner's loopback fetches don't hit ::1 refusals.
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
+      host: process.env.API_BIND_HOST || "0.0.0.0",
     },
     () => {
       log(`serving on port ${port}`);
       startEventReminderScheduler();
       startSlowCallPrunerScheduler();
       startFatalCrashSpikeScheduler();
+      // Final readiness banner — printed only here, after routes + static/Vite setup and the
+      // listen succeed, so it is a true "setup complete" signal. The launching flow declares
+      // its mode via BUBBLE_SERVER_MODE (dev | qa | prod); fall back to NODE_ENV otherwise.
+      const mode = process.env.BUBBLE_SERVER_MODE
+        || (process.env.NODE_ENV === "production" ? "prod" : "dev");
+      const label = mode === "prod" ? "prod" : mode === "qa" ? "QA" : "dev";
+      log(`API/${label} server ready`);
     },
   );
 })();

@@ -1,0 +1,63 @@
+# qa-id: events-1200
+# qa-reason: Bubble-admin views who has RSVPed to an event (UC 164)
+#
+appId: com.bubble.mobile
+tags:
+  - events
+  - e2e
+  - ios
+  - role-bubble-admin
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Navigate to My Bubbles tab.
+- tapOn:
+    text: "My Bubbles"
+- waitForAnimationToEnd
+
+# Open QA Browse Bubble.
+- tapOn:
+    text: "QA Browse Bubble"
+- extendedWaitUntil:
+    visible:
+      id: tab-events
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}bubble-details
+
+# Navigate to Events tab within the bubble.
+- tapOn:
+    id: tab-events
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-event-.*"
+- takeScreenshot: ${SHOT_PREFIX}bubble-events-tab
+
+# Tap the seeded event card.
+- tapOn:
+    id: "card-event-.*"
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-view-participants
+- takeScreenshot: ${SHOT_PREFIX}event-details-screen
+
+# Tap "View participants" button.
+- tapOn:
+    id: button-view-participants
+- waitForAnimationToEnd
+- assertVisible:
+    id: "button-attendee-profile-.*"
+- takeScreenshot: ${SHOT_PREFIX}event-participants-screen

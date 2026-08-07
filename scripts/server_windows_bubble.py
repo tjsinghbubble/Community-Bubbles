@@ -48,9 +48,41 @@ WIN_CONFIGS = {
     "iOS App":       (40000, 10000, 12000, 65535, 65535, 65535),  # deep crimson
     "Android App":   (28000, 10000, 42000, 65535, 65535, 65535),  # deep violet
     "General":       (16384, 16384, 16384, 65535, 65535,     0),  # slate gray / yellow text
+    "Testing":       ( 8000, 28000, 30000, 65535, 65535, 65535),  # dark teal
 }
 
-LAYOUT_ORDER = ["API Server", "Metro Bundler", "iOS App", "Android App", "General"]
+# Zsh one-liner: print a random word of the day (General window greeting).
+FUN = "f=/usr/share/dict/words; integer z=$(wc -l < $f); w=$(sed -n $[RANDOM%z+1]p $f); echo Word of the day: $w"
+
+# Single source of truth: window -> npm run script that belongs in it.
+# None = no server to run (window gets FUN greeting instead).
+# Each window opens with a banner naming its command, plus a 'go' alias
+# so the developer can just type: go
+RUN_COMMANDS = {
+    "API Server":    "npm run qa:server",
+    "Metro Bundler": "npm run metro_bundler",
+    "iOS App":       "npm run mobile:build:ios-sim",
+    "Android App":   "npm run mobile:build:android-emu",
+    "General":       None,
+    "Testing":       "npm run qa",
+}
+
+def startup_command(name):
+    """Build the shell line run when window 'name' opens: cd, banner, 'go' alias."""
+    parts = ["cd $PROJ_ROOT"]
+    cmd = RUN_COMMANDS.get(name)
+    if cmd:
+        parts.append(f"alias go='{cmd}'")
+        parts.append(f"echo '[{name}]  start with:  {cmd}   (or just type: go)'")
+    else:
+        parts.append(FUN)
+    return " ; ".join(parts)
+
+LAYOUT_ORDER = [
+    "API Server",	"Metro Bundler",
+    "iOS App",		"Android App",
+    "General",		"Testing",
+    ]
 
 # ---- Global storage for computed bounds ----
 bounds = {}   # name -> (x, y, w, h)
@@ -122,7 +154,7 @@ def detect_screen():
     return None
 
 # ---- Escape string for AppleScript ----
-def escape_as(s):
+def escape_string_for_applescript(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 # ---- Window management via osascript ----
@@ -140,7 +172,7 @@ def run_osascript(script):
 
 def window_exists(name):
     """Check if any open Terminal tab has custom title matching name."""
-    esc = escape_as(name)
+    esc = escape_string_for_applescript(name)
     script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
@@ -155,26 +187,27 @@ end tell'''
     except Exception:
         return False
 
-def create_window(name):
+def create_single_window(name):
     """Create a new Terminal window with bounds, colors, and a title echo."""
     x, y, win_w, win_h = bounds[name]
     right = x + win_w
     bottom = y + win_h
     bg_r, bg_g, bg_b, fg_r, fg_g, fg_b = WIN_CONFIGS[name]
-    esc = escape_as(name)
+    title_string = escape_string_for_applescript(name)
+    shell_cmd = escape_string_for_applescript(startup_command(name))
 
     # Terminal.app has no 'make new window'; do script "" (no 'in' clause) always
     # opens a new window and returns the new tab.  Colors are tab properties, not
     # window properties; bounds IS a window property.
     script = f'''tell application "Terminal"
     activate
-    set newTab to do script "echo {esc}"
+    set newTab to do script "{shell_cmd}"
     delay 0.3
     set tw to front window
     set bounds of tw to {{{x}, {y}, {right}, {bottom}}}
     set background color of newTab to {{{bg_r}, {bg_g}, {bg_b}}}
     set normal text color of newTab to {{{fg_r}, {fg_g}, {fg_b}}}
-    set custom title of newTab to "{esc}"
+    set custom title of newTab to "{title_string}"
 end tell'''
     run_osascript(script)
 
@@ -186,11 +219,11 @@ def resize_all():
         x, y, win_w, win_h = bounds[name]
         right = x + win_w
         bottom = y + win_h
-        esc = escape_as(name)
+        title_string = escape_string_for_applescript(name)
         script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
-            if custom title of t is "{esc}" then
+            if custom title of t is "{title_string}" then
                 set bounds of tw to {{{x}, {y}, {right}, {bottom}}}
                 exit repeat
             end if
@@ -220,8 +253,6 @@ def compute_layout(screen_left, screen_top, screen_width, screen_height):
     row3_height = work_height * 4 // 10
 
     half_width = (work_width - GAP) // 2
-    bot_width = work_width * 8 // 10
-    bot_x = left_offset + (work_width - bot_width) // 2
 
     # Row 1
     bounds["API Server"] = (left_offset, top_offset, half_width, row1_height)
@@ -234,7 +265,8 @@ def compute_layout(screen_left, screen_top, screen_width, screen_height):
 
     # Row 3
     row3_y = row2_y + row2_height + GAP
-    bounds["General"] = (bot_x, row3_y, bot_width, row3_height)
+    bounds["General"] = (left_offset, row3_y, half_width, row3_height)
+    bounds["Testing"] = (left_offset + half_width + GAP, row3_y, half_width, row3_height)
 
     # Clamp to screen bounds
     for name in LAYOUT_ORDER:
@@ -289,16 +321,16 @@ def _create_windows(names):
             print(f"Window '{name}' already exists, skipping.")
         else:
             print(f"Creating window '{name}'...")
-            create_window(name)
+            create_single_window(name)
 
 def kill_all():
     """Close every Terminal window whose tab custom title matches a known name."""
     for name in LAYOUT_ORDER:
-        esc = escape_as(name)
+        title_string = escape_string_for_applescript(name)
         script = f'''tell application "Terminal"
     repeat with tw in (every window)
         repeat with t in (every tab of tw)
-            if custom title of t is "{esc}" then
+            if custom title of t is "{title_string}" then
                 close tw
                 exit repeat
             end if

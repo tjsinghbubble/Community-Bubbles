@@ -1,0 +1,89 @@
+# ⚠️ DRAFT / INERT — NO `qa-id:` line, so the runner never discovers it (select.ts:discoverAll).
+#
+# Goal 2 — app behavior when the Google Places lookup FAILS:
+#   a. expired token   b. missing token   c. network partition   d. Google 5xx / no-result
+#
+# WHY THIS IS A THIN E2E STUB (read before expanding):
+#   The key is a BUILD-TIME client env var (EXPO_PUBLIC_GOOGLE_PLACES_API_KEY, read at
+#   mobile/src/config/api.ts:9 via requireEnv). It cannot be swapped per-flow without a
+#   rebuild, and a MISSING key throws at app STARTUP, so 2a/2b are not cleanly expressible
+#   as a single e2e flow against the normal dev build. Network partition (2c) via Maestro
+#   `setAirplaneMode` is ANDROID-ONLY. Google 5xx / no-result (2d) cannot be forced against
+#   the live API at all.
+#
+#   ⇒ PRIMARY coverage for Goal 2 is the COMPONENT test
+#     mobile/src/components/__tests__/LocationPickerModal.errors.test.tsx, which mocks the
+#     autocomplete and drives onFail/onNotFound/onTimeout deterministically. This e2e flow
+#     only covers the ANDROID network-partition path end-to-end, once the picker has an
+#     error path to assert on (Trello hqJLRSwU).
+#
+# TO ACTIVATE: rename the qa-id-DRAFT marker to the real qa-id comment (value events-1510),
+#   tag `android` only, and land hqJLRSwU.
+#
+# qa-id-DRAFT: events-1510
+# qa-reason-DRAFT: Goal 2c — with the network partitioned, the picker surfaces an error and
+#   stays dismissible (no freeze) instead of silently hanging on an empty dropdown.
+appId: com.bubble.mobile
+tags:
+  - events
+  - bubble-admin
+  - e2e
+  - android          # setAirplaneMode is Android-only; do NOT tag ios
+  - role-bubble-admin
+  - resilience
+  - bug-filed        # blocked on Trello hqJLRSwU — known gap, not a new failure
+---
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && typeof PASSWORD === 'string' && typeof METRO_HOST === 'string' && typeof METRO_PORT === 'string' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`)"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    text: "My Bubbles"
+- tapOn:
+    text: "QA Test Bubble"
+- extendedWaitUntil:
+    visible:
+      id: button-create-event-fab
+    timeout: 15000
+- tapOn:
+    id: button-create-event-fab
+- waitForAnimationToEnd
+- tapOn:
+    id: input-event-title
+- inputText: "QA Location Failure"
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+- tapOn:
+    id: button-location-picker
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Search Location"
+
+# Partition the network, then query. The app must NOT freeze.
+- setAirplaneMode: enabled
+- tapOn:
+    text: "Search for a place..."
+- inputText: "Oakland"
+- extendedWaitUntil:
+    visible:
+      # ← error affordance to be ADDED with the picker error-handling fix (Trello hqJLRSwU).
+      id: text-location-search-error
+    timeout: 10000
+- takeScreenshot: ${SHOT_PREFIX}location-network-error
+# Restore the network and confirm the picker is still usable (recoverable, not wedged).
+- setAirplaneMode: disabled
+- tapOn:
+    id: button-location-picker-close
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-select-date

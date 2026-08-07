@@ -1,0 +1,3847 @@
+#!/usr/bin/env python3
+"""
+manage_devices — one syntax to start / stop / list / loop / tune simulated
+devices, backed by a small SQLite database used as a test-time oracle.
+
+  -r, --running [-v]         running (or mid-boot) devices, same table as --list filtered
+  -l, --list [-v]            list ALL devices + aliases, grouped Running then Available,
+                             each in platform order; -v dumps the full record (TSV)
+      --resolve ID           print the maestro device id (android adb serial / iOS UDID)
+                             for an id/alias; bare id on stdout, rich line on stderr
+      --mark-used ID         record an id/alias as last-ios/last-android (no stdout id);
+                             a manual qa:flow run calls this to mark the device it ran on
+      --history [ID]         dump warmup/bake/start/kill timings (all, or one id/alias)
+      --start ID             start WINDOWED (visible screen) + WAIT until responsive;
+                             cold-boots so the display renders (a headless-baked
+                             default_boot restored windowed shows nothing); records timing
+      --start:headless ID    headless: -no-window -read-only, quick-boots the baked
+                             default_boot (parallel-safe, FAST; screenshots come back
+                             BLACK). The mode for CI/bench.
+      --start-basic ID       start device(s), legacy windowed behaviour (no flags, no wait)
+  -k, --kill ID              stop device(s)  (no-op if not running);
+                             `--kill all` = narrated full stop with escalation ladder
+  -w, --warmup ID            legacy alias for --start (WINDOWED); CI/bench want --start:headless
+  -c, --copy ID [ALIAS]      clone an Android AVD: ATD-ify (sdkmanager) + bake
+      --copy:orig ID [ALIAS] clone a device as-is, just add the alias
+      --bake[:medium|:hot] ID  overnight investment: boot headless WRITABLE, optionally
+                             AOT-compile (medium ~20-40 min, hot ~40-90 min), save the
+                             default_boot snapshot, halt. Plain --bake = snapshot only
+                             (~2 min; most of the boot-speed win). The ONLY op that
+                             writes default_boot.
+      --bake:windowed ID     bake default_boot WINDOWED (~2 min) so a later windowed
+                             --start QUICK-BOOTS it (fast AND a visible screen) instead
+                             of cold-booting; a headless-baked snapshot can't render
+                             windowed.
+      --save-quickboot ID    save a running AVD as its default_boot snapshot
+  -m, --monitor [SECONDS]    periodically sample host-side load of all devices
+  -a, --alias ID ALIAS       create a user alias for device(s)
+      --loop NAME CSV        define a named, ordered loop of ids/aliases
+  -n, --next [NAME]          advance the loop cursor; print the next device
+      --dry-run              with a mutating action: print the low-level commands
+                             (and implicit loops) it WOULD run; change nothing
+  -h, --help
+
+Identifiers
+  iOS:     a 36-char UUID (parens/spaces trimmed; rejected if not 36 chars).
+  Android: a free-form AVD name, e.g. Pixel_9_Pro_XL.
+
+System aliases (computed)        User/auto aliases (stored in DB)
+  ios, android                     human names (auto, e.g. "Liam"), -a aliases,
+  last-ios, last-android           UDID alt-names.
+  all, all-ios, all-android, loop  (the platform-agnostic `last` was removed —
+                                   too ambiguous; say last-ios / last-android)
+
+DB: $MANAGE_DEVICES_DB, default <repo>/.device-manager/devices.db (WAL, ACID).
+stdlib only.
+"""
+
+import argparse
+import json
+import os
+import platform
+import random
+import re
+import shlex
+import shutil
+import signal
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import time
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+# Shared internals live in scripts/helpers/. This script runs as a path (not an
+# installed package), so make its own dir importable, then pull the DB schema/migration.
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+from helpers import helper_manage_devices as hmd  # noqa: E402  # type: ignore[import-not-found]
+from helpers import helper_toolchain as htc  # noqa: E402  # type: ignore[import-not-found]
+
+REPO = Path(__file__).resolve().parent.parent
+DB_PATH = Path(os.environ.get("MANAGE_DEVICES_DB",
+                              REPO / ".device-manager" / "devices.db"))
+
+STOP = "\U0001F6D1"  # 🛑
+END_OF_LIST = "end-of-list"
+
+# Grace before escalating a SIGQUIT to SIGKILL when stopping an emulator. An Android
+# emulator told to stop (`adb emu kill` / SIGQUIT) writes its quick-boot snapshot
+# (default_boot) on the way out — the window flickers/bounces while it serialises RAM
+# to disk. SIGKILL mid-save tears the snapshot (torn default_boot ⇒ false-ready / boot
+# failures next start). Doubled from 2s → 4s so the save finishes before we GTFO it.
+# Override with EMU_KILL_GRACE_S for slow hosts / large-RAM AVDs.
+EMU_KILL_GRACE_S = float(os.environ.get("EMU_KILL_GRACE_S", "4"))
+
+UUID_RE = re.compile(r"[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-"
+                     r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}")
+
+# This list of human names is for aliasing UDIDs. The list was taken by lightly
+# massaging the first ~350 entries in
+# https://github.com/aruljohn/popular-baby-names. Add or subtract any names you
+# like, but ONLY if uniqueness is maintained.
+HUMAN_NAMES_RAW = """
+Olivia,Liam,Emma,Noah,Amelia,Oliver,Charlotte,Theodore,Mia,James,Sophia,Henry,
+Isabella,Mateo,Evelyn,Elijah,Ava,Lucas,Sofia,William,Camila,Benjamin,Harper,
+Levi,Luna,Ezra,Eleanor,Sebastian,Violet,Jack,Aurora,Daniel,Elizabeth,Samuel,
+Eliana,Michael,Hazel,Ethan,Chloe,Asher,Ellie,John,Nora,Hudson,Gianna,Luca,Lily,
+Leo,Emily,Elias,Aria,Owen,Scarlett,Alexander,Penelope,Dylan,Zoe,Santiago,Ella,
+Julian,Avery,David,Abigail,Joseph,Mila,Matthew,Lucy,Luke,Isla,Jackson,Ivy,
+Maverick,Layla,Miles,Lainey,Wyatt,Nova,Thomas,Grace,Isaac,Willow,Jacob,Riley,
+Mason,Emilia,Gabriel,Naomi,Anthony,Elena,Carter,Madison,Logan,Valentina,Aiden,
+Victoria,Grayson,Stella,Caleb,Delilah,Cooper,Maya,Charles,Hannah,Roman,Leah,
+Josiah,Lillian,Ezekiel,Genesis,Thiago,Josephine,Isaiah,Sadie,Joshua,Adeline,
+Wesley,Zoey,Jayden,Sophie,Bennett,Paisley,Christopher,Alice,Nathan,Ruby,Angel,
+Eloise,Nolan,Madelyn,Waylon,Leilani,Cameron,Claire,Brooks,Addison,Andrew,Ayla,
+Beau,Emery,Weston,Iris,Rowan,Eden,Adrian,Natalie,Lincoln,Maria,Enzo,Maeve,Ian,
+Daisy,Kai,Vivian,Christian,Clara,Axel,Autumn,Aaron,Liliana,Theo,Everly,Silas,
+Audrey,Walker,Lyla,Jonathan,Jade,Leonardo,Kinsley,Everett,Millie,Micah,Madeline,
+Ryan,Josie,August,Kennedy,Gael,Athena,Robert,Melody,Jose,Caroline,Eli,Aaliyah,
+Jeremiah,Anna,Luka,Sarah,Amir,Quinn,Jaxon,Lydia,Parker,Lucia,Colton,Allison,
+Myles,Hailey,Adam,Ailany,Atlas,Cora,Xavier,Ariana,Easton,Jordan,Natalia,Arthur,
+Gabriella,Landon,Savannah,Austin,Brooklyn,Dominic,Bella,Adriel,Georgia,Damian,
+Juniper,Vincent,Alaia,River,Raelynn,Emiliano,Hadley,Jace,Rose,Archer,Julia,
+Lorenzo,Serenity,Jameson,Eliza,Nicholas,Margaret,Emmett,Eva,Milo,Amara,Harrison,
+Melanie,Giovanni,Cecilia,Carson,Ashley,George,Rylee,Kayden,Margot,Jonah,Samantha,
+Greyson,Catalina,Hunter,Juliette,Graham,Aubrey,Luis,Esther,Declan,Mary,Sawyer,
+Nevaeh,Jasper,Skylar,Ryder,Alina,Carlos,Amira,Connor,Ember,Juan,Magnolia,Matteo,
+Sienna,Dawson,Charlie,Calvin,Elliana,Leon,Summer,Dean,Alana,Evan,Brielle,
+Nathaniel,Remi,Diego,Sage,Arlo,Valerie,Bryson,Hallie,Jason,Wrenley,Malachi,
+Kehlani,Elliot,Emerson,Zion,June,Emilio,Sloane,Ivan,Emersyn,Hayden,Elsie,Stetson,
+Oaklynn,Jude,Oakley,Legend,Blakely,Matias,Freya,Callum,Piper,Hayes,Valeria,Jett,
+Arya,Cole,Adalynn,Elliott
+"""
+
+def human_names():
+    seen, out = set(), []
+    for n in (x.strip() for x in HUMAN_NAMES_RAW.split(",")):
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+# ── tool locations ─────────────────────────────────────────────────────────────
+
+def android_home():
+    return Path(os.environ.get("ANDROID_HOME")
+                or os.environ.get("ANDROID_SDK_ROOT")
+                or (Path.home() / "Library/Android/sdk"))
+
+def _find(name, candidates):
+    for c in candidates:
+        if c and Path(c).exists():
+            return str(c)
+    return name
+
+def adb_bin():
+    return _find("adb", [android_home() / "platform-tools/adb"])
+
+def emulator_bin():
+    h = android_home()
+    return _find("emulator", [h / "emulator/emulator", h / "tools/emulator"])
+
+# ── small utils ────────────────────────────────────────────────────────────────
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+def _ts():
+    """The one wall-clock prefix every narrated line uses (HH:MM:SS.mmm)."""
+    return datetime.now().strftime('%H:%M:%S.%f')[:-3]
+
+def narrate(msg):
+    print(f"{_ts()}    {msg}", flush=True)
+
+def err(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+def nerr(msg):
+    """err() with narrate()'s timestamp treatment — errors keep the stderr
+    stream but carry the same clock prefix as the surrounding narration."""
+    print(f"{_ts()}    {msg}", file=sys.stderr, flush=True)
+
+# --dry-run: when set, the mutating actions print the low-level commands (and the
+# implicit loops/waits) they WOULD run, and change no device state. Set from argv
+# in main(); the action commands branch on it.
+DRY_RUN = False
+
+def dry(argv, note=""):
+    """Show one low-level command --dry-run WOULD execute (shell-quoted)."""
+    line = " ".join(shlex.quote(str(a)) for a in argv)
+    print(f"  would run: {line}" + (f"    # {note}" if note else ""), flush=True)
+
+def dry_note(msg):
+    """Annotate the dry-run plan with something that isn't a single command —
+    an implicit loop, a wait/sleep, timing, or a short-circuit rule."""
+    print(f"  · {msg}", flush=True)
+
+def run(cmd, capture=True):
+    """Run a command. stderr always inherits (never swallowed)."""
+    return subprocess.run(cmd, stdout=subprocess.PIPE if capture else None,
+                          stderr=None, text=True)
+
+def run_cap(cmd):
+    """Like run(), but capture stdout+stderr together so the caller can parse the
+    result. Used where success must be inspected rather than assumed: the AOT
+    `cmd package compile` step, and the emulator-console snapshot save (which
+    replies 'OK' on success or 'KO: <reason>' on failure)."""
+    return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          text=True)
+
+def pids_matching(pattern):
+    # A leading '-' in `pattern` would be read as a pgrep flag; callers strip it (we also
+    # silence stderr so a no-match / odd pattern doesn't print BSD pgrep's usage banner).
+    r = subprocess.run(["pgrep", "-f", pattern], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True)
+    return [int(p) for p in r.stdout.split()] if r.returncode == 0 else []
+
+# ── database ───────────────────────────────────────────────────────────────────
+
+# Schema (CREATE TABLE …), REF_SEED, and the one-time versioned migration live in
+# scripts/helpers/helper_manage_devices.py — see hmd.SCHEMA / init_db / migrate_db.
+_conn = None
+
+# (devices-table columns + one-time versioned migration now live in
+#  scripts/helpers/helper_manage_devices.py: hmd.SCHEMA / init_db / migrate_db.)
+
+def _norm_state(s):
+    """Collapse platform-specific liveness to two values: Running | Shutdown.
+    iOS reports 'Booted'; Android reports 'Running'. Everything else (Unknown,
+    Shutting Down, …) maps to Shutdown for listing purposes."""
+    return "Running" if s in ("Booted", "Running") else "Shutdown"
+
+def db():
+    global _conn
+    if _conn is None:
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _conn = sqlite3.connect(str(DB_PATH), timeout=10)
+        _conn.row_factory = sqlite3.Row
+        _conn.isolation_level = None  # autocommit; immediate() owns explicit txns
+        _conn.execute("PRAGMA busy_timeout=5000")
+        hmd.init_db(_conn, name_pool=human_names())  # canonical schema + ref/name seed
+        hmd.migrate_db(_conn)                         # one-time, versioned (no per-open ALTERs)
+    return _conn
+
+@contextmanager
+def immediate():
+    """A serialized write transaction (BEGIN IMMEDIATE) for ACID cursor bumps."""
+    c = db()
+    c.execute("BEGIN IMMEDIATE")
+    try:
+        yield c
+        c.execute("COMMIT")
+    except Exception:
+        c.execute("ROLLBACK")
+        raise
+
+def kv_get(k, default=None):
+    row = db().execute("SELECT v FROM kv WHERE k=?", (k,)).fetchone()
+    return row["v"] if row else default
+
+def kv_set(k, v):
+    db().execute("INSERT INTO kv(k,v) VALUES(?,?) "
+                 "ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, v))
+    db().commit()
+
+def kv_del(k):
+    db().execute("DELETE FROM kv WHERE k=?", (k,))
+    db().commit()
+
+def log_history(udid, event, detail=None, duration_ms=None,
+                sys_load=None, dev_load=None):
+    db().execute("INSERT INTO history(ts,udid,event,detail,duration_ms,sys_load,dev_load)"
+                 " VALUES (?,?,?,?,?,?,?)",
+                 (now_iso(), udid, event, detail, duration_ms, sys_load, dev_load))
+    db().commit()
+
+def _device_set(udid, **cols):
+    """Update arbitrary devices columns for one udid. No-op if the row is absent
+    (a device not yet sync'd) so warm/bake on a fresh clone never throws."""
+    if not cols:
+        return
+    if not db().execute("SELECT 1 FROM devices WHERE udid=?", (udid,)).fetchone():
+        return
+    sets = ", ".join(f"{k}=?" for k in cols)
+    db().execute(f"UPDATE devices SET {sets} WHERE udid=?",
+                 (*cols.values(), udid))
+    db().commit()
+
+# ── live discovery ─────────────────────────────────────────────────────────────
+
+def ios_devices():
+    import json
+    r = run(["xcrun", "simctl", "list", "devices", "--json"])
+    out = []
+    try:
+        data = json.loads(r.stdout)
+    except ValueError:
+        return out
+    for rt, devs in data.get("devices", {}).items():
+        ver = rt.rsplit(".", 1)[-1].replace("iOS-", "").replace("-", ".")
+        for d in devs:
+            if not d.get("isAvailable", True):
+                continue
+            raw = d.get("state", "Unknown")
+            # Preserve a mid-boot sim as "Booting" (otherwise _norm_state hides it as
+            # Shutdown and it never shows in the running list — issue: started-not-shown).
+            state = "Booting" if raw == "Booting" else _norm_state(raw)
+            out.append({"kind": "ios", "id": d["udid"], "serial": None,
+                        "name": d.get("name", d["udid"]),
+                        "os_version": ver,
+                        "state": state})
+    return out
+
+def ios_booted():
+    return [d for d in ios_devices() if d["state"] == "Running"]
+
+def android_avds():
+    r = run([emulator_bin(), "-list-avds"])
+    return [l.strip() for l in (r.stdout or "").splitlines() if l.strip()]
+
+# Android API level → marketing release, to mirror iOS's os_version style ("14" vs "26.5").
+# A running device reports its release directly via getprop; a shutdown AVD only exposes its
+# API level on disk, so we map it. os_version is ALWAYS a marketing release — an unknown
+# level yields None here (never "API NN"); the API level lives in its own column (api_level).
+_API_TO_RELEASE = {
+    21: "5.0", 22: "5.1", 23: "6", 24: "7.0", 25: "7.1", 26: "8.0", 27: "8.1",
+    28: "9", 29: "10", 30: "11", 31: "12", 32: "12L", 33: "13",
+    34: "14", 35: "15", 36: "16", 37: "17",
+}
+
+def _release_from_api(api):
+    """Marketing release for an API level, or None if unknown. NEVER returns an
+    'API NN' string — os_version must stay a release; the level goes in api_level."""
+    return _API_TO_RELEASE.get(api) if api else None
+
+def _api_level_str(api):
+    """Canonical stored api_level form ('API 37'), or None. Accepts int or digit str."""
+    try:
+        return f"API {int(api)}" if api not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+def _parse_avd_api(avd):
+    """API level int of a (possibly shutdown) AVD from its config.ini/.ini
+    (android-NN), or None. Unlike _avd_api, never guesses a default."""
+    cfg = _avd_dir(avd) / "config.ini"
+    ini = _avd_root() / f"{avd}.ini"
+    for p in (cfg, ini):
+        if p.exists():
+            m = re.search(r"android-(\d+)", p.read_text())
+            if m:
+                return int(m.group(1))
+    return None
+
+def _avd_config(avd):
+    """Parsed key=value dict of an AVD's config.ini (real dir per its .ini; see
+    _avd_dir), or {} when absent/unreadable."""
+    cfg = _avd_dir(avd) / "config.ini"
+    if not cfg.exists():
+        return {}
+    out = {}
+    for line in cfg.read_text().splitlines():
+        if "=" in line and not line.lstrip().startswith("#"):
+            k, v = line.split("=", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+def _google_support_of(cfg):
+    """Classify an AVD's system image by tag.id / PlayStore:
+      'Full'      Play Store + services (google_apis_playstore)
+      'ATD'       Automated Test Device (google_atd/aosp_atd) — headless CI image with
+                  NO interactive UI: renders a BLACK screen windowed, by design
+      'APIs only' Google Play services, no Store (google_apis)
+      'None'      AOSP/default (no Google)
+    ATD is checked first (its tag also contains 'google'). None when config is empty."""
+    if not cfg:
+        return None
+    tag = (cfg.get("tag.id") or "").lower()
+    if "atd" in tag:                            # google_atd, aosp_atd
+        return "ATD"
+    if cfg.get("PlayStore.enabled", "").lower() in ("true", "yes") or "playstore" in tag:
+        return "Full"
+    if "google" in tag:
+        return "APIs only"
+    return "None"
+
+def _avd_is_atd(name):
+    """True if the AVD uses an ATD (Automated Test Device) system image — a headless
+    CI image that renders BLACK windowed (no interactive UI)."""
+    return _google_support_of(_avd_config(name)) == "ATD"
+
+def _avd_hw_fields(avd):
+    """(resolution 'WxH', density int, boot_option, google_support) for an AVD from its
+    config.ini; each element None when the underlying key is absent."""
+    c = _avd_config(avd)
+    w, h = c.get("hw.lcd.width"), c.get("hw.lcd.height")
+    resolution = f"{w}x{h}" if (w and h) else None
+    density = int(c["hw.lcd.density"]) if c.get("hw.lcd.density", "").isdigit() else None
+    boot_option = None
+    if c:
+        boot_option = ("Cold Boot" if c.get("fastboot.forceColdBoot", "no") == "yes"
+                       else "Quick Boot")
+    return resolution, density, boot_option, _google_support_of(c)
+
+# A default_boot snapshot's screenshot.png only proves the POSITIVE: a LARGE PNG means
+# the framebuffer had rendered content, so restoring it windowed will show a screen. A
+# TINY PNG is ambiguous — it can be a blank (headless) framebuffer OR a legitimately
+# rendered but small/dark screen (e.g. a 720x1280 lockscreen bakes to ~18 KB either way).
+# So size can UPGRADE a flag to windowed, never DOWNGRADE it — window-mode is otherwise
+# owned by the bake that wrote it (--bake vs --bake:windowed).
+_SNAPSHOT_RENDERED_MIN_BYTES = 50 * 1024
+
+def _avd_snapshot_state(name):
+    """(has_default_boot, default_boot_windowed) reconciled from DISK — fixes a bake flag
+    that drifted (deleted snapshot, or one made outside --bake). Returns:
+      (0, 0)    no snapshot dir  ⇒ not baked, not windowed.
+      (1, 1)    snapshot + a large (rendered) screenshot ⇒ definitely renders windowed.
+      (1, None) snapshot but a tiny/ambiguous screenshot ⇒ window-mode UNKNOWN from disk;
+                None means COALESCE leaves the stored (bake-written) flag untouched.
+    So has_default_boot always tracks disk; default_boot_windowed only ever upgrades."""
+    snap = _avd_dir(name) / "snapshots" / "default_boot"
+    if not snap.is_dir():
+        return 0, 0
+    shot = snap / "screenshot.png"
+    if shot.is_file() and shot.stat().st_size >= _SNAPSHOT_RENDERED_MIN_BYTES:
+        return 1, 1
+    return 1, None
+
+def _real_android_screen(serial):
+    """(resolution 'WxH', density int) for a live real device via `adb shell wm
+    size`/`wm density` ('Physical size: 1080x2400' / 'Physical density: 420');
+    (None, None) when unreachable."""
+    def _wm(sub, pat):
+        out = run([adb_bin(), "-s", serial, "shell", "wm", sub]).stdout or ""
+        m = re.search(pat, out)
+        return m.group(1) if m else None
+    resolution = _wm("size", r"(\d+x\d+)")
+    dens = _wm("density", r"(\d+)")
+    return resolution, (int(dens) if dens else None)
+
+def _avd_os_version(avd):
+    """Marketing release of a (possibly shutdown) AVD (e.g. '17'), or None."""
+    return _release_from_api(_parse_avd_api(avd))
+
+def _avd_api_level(avd):
+    """Stored api_level of a (possibly shutdown) AVD ('API 37'), or None."""
+    return _api_level_str(_parse_avd_api(avd))
+
+def _adb_serials():
+    """Classify every device `adb devices` reports as attached.
+
+    Single source of truth for the serial taxonomy (was duplicated across
+    android_running / android_real / reachable):
+      emulator-NNNN  -> local emulator console        (is_emu)
+      host:port      -> Genymotion / adb-connect VM   (is_net)
+      anything else  -> USB-attached physical phone
+
+    Returns:
+        list[tuple[str, bool, bool, bool]]: (serial, is_emu, is_net, authorized)
+        per attached device. adb state 'device' → authorized=True; 'unauthorized'
+        (the phone hasn't accepted this host's RSA key, so every `adb shell` /
+        getprop fails) → authorized=False but the device IS physically attached
+        and belongs in the running list. Other states (offline, recovery, …)
+        are skipped.
+    """
+    r = run([adb_bin(), "devices"])
+    out = []
+    for line in (r.stdout or "").splitlines()[1:]:
+        parts = line.split()
+        if len(parts) < 2 or parts[1] not in ("device", "unauthorized"):
+            continue
+        serial = parts[0]
+        out.append((serial, serial.startswith("emulator-"),
+                    bool(re.match(r"^[\w.-]+:\d+$", serial)),
+                    parts[1] == "device"))
+    return out
+
+def _getprop(serial, prop):
+    """One-shot `adb shell getprop` against serial; '' when unset/unreachable."""
+    r = run([adb_bin(), "-s", serial, "shell", "getprop", prop])
+    return (r.stdout or "").strip()
+
+def _handle_is_emulator(serial, is_emu, is_net):
+    """Is this live adb handle an emulator/qemu VM (Simulated) rather than a physical
+    phone? `emulator-*` always is; an `ip:port` handle is AMBIGUOUS — it is a real
+    phone over WiFi UNLESS getprop marks it qemu (Genymotion / a networked AVD). A
+    bare USB serial is always physical."""
+    if is_emu:
+        return True
+    if is_net:
+        return (_getprop(serial, "ro.kernel.qemu") == "1"
+                or _getprop(serial, "ro.boot.qemu") == "1")
+    return False
+
+def _handle_transport(serial, is_net):
+    """(transport, ipv4, port) for a physical device's live adb handle: 'wifi' for
+    an `ip:port` handle (host/port parsed out), else 'usb'."""
+    if is_net:
+        host, _, port = serial.rpartition(":")
+        return "wifi", (host or None), (int(port) if port.isdigit() else None)
+    return "usb", None, None
+
+def _canonical_udid(serial):
+    """The stable hardware identity of the phone answering on `serial`: its
+    ro.serialno (identical over USB / WiFi / any transport), else the handle itself.
+    This is the value adopted as devices.udid for a real Android phone."""
+    return _getprop(serial, "ro.serialno") or serial
+
+def _resolve_handle_udid(serial):
+    """Map a live adb handle to a canonical devices.udid: the device_transports cache
+    first (no probe), else ro.serialno. Used to reunite a WiFi `ip:port` handle with
+    the phone's USB-serial identity."""
+    row = db().execute("SELECT udid FROM device_transports WHERE handle=?",
+                       (serial,)).fetchone()
+    return row["udid"] if row else _canonical_udid(serial)
+
+def _record_transport(handle, udid, transport, ipv4, port, now):
+    """Upsert the adb-handle → canonical-udid resolution (device_transports)."""
+    db().execute(
+        "INSERT INTO device_transports(handle,udid,transport,ipv4,port,last_seen) "
+        "VALUES (?,?,?,?,?,?) ON CONFLICT(handle) DO UPDATE SET "
+        "udid=excluded.udid, transport=excluded.transport, ipv4=excluded.ipv4, "
+        "port=excluded.port, last_seen=excluded.last_seen",
+        (handle, udid, transport, ipv4, port, now))
+
+def _emu_display_name(serial, is_emu):
+    """Best-effort AVD/VM name for a running emulator serial: the emulator
+    console for a local emulator, getprop fallbacks for Genymotion (its console
+    is n/a); the bare serial when everything fails."""
+    name = ""
+    if is_emu:                                         # local emulator console
+        nr = run([adb_bin(), "-s", serial, "emu", "avd", "name"])
+        name = (nr.stdout or "").splitlines()[0].strip() if nr.stdout else ""
+    if not name:
+        for prop in ("ro.boot.qemu.avd_name",
+                     "ro.kernel.androidboot.qemu.avd_name", "ro.product.model"):
+            name = _getprop(serial, prop)
+            if name:
+                break
+    return name or serial
+
+def android_running():
+    """Running Android SIMULATED devices: local emulators + Genymotion/qemu VMs
+    (physical phones — USB *or* WiFi — are android_real's job).
+
+    Returns:
+        list[dict]: live-device dicts (kind/id/serial/name/os_version/api_level/
+        state/flavor), one per running emulator; `id` is the AVD/VM name,
+        os_version is the marketing release straight from the live device.
+    """
+    out = []
+    for serial, is_emu, is_net, authorized in _adb_serials():
+        if not authorized:
+            continue                     # can't getprop it; android_real owns unauthorized
+        if not _handle_is_emulator(serial, is_emu, is_net):
+            continue                                   # physical (USB/WiFi) → android_real
+        name = _emu_display_name(serial, is_emu)
+        os_version = _getprop(serial, "ro.build.version.release") or None
+        api_level = _api_level_str(_getprop(serial, "ro.build.version.sdk"))
+        res, dens, boot, goog = _avd_hw_fields(name)
+        has_boot, boot_win = _avd_snapshot_state(name)
+        out.append({"kind": "android", "id": name, "serial": serial,
+                    "name": name, "os_version": os_version, "api_level": api_level,
+                    "resolution": res, "density": dens, "boot_option": boot,
+                    "google_support": goog, "has_default_boot": has_boot,
+                    "default_boot_windowed": boot_win,
+                    "state": "Running", "flavor": "Simulated"})  # emulator / qemu VM
+    return out
+
+def android_real():
+    """PHYSICAL Android phones, over ANY transport (USB serial or WiFi `ip:port`),
+    keyed by their canonical hardware identity (ro.serialno). One phone reachable on
+    several transports collapses to ONE dict: `id` is the hardware serial, `serial`
+    is the primary live handle (USB preferred, else WiFi) for maestro/adb -s, and
+    `transports` carries every live handle for the resolution cache. flavor='Real'.
+
+    Returns:
+        list[dict]: one dict per physical phone; [] when adb is absent.
+    """
+    if not htc.capabilities()["adb"]:
+        return []
+    byudid: "dict[str, dict]" = {}
+    for serial, is_emu, is_net, authorized in _adb_serials():
+        if _handle_is_emulator(serial, is_emu, is_net):
+            continue                                   # emulator/qemu → android_running
+        # (an unauthorized handle can't getprop, so a net handle lands here — right
+        # guess: an unauthorized ip:port is a real phone, not a VM we booted)
+        # Unauthorized: every getprop fails, so identity comes from the transport
+        # cache (WiFi ip:port → udid) else the handle itself (USB serial == the
+        # hardware serial), and the fields fall back to the phone's stored DB row.
+        udid = _canonical_udid(serial) if authorized else _resolve_handle_udid(serial)
+        transport, ipv4, port = _handle_transport(serial, is_net)
+        d = byudid.get(udid)
+        if d is None and authorized:
+            manuf = _getprop(serial, "ro.product.manufacturer") or None
+            model = _getprop(serial, "ro.product.model") or udid
+            rel = _getprop(serial, "ro.build.version.release") or None
+            api_level = _api_level_str(_getprop(serial, "ro.build.version.sdk"))
+            res, dens = _real_android_screen(serial)   # boot/google: AVD-only concepts
+            d = byudid[udid] = {
+                "kind": "android", "id": udid, "serial": serial, "name": model,
+                "os_version": rel, "api_level": api_level, "state": "Running",
+                "flavor": "Real", "manufacturer": manuf, "model": model,
+                "resolution": res, "density": dens, "ipv4": ipv4, "transports": []}
+        elif d is None:
+            row = _device_row(udid)
+            d = byudid[udid] = {
+                "kind": "android", "id": udid, "serial": serial,
+                "name": (row["display_name"] if row else None) or udid,
+                "os_version": row["os_version"] if row else None,
+                "api_level": row["api_level"] if row else None,
+                "state": "Unauthorized", "flavor": "Real",
+                "manufacturer": row["manufacturer"] if row else None,
+                "model": row["model"] if row else None,
+                "resolution": None, "density": None, "ipv4": ipv4, "transports": []}
+        elif authorized and d["state"] == "Unauthorized":
+            d["state"] = "Running"     # another handle of the same phone IS authorized
+        d["transports"].append((serial, transport, ipv4, port))
+        # USB is the more stable handle: prefer it as primary + keep a WiFi ipv4.
+        if transport == "usb":
+            d["serial"] = serial
+        if ipv4:
+            d["ipv4"] = ipv4
+    return list(byudid.values())
+
+def _ios_real_models():
+    """udid → hardware marketing model ('iPhone 14 Pro') for physical iOS devices,
+    via `devicectl list devices` JSON. xctrace reports only the PERSONAL device name
+    ('Schmante'), which belongs in Name/aliases — the model is the Device column's
+    job. Best-effort: {} when devicectl is absent or the JSON doesn't parse."""
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "devices.json"
+            run(["xcrun", "devicectl", "list", "devices", "--json-output", str(out)])
+            data = json.loads(out.read_text())
+        models = {}
+        for dev in (data.get("result") or {}).get("devices", []):
+            hw = dev.get("hardwareProperties") or {}
+            if hw.get("udid") and hw.get("marketingName"):
+                models[hw["udid"]] = hw["marketingName"]
+        return models
+    except Exception:
+        return {}
+
+def ios_real():
+    """Physical iOS devices — LIST-ONLY this phase (no install/launch; signing
+    unresolved). Best-effort parse of `xcrun xctrace list devices`; returns [] if
+    xcrun is absent or nothing parses. Entries carry real_unsupported=True so the
+    resolve/runner paths can refuse execution with a clear message. `model` is the
+    hardware marketing model when devicectl can supply it (see _ios_real_models);
+    `name` stays the personal device name."""
+    if not htc.capabilities()["xcode"]:
+        return []
+    try:
+        r = run(["xcrun", "xctrace", "list", "devices"])
+    except Exception:
+        return []
+    out, in_devices = [], False
+    for line in (r.stdout or "").splitlines():
+        s = line.strip()
+        if s.startswith("== Devices"):
+            in_devices = True
+            continue
+        if s.startswith("== "):                            # Simulators / Offline / …
+            in_devices = False
+            continue
+        if not in_devices or not s or "Mac" in s:          # skip the host Mac entry
+            continue
+        m = re.match(r"^(.*?) \(([0-9.]+)\) \(([0-9A-Fa-f-]{8,})\)$", s)
+        if not m:
+            continue                                       # host line has no iOS version shape
+        name, ver, udid = m.group(1), m.group(2), m.group(3)
+        out.append({"kind": "ios", "id": udid, "serial": None, "name": name,
+                    "os_version": ver, "state": "Running", "flavor": "Real",
+                    "manufacturer": "Apple", "model": name, "real_unsupported": True})
+    if out:
+        models = _ios_real_models()
+        for d in out:
+            d["model"] = models.get(d["id"]) or d["model"]
+    return out
+
+def android_booting_names(running_ids=None):
+    """AVDs whose emulator (qemu) process is alive but which adb has NOT yet promoted to
+    'device' state — i.e. mid-boot. Lets a just-started emulator show in the running list
+    before it's fully up. One `ps` scan, WHOLE-TOKEN match on `-avd <name>` / `@<name>` so
+    e.g. 'Pixel_9_Pro_XL' does not falsely match 'Pixel_9_Pro_XL_copy_Lainey'.
+
+    Args:
+        running_ids: already-known running AVD names; None re-probes adb.
+    """
+    if running_ids is None:
+        running_ids = {d["id"] for d in android_running()}
+    candidates = [n for n in android_avds() if n not in running_ids]
+    if not candidates:
+        return set()
+    r = subprocess.run(["ps", "-axo", "command"], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True)
+    cmds = r.stdout or ""
+    booting = set()
+    for name in candidates:
+        if re.search(rf"(?:-avd\s+|@){re.escape(name)}(?=\s|$)", cmds, re.M):
+            booting.add(name)
+    return booting
+
+def android_all():
+    """AVDs (defined) merged with running emulators (serial attached)."""
+    running = {d["id"]: d for d in android_running()}
+    booting = android_booting_names(set(running))
+    out = []
+    for name in android_avds():
+        if name in running:
+            out.append(running.pop(name))
+        else:
+            res, dens, boot, goog = _avd_hw_fields(name)
+            has_boot, boot_win = _avd_snapshot_state(name)
+            out.append({"kind": "android", "id": name, "serial": None,
+                        "name": name, "os_version": _avd_os_version(name),
+                        "api_level": _avd_api_level(name),
+                        "resolution": res, "density": dens, "boot_option": boot,
+                        "google_support": goog, "has_default_boot": has_boot,
+                        "default_boot_windowed": boot_win,
+                        "state": "Booting" if name in booting else "Shutdown"})
+    out.extend(running.values())  # running but not in -list-avds (rare)
+    return out
+
+def live_index():
+    """udid/avd -> live device dict, for current state during resolve/sync.
+    Includes real (physical) devices alongside sims/emulators."""
+    idx = {}
+    for d in ios_devices() + android_all() + android_real() + ios_real():
+        idx[d["id"]] = d
+    return idx
+
+def is_real(dev):
+    """True if dev is a physical device (flavor='Real'). Falls back to the DB row
+    when the live dict doesn't carry a flavor (ios_devices()/android_all() omit it)."""
+    if dev is None:
+        return False
+    fl = dev.get("flavor")
+    if fl is None:
+        row = db().execute("SELECT flavor FROM devices WHERE udid=?",
+                           (dev.get("id"),)).fetchone()
+        fl = row["flavor"] if row else None
+    return fl == "Real"
+
+def refuse_on_real(dev, op):
+    """Guard for sim/emulator-only operations: if dev is a real (physical) device,
+    print a clear refusal and return True so the caller skips it. A real phone is
+    already running and can't be booted/cloned/snapshotted — install + run only."""
+    if is_real(dev):
+        err(f"{op}: {dev.get('name') or dev.get('id')!r} is a REAL device — already "
+            f"running; cannot boot/clone/snapshot it (real devices: install + run only).")
+        return True
+    return False
+
+def reachable(dev):
+    """Fast best-effort liveness for a REAL device. Android: reachable if ANY live
+    adb handle (USB serial or WiFi ip:port) resolves to this phone's canonical udid —
+    so a phone on WiFi only is still reachable even though its handle differs from its
+    udid. iOS-real: not executable this phase → always False (caller drops it with a
+    note). Non-real devices are considered reachable here (handled elsewhere)."""
+    if not is_real(dev):
+        return True
+    if dev.get("kind") == "android":
+        udid = dev.get("id")
+        for serial, is_emu, _is_net, authorized in _adb_serials():
+            if is_emu or not authorized:
+                continue     # unauthorized: attached but unusable (no adb shell)
+            if serial == udid or _resolve_handle_udid(serial) == udid:
+                return True  # USB serial == udid short-circuits (no probe)
+        return False
+    return False  # iOS-real: listing only
+
+def android_pids(dev):
+    pids = pids_matching(dev["id"])
+    if not pids and (dev.get("serial") or "").startswith("emulator-"):
+        pids = pids_matching(f"-port {dev['serial'].split('-', 1)[1]}")
+    return pids
+
+def _proc_argv(pid):
+    """Full command line of a pid (one string), via `ps -o command=`. '' if gone."""
+    r = subprocess.run(["ps", "-o", "command=", "-p", str(pid)],
+                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    return (r.stdout or "").strip()
+
+def looks_headless(dev):
+    """Best-effort: is THIS running device headless (screenshots come back BLACK)?
+
+    'Headless' is a BOOT MODE, not a persisted property, so this inspects the live
+    emulator process args for `-no-window` (how --start:headless / the qa runner boot
+    it on this host). Returns True/False for a running Android emulator, None when it
+    can't be told (not running, no pid, or iOS — sims are always windowed). Keep the
+    terminology 'headless'/'likely headless' consistent with testctl's surfacing."""
+    if dev["kind"] != "android" or not is_running(dev):
+        return None
+    pids = android_pids(dev)
+    if not pids:
+        return None
+    argv = _proc_argv(pids[0])
+    if not argv:
+        return None
+    return "-no-window" in argv.split()
+
+def is_running(dev):
+    return dev["state"] in ("Booted", "Running")
+
+def is_booting(dev):
+    return dev.get("state") == "Booting"
+
+def is_unauthorized(dev):
+    """Physically attached but adb-unauthorized (RSA dialog not accepted)."""
+    return dev.get("state") == "Unauthorized"
+
+def is_live(dev):
+    """Running, mid-boot, OR attached-but-unauthorized — the membership test for the
+    'running' list/section. An unauthorized phone is cabled to this machine right now,
+    so it belongs under RUNNING (flagged), not under AVAILABLE with the unplugged ones;
+    is_running stays False for it (nothing can execute on it)."""
+    return is_running(dev) or is_booting(dev) or is_unauthorized(dev)
+
+def _state_label(dev):
+    """Display state for the STATE column: Running | Running (headless) | Booting |
+    Unauthorized | Shutdown. Headless is a boot mode, not a stored property, so it can
+    only be shown for a live emulator whose process args are probeable (looks_headless);
+    the marker is best-effort — bug-registry (b) on multi-emulator probing remains open."""
+    if is_running(dev):
+        return "Running (headless)" if looks_headless(dev) else "Running"
+    if is_booting(dev):
+        return "Booting"
+    if is_unauthorized(dev):
+        return "Unauthorized"
+    return "Shutdown"
+
+def _android_await_boot(dev, tries=300):
+    """Poll until THIS avd is attached AND sys.boot_completed==1. Returns its
+    serial (resolved from android_running, so it's right even with several
+    emulators up), or None on timeout."""
+    serial = dev.get("serial") if is_running(dev) else None
+    for _ in range(tries):
+        if not serial:
+            rd = next((d for d in android_running() if d["id"] == dev["id"]), None)
+            serial = rd["serial"] if rd else None
+        if serial:
+            r = run([adb_bin(), "-s", serial, "shell", "getprop", "sys.boot_completed"])
+            if (r.stdout or "").strip() == "1":
+                return serial
+        time.sleep(1)
+    return None
+
+def _android_pm_ready(serial, tries=90):
+    """Layer 3: wait until the package manager answers, so install/launch are safe.
+    sys.boot_completed alone races PM/launcher readiness (see the readiness layers)."""
+    for _ in range(tries):
+        r = run([adb_bin(), "-s", serial, "shell", "cmd", "package", "list", "packages"])
+        if "package:" in (r.stdout or ""):
+            return True
+        time.sleep(1)
+    return False
+
+def host_load_sample(dev, interval=5):
+    """Settled host-side CPU%% for the device's primary process + host loadavg.
+
+    Reads macOS `top` against the qemu/sim PID — it NEVER touches the guest
+    (no adb/simctl), so it does not perturb what it measures (the guest-side
+    observer effect that makes adb/dumpsys spike the emulator). `top -l 2`
+    returns the real interval %% in its 2nd sample. Returns (dev_cpu, sys_load);
+    dev_cpu is None when the process is gone — i.e. a dead/crashed device, which
+    is exactly the overnight-failure signal history table C exists to catch.
+    """
+    pids = android_pids(dev) if dev["kind"] == "android" else pids_matching(dev["id"])
+    try:
+        sys_load = os.getloadavg()[0]
+    except OSError:
+        sys_load = None
+    if not pids:
+        return None, sys_load
+    pid = pids[0]
+    # stdin=DEVNULL so `top` never reaches for a controlling tty (it otherwise
+    # stalls/stops when --monitor runs detached in the background).
+    r = subprocess.run(["top", "-l", "2", "-s", str(interval), "-pid", str(pid),
+                        "-stats", "pid,cpu"], stdout=subprocess.PIPE,
+                       stdin=subprocess.DEVNULL, text=True)
+    cpu = None
+    for line in r.stdout.splitlines():        # keep the LAST match = 2nd (real) sample
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == str(pid):
+            try:
+                cpu = float(parts[1])
+            except ValueError:
+                pass
+    return cpu, sys_load
+
+# ── sync: reconcile DB.devices with the live toolchain ──────────────────────────
+
+def allocate_name(udid):
+    """First-come random human name; persists by udid. Returns name or None.
+    Idempotent: if this udid already owns a pooled name OR already carries a
+    name/user alias, reuse it — never hand a device a SECOND human name (the
+    `--copy` double-name bug: the copy claimed a free name as its alias, then a
+    later sync() auto-allocated another, leaving e.g. both 'Lainey' and 'Esther')."""
+    row = db().execute("SELECT name FROM name_pool WHERE udid=?", (udid,)).fetchone()
+    if row:
+        return row["name"]
+    existing = db().execute(
+        "SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user') "
+        "ORDER BY kind LIMIT 1", (udid,)).fetchone()
+    if existing:
+        return existing["alias"]
+    free = [r["name"] for r in
+            db().execute("SELECT name FROM name_pool WHERE udid IS NULL")]
+    if not free:
+        return None
+    name = random.choice(free)
+    db().execute("UPDATE name_pool SET udid=?, allocated_at=? WHERE name=?",
+                 (udid, now_iso(), name))
+    db().execute("INSERT OR IGNORE INTO aliases(alias,udid,kind,created_at) "
+                 "VALUES (?,?,?,?)", (name, udid, "name", now_iso()))
+    db().commit()
+    return name
+
+def _discover_live(platform=None, flavor=None):
+    """Probe the toolchain for every device it can currently see, SCOPED so an
+    explicit --ios/--android (or --real/--simulated) listing never invokes the
+    other platform's/flavor's tools at all (simctl+xctrace vs adb+emulator).
+
+    Args:
+        platform: None (both) | 'ios' | 'android'.
+        flavor: None (both) | 'real' | 'simulated'.
+
+    Returns:
+        list[dict]: live-device dicts from the un-skipped probes.
+    """
+    devs = []
+    if platform in (None, "ios"):
+        if flavor != "real":
+            devs += ios_devices()
+        if flavor != "simulated":
+            devs += ios_real()
+    if platform in (None, "android"):
+        if flavor != "real":
+            devs += android_all()
+        if flavor != "simulated":
+            devs += android_real()
+    return devs
+
+def _upsert_live_device(d, now):
+    """Insert-or-update one live device's row (INSERT for a first sighting,
+    UPDATE otherwise — personal/claim_* are never clobbered) and auto-allocate
+    its human name. `now` stamps last_seen (+ last_reachable_at for a real
+    phone, which answered a live probe to get here)."""
+    dev_flavor = d.get("flavor", "Simulated")
+    if d["kind"] == "ios":
+        typ, osn = "iOS", "iOS"
+        manuf = d.get("manufacturer", "Apple")
+        model = d.get("model") or d["name"].split(" / ")[0]
+    else:
+        typ, osn = "Android", "AndroidOS"
+        manuf = d.get("manufacturer")
+        model = d.get("model") or d["name"]
+    # Unauthorized = attached but not usable (no adb shell) — don't stamp reachability.
+    reach = now if dev_flavor == "Real" and d["state"] != "Unauthorized" else None
+    api_level = d.get("api_level")
+    ipv4, ipv6 = d.get("ipv4"), d.get("ipv6")
+    res, dens = d.get("resolution"), d.get("density")
+    boot, goog = d.get("boot_option"), d.get("google_support")
+    # Reconciled from disk for AVDs (0/1 → authoritative, fixes drift); None for
+    # iOS/real (COALESCE leaves the row's value untouched).
+    has_boot, boot_win = d.get("has_default_boot"), d.get("default_boot_windowed")
+    existing = db().execute("SELECT udid FROM devices WHERE udid=?",
+                            (d["id"],)).fetchone()
+    if existing:
+        db().execute(
+            "UPDATE devices SET flavor=?, state=?,"
+            " os_version=COALESCE(?,os_version), api_level=COALESCE(?,api_level),"
+            " resolution=COALESCE(?,resolution), density=COALESCE(?,density),"
+            " boot_option=COALESCE(?,boot_option), google_support=COALESCE(?,google_support),"
+            " has_default_boot=COALESCE(?,has_default_boot),"
+            " default_boot_windowed=COALESCE(?,default_boot_windowed),"
+            " display_name=?, manufacturer=COALESCE(?,manufacturer),"
+            " model=COALESCE(?,model), ipv4=COALESCE(?,ipv4), ipv6=COALESCE(?,ipv6),"
+            " last_reachable_at=COALESCE(?,last_reachable_at), present=1,"
+            " last_seen=? WHERE udid=?",
+            (dev_flavor, d["state"], d.get("os_version"), api_level, res, dens,
+             boot, goog, has_boot, boot_win, d["name"], manuf, model, ipv4, ipv6,
+             reach, now, d["id"]))
+    else:
+        db().execute(
+            "INSERT INTO devices(udid,flavor,type,os_name,os_version,api_level,"
+            "resolution,density,boot_option,google_support,has_default_boot,"
+            "default_boot_windowed,manufacturer,model,display_name,ipv4,ipv6,state,"
+            "last_reachable_at,present,first_seen,last_seen) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)",
+            (d["id"], dev_flavor, typ, osn, d.get("os_version"), api_level, res, dens,
+             boot, goog, has_boot or 0, boot_win or 0, manuf, model, d["name"], ipv4,
+             ipv6, d["state"], reach, now, now))
+    # Record every live adb handle this phone answered on (WiFi ip:port ↔ USB serial
+    # ↔ canonical udid), so a later WiFi-only sighting resolves without re-probing.
+    for handle, transport, t_ipv4, port in d.get("transports", []):
+        _record_transport(handle, d["id"], transport, t_ipv4, port, now)
+    allocate_name(d["id"])
+
+def sync(platform=None, flavor=None):
+    """Upsert live devices (sims/emulators AND real phones), auto-allocate names.
+    Sim/emulator devices that vanish are marked present=0; REAL devices persist
+    (present stays 1) and are flipped to state='Offline' when not currently attached —
+    a real phone is still 'a device we own' when unplugged. personal/claim_* are never
+    clobbered by a sync.
+
+    Args:
+        platform: None | 'ios' | 'android' — when set, ONLY that platform is
+            probed, and the vanished-device reconciliation below is scoped to
+            the same platform so the un-probed one is never zeroed out.
+        flavor: None | 'real' | 'simulated' — same idea for the flavor axis.
+    """
+    live = _discover_live(platform, flavor)
+    live_ids = {d["id"] for d in live}
+    now = now_iso()
+    for d in live:
+        _upsert_live_device(d, now)
+    # Reconcile devices that vanished: sims/emulators are gone (present=0); real
+    # phones merely unplugged stay present=1 but show Offline. Each reconciliation
+    # runs only when its flavor was actually probed, and is scoped to the probed
+    # platform — a scoped sync must never zero out what it didn't look at.
+    scope, params = "", []
+    if platform:
+        scope = " AND type=?"
+        params = ["iOS" if platform == "ios" else "Android"]
+    if live_ids:
+        scope += " AND udid NOT IN (" + ",".join("?" * len(live_ids)) + ")"
+        params += list(live_ids)
+    if flavor != "real":
+        db().execute("UPDATE devices SET present=0 WHERE flavor!='Real'" + scope,
+                     tuple(params))
+    if flavor != "simulated":
+        db().execute("UPDATE devices SET state='Offline' WHERE flavor='Real'" + scope,
+                     tuple(params))
+    db().commit()
+    _prune_impossible(platform, flavor, live)
+    return live
+
+def _prune_impossible(platform, flavor, live):
+    """Self-maintenance: delete Simulated devices the toolchain confirms can no longer
+    run — present=0 after a sync that actually probed them (renamed/deleted AVDs, stale
+    transient-serial rows like 'emulator-5554', the old WiFi-misclassified duplicate).
+
+    Guards against mass-deletion on a flaky probe: a platform is pruned only when its
+    toolchain is installed AND this sync actually saw ≥1 live Simulated device of that
+    platform (an empty probe is treated as 'tool hiccup', not 'everything vanished').
+    Real devices are never pruned. Per the schema's 'names outlive devices' invariant,
+    only the device row + its transport cache are removed; aliases / pooled names stay.
+    """
+    if flavor == "real":
+        return []
+    caps = htc.capabilities()
+    seen = {"iOS": 0, "Android": 0}
+    for d in live:
+        if d.get("flavor", "Simulated") != "Real":
+            seen["iOS" if d["kind"] == "ios" else "Android"] += 1
+    plats = []
+    if (platform in (None, "android") and caps.get("adb") and caps.get("emulator")
+            and seen["Android"]):
+        plats.append("Android")
+    if platform in (None, "ios") and caps.get("xcode") and seen["iOS"]:
+        plats.append("iOS")
+    if not plats:
+        return []
+    q = ("SELECT udid, display_name FROM devices WHERE flavor='Simulated' AND "
+         "present=0 AND type IN (%s)" % ",".join("?" * len(plats)))
+    gone = db().execute(q, tuple(plats)).fetchall()
+    for r in gone:
+        db().execute("DELETE FROM devices WHERE udid=?", (r["udid"],))
+        db().execute("DELETE FROM device_transports WHERE udid=?", (r["udid"],))
+        log_history(r["udid"], "pruned", detail=r["display_name"] or r["udid"])
+        narrate(f"pruned {r['display_name'] or r['udid']!r} (no longer in the toolchain)")
+    db().commit()
+    return [r["udid"] for r in gone]
+
+# ── identifier resolution ──────────────────────────────────────────────────────
+
+class ResolveError(Exception):
+    pass
+
+def _enrich(udid, idx) -> "dict | None":
+    """Build a device dict from the live index, falling back to the DB row."""
+    if udid in idx:
+        return idx[udid]
+    row = db().execute("SELECT * FROM devices WHERE udid=?", (udid,)).fetchone()
+    if row:
+        # Not in the live index ⇒ not running ⇒ no live adb handle: serial is None
+        # (the transient handle is meaningless for a device that isn't attached).
+        return {"kind": "ios" if row["type"] == "iOS" else "android",
+                "id": udid, "serial": None, "name": row["display_name"] or udid,
+                "os_version": row["os_version"], "api_level": row["api_level"],
+                "state": row["state"] or "Unknown", "flavor": row["flavor"]}
+    return None
+
+def resolve_many(ident, idx=None) -> "list[dict]":
+    """Resolve an id/alias to device dicts, then DROP any real device that is currently
+    unreachable (don't fail the whole run because one phone is unplugged).
+
+    Args:
+        ident: id/alias text (see _resolve_many_raw for the resolution order).
+        idx: optional live_index() to reuse.
+
+    Returns:
+        list[dict]: the usable (reachable) devices; dropped phones go to stderr.
+
+    Raises:
+        ResolveError: nothing matched, or everything that matched is unreachable.
+    """
+    devs = _resolve_many_raw(ident, idx)
+    kept, dropped = [], []
+    for d in devs:
+        if is_real(d) and not reachable(d):
+            dropped.append(d)
+        else:
+            kept.append(d)
+    for d in dropped:
+        err(f"  ⚠ skipping unreachable real device {d.get('name') or d.get('id')!r}")
+    if devs and not kept:
+        raise ResolveError(f"alias {ident!r}: matching real device(s) are unreachable")
+    return kept
+
+def _resolve_real_group(ident, low, idx) -> "list[dict] | None":
+    """Resolve 'mine'/'real' — COMPUTED groups over real (physical) devices:
+    'mine' = all personal phones, 'real' = all test-pool phones. Computed (not
+    stored) so they naturally cover multiple devices, unlike a single-target
+    stored alias. None when `low` isn't one.
+
+    Raises:
+        ResolveError: the group matched no real devices.
+    """
+    if low not in ("mine", "real"):
+        return None
+    want_personal = 1 if low == "mine" else 0
+    rows = db().execute("SELECT udid FROM devices WHERE flavor='Real' AND present=1 "
+                        "AND personal=?", (want_personal,)).fetchall()
+    out = [d for d in (_enrich(r["udid"], idx) for r in rows) if d]
+    if not out:
+        raise ResolveError(f"alias {ident!r}: no matching real devices")
+    return out
+
+def _resolve_all_group(ident, low, idx) -> "list[dict] | None":
+    """Resolve 'all'/'all-ios'/'all-android' — every present device of the
+    (optional) platform, post --ios/--real filters. None when `low` isn't one.
+
+    Raises:
+        ResolveError: nothing present matches.
+    """
+    if low not in ("all", "all-ios", "all-android"):
+        return None
+    want_type = {"all-ios": "iOS", "all-android": "Android"}.get(low)
+    rows = db().execute("SELECT udid,type FROM devices WHERE present=1").fetchall()
+    out = []
+    for r in rows:
+        if want_type and r["type"] != want_type:
+            continue
+        d = _enrich(r["udid"], idx)
+        if d:
+            out.append(d)
+    out = _apply_filters(out)
+    if not out:
+        raise ResolveError(f"alias {ident!r} matches no present devices")
+    return out
+
+def _resolve_platform_default(low) -> "list[dict] | None":
+    """Resolve the 'ios'/'android' default aliases; None when `low` isn't one.
+
+    Prefer the running device for that platform; if none is running, fall back
+    to the LAST device in the standard listing. >1 running is ambiguous and
+    refused — pass an explicit id/alias (or the runner's --sim) instead.
+
+    Raises:
+        ResolveError: ambiguous (several running) or nothing found at all.
+    """
+    if low not in ("ios", "android"):
+        return None
+    booted = ios_booted() if low == "ios" else android_running()
+    if len(booted) == 1:
+        return booted
+    if len(booted) > 1:
+        what = "sims booted" if low == "ios" else "emulators running"
+        raise ResolveError(f"alias '{low}': {len(booted)} {what} — ambiguous; "
+                           f"pass an explicit id/alias")
+    devs = ios_devices() if low == "ios" else android_all()
+    if devs:
+        return [devs[-1]]
+    kind = "iOS simulators" if low == "ios" else "Android emulators"
+    raise ResolveError(f"alias '{low}': no {kind} found")
+
+def _resolve_last(low, idx) -> "list[dict] | None":
+    """Resolve 'last-ios'/'last-android' from the kv store; None when `low`
+    isn't one.
+
+    Raises:
+        ResolveError: nothing recorded yet, or the recorded device is gone.
+    """
+    kv = {"last-ios": "last_ios", "last-android": "last_android"}.get(low)
+    if not kv:
+        return None
+    udid = kv_get(kv)
+    if not udid:
+        raise ResolveError(f"no {low} recorded yet")
+    d = _enrich(udid, idx)
+    if not d:
+        raise ResolveError(f"{low} {udid} no longer exists")
+    return [d]
+
+def _resolve_stored_alias(a, idx) -> "list[dict] | None":
+    """Resolve a stored alias (human name, -a user alias, UDID altname),
+    case-insensitively. None (fall through to raw-identifier resolution) when
+    the alias is unknown OR every bound udid enriches to nothing."""
+    rows = db().execute("SELECT udid FROM aliases WHERE alias=? COLLATE NOCASE",
+                        (a,)).fetchall()
+    out = [d for d in (_enrich(r["udid"], idx) for r in rows) if d]
+    return out or None
+
+def _resolve_raw_ident(ident, a, idx) -> "list[dict]":
+    """Resolve a raw identifier — a 36-char iOS UUID (parens/spaces trimmed,
+    strictly validated) or an Android AVD name. The end of the resolution chain.
+
+    Raises:
+        ResolveError: malformed UUID, or the identifier names nothing.
+    """
+    trimmed = a.replace("(", "").replace(")", "").replace(" ", "")
+    if "-" in trimmed and re.fullmatch(r"[0-9A-Fa-f-]+", trimmed):
+        if len(trimmed) != 36 or not UUID_RE.fullmatch(trimmed):
+            raise ResolveError(f"invalid iOS UUID (must be 36 chars): {trimmed!r}")
+        d = _enrich(trimmed, idx)
+        if not d:
+            raise ResolveError(f"unknown iOS device: {trimmed}")
+        return [d]
+    # android AVD name
+    d = idx.get(trimmed) or _enrich(trimmed, idx)
+    if d:
+        return [d]
+    raise ResolveError(f"unknown identifier: {ident!r}")
+
+def _resolve_many_raw(ident, idx=None) -> "list[dict]":
+    """Resolve an id/alias to a list of device dicts (no reachability drop).
+
+    Resolution order: 'loop' indirection → computed groups (mine/real/all*) →
+    platform defaults (ios/android) → last-ios/last-android → stored aliases →
+    raw identifier (UUID / AVD name). Each stage returns None to pass to the
+    next, raises ResolveError to refuse with a specific message.
+
+    Args:
+        ident: the id/alias text as the user typed it.
+        idx: optional live_index() result to reuse (avoids re-probing).
+
+    Returns:
+        list[dict]: one or more device dicts.
+
+    Raises:
+        ResolveError: nothing (usable) matched; message says why.
+    """
+    if idx is None:
+        idx = live_index()
+    a = ident.strip()
+    low = a.lower()
+    if low == "loop":
+        return resolve_many(kv_get("default_loop", "default"), idx)
+    for attempt in (lambda: _resolve_real_group(ident, low, idx),
+                    lambda: _resolve_all_group(ident, low, idx),
+                    lambda: _resolve_platform_default(low),
+                    lambda: _resolve_last(low, idx),
+                    lambda: _resolve_stored_alias(a, idx)):
+        found = attempt()
+        if found:
+            return found
+    return _resolve_raw_ident(ident, a, idx)
+
+def resolve_one(ident, idx=None) -> "dict":
+    return resolve_many(ident, idx)[0]
+
+def resolve_one_raw(ident, idx=None) -> "dict":
+    """Like resolve_one but WITHOUT the reachability drop — for offline metadata
+    queries (kind-of / flavor-of) that must answer even for an unplugged real device."""
+    return _resolve_many_raw(ident, idx)[0]
+
+def touch(dev):
+    """Record dev as its platform's last-used device (kv last_ios/last_android)
+    and stamp devices.last_used. (The platform-agnostic `last` was removed —
+    too ambiguous; callers must say last-ios / last-android explicitly.)"""
+    kv_set("last_ios" if dev["kind"] == "ios" else "last_android", dev["id"])
+    _device_set(dev["id"], last_used=now_iso())
+
+def aliases_for(udid):
+    return [r["alias"] for r in
+            db().execute("SELECT alias FROM aliases WHERE udid=? ORDER BY kind", (udid,))]
+
+# ── host profile + emulator launch tuning ──────────────────────────────────────
+
+def _sysctl(key, cast: Callable[[str], Any] = str, default=None):
+    r = subprocess.run(["sysctl", "-n", key], stdout=subprocess.PIPE,
+                       stderr=subprocess.DEVNULL, text=True)
+    val = (r.stdout or "").strip()
+    if not val:
+        return default
+    try:
+        return cast(val)
+    except ValueError:
+        return default
+
+def host_profile():
+    """Detect + persist this machine's specs (table F) so emulator launch flags
+    can travel to a faster machine later — cores/memory are tuned per host."""
+    hostname = platform.node() or "localhost"
+    prof = {
+        "hostname": hostname,
+        "arch": platform.machine(),
+        "cpu_brand": _sysctl("machdep.cpu.brand_string", str, "unknown"),
+        "logical_cores": _sysctl("hw.logicalcpu", int, os.cpu_count() or 1),
+        "physical_cores": _sysctl("hw.physicalcpu", int, os.cpu_count() or 1),
+        "mem_gb": round((_sysctl("hw.memsize", int, 0) or 0) / 1024 ** 3, 1),
+        "os_version": platform.mac_ver()[0] or platform.release(),
+    }
+    db().execute(
+        "INSERT INTO hosts(hostname,arch,cpu_brand,logical_cores,physical_cores,"
+        "mem_gb,os_version,updated_at) VALUES (?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(hostname) DO UPDATE SET arch=excluded.arch,"
+        "cpu_brand=excluded.cpu_brand,logical_cores=excluded.logical_cores,"
+        "physical_cores=excluded.physical_cores,mem_gb=excluded.mem_gb,"
+        "os_version=excluded.os_version,updated_at=excluded.updated_at",
+        (prof["hostname"], prof["arch"], prof["cpu_brand"], prof["logical_cores"],
+         prof["physical_cores"], prof["mem_gb"], prof["os_version"], now_iso()))
+    db().commit()
+    return prof
+
+def recommended_cores():
+    """Physical cores minus headroom for the host + this CLI, clamped to [2,8]."""
+    phys = host_profile()["physical_cores"] or (os.cpu_count() or 4)
+    return max(2, min(8, phys - 2))
+
+def recommended_memory_mb():
+    """Judicious guest RAM bump: more cuts in-guest GC/paging (helps when the
+    guest is memory-starved), but does NOT relieve host-CPU starvation."""
+    gb = host_profile()["mem_gb"] or 8
+    if gb >= 32:
+        return 4096
+    if gb >= 16:
+        return 3072
+    return 2048
+
+def emulator_flags(headless=False, writable=False, cold=False):
+    """Android launch flags: -gpu auto picks the best renderer for the host,
+    -no-boot-anim/-no-audio trim startup, -cores/-memory are host-tuned. Headless
+    adds -no-window -read-only (parallel CI instances). writable=True is for --bake
+    ONLY: it is the one caller allowed to write the default_boot snapshot. cold=True
+    adds -no-snapshot-load (skip quick-boot — a fresh boot)."""
+    # GPU mode is always `auto` (see gpu_default()): swiftshader_indirect is deprecated
+    # (emulator 36.4.9, Feb 2026) and `-gpu host` failed to render the RN Fabric app on
+    # this Intel/Radeon Mac. `auto` lets the emulator select the best backend.
+    flags = ["-no-boot-anim", "-no-audio", "-gpu", gpu_default(),
+             "-cores", str(recommended_cores()),
+             "-memory", str(recommended_memory_mb())]
+    # BUG-REGISTRY:i [FIXED 2026-07-08] — every non-bake start passes -no-snapshot-save:
+    # the session still quick-boot LOADS default_boot but a dirty exit can no longer
+    # overwrite the baked snapshot (which would silently destroy an overnight --bake).
+    if not writable:
+        flags += ["-no-snapshot-save"]
+    # NB: -no-window makes screencap/takeScreenshot return BLACK pixels here (tests
+    # still pass — Maestro asserts on the a11y tree — but visual artifacts are useless).
+    if headless:
+        flags += ["-no-window"] + ([] if writable else ["-read-only"])
+    # A cold boot (skip quick-boot) is forced when there is no snapshot SAFE to load in
+    # this window mode: a headless-baked default_boot restored WINDOWED renders nothing,
+    # so a windowed --start cold-boots UNLESS the snapshot was itself baked windowed
+    # (--bake:windowed). The caller decides `cold` (see _boot_android / bake_optimizations).
+    if cold:
+        flags += ["-no-snapshot-load"]
+    return flags
+
+def _windowed_start_is_cold(dev):
+    """A WINDOWED --start must cold-boot (no visible screen otherwise) UNLESS a
+    WINDOWED default_boot snapshot exists to quick-boot — then it loads that (fast AND
+    visible). See --bake:windowed. Returns True ⇒ add -no-snapshot-load."""
+    row = _device_row(dev["id"])
+    has_windowed_snapshot = bool(row and row["has_default_boot"]
+                                 and row["default_boot_windowed"])
+    return not has_windowed_snapshot
+
+def gpu_default():
+    # BUG-REGISTRY:a — the old code forced `-gpu swiftshader_indirect`, deprecated in
+    # emulator 36.4.9 (Feb 2026). `auto` is the standing decision (both this launch flag
+    # AND the AVD config.ini default via normalize_gpu_config()). Do not reintroduce a
+    # specific renderer without falsifying `auto`.
+    return "auto"
+
+
+def _emulator_log_path(avd):
+    """Per-AVD emulator stdout/stderr log, overwritten each boot. Lives in the
+    repo's tmp/ (git/Time-Machine/Spotlight-excluded), so the messages the
+    emulator UI only flashes as a vanishing growler — snapshot fallbacks, GPU
+    selection, 'starting from scratch' reasons — stay retrievable afterwards."""
+    d = REPO / "tmp" / "emulator"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{avd}.log"
+
+def _android_start(dev, flags):
+    if dev["id"] not in android_avds():
+        err(f"start: unknown AVD {dev['id']!r}")
+        return False
+    log_path = _emulator_log_path(dev["id"])
+    with open(log_path, "w") as lf:
+        subprocess.Popen([emulator_bin(), "-avd", dev["id"]] + flags,
+                         stdout=lf, stderr=subprocess.STDOUT,
+                         start_new_session=True)
+    narrate(f"  emulator output → {log_path}")
+    return True
+
+def _snapshot_boot_outcome(avd):
+    """What the emulator ACTUALLY did about default_boot on its last boot, read
+    from the teed log (_emulator_log_path):
+      ('quick', None)    — the snapshot loaded.
+      ('cold', reason)   — load failed/rejected; emulator started from scratch
+                           (reason = the emulator's own explanation, e.g.
+                           'different renderer configured', 'different AVD
+                           configuration' — a clone's inherited snapshot).
+      (None, None)       — undetermined: no log, or a boot that never attempted
+                           a load (-no-snapshot-load).
+    A 'Loading snapshot' line with no subsequent failure/scratch line counts as
+    a successful load — the emulator prints no explicit success line."""
+    try:
+        text = _emulator_log_path(avd).read_text(errors="replace")
+    except OSError:
+        return None, None
+    m = re.search(r"starting from scratch\.?\s*Reason:\s*(.+)", text)
+    if m:
+        return "cold", m.group(1).strip()
+    if re.search(r"Failed to load snapshot 'default_boot'", text):
+        return "cold", "snapshot load failed"
+    if re.search(r"Loading snapshot 'default_boot'", text):
+        return "quick", None
+    return None, None
+
+def _reconcile_snapshot_outcome(dev):
+    """Post-start snapshot validation (2026-08-06, Travis): trust what the
+    emulator DID, not what the DB expects. A silent cold-boot fallback while the
+    DB says baked ⇒ warn loudly, record history, and set kv snapshot_stale:<udid>
+    (surfaced as a trailing '!' on the Ready/Optimized marker). A confirmed
+    quick-boot (or a later successful --bake) clears the flag."""
+    outcome, reason = _snapshot_boot_outcome(dev["id"])
+    row = _device_row(dev["id"])
+    if outcome == "cold" and row and row["has_default_boot"]:
+        nerr(f"warning: {dev['name']}: default_boot snapshot did NOT load — the "
+             f"emulator cold-booted from scratch ({reason}). The bake's quick-boot "
+             f"benefit is not being applied; re-bake with --bake[:windowed] "
+             f"(AOT compile state persists and needs no redo).")
+        log_history(dev["id"], "snapshot-fallback", detail=reason)
+        kv_set(f"snapshot_stale:{dev['id']}", reason or "cold-boot fallback")
+    elif outcome == "quick":
+        kv_del(f"snapshot_stale:{dev['id']}")
+
+# ── commands ───────────────────────────────────────────────────────────────────
+
+def _system_alias_map(live=None):
+    """udid -> computed system aliases (last-ios/last-android, plus the
+    ios/android defaults when exactly one sim/emulator is running).
+
+    Args:
+        live: optional pre-probed live-device list; when given, the ios/android
+            defaults derive from it instead of re-probing the toolchain (the -r
+            fast path). Real phones never hold a platform default.
+    """
+    m = {}
+    if kv_get("last_ios"):
+        m.setdefault(kv_get("last_ios"), []).append("last-ios")
+    if kv_get("last_android"):
+        m.setdefault(kv_get("last_android"), []).append("last-android")
+    b, r = _running_singletons(live)
+    if len(b) == 1:
+        m.setdefault(b[0]["id"], []).append("ios")
+    if len(r) == 1:
+        m.setdefault(r[0]["id"], []).append("android")
+    return m
+
+def _running_singletons(live):
+    """(booted iOS sims, running Android emulators) — the candidate holders of
+    the ios/android default aliases — from a pre-probed live list, or fresh
+    toolchain probes when live is None."""
+    if live is None:
+        return ios_booted(), android_running()
+    sims = [d for d in live if d.get("flavor") != "Real"]
+    return ([d for d in sims if d["kind"] == "ios" and is_running(d)],
+            [d for d in sims if d["kind"] == "android" and is_running(d)])
+
+def all_aliases_for(udid, sysmap):
+    return sysmap.get(udid, []) + aliases_for(udid)
+
+def _alias_summary(dev):
+    """Rich device handle for start/summary lines: 'Skylar, ios, iPhone Air' —
+    the humanized pool name FIRST, then the other aliases (the last-ios/
+    last-android bookkeeping aliases are derivable noise and omitted), then the
+    hardware/display model. Deduped, order-preserving."""
+    row = _device_row(dev["id"])
+    human = [r["alias"] for r in db().execute(
+        "SELECT alias FROM aliases WHERE udid=? AND kind='name'", (dev["id"],))]
+    parts = []
+    for a in human + all_aliases_for(dev["id"], _system_alias_map()):
+        if a and a not in parts and a not in ("last-ios", "last-android"):
+            parts.append(a)
+    model = _display_short(dev, row)
+    if model and model not in parts:
+        parts.append(model)
+    return ", ".join(parts)
+
+def _maestro_id(dev):
+    """The id Maestro's --device wants: adb serial for a running Android emulator,
+    UDID for an iOS sim. None for an Android device that isn't running yet (no serial)."""
+    if dev["kind"] == "android":
+        return dev.get("serial")
+    return dev["id"]
+
+def _probe_running():
+    """The -r live-probe set: booted/booting iOS sims, running Android
+    emulators/VMs, mid-boot AVDs (emulator process up, adb not yet 'device'),
+    and adb-attached real phones. Scoped at the PROBE level by the active
+    --ios/--android/--real/--simulated filters, so e.g. --android never
+    touches simctl and --ios never touches adb."""
+    devs = []
+    if FILTER_PLATFORM in (None, "ios") and FILTER_FLAVOR != "real":
+        devs += [d for d in ios_devices() if is_live(d)]
+    if FILTER_PLATFORM in (None, "android"):
+        devs += _probe_running_android()
+    return devs
+
+def _probe_running_android():
+    """The Android half of _probe_running: running emulators/VMs + mid-boot
+    AVDs (unless --real) and adb-attached phones (unless --simulated)."""
+    devs = []
+    if FILTER_FLAVOR != "real":
+        running = android_running()
+        devs += running
+        for name in android_booting_names({d["id"] for d in running}):
+            devs.append({"kind": "android", "id": name, "serial": None,
+                         "name": name, "os_version": _avd_os_version(name),
+                         "state": "Booting"})
+    if FILTER_FLAVOR != "simulated":
+        devs += android_real()
+    return devs
+
+def cmd_running(verbose=False):
+    """Running (or mid-boot) devices only — same renderer + verbose behaviour as --list,
+    just filtered to the live set (issue: running must share list's output code).
+
+    2026-07-19 (Travis): -r is LIVE PROBES ONLY. It queries just what can be
+    running (simctl list, adb devices, the mid-boot ps scan) and skips the full
+    --list machinery: no sync() DB reconciliation, no xctrace real-iOS probe
+    (seconds-slow and list-only anyway), no host_profile(). Shutdown devices'
+    on-disk state is never consulted.
+
+    Args:
+        verbose: dump the full per-device record (TSV) instead of the table.
+
+    Returns:
+        int: 0 (an empty live set prints 'No running devices').
+    """
+    live = _apply_filters(_probe_running())
+    if not live:
+        print("No running devices")
+        return 0
+    sysmap = _system_alias_map(live)
+    sections = [("RUNNING", live)]
+    if verbose:
+        _list_long(sections, sysmap)
+        return 0
+    _render_short(sections, live, sysmap)
+    return 0
+
+# ── --list rendering ─────────────────────────────────────────────────────────────
+_USE_COLOR = sys.stdout.isatty()
+# "Headless" column dropped 2026-06-26; since 2026-07-08 headless is a user-facing
+# mode again (--start:headless) and is surfaced as a State suffix — see _state_label.
+# The probe stays best-effort (bug-registry b/e remain open).
+# Non-verbose columns. The identifier (devices.udid) is second and always shown —
+# labeled per platform group: 'UDID' for iOS, 'Serial' for Android (see _id_header).
+SHORT_HEADERS = ["Name", "Serial/UDID", "Kind", "Device", "State", "Ready", "Last Used"]
+# AVAILABLE renames Kind→OS / Ready→Optimized and DROPS State (2026-08-04, Travis):
+# a shutdown device's state says nothing; State stays in RUNNING where it varies
+# (Running / Running (headless) / Booting / Unauthorized).
+AVAILABLE_HEADERS = ["Name", "Serial/UDID", "OS", "Device", "Optimized", "Last Used"]
+ID_COL = 1              # index of the Serial/UDID column in _short_cells
+DEVICE_COL = 3          # index of the Device column in _short_cells
+STATE_COL = 4           # index of the State column in _short_cells (dropped in AVAILABLE)
+NAME_CAP = 16           # non-verbose cap for the primary-name (shortest alias) column
+ID_CAP = 16             # non-verbose cap for the Serial/UDID column (UUIDs middle-elide)
+DEVICE_CAP = 16         # non-verbose cap for the Device (model) name
+LINE_WIDTH = 120        # target max width for a rendered row
+ALIAS_COLOR = (1, 31)   # bold red — same for Running and Available (Available's was nicer)
+ID_COLOR = (1,)         # bold — the Serial/UDID value stays prominent
+PLATFORM_ORDER = ["iOS", "Android", "Genymotion"]
+
+def _cap(s, n=DEVICE_CAP):
+    """Truncate to n chars with a trailing … (U+2026). Non-verbose display only."""
+    return s if len(s) <= n else s[: n - 1] + "…"
+
+def _mid(s, n):
+    """Middle-elide to n chars ('8020A3AC-…-870188656C0A') so a long UUID keeps its
+    distinguishing head AND tail. End-truncates when n is too small to split."""
+    if len(s) <= n:
+        return s
+    if n <= 3:
+        return s[:n]
+    head = (n - 1) // 2
+    tail = n - 1 - head
+    return s[:head] + "…" + s[len(s) - tail:]
+
+def _fmt_id(value, n):
+    """Non-verbose id cell: middle-elide a UUID-shaped id (keep its distinguishing
+    head AND tail), else end-truncate — AVD names / adb serials read left-to-right."""
+    value = value or ""
+    return _mid(value, n) if UUID_RE.fullmatch(value) else _cap(value, n)
+
+def _id_label(plat):
+    """The per-platform label for the identifier column: iOS is a UDID, Android
+    (emulator adb serial or a real phone's hardware serial) is labeled Serial."""
+    return "UDID" if plat == "iOS" else "Serial"
+
+def _serial_or_id(d):
+    """Value for the Serial/UDID column.
+      iOS               → UDID (stable udid).
+      Android REAL      → the hardware serial (udid) — stable across USB/WiFi, NOT the
+                          transient 'ip:port' WiFi handle.
+      Android emulator  → the live adb serial when running ('emulator-5554'), else the
+                          AVD name (udid) when shut down.
+    Fixes both a running AVD showing its name and a WiFi phone showing 'ip:port'."""
+    if d["kind"] == "android" and d.get("flavor") != "Real":
+        return d.get("serial") or d["id"]
+    return d["id"]
+
+def _visible_platforms():
+    """Platform sections to render, honoring the active --ios/--android filter so the
+    other platform is omitted ENTIRELY (no empty 'iOS / No devices available' block)."""
+    if FILTER_PLATFORM == "ios":
+        return ["iOS"]
+    if FILTER_PLATFORM == "android":
+        return ["Android", "Genymotion"]
+    return PLATFORM_ORDER
+
+def _shortest_alias(udid, sysmap):
+    """The Name cell: the shortest NON-system alias (its friendliest handle),
+    else the udid. Ties break alphabetically for stability.
+
+    2026-08-04 (Travis): the computed system aliases never show as a device's
+    NAME — 'ios' used to beat 'Melody' on length, so starting a sim renamed its
+    row to 'ios' until another start moved the alias on. The ios/android
+    default-holder is marked with a trailing '*' instead; last-ios/last-android
+    are pure bookkeeping and get no marker."""
+    al = all_aliases_for(udid, sysmap)
+    named = [a for a in al if a not in ("ios", "android", "last-ios", "last-android")]
+    base = min(named, key=lambda a: (len(a), a)) if named else udid
+    return base + ("*" if ("ios" in al or "android" in al) else "")
+
+def _c(s, *codes):
+    """ANSI-wrap s (no-op when stdout isn't a TTY, so pipes/captures stay clean)."""
+    if not _USE_COLOR or not codes:
+        return s
+    return f"\033[{';'.join(str(x) for x in codes)}m{s}\033[0m"
+
+def _device_row(udid):
+    return db().execute("SELECT * FROM devices WHERE udid=?", (udid,)).fetchone()
+
+def _is_genymotion(d):
+    # A real phone on WiFi also has an ip:port handle, so flavor='Real' is never
+    # Genymotion — only a Simulated ip:port device is.
+    return (d["kind"] == "android" and d.get("flavor") != "Real"
+            and bool(d.get("serial"))
+            and bool(re.match(r"^[\w.-]+:\d+$", d["serial"])))
+
+def _platform_of(d):
+    if d["kind"] == "ios":
+        return "iOS"
+    return "Genymotion" if _is_genymotion(d) else "Android"
+
+def _flavor_label(d, row):
+    """Combined Flavor/Type/OS, e.g. 'iOS / 26.5', 'Android', 'Native iOS'.
+    'Simulated' is dropped (nearly every row is it); 'iOS ' stripped from version."""
+    flavor = (row["flavor"] if row else None) or "Simulated"
+    typ = _platform_of(d)
+    label = (f"{flavor} " if flavor != "Simulated" else "") + typ
+    ver = d.get("os_version") or (row["os_version"] if row else None)
+    if ver:
+        label += f" / {ver}"
+    return label
+
+def _display_short(d, row):
+    # Real devices: the Device column shows the HARDWARE model ('iPhone 14 Pro',
+    # 'moto g play - 2024') — the personal device name ('Schmante') stays in
+    # display_name/aliases. Sims/AVDs keep display_name (model == name there).
+    if (d.get("flavor") or (row["flavor"] if row else None)) == "Real":
+        model = d.get("model") or (row["model"] if row else None)
+        if model:
+            return model
+    # Personal display names pack the OS after a ' / ' — show only the model half.
+    name = (row["display_name"] if row else None) or d.get("name") or ""
+    return name.split(" / ")[0].strip()
+
+def _ready_marker(d, row):
+    """Hybrid liveness + bake (Travis). 2026-07-08 semantics: only --bake writes the
+    default_boot snapshot and only --bake compiles, so the marker reads as what the
+    NEXT boot buys you: 'baked/hot' (snapshot + AOT level), 'baked' (snapshot only),
+    'compiled/<lvl>' (AOT artifacts in /data but no snapshot — e.g. a failed re-bake),
+    'live' for a running-but-unbaked device, else blank. A running device therefore
+    never reads blank, without any per-device boot_completed probing."""
+    lvl = row["compile_level"] if row else None
+    baked = row["has_default_boot"] if row else None
+    win = "+win" if (row and baked and row["default_boot_windowed"]) else ""
+    # '!' = the last start proved this snapshot does NOT load (cold-boot
+    # fallback; see _reconcile_snapshot_outcome) — the bake needs redoing.
+    if baked and kv_get(f"snapshot_stale:{d.get('id')}"):
+        win += "!"
+    if lvl and baked:
+        return f"baked/{lvl}{win}"
+    if baked:
+        return f"baked{win}"
+    if lvl:
+        return f"compiled/{lvl}"
+    return "live" if is_running(d) else ""
+
+def _relative_last_used(row):
+    """Coarse, human relative time for the Last Used column when the device was used
+    within the last 7 days; absolute DATE-ONLY (YYYY-MM-DD, 2026-08-04 Travis: time of
+    day is noise at that age) beyond that. Time-of-day phrasing keys off the LOCAL
+    clock at the time of use.
+
+      ≤ 50 min ago                  → "within the hour"
+      ≤ 18 h ago (same local day)   → "this morning/afternoon/evening", "early this morning"
+      ≤ 18 h ago (crossed midnight) → "last evening", "yesterday morning/afternoon", …
+      > 18 h ago, ≤ 1 calendar day  → "Today" / "Yesterday"
+      2+ days                       → absolute date (weekday names dropped 2026-08-04)
+
+    NOTE (underspecified in the request, decided here): the 50–90 min band folds into the
+    "this <time-of-day>" bucket (no gap), and the dangling ">3 hours ago" rule is omitted
+    as it conflicts with the 18 h day-naming boundary."""
+    iso = (row["last_used"] if row else None)
+    if not iso:
+        return ""
+    try:
+        t = datetime.fromisoformat(iso)
+    except ValueError:
+        return iso.replace("T", " ")[:10]
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    secs = (now - t).total_seconds()
+    if secs < 0:
+        return "just now"
+    tl, nl = t.astimezone(), now.astimezone()        # local for clock-of-day + calendar day
+    if secs > 7 * 86400:
+        return tl.strftime("%Y-%m-%d")
+    label = _coarse_when(secs, (nl.date() - tl.date()).days, tl)
+    if label is None:
+        return tl.strftime("%Y-%m-%d")
+    # Within the last 24h, pin the coarse phrase to an exact local clock time (Travis): the
+    # relative bucket says roughly when, the appended (HH:MM) says exactly when.
+    if secs <= 24 * 3600:
+        label += f" ({tl.strftime('%H:%M')})"
+    return label
+
+def _coarse_when(secs, days, tl):
+    """The coarse bucket phrase for _relative_last_used (no exact-time suffix).
+
+    Args:
+        secs: age of the event in seconds (>= 0).
+        days: local calendar days crossed since the event.
+        tl: the event's LOCAL datetime (time-of-day phrasing keys off it).
+
+    Returns:
+        str | None: the phrase, or None when only an absolute timestamp fits.
+    """
+    if secs <= 50 * 60:
+        return "within the hour"
+    if secs <= 18 * 3600:
+        part = _day_part(tl.hour)
+        if days == 0:
+            return "early this morning" if part == "early morning" else f"this {part}"
+        if part == "evening":
+            return "last evening"
+        return ("early yesterday morning" if part == "early morning"
+                else f"yesterday {part}")
+    if days == 0:
+        return "Today"
+    if days == 1:
+        return "Yesterday"
+    # 2+ days: weekday names ('Wednesday' for 6 days ago) read as near-past and
+    # are wrong-feeling in every context (2026-08-04, Travis) — absolute date.
+    return None
+
+def _day_part(hour):
+    """'early morning' | 'morning' | 'afternoon' | 'evening' for a local hour."""
+    return ("early morning" if hour < 5 else "morning" if hour < 12
+            else "afternoon" if hour < 18 else "evening")
+
+def _short_cells(d, sysmap):
+    """Non-verbose row cells, matching SHORT_HEADERS:
+    Name (shortest alias) · Serial/UDID (devices.udid) · Kind · Device · State ·
+    Ready · Last Used. The id is raw here; the renderer middle-elides it."""
+    row = _device_row(d["id"])
+    return [_shortest_alias(d["id"], sysmap), _serial_or_id(d),
+            _flavor_label(d, row), _display_short(d, row),
+            _state_label(d), _ready_marker(d, row), _relative_last_used(row)]
+
+def _os_version_key(d, row):
+    """Numeric sort key for an OS version ('26.5' → (26, 5), '14' → (14,)).
+    Unknown/unparseable versions sort as (-1,) — last under the descending order."""
+    ver = d.get("os_version") or (row["os_version"] if row else None) or ""
+    nums = tuple(int(x) for x in re.findall(r"\d+", ver))
+    return nums or (-1,)
+
+def _order_within(devs):
+    """Within a platform: DESCENDING OS version, then DESCENDING Device name
+    (2026-08-04, Travis — replaces the old default-alias-first / name-ascending rule).
+    udid is the final tiebreaker so the order is deterministic."""
+    def key(d):
+        row = _device_row(d["id"])
+        return (_os_version_key(d, row), _display_short(d, row).lower(), d["id"])
+    return sorted(devs, key=key, reverse=True)
+
+_LONG_HEADS = ["Name", "Device", "Kind", "State", "Ready", "Last Used"]
+
+def _print_wrapped(prefix, items, width=LINE_WIDTH):
+    """Print `items` after `prefix`, comma-joined, wrapping at `width` with a hanging
+    indent the width of the prefix. Empty items → just the (stripped) prefix line."""
+    indent = " " * len(prefix)
+    if not items:
+        print(prefix.rstrip())
+        return
+    line = prefix + items[0]
+    for it in items[1:]:
+        if len(line) + 2 + len(it) > width:
+            print(line + ",")
+            line = indent + it
+        else:
+            line += ", " + it
+    print(line)
+
+def _screen_detail(row):
+    """Verbose Android screen/boot/system-image fragments (colored) from a device row:
+    'WxH (px)', 'D.d in / C.c cm', boot option (green Quick / red Cold-slow), Google
+    support (red Full-slow / APIs only / None-Android only). [] when nothing is known."""
+    if not row:
+        return []
+    parts = []
+    res = row["resolution"]
+    if res:
+        parts.append(f"{res} (px)")
+        m = re.match(r"(\d+)x(\d+)$", res)
+        if m and row["density"]:
+            w, h, dpi = int(m.group(1)), int(m.group(2)), row["density"]
+            diag = ((w * w + h * h) ** 0.5) / dpi
+            parts.append(f"{diag:.1f} in / {diag * 2.54:.1f} cm")
+    boot = row["boot_option"]
+    if boot == "Cold Boot":
+        parts.append(_c("Cold Boot - slow", 31))
+    elif boot == "Quick Boot":
+        parts.append(_c("Quick Boot", 32))
+    goog = row["google_support"]
+    if goog == "Full":
+        parts.append(_c("Full -- slow", 31))
+    elif goog == "ATD":
+        parts.append(_c("ATD -- headless (black windowed)", 31))
+    elif goog == "APIs only":
+        parts.append("APIs only")
+    elif goog == "None":
+        parts.append("None -- Android only")
+    return parts
+
+def _print_detail_rows(d, plat, sysmap):
+    """Row 2 (+3/4): the prominent Serial/UDID leftmost + a real device's last-seen
+    ipv4, then (Android) the screen/boot/Google line, then every alias (wrapping). The
+    identifier leads so it is visible verbose or not."""
+    row = _device_row(d["id"])
+    id_line = f"      {_id_label(plat)} " + _c(_serial_or_id(d), *ID_COLOR)
+    ip = (row["ipv4"] if row else None) or d.get("ipv4")
+    if ip:
+        id_line += f"   ipv4 {ip}"
+    print(id_line)
+    screen = _screen_detail(row)
+    if screen:
+        print("      " + "   ".join(screen))
+    _print_wrapped("      aliases: ", all_aliases_for(d["id"], sysmap))
+
+def _list_long(sections, sysmap):
+    """Verbose: a readable 2–3 row block per device (was a dense TSV dump). Row 1 is
+    the aligned summary; the detail rows (see _print_detail_rows) lead with the
+    prominent Serial/UDID and list every alias. Grouped Section → Platform."""
+    for label, devs in sections:
+        print(_c(label, 1))
+        for plat in _visible_platforms():
+            pdevs = [d for d in devs if _platform_of(d) == plat]
+            if plat == "Genymotion" and not pdevs:
+                continue
+            print("  " + _c(plat, 4))
+            if not pdevs:
+                print("    No devices available")
+                continue
+            ordered = _order_within(pdevs)
+            r1 = {d["id"]: _long_row1(d, sysmap) for d in ordered}
+            widths = _table_widths(_LONG_HEADS, r1.values())
+            print("    " + _c("  ".join(h.ljust(widths[i])
+                                        for i, h in enumerate(_LONG_HEADS)), 2))
+            for d in ordered:
+                cells = [c.ljust(widths[i]) for i, c in enumerate(r1[d["id"]])]
+                cells[0] = _c(cells[0], *ALIAS_COLOR)
+                print("    " + "  ".join(cells))
+                _print_detail_rows(d, plat, sysmap)
+        print()
+
+def _long_row1(d, sysmap):
+    """Row-1 summary cells for the verbose block (see _LONG_HEADS)."""
+    row = _device_row(d["id"])
+    return [_shortest_alias(d["id"], sysmap), _display_short(d, row),
+            _flavor_label(d, row), _state_label(d), _ready_marker(d, row),
+            _relative_last_used(row)]
+
+def _table_widths(headers, rows):
+    """Column widths sized to a header row plus every data row's cells.
+    Shared by the short device table and the --history table."""
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, c in enumerate(row):
+            widths[i] = max(widths[i], len(c))
+    return widths
+
+def _section_layout(section):
+    """(headers, cell-column indexes) for a section of the short table. AVAILABLE
+    drops State and renames Kind→OS / Ready→Optimized; everything else (RUNNING)
+    shows the full SHORT_HEADERS set. Cell indexes select from _short_cells."""
+    if section == "AVAILABLE":
+        return AVAILABLE_HEADERS, (0, 1, 2, 3, 5, 6)
+    return SHORT_HEADERS, (0, 1, 2, 3, 4, 5, 6)
+
+def _print_platform_group(devs, plat, plain, widths, section):
+    """One platform block within a section: colored platform line, a column header
+    whose id label is platform-specific (UDID / Serial), then the ordered device rows
+    (Name + Serial/UDID cells colored so the identifier stays prominent). The column
+    set is per-section (see _section_layout); widths are shared across sections so
+    the common columns stay aligned."""
+    print("  " + _c(plat, 4))
+    if not devs:
+        print("    No devices available")
+        return
+    hdrs, cols = _section_layout(section)
+    hdrs = list(hdrs)
+    hdrs[ID_COL] = _id_label(plat)
+    print(("    " + _c("  ".join(h.ljust(widths[c])
+                                 for h, c in zip(hdrs, cols)), 2)).rstrip())
+    for d in _order_within(devs):
+        cells = [plain[d["id"]][c].ljust(widths[c]) for c in cols]
+        cells[0] = _c(cells[0], *ALIAS_COLOR)
+        cells[ID_COL] = _c(cells[ID_COL], *ID_COLOR)
+        print(("    " + "  ".join(cells)).rstrip())
+
+def _render_short(sections, universe, sysmap):
+    """Shared short-table renderer for `--list` and `--running` (issue: they must be the
+    same output code, just filtered). `universe` = every device shown (for column widths).
+    Caps Name/Serial-UDID/Device per column (non-verbose only; UUIDs middle-elide); the
+    id column header is filled in per platform group by _print_platform_group."""
+    plain = {}
+    for d in universe:
+        cells = _short_cells(d, sysmap)
+        cells[0] = _cap(cells[0], NAME_CAP)
+        cells[ID_COL] = _fmt_id(cells[ID_COL], ID_CAP)
+        cells[DEVICE_COL] = _cap(cells[DEVICE_COL], DEVICE_CAP)
+        plain[d["id"]] = cells
+    # Size widths to the data and to EVERY header variant a column can carry:
+    # the id label (UDID / Serial) and the AVAILABLE renames (OS / Optimized).
+    widths = _table_widths(SHORT_HEADERS, plain.values())
+    widths[ID_COL] = max(widths[ID_COL], len("UDID"), len("Serial"))
+    for hdr, col in zip(AVAILABLE_HEADERS, _section_layout("AVAILABLE")[1]):
+        widths[col] = max(widths[col], len(hdr))
+
+    for label, devs in sections:
+        print(_c(label, 1))
+        for plat in _visible_platforms():
+            pdevs = [d for d in devs if _platform_of(d) == plat]
+            if plat == "Genymotion" and not pdevs:
+                continue                       # only surface Genymotion when present
+            _print_platform_group(pdevs, plat, plain, widths, label)
+        print()
+
+def cmd_list(verbose=False):
+    """Every in-scope device (iOS sims + Android emulators), grouped Running then
+    Available, each in platform order (iOS, Android, Genymotion). Reminds testers
+    what's around. -v/--verbose dumps the full per-device record (tab-separated).
+
+    The sync (and therefore every toolchain probe) is scoped by the active
+    --ios/--android/--real/--simulated filters — an explicit --android list
+    never touches simctl/xctrace, and vice versa. The probe result is reused
+    for rendering rather than probing a second time.
+
+    Args:
+        verbose: dump the full per-device record (TSV) instead of the table.
+
+    Returns:
+        int: 0.
+    """
+    devices = list(sync(FILTER_PLATFORM, FILTER_FLAVOR))
+    host_profile()  # keep this machine's specs (table F) current
+    # Real (physical) devices we know about but that aren't attached right now still
+    # belong in the list (shown Offline under AVAILABLE) — a phone we own is "a device".
+    live_ids = {d["id"] for d in devices}
+    for r in db().execute("SELECT * FROM devices WHERE flavor='Real' AND present=1").fetchall():
+        if r["udid"] not in live_ids:
+            devices.append({"kind": "ios" if r["type"] == "iOS" else "android",
+                            "id": r["udid"], "serial": None,
+                            "name": r["display_name"] or r["udid"],
+                            "os_version": r["os_version"], "api_level": r["api_level"],
+                            "state": r["state"] or "Offline", "flavor": "Real"})
+    devices = _apply_filters(devices)
+    sysmap = _system_alias_map()
+    sections = [("RUNNING", [d for d in devices if is_live(d)]),
+                ("AVAILABLE", [d for d in devices if not is_live(d)])]
+    if verbose:
+        _list_long(sections, sysmap)
+        return 0
+    _render_short(sections, devices, sysmap)
+    return 0
+
+def cmd_resolve(ident):
+    """Resolve an id/alias (incl. 'ios'/'android') to a single device and print the
+    Maestro device id (stdout, bare) plus a rich description (stderr) — the runner
+    captures stdout for `maestro --device` and echoes stderr so the chosen device
+    is visible in the run log.
+
+    Args:
+        ident: id/alias resolving to one device (first match wins).
+
+    Returns:
+        int: 0 id printed; 1 resolved but not running (no adb serial yet);
+        2 unresolvable.
+    """
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"resolve: {e}")
+        return 2
+    mid = _maestro_id(dev)
+    if not mid:
+        err(f"resolve: {dev['name']} is not running — no adb serial yet "
+            f"(start/warm it before resolving for a test run)")
+        return 1
+    touch(dev)
+    print(mid)  # bare, maestro-consumable
+    sysmap = _system_alias_map()
+    al = all_aliases_for(dev["id"], sysmap)
+    plat = "iOS" if dev["kind"] == "ios" else "Android"
+    rich = f'{plat}: name="{dev["name"]}", id={mid}'
+    err(f"[ {', '.join(al)} ] {rich}" if al else rich)
+    return 0
+
+def cmd_kind_of(ident):
+    """Print a device's platform ('ios' or 'android') to stdout for an id/alias, WITHOUT
+    requiring it to be running (resolve_one_raw is offline). The qa runner uses this to
+    infer --platform from --sim and to validate an explicit --platform against the sim's
+    real kind before booting anything.
+
+    Args:
+        ident: id/alias (works for unplugged real devices too).
+
+    Returns:
+        int: 0 printed; 2 unresolvable.
+    """
+    sync()
+    try:
+        dev = resolve_one_raw(ident)        # offline: answer even if unplugged
+    except ResolveError as e:
+        err(f"kind-of: {e}")
+        return 2
+    print(dev["kind"])  # bare: 'ios' | 'android'
+    return 0
+
+def cmd_flavor_of(ident):
+    """Print a device's flavor ('real' or 'simulated') to stdout for an id/alias
+    (offline). The qa runner uses it to choose the right build/install path.
+
+    Args:
+        ident: id/alias; answers even for an unplugged real phone.
+
+    Returns:
+        int: 0 flavor printed; 2 when nothing matches.
+    """
+    sync()
+    try:
+        dev = resolve_one_raw(ident)        # offline: answer even if unplugged
+    except ResolveError as e:
+        err(f"flavor-of: {e}")
+        return 2
+    print("real" if is_real(dev) else "simulated")
+    return 0
+
+# Listing/availability filters, set from --ios/--android and --real/--simulated.
+FILTER_PLATFORM = None   # None | 'ios' | 'android'
+FILTER_FLAVOR = None     # None | 'real' | 'simulated'
+
+def _apply_filters(devices):
+    """Restrict a device list by the active platform/flavor filters (no-op if unset)."""
+    out = []
+    for d in devices:
+        if FILTER_PLATFORM and d.get("kind") != FILTER_PLATFORM:
+            continue
+        if FILTER_FLAVOR:
+            real = is_real(d)
+            if (FILTER_FLAVOR == "real") != real:
+                continue
+        out.append(d)
+    return out
+
+def cmd_headless_of(ident):
+    """Print a RUNNING device's screen mode to stdout: 'headless' | 'windowed' | 'unknown'.
+    'headless' = -no-window in the live emulator args (screenshots come back BLACK here);
+    'windowed' = a real screen; 'unknown' = iOS (always windowed enough for screenshots),
+    not running, or un-probeable. qa:flow --require-screen uses this to refuse a black run.
+
+    Args:
+        ident: id/alias resolving to one device.
+
+    Returns:
+        int: 0 printed; 2 unresolvable.
+    """
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"headless-of: {e}")
+        return 2
+    h = looks_headless(dev)
+    print("unknown" if h is None else ("headless" if h else "windowed"))
+    return 0
+
+def cmd_mark_used(ident):
+    """Record an id/alias as the platform's last-used device (kv last_ios/last_android +
+    devices.last_used) WITHOUT printing a maestro id — so a manual `qa:flow` run can mark
+    the device it actually ran on, making a later `--resolve last-android` point back at it.
+    (`--resolve` already touches on every resolve; this is the explicit, side-effect-only
+    hook a caller invokes AFTER a successful run.)
+
+    Args:
+        ident: id/alias resolving to one device.
+
+    Returns:
+        int: 0 marked; 2 unresolvable.
+    """
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"mark-used: {e}")
+        return 2
+    touch(dev)
+    plat = "last-ios" if dev["kind"] == "ios" else "last-android"
+    err(f"marked {dev['name']} ({dev['id']}) as {plat}")
+    return 0
+
+def _hist_name(udid):
+    a = db().execute("SELECT alias FROM aliases WHERE udid=? AND kind IN ('name','user') "
+                     "ORDER BY kind LIMIT 1", (udid,)).fetchone()
+    return a["alias"] if a else udid
+
+def cmd_history(ident=None, limit=80):
+    """Dump the device-manager event history (warmup/bake/start/kill timings) so the
+    overnight bench data is one command, not a hand-written SQL query. Optional ID/alias
+    filters to one device. Columns: When (local) · Device · Event · Detail · Dur(s) ·
+    CPU% (host-side) · Load. duration_ms on a 'warmup' row is boot-to-ready (or +dexopt
+    when detail carries a level).
+
+    Args:
+        ident: optional id/alias to filter to one device; None dumps all.
+        limit: newest-first row cap.
+
+    Returns:
+        int: 0 (including the empty 'No history' case); 2 unresolvable ident.
+    """
+    udid = None
+    if ident:
+        try:
+            udid = resolve_one(ident)["id"]
+        except ResolveError as e:
+            err(f"history: {e}")
+            return 2
+    q = ("SELECT ts, udid, event, detail, duration_ms, dev_load, sys_load FROM history"
+         + (" WHERE udid=?" if udid else "") + " ORDER BY ts DESC LIMIT ?")
+    rows = db().execute(q, ([udid, limit] if udid else [limit])).fetchall()
+    if not rows:
+        print("No history" + (f" for {ident}" if ident else ""))
+        return 0
+    cells = [_hist_cells(r) for r in rows]
+    headers = ["When", "Device", "Event", "Detail", "Dur(s)", "CPU%", "Load"]
+    widths = _table_widths(headers, cells)
+    fmt = lambda row: "  ".join(c.ljust(widths[i]) for i, c in enumerate(row))
+    print(_c(fmt(headers), 1))
+    for row in cells:
+        print(fmt(row))
+    return 0
+
+def _hist_cells(r):
+    """One --history table row (all cells stringified; blanks for NULLs)."""
+    try:
+        when = datetime.fromisoformat(r["ts"]).astimezone().strftime("%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        when = (r["ts"] or "")[:19]
+    dur = f"{r['duration_ms'] / 1000:.1f}" if r["duration_ms"] is not None else ""
+    cpu = f"{r['dev_load']:.0f}" if r["dev_load"] is not None else ""
+    load = f"{r['sys_load']:.2f}" if r["sys_load"] is not None else ""
+    return [when, _hist_name(r["udid"]), r["event"] or "", r["detail"] or "",
+            dur, cpu, load]
+
+# cmd_start lives next to start_one (after COMPILE_LEVELS) — the 2026-07-08 rework
+# merged the old fire-and-forget start with the --warmup readiness gate.
+
+def _kill_plan(dev):
+    """--dry-run: show the one command killing this device would run (or why
+    it would be skipped)."""
+    if refuse_on_real(dev, "kill"):
+        return
+    if not is_running(dev):
+        dry_note(f"{dev['name']}: not running → skip")
+        return
+    if dev["kind"] == "ios":
+        dry(["xcrun", "simctl", "shutdown", dev["id"]])
+    else:
+        dry([adb_bin(), "-s", dev["serial"], "emu", "kill"],
+            note="graceful: the emulator saves its quick-boot snapshot")
+    dry_note(f"{dev['name']}: record history 'kill'")
+
+def _kill_one(dev):
+    """Gracefully stop one running device (simctl shutdown / adb emu kill) and
+    record a 'kill' history row. Real devices are refused; a stopped device is
+    a narrated no-op."""
+    if refuse_on_real(dev, "kill"):
+        return
+    touch(dev)
+    if not is_running(dev):
+        print(f"{dev['name']} not running")
+        return
+    if dev["kind"] == "ios":
+        run(["xcrun", "simctl", "shutdown", dev["id"]], capture=False)
+    else:
+        run([adb_bin(), "-s", dev["serial"], "emu", "kill"], capture=False)
+    print(f"Stopped {dev['name']}")
+    log_history(dev["id"], "kill")
+
+def cmd_kill(ident):
+    """Stop device(s) by id/alias; `--kill all` is the narrated full stop.
+
+    Args:
+        ident: id/alias (may resolve to several devices); the literal 'all'
+            routes to kill_all() — the former `--nuke` with its graceful pass
+            plus SIGQUIT→SIGKILL escalation ladder.
+
+    Returns:
+        int: 0 on success (including no-ops), 2 when ident doesn't resolve.
+    """
+    if (ident or "").strip().lower() == "all":
+        return kill_all()
+    sync()
+    try:
+        devs = resolve_many(ident)
+    except ResolveError as e:
+        err(f"kill: {e}")
+        return 2
+    if DRY_RUN:
+        dry_note(f"ident {ident!r} resolves to {len(devs)} device(s); kill loops over each:")
+        for dev in devs:
+            _kill_plan(dev)
+        return 0
+    for dev in devs:
+        _kill_one(dev)
+    return 0
+
+# ── device claim / lease (advisory, auto-reclaimable) ───────────────────────────
+# A claim records that a test run owns a device, so status views can show "taken-by"
+# and a multi-device run can skip a busy phone. Advisory + auto-reclaimable, like the
+# testctl runner lock — but device-scoped, with its OWN pid+heartbeat staleness rule
+# (testctl's lock is a single flat-file mutex with no per-device classifier to reuse).
+CLAIM_TTL_SECONDS = 900  # a live runner refreshes its heartbeat well within this
+
+def _pid_alive(pid):
+    if not pid:
+        return False
+    try:
+        os.kill(int(pid), 0)
+    except (OSError, ValueError):
+        return False
+    return True
+
+def claim_state(row):
+    """(state, label) for a device row's advisory claim. state ∈ free|held|stale.
+    'held' = live owner (pid alive AND heartbeat fresh); 'stale' = reclaimable."""
+    keys = row.keys()
+    owner = row["claim_owner"] if "claim_owner" in keys else None
+    if not owner:
+        return ("free", "")
+    pid = row["claim_pid"] if "claim_pid" in keys else None
+    hb = row["claim_heartbeat_at"] if "claim_heartbeat_at" in keys else None
+    fresh = False
+    if hb:
+        try:
+            age = (datetime.now(timezone.utc) - datetime.fromisoformat(hb)).total_seconds()
+            fresh = age <= CLAIM_TTL_SECONDS
+        except ValueError:
+            fresh = False
+    if _pid_alive(pid) and fresh:
+        return ("held", f"taken-by {owner} pid{pid}")
+    return ("stale", f"stale claim ({owner} pid{pid})")
+
+def claim_device(ident, owner, pid):
+    """Place/refresh an advisory claim by id/alias. Reclaims a stale claim; refuses a
+    device currently held by a different live owner.
+
+    Args:
+        ident: id/alias; a multi-device ident claims each device.
+        owner: claim owner label (the runner's name).
+        pid: claim holder pid — with the heartbeat, the staleness classifier.
+
+    Returns:
+        int: 0 claimed/refreshed; 2 unresolvable or held by another live owner.
+    """
+    sync()
+    try:
+        devs = resolve_many(ident)
+    except ResolveError as e:
+        err(f"claim: {e}")
+        return 2
+    now = now_iso()
+    for dev in devs:
+        row = db().execute("SELECT * FROM devices WHERE udid=?", (dev["id"],)).fetchone()
+        if row:
+            state, label = claim_state(row)
+            same = row["claim_owner"] == owner and str(row["claim_pid"]) == str(pid)
+            if state == "held" and not same:
+                err(f"claim: {dev['name']} is {label}")
+                return 2
+        db().execute("UPDATE devices SET claim_owner=?, claim_pid=?, claim_heartbeat_at=? "
+                     "WHERE udid=?", (owner, int(pid), now, dev["id"]))
+    db().commit()
+    return 0
+
+def release_claim(ident=None, pid=None):
+    """Clear claims by id/alias OR by pid (the runner clears all its pid's claims).
+
+    Args:
+        ident: id/alias whose device claims to clear (used when pid is None).
+        pid: clear every claim held by this pid (takes precedence).
+
+    Returns:
+        int: 0 cleared (including nothing-to-clear); 2 unresolvable ident.
+    """
+    if pid is not None:
+        db().execute("UPDATE devices SET claim_owner=NULL, claim_pid=NULL, "
+                     "claim_heartbeat_at=NULL WHERE claim_pid=?", (int(pid),))
+    elif ident:
+        sync()
+        try:
+            devs = resolve_many(ident)
+        except ResolveError as e:
+            err(f"release: {e}")
+            return 2
+        for dev in devs:
+            db().execute("UPDATE devices SET claim_owner=NULL, claim_pid=NULL, "
+                         "claim_heartbeat_at=NULL WHERE udid=?", (dev["id"],))
+    db().commit()
+    return 0
+
+# ── add a real (physical) device ────────────────────────────────────────────────
+
+def _next_real_index(plat):
+    """Next free N for a real-<plat>-N name alias (plat is 'iphone' or 'android')."""
+    pref = f"real-{plat}-"
+    rows = db().execute("SELECT alias FROM aliases WHERE alias LIKE ?",
+                        (pref + "%",)).fetchall()
+    n = 0
+    for r in rows:
+        m = re.match(re.escape(pref) + r"(\d+)$", r["alias"])
+        if m:
+            n = max(n, int(m.group(1)))
+    return n + 1
+
+def _add_alias_safe(alias, udid, kind):
+    """Upsert an alias; if the name is already taken by a DIFFERENT device, suffix it
+    with a short serial tail so we never silently steal another device's alias.
+    Returns the alias actually stored."""
+    existing = db().execute("SELECT udid FROM aliases WHERE alias=?", (alias,)).fetchone()
+    if existing and existing["udid"] != udid:
+        alias = f"{alias}-{str(udid)[-4:]}"
+    db().execute("INSERT INTO aliases(alias,udid,kind,created_at) VALUES (?,?,?,?) "
+                 "ON CONFLICT(alias) DO UPDATE SET udid=excluded.udid, kind=excluded.kind",
+                 (alias, udid, kind, now_iso()))
+    return alias
+
+def _real_row_for_add(ident):
+    """The devices row --add should register: the explicit ident when given,
+    else the single attached real phone.
+
+    Returns:
+        tuple[sqlite3.Row | None, int]: (row, 0) on success; (None, 2) after
+        printing why (unknown ident, not a real device, none/several attached).
+    """
+    if ident:
+        try:
+            devs = resolve_many(ident)
+        except ResolveError as e:
+            err(f"add: {e}")
+            return None, 2
+        row = db().execute("SELECT * FROM devices WHERE udid=?", (devs[0]["id"],)).fetchone()
+        if not row or row["flavor"] != "Real":
+            err(f"add: {ident!r} is not a real device")
+            return None, 2
+        return row, 0
+    attached = db().execute(
+        "SELECT * FROM devices WHERE flavor='Real' AND present=1 "
+        "AND COALESCE(state,'') != 'Offline'").fetchall()
+    if not attached:
+        err("add: no real device attached. Connect a phone (Android: enable USB "
+            "debugging; iOS: trust the Mac + Xcode) and retry.")
+        return None, 2
+    if len(attached) > 1:
+        err("add: multiple real devices attached — re-run with an id:")
+        for r in attached:
+            err(f"  {r['udid']}  {r['display_name']}")
+        return None, 2
+    return attached[0], 0
+
+def cmd_add(ident=None):
+    """Register a real (physical) device: choose personal-vs-test, set up the standard
+    three aliases (device-name + role-name + the computed group 'mine'/'real'), and
+    auto-name it. Run with the phone attached (Android: USB debugging; iOS: trusted).
+
+    Args:
+        ident: optional id/alias; default picks the single attached real phone.
+
+    Returns:
+        int: 0 registered; 2 on any refusal (needs a tty for the prompt).
+    """
+    sync()
+    row, rc = _real_row_for_add(ident)
+    if row is None:
+        return rc
+
+    if not sys.stdin.isatty():
+        err("add: needs an interactive prompt but stdin is not a tty.")
+        return 2
+
+    plat = "iphone" if row["type"] == "iOS" else "android"
+    ans = input(f"Is {row['display_name']!r} YOUR personal device "
+                f"(not a shared test phone)? [y/N] ").strip().lower()
+    personal = 1 if ans in ("y", "yes") else 0
+    db().execute("UPDATE devices SET personal=? WHERE udid=?", (personal, row["udid"]))
+
+    made = []
+    made.append(_add_alias_safe(row["display_name"] or row["udid"], row["udid"], "altname"))
+    if personal:
+        made.append(_add_alias_safe(f"my-{plat}", row["udid"], "name"))
+        group = "mine"
+    else:
+        made.append(_add_alias_safe(f"real-{plat}-{_next_real_index(plat)}",
+                                    row["udid"], "name"))
+        group = "real"
+    pool = allocate_name(row["udid"])
+    db().commit()
+
+    kind = "personal" if personal else "test"
+    print(f"Registered {row['display_name']} ({kind} {row['type']}).")
+    print(f"  aliases: {', '.join(made)}  +  group '{group}' (all your {kind} real devices)")
+    if pool:
+        print(f"  auto-name: {pool}")
+    print("  Change any alias anytime with `--alias <id> <new>` or `--rename <old> <new>`.")
+    return 0
+
+def cmd_alias(ident, alias):
+    """Create/repoint a USER alias for device(s).
+
+    Args:
+        ident: id/alias; a multi-device ident points the alias at each in turn
+            (the last write wins for lookups on a unique alias).
+        alias: the alias text to store (kind 'user').
+
+    Returns:
+        int: 0 stored; 2 unresolvable ident.
+    """
+    sync()
+    try:
+        devs = resolve_many(ident)
+    except ResolveError as e:
+        err(f"alias: {e}")
+        return 2
+    for dev in devs:
+        db().execute("INSERT INTO aliases(alias,udid,kind,created_at) VALUES (?,?,?,?) "
+                     "ON CONFLICT(alias) DO UPDATE SET udid=excluded.udid",
+                     (alias, dev["id"], "user", now_iso()))
+    db().commit()
+    tgt = ", ".join(d["id"] for d in devs)
+    print(f"alias {alias!r} -> {tgt}")
+    return 0
+
+# System/computed aliases — not stored in `aliases`, so they can't (and mustn't) be renamed.
+INTERNAL_ALIASES = {"ios", "android", "last-ios", "last-android",
+                    "all", "all-ios", "all-android", "loop", "mine", "real"}
+# avdmanager's AVD-name charset: letters, digits, dot, underscore, hyphen — no spaces.
+AVD_NAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+def _rename_user_alias(arow, new):
+    """Case B: rename a USER alias's text only (device identity untouched)."""
+    if db().execute("SELECT 1 FROM aliases WHERE alias=? COLLATE NOCASE", (new,)).fetchone():
+        err(f"rename: alias {new!r} already in use")
+        return 2
+    with immediate() as c:
+        c.execute("UPDATE aliases SET alias=? WHERE alias=? COLLATE NOCASE", (new, arow["alias"]))
+    print(f"alias {arow['alias']!r} -> {new!r}")
+    return 0
+
+def _rename_android_refused(dev, old, new):
+    """Case-A Android preconditions; True (after printing why) when refused.
+    A running AVD's identity files are in use; the name must fit avdmanager's
+    charset and collide with no existing device/alias."""
+    if is_running(dev):
+        err(f"rename: {dev['name']} is running — shut it down first (--kill {old})")
+        return True
+    if not AVD_NAME_RE.match(new):
+        err(f"rename: {new!r} is not a valid AVD name "
+            f"(allowed: letters, digits, '.', '_', '-'; no spaces)")
+        return True
+    if (db().execute("SELECT 1 FROM devices WHERE udid=? COLLATE NOCASE", (new,)).fetchone()
+            or db().execute("SELECT 1 FROM aliases WHERE alias=? COLLATE NOCASE", (new,)).fetchone()):
+        err(f"rename: {new!r} already names a device or alias")
+        return True
+    return False
+
+def _repoint_avd_records(old_udid, new):
+    """Migrate every DB reference from the old AVD-name identity to the new one.
+
+    Human aliases (pooled 'name' like 'Lainey', plus 'user' aliases) KEEP their
+    text — only their udid repoints — so `--rename <avd> <newavd>` leaves the
+    human handles intact (Travis case A)."""
+    with immediate() as c:
+        c.execute("UPDATE devices SET udid=?, display_name=? WHERE udid=?", (new, new, old_udid))
+        c.execute("UPDATE aliases SET udid=? WHERE udid=?", (new, old_udid))
+        c.execute("UPDATE name_pool SET udid=? WHERE udid=?", (new, old_udid))
+        c.execute("UPDATE history SET udid=? WHERE udid=?", (new, old_udid))
+    for k in ("last_android", "last_ios"):
+        if kv_get(k) == old_udid:
+            kv_set(k, new)
+
+def cmd_rename(old, new):
+    """Rename an AVD name (case A) or a USER alias (case B).
+      --rename Small_Phone_copy_Lainey Pixel_9   → rename the AVD (android: moves the .avd
+                                                    dir, fixes its inis, migrates the DB udid)
+      --rename Lainey Janey                       → rename a user alias
+      --rename last-android McBoatFace            → error: internal aliases are computed
+    NEW is trimmed; an empty NEW is rejected. AVD names are charset-validated. A running
+    Android device must be shut down first (its identity files are in use).
+
+    Returns:
+        int: 0 renamed; 2 on any refusal (empty/invalid/colliding NEW, internal
+        alias, unresolvable OLD, or a running Android device).
+    """
+    sync()
+    new = (new or "").strip()
+    if not new:
+        err("rename: new name is empty")
+        return 2
+    if old.strip().lower() in INTERNAL_ALIASES:
+        err(f"rename: can't rename internal alias {old!r} — it's computed from device state, "
+            f"not a stored name")
+        return 2
+
+    # ── case B: a USER alias → rename the alias text only (device identity untouched) ──
+    arow = db().execute("SELECT alias, udid, kind FROM aliases WHERE alias=? COLLATE NOCASE",
+                        (old,)).fetchone()
+    if arow and arow["kind"] == "user":
+        return _rename_user_alias(arow, new)
+
+    # ── case A: OLD names a device → rename the device ──
+    try:
+        dev = resolve_one(old)
+    except ResolveError as e:
+        err(f"rename: {e}")
+        return 2
+
+    # iOS: udid is a stable UUID, so only the display name changes — no identity migration.
+    # Human aliases (pooled 'name' / 'user') are independent handles and keep their text.
+    if dev["kind"] == "ios":
+        run(["xcrun", "simctl", "rename", dev["id"], new], capture=False)
+        with immediate() as c:
+            c.execute("UPDATE devices SET display_name=? WHERE udid=?", (new, dev["id"]))
+        sync()
+        print(f"renamed iOS sim {dev['name']!r} -> {new!r}")
+        return 0
+
+    # Android: the AVD name IS the identity (udid). Validate, move on disk, migrate the DB.
+    if _rename_android_refused(dev, old, new):
+        return 2
+    old_udid = dev["id"]
+    try:
+        rename_avd(old_udid, new)
+    except (FileExistsError, FileNotFoundError) as e:
+        err(f"rename: {e}")
+        return 2
+    _repoint_avd_records(old_udid, new)
+    sync()
+    print(f"renamed AVD {old_udid!r} -> {new!r}")
+    return 0
+
+def cmd_loop(name, csv):
+    """Define (or redefine) a named, ORDERED device loop and make it default.
+
+    Args:
+        name: loop name (kv 'default_loop' is pointed at it).
+        csv: comma-separated ids/aliases; members are validated now but stored
+            raw, so they re-resolve dynamically at --next time.
+
+    Returns:
+        int: 0 stored; 2 empty list or a member that doesn't resolve.
+    """
+    sync()
+    idents = [x.strip() for x in csv.split(",") if x.strip()]
+    if not idents:
+        err("loop: empty member list")
+        return 2
+    # validate each resolves now (members are still stored raw for dynamic resolve)
+    idx = live_index()
+    for it in idents:
+        try:
+            resolve_many(it, idx)
+        except ResolveError as e:
+            err(f"loop: member {it!r}: {e}")
+            return 2
+    with immediate() as c:
+        c.execute("INSERT OR IGNORE INTO loops(name,created_at) VALUES (?,?)",
+                  (name, now_iso()))
+        c.execute("DELETE FROM loop_members WHERE loop=?", (name,))
+        for pos, it in enumerate(idents):
+            c.execute("INSERT INTO loop_members(loop,pos,ident) VALUES (?,?,?)",
+                      (name, pos, it))
+        c.execute("INSERT INTO loop_cursor(loop,pos) VALUES (?,0) "
+                  "ON CONFLICT(loop) DO UPDATE SET pos=0", (name,))
+    kv_set("default_loop", name)
+    print(f"loop {name!r}: {len(idents)} members")
+    return 0
+
+def cmd_next(name):
+    """Advance a loop's cursor (ACID) and print the next device's maestro id.
+
+    Args:
+        name: loop name; None uses kv 'default_loop'.
+
+    Returns:
+        int: 0 id printed; 1 no such loop, end-of-list (cursor wraps), or the
+        member doesn't resolve / isn't running (Android needs a serial).
+    """
+    name = name or kv_get("default_loop", "default")
+    members = db().execute(
+        "SELECT ident FROM loop_members WHERE loop=? ORDER BY pos", (name,)).fetchall()
+    if not members:
+        err(f"next: no such loop {name!r}")
+        return 1
+    n = len(members)
+    # ACID advance: read + bump the cursor under an IMMEDIATE transaction.
+    with immediate() as c:
+        row = c.execute("SELECT pos FROM loop_cursor WHERE loop=?", (name,)).fetchone()
+        pos = row[0] if row else 0
+        if pos >= n:                       # the artificial end-of-list slot
+            c.execute("INSERT INTO loop_cursor(loop,pos) VALUES (?,0) "
+                      "ON CONFLICT(loop) DO UPDATE SET pos=0", (name,))
+            ident = None
+        else:
+            ident = members[pos]["ident"]
+            c.execute("INSERT INTO loop_cursor(loop,pos) VALUES (?,?) "
+                      "ON CONFLICT(loop) DO UPDATE SET pos=excluded.pos",
+                      (name, pos + 1))
+    if ident is None:
+        err(f"next: {END_OF_LIST} for loop {name!r}")
+        return 1
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"next: member {ident!r}: {e}")
+        return 1
+    touch(dev)
+    # stdout = bare id consumable by `maestro -d`. For a running Android emulator
+    # that is the adb serial (emulator-5554), NOT the AVD name; iOS uses the UDID.
+    if dev["kind"] == "android":
+        out_id = dev.get("serial")
+        if not out_id:
+            err(f"next: {dev['name']} is not running — no adb serial yet "
+                f"(warmup/start it before --next)")
+            return 1
+    else:
+        out_id = dev["id"]
+    print(out_id)
+    sysmap = _system_alias_map()
+    al = all_aliases_for(dev["id"], sysmap)
+    if dev["kind"] == "android":
+        rich = f'name = "{dev["name"]}", serial={out_id}'
+    else:
+        rich = f'name = "{dev["name"]}", UDID="{dev["id"]}"'
+    err(f"[ {', '.join(al)} ] {rich}" if al else rich)
+    return 0
+
+# Android dexopt/compile levels. Time ranges are ROUGH (measured: a full
+# bg-dexopt-job took ~28 min on this machine, 2026-06-15). Needs per-host
+# calibration — see history table C and the comparison notes.
+# Bake-only (2026-07-08): compiling moved off --warm (interactive verb, wrong place for a
+# multi-hour wait) onto --bake (overnight investment). "low" (bg-dexopt-job) was dropped:
+# it is profile-guided and a fresh AVD has no usage profiles, so its 20-30 min mostly
+# verified and no-oped. NB: these compile the packages installed AT BAKE TIME (system
+# image); the app-under-test is installed later by the qa gate, which AOT-compiles it
+# per-install (tests/runner/gating.ts) — an overnight bake cannot cover it.
+COMPILE_LEVELS = {
+    "medium": (["cmd", "package", "compile", "-a", "-m", "speed-profile"],
+               "~20-40 min (force speed-profile compile, all packages)"),
+    # NB: NO `--compile-layouts` — `cmd package compile` does not accept it on
+    # current Android (it errored "Unknown option: --compile-layouts" and the
+    # step silently proceeded to save a non-optimized snapshot). Layout
+    # precompilation was a short-lived, version-specific flag; the durable win
+    # here is the `everything` AOT filter.
+    "hot":    (["cmd", "package", "compile", "-a", "-m", "everything"],
+               "~40-90 min (AOT-compile every package with the 'everything' filter)"),
+}
+
+def _warm_estimate(dev):
+    rows = db().execute(
+        "SELECT duration_ms FROM history WHERE udid=? AND event LIKE 'warmup%' "
+        "AND duration_ms IS NOT NULL ORDER BY id DESC LIMIT 5", (dev["id"],)).fetchall()
+    if rows:
+        med = sorted(r["duration_ms"] for r in rows)[len(rows) // 2]
+        return f"~{med/1000:.0f}s (median of {len(rows)} past warmups)"
+    if is_running(dev):
+        return "a few seconds (already running)"
+    return ("~10-40s for an iOS sim cold; ~1-4 min for an Android emulator cold "
+            "(much longer on first-ever boot while it dexopts)")
+
+def _start_basic(dev):
+    """Legacy fire-and-forget windowed start: no perf flags, no readiness wait,
+    no boot-to-ready timing row. Returns True unless the AVD is unknown."""
+    if is_live(dev):
+        print(f"{dev['name']} already running")
+        touch(dev)
+        return True
+    if dev["kind"] == "ios":
+        run(["xcrun", "simctl", "boot", dev["id"]], capture=False)
+        run(["open", "-a", "Simulator"], capture=False)
+    elif not _android_start(dev, []):
+        return False
+    print(f"Starting {dev['name']} (basic)")
+    log_history(dev["id"], "start:basic")
+    touch(dev)
+    return True
+
+# One monitor entry of `simctl bootstatus`: "[<ts>] Status=N, isTerminal=YES, …"
+# followed by an indented plain-text detail line ("Waiting on System App").
+_BOOTSTATUS_RE = re.compile(r"^\[.*?\]\s*Status=(\d+),\s*isTerminal=(YES|NO)")
+
+def _stream_bootstatus(udid):
+    """Block on `simctl bootstatus` and re-emit its monitor output through
+    narrate() as '[not] ready for use: <detail>' lines — one per CHANGE (the
+    raw feed repeats the same entry every poll). Status is re-printed SIGNED
+    when nonzero (bootstatus prints -1 as 4294967295).
+
+    The terminal entry / exit code are NOT a readiness verdict: bootstatus ends
+    with status=-1 'Finished' (and sometimes 'Data Migration Failed') on sims
+    that are fully usable — the caller must re-probe simctl for the REAL state.
+    Returns (status, is_terminal, detail) for the last entry, or None."""
+    p = subprocess.Popen(["xcrun", "simctl", "bootstatus", udid],
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                         text=True)
+    last = final = pending = None
+    for raw in p.stdout:
+        s = raw.strip()
+        if not s or s.startswith("Monitoring boot status"):
+            continue
+        m = _BOOTSTATUS_RE.match(s)
+        if m:
+            status = int(m.group(1))
+            if status >= 2 ** 31:            # bootstatus prints -1 unsigned
+                status -= 2 ** 32
+            pending = (status, m.group(2) == "YES")
+            continue
+        if pending is None:
+            continue                         # stray text without a status entry
+        status, terminal = pending
+        pending = None
+        final = (status, terminal, s)
+        msg = ("ready for use" if terminal else "not ready for use") + f": {s}"
+        if terminal and status not in (0, -1):
+            msg += f" (status {status})"   # e.g. 3 'Data Migration Failed'
+        if msg != last:
+            narrate(f"    {msg}")
+            last = msg
+    p.wait()
+    return final
+
+def _ios_sim_state(udid):
+    """Fresh simctl probe of ONE sim's current state ('Running'/'Booting'/
+    'Shutdown'), or None when the sim is unknown to simctl."""
+    for d in ios_devices():
+        if d["id"] == udid:
+            return d["state"]
+    return None
+
+def _boot_ios(dev, mode):
+    """Boot an iOS sim and block on `simctl bootstatus`.
+
+    iOS has no headless boot: a sim without the Simulator app open is
+    effectively windowless, so 'headless' just skips opening the window.
+
+    Readiness is decided by RE-PROBING the sim's actual simctl state, never by
+    bootstatus's verdict (bug: the pre-boot dev dict still said 'Shutdown', so
+    every fresh boot was declared NOT ready; bootstatus's own terminal entry is
+    also unreliable — -1 'Finished' / 'Data Migration Failed' on usable sims).
+
+    Returns:
+        tuple[bool, str | None]: (ok, fail_reason).
+    """
+    if not is_live(dev):
+        narrate("  booting simulator …")
+        run(["xcrun", "simctl", "boot", dev["id"]], capture=False)
+    if mode != "headless":
+        run(["open", "-a", "Simulator"], capture=False)
+    narrate("  waiting for boot to complete (simctl bootstatus) …")
+    _stream_bootstatus(dev["id"])
+    for _ in range(15):                      # normally ready on the first probe
+        dev["state"] = _ios_sim_state(dev["id"]) or dev["state"]
+        if is_running(dev):
+            return True, None
+        time.sleep(1)
+    return False, "simulator did not reach a Booted state (simctl list)"
+
+def _boot_android(dev, mode):
+    """Launch the emulator (per-mode flags) and wait through both readiness
+    layers: sys.boot_completed, then the package manager.
+
+    Returns:
+        tuple[bool, str | None]: (ok, fail_reason). On success dev['serial']
+        is set to the resolved adb serial.
+    """
+    if not is_live(dev):
+        if mode == "headless":
+            narrate("  launching emulator headless (-no-window -read-only, quick-boot) …")
+            flags = emulator_flags(headless=True)
+        else:
+            cold = _windowed_start_is_cold(dev)
+            narrate("  launching emulator WINDOWED (cold boot for a visible screen) …"
+                    if cold else
+                    "  launching emulator WINDOWED (quick-boot the windowed snapshot) …")
+            flags = emulator_flags(headless=False, cold=cold)
+        _android_start(dev, flags)
+    narrate("  waiting for sys.boot_completed …")
+    serial = _android_await_boot(dev)
+    if not serial:
+        return False, "sys.boot_completed not reached (boot timed out)"
+    dev["serial"] = serial
+    narrate("  waiting for package manager (install/launch ready) …")
+    if not _android_pm_ready(serial):
+        return False, ("package manager never became ready "
+                       "(install/launch would be unsafe)")
+    return True, None
+
+def _note_atd_windowed(dev, mode):
+    """Warn (don't block) when a WINDOWED start targets an ATD image: it comes up BLACK
+    no matter the GPU or snapshot — ATD is a headless CI image with no interactive UI."""
+    if mode != "headless" and dev["kind"] == "android" and _avd_is_atd(dev["id"]):
+        err(f"note: {dev['name']} uses an ATD (Automated Test Device) image — it renders "
+            f"a BLACK screen (headless CI image, no interactive UI). No GPU/bake mode "
+            f"changes this. For a visible phone use a google_apis / playstore AVD "
+            f"(e.g. a full-image Pixel). Booting anyway (fine for headless test runs).")
+
+def start_one(dev, mode="optimized"):
+    """Boot a device with the mode's flags and WAIT until it's actually responsive
+    (Android: sys.boot_completed + package-manager ready; iOS: simctl bootstatus).
+    A boot that times out is a FAILURE, reported loudly — a caller (bench, CI)
+    must never trust a dead device.
+
+    2026-07-08 rework: this readiness gate IS the default start behaviour (--warmup
+    survives as an alias). The AOT compile + default_boot save that --warm:LEVEL
+    used to do here moved to --bake — the one op allowed to write the snapshot;
+    every start quick-boot LOADS default_boot but can never overwrite it
+    (-no-snapshot-save / -read-only; bug-registry i).
+
+    Args:
+        dev: a resolved device dict (real devices are refused).
+        mode: 'optimized' (perf flags + wait, the default), 'headless'
+            (adds -no-window -read-only), or 'basic' (legacy fire-and-forget
+            windowed start: no perf flags, no wait, no timing row).
+
+    Returns:
+        bool: True iff the device reached a ready state.
+    """
+    if refuse_on_real(dev, "start"):
+        return False
+    _note_atd_windowed(dev, mode)
+    if mode == "basic":
+        return _start_basic(dev)
+    narrate(f"start {dev['name']}: estimated {_warm_estimate(dev)}")
+    t0 = time.time()
+    boot = _boot_ios if dev["kind"] == "ios" else _boot_android
+    ok, fail_reason = boot(dev, mode)
+    ms = int((time.time() - t0) * 1000)
+    if ok and dev["kind"] == "android" and dev.get("flavor", "Simulated") != "Real":
+        _reconcile_snapshot_outcome(dev)
+    cpu, load = host_load_sample(dev)
+    # Event stays 'warmup' — it is the boot-to-ready timing series _warm_estimate
+    # medians over; detail carries the mode; a failed boot is tagged for --history.
+    base = f"start:{mode}"
+    log_history(dev["id"], "warmup", detail=(base if ok else base + ":FAILED"),
+                duration_ms=ms, sys_load=load, dev_load=cpu)
+    # Summary shape (2026-08-04, Travis): timestamped like every other line, no
+    # stylized glyphs, errors lead with 'Error: ', the device is named by its
+    # aliases (humanized name first), and host cpu/load go on their OWN line.
+    cpu_s = f"{cpu:.1f}% host cpu" if cpu is not None else "process gone"
+    load_s = f", load {load:.2f}" if load is not None else ""
+    host_line = f"  {cpu_s}{load_s}"
+    summary = _alias_summary(dev)
+    if not ok:
+        # Do NOT record last_warmed_at, and skip touch — the device is not usable.
+        nerr(f"Error: {summary} NOT ready after {ms/1000:.0f}s — {fail_reason}; "
+             f"left running for inspection")
+        nerr(host_line)
+        return False
+    _device_set(dev["id"], last_warmed_at=now_iso())
+    touch(dev)
+    narrate(f"{summary} ready in {ms/1000:.0f}s")
+    narrate(host_line)
+    return True
+
+def _start_plan(dev, mode):
+    """--dry-run: enumerate the low-level commands + implicit loops a start of
+    this one device would run (the boot/PM polls are loops, not single calls)."""
+    dry_note(f"── {dev['name']} ({dev['kind']}) ──")
+    _note_atd_windowed(dev, mode)
+    if mode == "basic":
+        if is_live(dev):
+            dry_note("already running → skip (record last-used only)")
+            return
+        if dev["kind"] == "ios":
+            dry(["xcrun", "simctl", "boot", dev["id"]])
+            dry(["open", "-a", "Simulator"], note="bring the sim window up")
+        else:
+            dry([emulator_bin(), "-avd", dev["id"]], note="legacy windowed, no perf flags")
+        dry_note("record history 'start:basic', mark last-used (no readiness wait)")
+        return
+    if dev["kind"] == "ios":
+        if not is_live(dev):
+            dry(["xcrun", "simctl", "boot", dev["id"]])
+        else:
+            dry_note("already running → skip boot")
+        if mode != "headless":
+            dry(["open", "-a", "Simulator"], note="bring the sim window up")
+        dry(["xcrun", "simctl", "bootstatus", dev["id"]], note="blocks until booted")
+        dry_note("verify booted state; record boot-to-ready timing + host load")
+        return
+    if not is_live(dev):
+        if mode == "headless":
+            flags, note = emulator_flags(headless=True), "headless + read-only, quick-boot"
+        else:
+            cold = _windowed_start_is_cold(dev)
+            flags = emulator_flags(headless=False, cold=cold)
+            note = ("windowed, cold boot (-no-snapshot-load) for a visible screen"
+                    if cold else
+                    "windowed, quick-boot the WINDOWED default_boot snapshot (fast + visible)")
+        dry([emulator_bin(), "-avd", dev["id"]] + flags,
+            note=note + "; -no-snapshot-save protects the baked default_boot")
+    else:
+        dry_note("already running → skip launch (readiness still verified)")
+    dry_note("loop ≤300×, 1s apart: adb -s <serial> shell getprop sys.boot_completed "
+             "until it returns '1' (timeout ⇒ FAIL, nothing else runs)")
+    dry_note("loop ≤90×, 1s apart: adb -s <serial> shell cmd package list packages "
+             "until PM answers")
+    dry_note("on success: record last_warmed_at")
+
+def cmd_start(ident, mode="optimized"):
+    """Start device(s) and (except 'basic') wait until actually responsive.
+
+    Args:
+        ident: id/alias; may resolve to several devices (started in turn).
+        mode: 'optimized' (perf flags + readiness wait — the default),
+            'headless' (adds -no-window -read-only), 'basic' (legacy windowed,
+            no flags, no wait).
+
+    Returns:
+        int: 0 all ready (or --dry-run plan printed); 1 any device failed to
+        come up; 2 unresolvable ident.
+    """
+    sync()
+    try:
+        devs = resolve_many(ident)
+    except ResolveError as e:
+        err(f"start: {e}")
+        return 2
+    if DRY_RUN:
+        dry_note(f"ident {ident!r} resolves to {len(devs)} device(s); start runs on "
+                 f"each in turn (this is the implicit loop; mode={mode}):")
+        for dev in devs:
+            _start_plan(dev, mode)
+        return 0
+    all_ok = True
+    for dev in devs:
+        all_ok = start_one(dev, mode) and all_ok
+    # Non-zero exit when any device failed to come up, so a script (bench, CI) that
+    # starts a device and then runs tests against it can stop instead of trusting a
+    # dead device.
+    return 0 if all_ok else 1
+
+# ── monitor (periodic host-side sampler) ────────────────────────────────────────
+
+def _sleep_unless(stop, secs):
+    """Sleep up to secs seconds in ≤1s naps, bailing as soon as stop['v'] flips
+    (keeps Ctrl-C latency ~1s during the long monitor pauses)."""
+    rest = secs
+    while rest > 0 and not stop["v"]:
+        time.sleep(min(1.0, rest))
+        rest -= 1.0
+
+def _monitor_cycle(devs, interval, stop):
+    """One monitor round: sample each running device in its time slot, write a
+    'monitor' history row, and pad the slot so the cadence holds."""
+    slot = max(1.0, interval / len(devs))      # each device gets a time slot
+    win = max(1, int(min(slot - 0.5, 3)))      # top-sampling window per device
+    for dev in devs:
+        if stop["v"]:
+            return
+        cpu, load = host_load_sample(dev, interval=win)  # consumes ~win sec
+        log_history(dev["id"], "monitor", sys_load=load, dev_load=cpu)
+        tag = "DEAD/gone" if cpu is None else f"{cpu:6.1f}% cpu"
+        load_s = f"  host-load {load:.2f}" if load is not None else ""
+        narrate(f"{dev['name']:<24} {tag}{load_s}")
+        _sleep_unless(stop, slot - win)         # pad the slot to keep cadence
+
+def cmd_monitor(interval):
+    """Sample host-side load of every running device, round-robin and slightly
+    staggered, writing a 'monitor' history row each cycle. Host-side only (no
+    adb/simctl), so it does not perturb the devices it watches. Runs until
+    Ctrl-C — meant to be launched detached for long/overnight runs.
+
+    Args:
+        interval: seconds per full round (default 10 when falsy).
+
+    Returns:
+        int: 0 (only a signal stops it).
+    """
+    interval = interval or 10
+    print(f"monitoring host-side load every ~{interval}s "
+          f"(staggered across devices); Ctrl-C to stop", flush=True)
+    stop = {"v": False}
+    signal.signal(signal.SIGINT, lambda *_: stop.__setitem__("v", True))
+    signal.signal(signal.SIGTERM, lambda *_: stop.__setitem__("v", True))
+    while not stop["v"]:
+        devs = ios_booted() + android_running()
+        if not devs:
+            narrate("no running devices")
+            _sleep_unless(stop, int(interval))
+            continue
+        _monitor_cycle(devs, interval, stop)
+    print("\nmonitor stopped", flush=True)
+    return 0
+
+# ── save-quickboot ──────────────────────────────────────────────────────────────
+
+def cmd_save_quickboot(ident):
+    """Persist a running AVD's current state as 'default_boot' — the snapshot
+    Quick Boot auto-loads. Use case: hand-craft a logged-in/profile state on an
+    AVD, then have it relaunch exactly there. (iOS sims persist on disk already.)"""
+    # HIDDEN 2026-06-26, kept hidden by the 2026-07-08 start/bake rework: --bake is
+    # deliberately the ONLY writer of default_boot (a second writer would let a dirty
+    # session clobber an overnight bake). Body kept for a future hand-crafted-state
+    # use case behind an explicit re-decision.
+    err("save-quickboot: DISABLED — --bake is the only op that writes default_boot "
+        "(a hand-crafted-state snapshot would silently replace the baked one).")
+    return 2
+    sync()  # noqa: unreachable — retained for the future bake/snapshot rework
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"save-quickboot: {e}")
+        return 2
+    if dev["kind"] != "android":
+        err("save-quickboot: Android-only. iOS simulators persist their data on "
+            "disk automatically — just relaunch the same UDID.")
+        return 0
+    if not is_running(dev) or not dev.get("serial"):
+        err(f"save-quickboot: {dev['name']} must be running to snapshot it.")
+        return 2
+    print(f"Saving 'default_boot' quickboot snapshot of {dev['name']} …")
+    run([adb_bin(), "-s", dev["serial"], "emu", "avd", "snapshot", "save",
+         "default_boot"], capture=False)
+    log_history(dev["id"], "save-quickboot", detail="save-quickboot")
+    _device_set(dev["id"], has_default_boot=1, last_warmed_at=now_iso())
+    touch(dev)
+    print("Saved. Next launch quick-boots into this exact state.")
+    return 0
+
+# ── copy / clone ────────────────────────────────────────────────────────────────
+
+def atd_system_image():
+    """Path of a downloaded ATD (Automated Test Device) system image, or None.
+    ATD images are GMS-stripped and far lighter; ideal for the optimized copy."""
+    root = android_home() / "system-images"
+    if not root.exists():
+        return None
+    for tag_dir in root.glob("*/*atd*"):
+        for abi in tag_dir.iterdir():
+            if abi.is_dir() and (abi / "system.img").exists():
+                return abi
+    return None
+
+def _strip_runtime_state(avd_dir):
+    """Remove runtime lock/state files copied from a RUNNING source AVD. Otherwise
+    the clone looks like an already-running instance and the emulator FATALs with
+    "multiple emulators with the same AVD … use -read-only" — and -read-only then
+    blocks snapshot-save. hardware-qemu.ini is regenerated from config.ini on boot."""
+    for pat in ("*.lock", "hardware-qemu.ini", "*.img.lock", "snapshot.lock.*"):
+        for p in avd_dir.glob(pat):
+            if p.is_dir():
+                shutil.rmtree(p, ignore_errors=True)
+            else:
+                p.unlink(missing_ok=True)
+
+def _edit_ini(path, want, append_missing=False):
+    """Rewrite key=value lines of an ini-style file in place.
+
+    Single ini-editing engine (was three hand-rolled line loops across
+    normalize_gpu_config / atd_ify / clone+rename identity stamping).
+
+    Args:
+        path: the ini file; silently a no-op when it doesn't exist.
+        want: {key: new_value}; any line whose key (text before '=', stripped)
+            matches is replaced with 'key=value'. Keys are AVD-config style
+            (no spaces), so key-match is equivalent to the old startswith form.
+        append_missing: when True, wanted keys never seen in the file are
+            appended at the end (ensure-present semantics).
+    """
+    path = Path(path)
+    if not path.exists():
+        return
+    seen, out = set(), []
+    for ln in path.read_text().splitlines():
+        k = ln.split("=", 1)[0].strip() if "=" in ln else None
+        if k in want:
+            out.append(f"{k}={want[k]}")
+            seen.add(k)
+        else:
+            out.append(ln)
+    if append_missing:
+        for k, v in want.items():
+            if k not in seen:
+                out.append(f"{k}={v}")
+    path.write_text("\n".join(out) + "\n")
+
+def normalize_gpu_config(cfg):
+    """Force `hw.gpu.mode=auto` (+ hw.gpu.enabled=yes) in an AVD config.ini so a
+    manually-launched device (Android Studio Device Manager reads config.ini, not our
+    flags) gets the same renderer as our `-gpu auto` launches. See gpu_default()."""
+    _edit_ini(cfg, {"hw.gpu.mode": "auto", "hw.gpu.enabled": "yes"},
+              append_missing=True)
+
+def _avd_root():
+    return Path.home() / ".android" / "avd"
+
+def _avd_dir(name):
+    """The AVD's data directory. avdmanager's SOURCE OF TRUTH is the `path=` line in
+    <name>.ini (the .avd dir need NOT be named <name>.avd — a hand-edited or oddly
+    cloned AVD often isn't), so read that first; fall back to <name>.avd only when the
+    .ini is absent or omits path=. (Fixes --rename failing with '<name> not found'
+    when the .ini exists but points at a differently-named dir.)"""
+    root = _avd_root()
+    ini = root / f"{name}.ini"
+    if ini.exists():
+        m = re.search(r"^path\s*=\s*(.+)$", ini.read_text(), re.M)
+        if m and m.group(1).strip():
+            p = Path(m.group(1).strip())
+            if p.exists():                      # trust path= only if it really resolves
+                return p
+    return root / f"{name}.avd"
+
+def _avd_paths(name):
+    """(<name>'s real .avd dir per its .ini, <name>.ini file) under ~/.android/avd."""
+    return _avd_dir(name), _avd_root() / f"{name}.ini"
+
+def _check_avd_transfer(src, dst):
+    """Shared clone/rename precondition: src AVD exists, dst name is free. src's dir is
+    resolved from its .ini's path= (see _avd_dir); dst always lands at the canonical
+    <dst>.avd so the on-disk name matches the AVD name after the transfer.
+
+    Returns:
+        tuple[Path, Path, Path, Path]: (src_dir, src_ini, dst_dir, dst_ini).
+
+    Raises:
+        FileNotFoundError: src's .avd dir or .ini is missing.
+        FileExistsError: dst's .avd dir or .ini already exists.
+    """
+    src_dir, src_ini = _avd_paths(src)
+    dst_dir, dst_ini = _avd_root() / f"{dst}.avd", _avd_root() / f"{dst}.ini"
+    if not src_dir.exists() or not src_ini.exists():
+        raise FileNotFoundError(f"AVD {src!r} not found under {_avd_root()} "
+                                f"(dir {src_dir.name!r}, ini {src_ini.name!r})")
+    if dst_dir.exists() or dst_ini.exists():
+        raise FileExistsError(f"AVD {dst!r} already exists")
+    return src_dir, src_ini, dst_dir, dst_ini
+
+def _stamp_avd_identity(dst_dir, dst_ini, src_ini_text, src, dst):
+    """Point a transferred AVD's metadata at its new name: rewrite the top-level .ini's
+    path=/path.rel= to the canonical <dst>.avd (the src dir may have had any name, so we
+    replace the path LINES rather than string-substituting the src name), fix config.ini
+    AvdId/displayname, and normalize the GPU mode (see gpu_default())."""
+    txt = re.sub(r"^path\s*=.*$", f"path={dst_dir}", src_ini_text, flags=re.M)
+    txt = re.sub(r"^path\.rel\s*=.*$", f"path.rel=avd/{dst}.avd", txt, flags=re.M)
+    dst_ini.write_text(txt)
+    cfg = dst_dir / "config.ini"
+    _edit_ini(cfg, {"AvdId": dst, "avd.ini.displayname": dst})
+    normalize_gpu_config(cfg)
+
+def clone_avd(src, dst):
+    """Clone an AVD on disk: copy <src>.avd + <src>.ini to <dst>, fix the
+    embedded paths/ids, and drop the source's snapshots so the clone cold-boots.
+
+    Raises:
+        FileNotFoundError: src doesn't exist on disk.
+        FileExistsError: dst already exists on disk.
+    """
+    src_dir, src_ini, dst_dir, dst_ini = _check_avd_transfer(src, dst)
+    shutil.copytree(src_dir, dst_dir)
+    _stamp_avd_identity(dst_dir, dst_ini, src_ini.read_text(), src, dst)
+    shutil.rmtree(dst_dir / "snapshots", ignore_errors=True)
+    _strip_runtime_state(dst_dir)
+
+def rename_avd(src, dst):
+    """Rename an AVD in place: move <src>.avd + <src>.ini to <dst> and fix the embedded
+    paths/ids. Unlike clone_avd this MOVES (no copy) and PRESERVES snapshots/runtime state —
+    a rename keeps the same device, just relabelled. Caller must ensure it isn't running.
+
+    Raises:
+        FileNotFoundError: src doesn't exist on disk.
+        FileExistsError: dst already exists on disk.
+    """
+    src_dir, src_ini, dst_dir, dst_ini = _check_avd_transfer(src, dst)
+    ini_text = src_ini.read_text()
+    shutil.move(str(src_dir), str(dst_dir))
+    _stamp_avd_identity(dst_dir, dst_ini, ini_text, src, dst)
+    src_ini.unlink()
+
+def sdkmanager_bin():
+    h = android_home()
+    return _find("sdkmanager",
+                 [h / "cmdline-tools/latest/bin/sdkmanager"]
+                 + sorted(h.glob("cmdline-tools/*/bin/sdkmanager"), reverse=True)
+                 + [h / "tools/bin/sdkmanager"])
+
+def host_abi():
+    return "arm64-v8a" if host_profile()["arch"] == "arm64" else "x86_64"
+
+def _avd_api(avd):
+    """Source AVD's API level from its config.ini image.sysdir (android-NN)."""
+    cfg = Path.home() / ".android" / "avd" / f"{avd}.avd" / "config.ini"
+    if cfg.exists():
+        m = re.search(r"android-(\d+)", cfg.read_text())
+        if m:
+            return int(m.group(1))
+    return 34
+
+def atd_target(src_avd, tag="google_atd"):
+    """Closest ATD package to the source. ATD images exist for api 30-34, so a
+    newer source (e.g. android-36) is capped to 34. google_atd keeps GMS (needed
+    for Bubble's Google deps); aosp_atd is lighter but GMS-free."""
+    api = max(30, min(_avd_api(src_avd), 34))
+    abi = host_abi()
+    return (f"system-images;android-{api};{tag};{abi}",
+            f"system-images/android-{api}/{tag}/{abi}/", tag, api, abi)
+
+def ensure_atd_image(pkg, sysdir):
+    """Download the ATD system image via sdkmanager if absent (slow; network)."""
+    if (android_home() / sysdir / "system.img").exists():
+        return True
+    print(f"Downloading ATD image {pkg} via sdkmanager (slow; network) …")
+    subprocess.run([sdkmanager_bin(), pkg], input="y\n" * 50, text=True)
+    return (android_home() / sysdir / "system.img").exists()
+
+def atd_ify(new_avd, src_avd, tag="google_atd"):
+    """Re-point a cloned AVD at an ATD system image + fresh userdata (the Play
+    userdata is incompatible with a different system image, so it's wiped)."""
+    pkg, sysdir, tag, _, abi = atd_target(src_avd, tag)
+    if not ensure_atd_image(pkg, sysdir):
+        err(f"copy: could not obtain ATD image {pkg}; keeping original image")
+        return False
+    disp = "Google APIs ATD" if tag == "google_atd" else "AOSP ATD"
+    cpu = "arm64" if abi.startswith("arm") else "x86_64"
+    avd_dir = Path.home() / ".android" / "avd" / f"{new_avd}.avd"
+    cfg = avd_dir / "config.ini"
+    _edit_ini(cfg, {"image.sysdir.1": sysdir, "tag.id": tag, "tag.ids": tag,
+                    "tag.display": disp, "tag.displaynames": disp,
+                    "abi.type": abi, "hw.cpu.arch": cpu})
+    normalize_gpu_config(cfg)
+    for p in avd_dir.glob("userdata*.img"):    # fresh userdata for the new image
+        p.unlink()
+    shutil.rmtree(avd_dir / "snapshots", ignore_errors=True)
+    _strip_runtime_state(avd_dir)
+    print(f"Converted {new_avd} -> {pkg} (fresh userdata)")
+    return True
+
+def _bake_compile(serial, level):
+    """AOT-compile every installed package at COMPILE_LEVELS[level] (the
+    multi-hour part of a bake), echoing the compiler's output.
+
+    Returns:
+        tuple[bool, str | None]: (ok, fail_reason) — failure on a non-zero adb
+        exit OR an 'Error:' line in the output (adb exits 0 on some failures).
+    """
+    cmd, est = COMPILE_LEVELS[level]
+    narrate(f"  compiling [{level}] — estimated {est}; this is the slow part …")
+    cr = run_cap([adb_bin(), "-s", serial, "shell"] + cmd)
+    if cr.stdout:
+        sys.stdout.write(cr.stdout if cr.stdout.endswith("\n")
+                         else cr.stdout + "\n")
+        sys.stdout.flush()
+    if cr.returncode != 0 or re.search(r"(^|\n)Error:", cr.stdout or ""):
+        return False, (f"compile [{level}] failed (adb exit "
+                       f"{cr.returncode}); default_boot NOT saved")
+    return True, None
+
+def _bake_save_snapshot(serial):
+    """Save the default_boot snapshot via the emulator console, which replies
+    'OK' on success or 'KO: <reason>' on failure (exit code alone can't be
+    trusted).
+
+    Returns:
+        tuple[bool, str | None]: (ok, fail_reason).
+    """
+    narrate("  saving default_boot snapshot …")
+    sr = run_cap([adb_bin(), "-s", serial, "emu", "avd",
+                  "snapshot", "save", "default_boot"])
+    reply = (sr.stdout or "").strip()
+    last = reply.splitlines()[-1].strip() if reply else ""
+    if sr.returncode == 0 and last == "OK":
+        narrate("  default_boot saved (emulator console: OK)")
+        return True, None
+    return False, ("default_boot snapshot save failed "
+                   f"(console: {reply or 'no reply'})")
+
+def bake_optimizations(dev, level=None, windowed=False):
+    """The overnight investment, and the ONLY op that writes default_boot: boot the
+    device WRITABLE from a fresh state (headless by default; WINDOWED when windowed=True),
+    optionally AOT-compile at level (medium/hot — the multi-hour part), save the
+    default_boot snapshot, then halt. Every later --start quick-boots that snapshot and
+    cannot overwrite it.
+
+    windowed=True bakes the snapshot with a real display surface, so a later WINDOWED
+    --start can QUICK-BOOT it (fast AND visible) instead of cold-booting — a headless
+    snapshot restored windowed renders nothing. The snapshot's mode is recorded in
+    devices.default_boot_windowed so --start knows which boot path is safe.
+
+    Plain bake (no level) is ~2 min and already buys most of the boot-speed win —
+    the snapshot, not the compile, is what makes boots fast. Levels reduce post-boot
+    JIT churn (timing noise) for the packages installed AT BAKE TIME; the
+    app-under-test is compiled per-install by the qa gate instead.
+
+    Does NOT bake battery-saver/low_power (THROTTLES the guest CPU — hurt test
+    fidelity and starved system_server into an ANR on Lainey, 2026-06-16), NOT
+    forced-doze (device suspended/unresponsive for tests), and does NOT pm-disable
+    GApps (wedges system_server — the playstore lesson; ATD images need nothing
+    disabled anyway). Re-enabled 2026-07-08 (start/bake rework, the explicit task).
+
+    Args:
+        dev: a resolved, NOT-running Android device dict (a running one is
+            refused: its snapshot would capture the in-use session).
+        level: None (snapshot only) | 'medium' | 'hot' (COMPILE_LEVELS).
+
+    Returns:
+        bool: True iff compile (if any) + snapshot save + halt all succeeded.
+    """
+    if is_running(dev):
+        # A snapshot of an in-use session is nondeterministic (whatever apps/state
+        # happen to be live get baked into every future boot). Refuse; bake fresh.
+        err(f"bake: {dev['name']} is running — kill it first so the snapshot is "
+            f"a clean fresh boot, not a copy of the current session")
+        return False
+    narrate(f"bake {dev['name']}: booting {'WINDOWED' if windowed else 'headless'} "
+            f"(writable) to bake optimizations …")
+    t0 = time.time()
+    # WRITABLE (no -read-only, no -no-snapshot-save): read-only DISABLES snapshot save,
+    # which is the whole point of baking. Windowed bake cold-boots (fresh) so the saved
+    # snapshot carries a real display surface; headless bake keeps its prior behaviour.
+    _android_start(dev, emulator_flags(headless=not windowed, writable=True,
+                                       cold=windowed))
+    # _android_await_boot polls android_running() for THIS avd (right even with
+    # several emulators up) — no `adb wait-for-device`, which hits the wrong one.
+    narrate("  waiting for sys.boot_completed …")
+    serial = _android_await_boot(dev)
+    if not serial:
+        err(f"bake: {dev['name']} did not come up; skipping")
+        return False
+    narrate("  waiting for package manager (install/launch ready) …")
+    ok, fail_reason = True, None
+    # The compile → save steps are sequential and dependent: never persist a
+    # half-optimized snapshot. Short-circuit on the first failure.
+    if not _android_pm_ready(serial):
+        ok, fail_reason = False, "package manager never became ready"
+    elif level:
+        ok, fail_reason = _bake_compile(serial, level)
+    if ok:
+        ok, fail_reason = _bake_save_snapshot(serial)
+    narrate("  shutting the baked device down …")
+    run([adb_bin(), "-s", serial, "emu", "kill"], capture=False)
+    ms = int((time.time() - t0) * 1000)
+    base = f"bake:{level}" if level else "bake"
+    log_history(dev["id"], "bake", detail=(base if ok else base + ":FAILED"),
+                duration_ms=ms)
+    if not ok:
+        err(f"✗ bake {dev['name']} FAILED after {ms/1000:.0f}s — {fail_reason}")
+        return False
+    cols: "dict[str, object]" = {"last_warmed_at": now_iso(), "has_default_boot": 1,
+                                 "default_boot_windowed": 1 if windowed else 0}
+    if level:
+        # AOT artifacts live in /data, so they survive re-bakes; a plain re-bake
+        # leaves an earlier level's compile_level standing rather than clearing it.
+        cols["compile_level"] = level
+    _device_set(dev["id"], **cols)
+    kv_del(f"snapshot_stale:{dev['id']}")   # fresh snapshot supersedes the flag
+    kind = "quick-boot WINDOWED (fast + visible screen)" if windowed else "quick-boot optimized"
+    narrate(f"bake done in {ms/1000:.0f}s: {dev['name']} will {kind}")
+    return True
+
+def cmd_bake(ident, level=None, windowed=False):
+    """Bake an Android AVD: boot writable (headless, or WINDOWED when windowed=True),
+    optionally AOT-compile, save the default_boot snapshot, halt (see bake_optimizations
+    for the lore). A windowed bake lets a later windowed --start quick-boot (fast +
+    visible) instead of cold-booting.
+
+    Args:
+        ident: id/alias resolving to one Android device.
+        level: None (snapshot only) | 'medium' | 'hot' (COMPILE_LEVELS).
+        windowed: bake the snapshot with a visible window (mutually useful with
+            --bake:windowed, which is snapshot-only).
+
+    Returns:
+        int: 0 baked (or --dry-run plan printed); 1 bake failed; 2 refusal
+        (unresolvable / not Android).
+    """
+    sync()
+    try:
+        dev = resolve_one(ident)
+    except ResolveError as e:
+        err(f"bake: {e}")
+        return 2
+    if dev["kind"] != "android":
+        err("bake: Android-only.")
+        return 2
+    win = "windowed" if windowed else "headless"
+    if DRY_RUN:
+        dry_note(f"bake {dev['name']}: boot {win} writable → "
+                 + (f"compile [{level}] → " if level else "")
+                 + "save default_boot → halt")
+        if is_running(dev):
+            dry_note("device is RUNNING → bake refuses (snapshot must be a clean "
+                     "fresh boot); kill it first")
+            return 0
+        dry([emulator_bin(), "-avd", dev["id"]]
+            + emulator_flags(headless=not windowed, writable=True, cold=windowed),
+            note=f"{win} but WRITABLE (snapshot save needs write; not -read-only)"
+                 + ("; cold boot so the snapshot has a real display surface" if windowed
+                    else ""))
+        dry_note("loop ≤300×, 1s: getprop sys.boot_completed; then loop ≤90×, 1s: PM ready")
+        if level:
+            cmd, est = COMPILE_LEVELS[level]
+            dry([adb_bin(), "-s", "<serial>", "shell"] + cmd, note=f"compile [{level}] — {est}")
+            dry_note("if compile fails (non-zero exit or 'Error:') ⇒ STOP, do NOT save")
+        dry([adb_bin(), "-s", "<serial>", "emu", "avd", "snapshot", "save", "default_boot"],
+            note="expect console 'OK' (else ⇒ FAIL)")
+        dry([adb_bin(), "-s", "<serial>", "emu", "kill"], note="halt the baked device")
+        dry_note(f"on success: record has_default_boot=1, default_boot_windowed="
+                 f"{1 if windowed else 0}")
+        return 0
+    return 0 if bake_optimizations(dev, level, windowed=windowed) else 1
+
+def cmd_copy(ident, new_alias, mode="optimized"):
+    """Clone a device + give it an alias.
+      --copy:orig  -> plain clone (mode='orig').
+      --copy       -> clone, then re-point to an ATD image if one is downloaded
+                      (mode='optimized'). Runtime opts (low-power/doze) are baked
+                      via a later warmup+save-quickboot, not here.
+
+    Args:
+        ident: source device id/alias (Android AVDs only; iOS is deferred).
+        new_alias: alias for the clone; None pulls a free human name.
+        mode: 'optimized' (ATD-ify + plain bake) | 'orig' (as-is clone).
+
+    Returns:
+        int: 0 cloned; 2 refusal (unresolvable, real device, iOS, alias taken,
+        no free names, or the on-disk clone failed).
+    """
+    sync()
+    try:
+        dev = resolve_one(ident)            # fails if ID not available under that name
+    except ResolveError as e:
+        err(f"copy: {e}")
+        return 2
+    if refuse_on_real(dev, "copy"):
+        return 2
+    if not new_alias:                        # default: pull a free human name
+        row = db().execute("SELECT name FROM name_pool WHERE udid IS NULL "
+                           "ORDER BY RANDOM() LIMIT 1").fetchone()
+        if not row:
+            err("copy: no free human names left — supply an alias explicitly")
+            return 2
+        new_alias = row["name"]
+    if db().execute("SELECT 1 FROM aliases WHERE alias=? COLLATE NOCASE",
+                    (new_alias,)).fetchone():
+        err(f"copy: alias {new_alias!r} already in use")
+        return 2
+
+    if dev["kind"] == "ios":
+        err("copy: iOS is a FIXME:RESEARCH item. `xcrun simctl clone` can duplicate "
+            "a sim, but no proven boot-speed trick — deferring.")
+        return 2
+
+    new_avd = f"{dev['id']}_copy_{new_alias}"
+    try:
+        clone_avd(dev["id"], new_avd)
+    except (FileExistsError, FileNotFoundError) as e:
+        err(f"copy: {e}")
+        return 2
+    print(f"Cloned AVD {dev['id']} -> {new_avd}")
+
+    # Register the alias NOW, before any sync(): sync()->allocate_name would
+    # otherwise see a nameless clone and hand it a SECOND human name (the
+    # 'Lainey'+'Esther' double-name bug). If the chosen alias is a pooled human
+    # name, claim it for this udid (kind 'name'); else it's a 'user' alias.
+    pooled = db().execute("SELECT 1 FROM name_pool WHERE name=? COLLATE NOCASE",
+                          (new_alias,)).fetchone()
+    db().execute("INSERT INTO aliases(alias,udid,kind,created_at) VALUES (?,?,?,?) "
+                 "ON CONFLICT(alias) DO UPDATE SET udid=excluded.udid",
+                 (new_alias, new_avd, "name" if pooled else "user", now_iso()))
+    if pooled:
+        db().execute("UPDATE name_pool SET udid=?, allocated_at=? "
+                     "WHERE name=? COLLATE NOCASE", (new_avd, now_iso(), new_alias))
+    db().commit()
+    print(f"alias {new_alias!r} -> {new_avd}")
+
+    if mode == "optimized":
+        if atd_ify(new_avd, dev["id"]):     # download ATD + re-point + wipe userdata
+            sync()
+            # Plain bake (snapshot only, ~2 min): the clone quick-boots from day one.
+            # An AOT level is a separate overnight decision — run --bake:medium/hot
+            # on the clone when you can afford the wait.
+            new_dev = resolve_one(new_alias)
+            bake_optimizations(new_dev)
+            return 0
+
+    sync()  # at least register the new AVD as a device
+    return 0
+
+# ── nuke ─────────────────────────────────────────────────────────────────────
+
+def _quit_kill_ladder(label, list_running):
+    remaining = list_running()
+    if not remaining:
+        return
+    narrate(f"{label}: {len(remaining)} emulator(s) remain.")
+    for sig, phrase in ((signal.SIGQUIT,
+                         "depart with exquisite politeness, hugs, and a goodie bag"),
+                        (signal.SIGKILL, "GTFO")):
+        if not list_running():
+            break
+        for dev in list_running():
+            pids = (android_pids(dev) if dev["kind"] == "android"
+                    else pids_matching(dev["id"]))
+            for pid in pids:
+                narrate(f"{label}: asking PID {pid} to {phrase}")
+                try:
+                    os.kill(pid, sig)
+                except ProcessLookupError:
+                    pass
+        # Longer grace after SIGQUIT so a quick-boot snapshot save can finish before
+        # the SIGKILL pass; cheap after SIGKILL (just a settle). See EMU_KILL_GRACE_S.
+        time.sleep(EMU_KILL_GRACE_S)
+
+def nuke_ios():
+    narrate("iOS: Halting all running simulators")
+    run(["xcrun", "simctl", "shutdown", "all"], capture=False)
+    time.sleep(2)
+    for dev in ios_booted():
+        narrate(f"iOS: shutting down {dev['name']} ({dev['id']})")
+        run(["xcrun", "simctl", "shutdown", dev["id"]], capture=False)
+    time.sleep(2)
+    _quit_kill_ladder("iOS", ios_booted)
+    narrate("iOS: some simulators survived 😱" if ios_booted()
+            else f"iOS: full stop. {STOP}")
+
+def nuke_android():
+    narrate("Android: Halting all running simulators")
+    for dev in android_running():
+        run([adb_bin(), "-s", dev["serial"], "emu", "kill"], capture=False)
+    # `adb emu kill` is graceful: the emulator saves its quick-boot snapshot here. Give
+    # it the full grace window so the save completes before the SIGQUIT/SIGKILL ladder.
+    time.sleep(EMU_KILL_GRACE_S)
+    for dev in android_running():
+        narrate(f"Android: shutting down {dev['name']} ({dev['serial']})")
+        run([adb_bin(), "-s", dev["serial"], "emu", "kill"], capture=False)
+    time.sleep(EMU_KILL_GRACE_S)
+    _quit_kill_ladder("Android", android_running)
+    narrate("Android: some emulators survived 😱" if android_running()
+            else f"Android: full stop. {STOP}")
+
+def kill_all():
+    """The narrated full-stop reached via `--kill all` (this used to be `--nuke`).
+    Two phases (iOS then Android); each is: a graceful stop, a grace window so a
+    quick-boot snapshot can save, a second graceful pass on survivors, then a
+    SIGQUIT→(grace)→SIGKILL escalation ladder on anything still alive.
+
+    Returns:
+        int: 0 (survivors are narrated, not fatal).
+    """
+    if DRY_RUN:
+        g = f"{EMU_KILL_GRACE_S:.0f}s"
+        dry_note("`--kill all`: narrated full stop of EVERY running device, iOS then Android.")
+        dry_note("iOS phase:")
+        dry(["xcrun", "simctl", "shutdown", "all"], note="ask every booted sim to stop")
+        dry_note("  sleep 2s; then for each still-booted sim: xcrun simctl shutdown <udid>; sleep 2s")
+        dry_note(f"  ladder on survivors: SIGQUIT each sim PID → sleep {g} → SIGKILL each → sleep {g}")
+        dry_note("Android phase:")
+        dry([adb_bin(), "-s", "<serial>", "emu", "kill"],
+            note="per running emulator; graceful — saves the quick-boot snapshot")
+        dry_note(f"  sleep {g} (let the snapshot save finish); repeat `emu kill` on survivors; sleep {g}")
+        dry_note(f"  ladder on survivors: SIGQUIT each emulator PID → sleep {g} → SIGKILL each → sleep {g}")
+        return 0
+    nuke_ios()
+    nuke_android()
+    narrate(f"All: full stop. {STOP}")
+    return 0
+
+# ── entry ──────────────────────────────────────────────────────────────────────
+
+# Listing-filter flags accept ANY capitalization (--iOS, --IOS, --Android all work);
+# argparse itself is case-sensitive, so fold these to canonical lower-case pre-parse.
+_CASE_INSENSITIVE_FLAGS = {"--ios", "--android", "--real", "--simulated"}
+
+def _normalize_case_flags(argv):
+    """Lower-case any token that is a case-variant of a filter flag (--iOS → --ios).
+    Leaves '--flag=value' forms and all other tokens untouched."""
+    out = []
+    for a in argv:
+        if a.startswith("--") and a.lower() in _CASE_INSENSITIVE_FLAGS:
+            out.append(a.lower())
+        else:
+            out.append(a)
+    return out
+
+def _build_parser():
+    """The argparse CLI: one required, mutually-exclusive action plus the shared
+    filter/behavior flags (--ios/--android/--real/--simulated/-v/--dry-run …)."""
+    p = argparse.ArgumentParser(
+        prog="manage_devices",
+        description="Start / stop / list / loop simulated devices (iOS + Android).",
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    g = p.add_mutually_exclusive_group(required=True)
+    g.add_argument("-r", "--running", action="store_true", help="list running devices")
+    g.add_argument("-l", "--list", action="store_true", dest="list_all",
+                   help="list ALL devices + aliases (non-running first, running last)")
+    g.add_argument("--resolve", metavar="ID",
+                   help="print the maestro device id (android serial / iOS UDID) for an id/alias")
+    g.add_argument("--mark-used", dest="mark_used", metavar="ID",
+                   help="record id/alias as last-ios/last-android (no stdout id); for a "
+                        "manual qa:flow run to mark the device it ran on")
+    g.add_argument("--kind-of", dest="kind_of", metavar="ID",
+                   help="print a device's platform ('ios'/'android') for an id/alias "
+                        "(offline; the qa runner uses it to infer/validate --platform)")
+    g.add_argument("--flavor-of", dest="flavor_of", metavar="ID",
+                   help="print a device's flavor ('real'/'simulated') for an id/alias "
+                        "(offline; the qa runner uses it to pick the build/install path)")
+    g.add_argument("--headless-of", dest="headless_of", metavar="ID",
+                   help="print a running device's screen mode ('headless'/'windowed'/"
+                        "'unknown'); qa:flow --require-screen uses it to refuse a black run")
+    g.add_argument("--history", nargs="?", const="", metavar="ID",
+                   help="dump warmup/bake/start/kill timings (all, or one id/alias)")
+    g.add_argument("--start", metavar="ID",
+                   help="start device(s) WINDOWED (visible screen; cold-boots so the "
+                        "display renders) + WAIT until responsive")
+    g.add_argument("--start:headless", dest="start_headless", metavar="ID",
+                   help="start + wait, headless (-no-window -read-only, quick-boot; "
+                        "screenshots come back BLACK; the mode for CI/bench)")
+    g.add_argument("--start-basic", dest="start_basic", metavar="ID",
+                   help="start device(s), legacy windowed behaviour (no flags, no wait)")
+    g.add_argument("-k", "--kill", metavar="ID",
+                   help="stop device(s); `--kill all` = narrated full stop with escalation")
+    g.add_argument("-w", "--warmup", metavar="ID",
+                   help="legacy alias for --start (WINDOWED); CI/bench want "
+                        "--start:headless instead")
+    # REMOVED 2026-07-08: --warm:low/medium/hot. A multi-hour AOT compile is an overnight
+    # investment, not a warmup; compiling (and snapshot-writing) now belongs to --bake
+    # exclusively, and every start waits for readiness anyway.
+    g.add_argument("-c", "--copy", nargs="+", metavar="ID|ALIAS", dest="copy",
+                   help="clone an Android AVD (ATD-ify + snapshot bake); takes ID [NEW_ALIAS]")
+    g.add_argument("--copy:orig", nargs="+", metavar="ID|ALIAS", dest="copy_orig",
+                   help="clone a device as-is; takes ID [NEW_ALIAS]")
+    g.add_argument("--bake", metavar="ID",
+                   help="boot headless writable, save default_boot, halt (~2 min; "
+                        "the only op that writes the snapshot)")
+    g.add_argument("--bake:medium", dest="bake_medium", metavar="ID",
+                   help="bake + AOT speed-profile compile, all packages (~20-40 min)")
+    g.add_argument("--bake:hot", dest="bake_hot", metavar="ID",
+                   help="bake + AOT 'everything' compile, all packages (~40-90 min)")
+    g.add_argument("--bake:windowed", dest="bake_windowed", metavar="ID",
+                   help="bake the default_boot snapshot WINDOWED (~2 min) so a later "
+                        "windowed --start quick-boots it — fast AND a visible screen")
+    # HIDDEN 2026-06-26, still hidden after the 2026-07-08 rework: --save-quickboot
+    # would make a second writer of default_boot; --bake is deliberately the only one.
+    # Body kept for a future hand-crafted-state use case.
+    g.add_argument("-m", "--monitor", nargs="?", const=10, type=int, default=None,
+                   metavar="SECONDS", help="periodically sample host-side load")
+    g.add_argument("-a", "--alias", nargs=2, metavar=("ID", "ALIAS"),
+                   help="create a user alias for device(s)")
+    g.add_argument("--rename", nargs=2, metavar=("OLD", "NEW"),
+                   help="rename an AVD name or a user alias (internal aliases are rejected)")
+    g.add_argument("--loop", nargs=2, metavar=("NAME", "CSV"),
+                   help="define an ordered loop from a comma list of ids/aliases")
+    g.add_argument("-n", "--next", nargs="?", const=None, default=False,
+                   metavar="NAME", help="advance the loop cursor; print next device")
+    g.add_argument("--add", nargs="?", const="", default=None, metavar="ID",
+                   help="register a real (physical) device: personal-vs-test + 3 aliases")
+    g.add_argument("--claim", metavar="ID",
+                   help="place/refresh an advisory claim on a device (runner use)")
+    g.add_argument("--release", nargs="?", const="", default=None, metavar="ID",
+                   help="release an advisory claim by id/alias (or use --release-pid)")
+    p.add_argument("--ios", action="store_true",
+                   help="with --list/--running/all*: restrict to iOS devices")
+    p.add_argument("--android", action="store_true",
+                   help="with --list/--running/all*: restrict to Android devices")
+    p.add_argument("--real", action="store_true",
+                   help="with --list/--running/all*: restrict to real (physical) devices")
+    p.add_argument("--simulated", action="store_true",
+                   help="with --list/--running/all*: restrict to simulated/emulated devices")
+    p.add_argument("--owner", metavar="NAME", help="claim owner (with --claim)")
+    p.add_argument("--claim-pid", dest="claim_pid", type=int, metavar="PID",
+                   help="claim holder pid (with --claim)")
+    p.add_argument("--release-pid", dest="release_pid", type=int, metavar="PID",
+                   help="release all claims held by PID (with --release)")
+    p.add_argument("-v", "--verbose", action="store_true",
+                   help="with --list/--running: dump the full per-device record (tab-separated)")
+    p.add_argument("--dry-run", action="store_true", dest="dry_run",
+                   help="with a mutating action (--start/--kill): print the low-level "
+                        "commands and implicit loops it WOULD run, changing nothing")
+    return p
+
+def _set_filters(args, p):
+    """Validate + install the --ios/--android and --real/--simulated listing
+    filters into the module globals _apply_filters reads."""
+    global FILTER_PLATFORM, FILTER_FLAVOR
+    if args.ios and args.android:
+        p.error("--ios and --android are mutually exclusive")
+    if args.real and args.simulated:
+        p.error("--real and --simulated are mutually exclusive")
+    FILTER_PLATFORM = "ios" if args.ios else "android" if args.android else None
+    FILTER_FLAVOR = "real" if args.real else "simulated" if args.simulated else None
+
+def _dry_run_refused(args):
+    """--dry-run is modeled for the device-lifecycle actions only. For other
+    mutating actions there is no plan, so refuse (True) rather than silently run
+    and change disk/DB state — the contract is 'dry-run never mutates'."""
+    unmodeled = {
+        "--mark-used": args.mark_used, "--copy": args.copy,
+        "--copy:orig": args.copy_orig,
+        "--alias": args.alias, "--rename": args.rename, "--loop": args.loop,
+        "--monitor": args.monitor is not None, "--next": args.next is not False,
+        "--add": args.add is not None, "--claim": args.claim,
+        "--release": args.release is not None,
+    }
+    for name, on in unmodeled.items():
+        if on:
+            dry_note(f"--dry-run: no plan is modeled for {name}; refusing so no "
+                     f"state is changed")
+            return True
+    return False
+
+def _dispatch(args):
+    """Route the parsed action to its cmd_* handler; the (is-set, thunk) table
+    mirrors argparse's sentinel conventions (None-able nargs='?' flags compare
+    against their 'unset' sentinel, plain string flags are truth-tested)."""
+    def _copy_args(lst):
+        return (lst[0], lst[1] if len(lst) > 1 else None)
+
+    table = [
+        (args.running, lambda: cmd_running(args.verbose)),
+        (args.list_all, lambda: cmd_list(args.verbose)),
+        (args.resolve, lambda: cmd_resolve(args.resolve)),
+        (args.mark_used, lambda: cmd_mark_used(args.mark_used)),
+        (args.kind_of, lambda: cmd_kind_of(args.kind_of)),
+        (args.flavor_of, lambda: cmd_flavor_of(args.flavor_of)),
+        (args.headless_of, lambda: cmd_headless_of(args.headless_of)),
+        (args.history is not None, lambda: cmd_history(args.history or None)),
+        (args.start, lambda: cmd_start(args.start, "optimized")),
+        (args.start_headless, lambda: cmd_start(args.start_headless, "headless")),
+        (args.start_basic, lambda: cmd_start(args.start_basic, "basic")),
+        (args.kill, lambda: cmd_kill(args.kill)),
+        (args.warmup, lambda: cmd_start(args.warmup, "optimized")),
+        (args.bake, lambda: cmd_bake(args.bake)),
+        (args.bake_medium, lambda: cmd_bake(args.bake_medium, "medium")),
+        (args.bake_hot, lambda: cmd_bake(args.bake_hot, "hot")),
+        (args.bake_windowed, lambda: cmd_bake(args.bake_windowed, windowed=True)),
+        (args.copy, lambda: cmd_copy(*_copy_args(args.copy), mode="optimized")),
+        (args.copy_orig, lambda: cmd_copy(*_copy_args(args.copy_orig), mode="orig")),
+        (args.monitor is not None, lambda: cmd_monitor(args.monitor)),
+        (args.alias, lambda: cmd_alias(args.alias[0], args.alias[1])),
+        (args.rename, lambda: cmd_rename(args.rename[0], args.rename[1])),
+        (args.loop, lambda: cmd_loop(args.loop[0], args.loop[1])),
+        (args.next is not False, lambda: cmd_next(args.next)),
+        (args.add is not None, lambda: cmd_add(args.add or None)),
+        (args.claim, lambda: claim_device(args.claim, args.owner or "manual",
+                                          args.claim_pid or os.getpid())),
+        (args.release is not None, lambda: release_claim(ident=(args.release or None),
+                                                         pid=args.release_pid)),
+    ]
+    for on, action in table:
+        if on:
+            return action()
+    return 1
+
+def main(argv=None):
+    """CLI entry: parse, install filters, honor --dry-run's no-mutation contract,
+    then dispatch to the selected action's handler.
+
+    Args:
+        argv: argument list for tests; None → sys.argv.
+
+    Returns:
+        int: the handler's exit code (0 ok, 1 failure, 2 usage/refusal).
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+    argv = _normalize_case_flags(argv)
+    p = _build_parser()
+    args = p.parse_args(argv)
+    _set_filters(args, p)
+
+    htc.warn_missing_once(err)  # one consolidated stderr warning if a toolchain is absent
+
+    global DRY_RUN
+    DRY_RUN = bool(args.dry_run)
+    if DRY_RUN and _dry_run_refused(args):
+        return 0
+    return _dispatch(args)
+
+if __name__ == "__main__":
+    sys.exit(main())

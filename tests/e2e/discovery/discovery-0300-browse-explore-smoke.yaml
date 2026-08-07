@@ -1,0 +1,48 @@
+# qa-id: discovery-0300
+# qa-reason: Browse + search bubbles in the Explore tab (UC 204)
+# Browse bubbles in the Explore tab (UC 204).
+#
+# STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop the `unverified` tag (so it joins the default smoke suite) after one green run.
+# Depends on the seeded "QA Test Bubble" (Public, approved) appearing in Explore.
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-any
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- assertVisible:
+    id: button-create-fab
+
+# Explore → Bubbles tab; at least one bubble card must render.
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}explore-bubbles
+
+# Search narrows the list.
+- tapOn:
+    id: input-search
+- inputText: "QA"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}explore-search

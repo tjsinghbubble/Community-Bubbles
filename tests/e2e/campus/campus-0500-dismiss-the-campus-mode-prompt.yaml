@@ -1,0 +1,45 @@
+# qa-id: campus-0500
+# qa-reason: Unverified user dismisses the campus-mode prompt ("I'm not a student") and it disappears (UC 200)
+#
+# STATUS: unverified. Authored against real testIDs (ExploreScreen campus prompt) but not
+# yet run on a simulator. Drop `unverified` after one green run.
+# The seeded role-user is campus-unverified with dismissedCampusPrompt=false on a fresh
+# seed, so the prompt renders on Explore. Tapping "I'm not a student"
+# (button-dismiss-campus-prompt) hides it. Read-only otherwise — no email/verification.
+appId: com.bubble.mobile
+tags:
+  - campus
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# On Explore, the campus prompt is shown to the unverified seeded member.
+- assertVisible:
+    id: button-dismiss-campus-prompt
+- takeScreenshot: ${SHOT_PREFIX}01-campus-prompt-visible
+
+# Tap "I'm not a student" to dismiss it.
+- tapOn:
+    id: button-dismiss-campus-prompt
+- waitForAnimationToEnd
+
+# The prompt is gone.
+- assertNotVisible:
+    id: button-dismiss-campus-prompt
+- takeScreenshot: ${SHOT_PREFIX}02-campus-prompt-dismissed

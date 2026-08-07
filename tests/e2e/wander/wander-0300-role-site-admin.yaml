@@ -1,0 +1,140 @@
+# qa-id: wander-0300
+# qa-reason: Site-admin oversight wander: approval queues, app rules, platform health checks (UC -)
+#
+# KNOWN UNVERIFIED RISKS / SELECTOR GAPS (resolve via Maestro MCP; this wander is expected
+# to surface admin-screen selector gaps — see tests/plan/wander/wander-site-admin.md):
+#  - Bottom-tab navigation taps go by TEXT label "Profile", not tabBarTestID (does not
+#    surface as a resource-id on iOS). "Profile" is whole-string matched; if the profile
+#    header also reads "Profile" this may be ambiguous — verify.
+#  - Stops 2-4: no SiteMonitoringScreen (users/bubbles/events dashboard) found; substituted
+#    Slow Call Trends + Span Health as platform-health stand-ins.
+#  - Stop 9 Categories (CategoryPlaceholdersScreen) has NO testIDs — screenshot-only.
+#  - Stop 10 super-admin badge has no testID; asserts the admin-only link-needs-attention
+#    affordance instead (ProfileScreen; text-version lives on AccountSettings, not here).
+#  - docs/maestro_testids.md is missing the bottom-tab rows and several admin screens.
+appId: com.bubble.mobile
+tags:
+  - wander
+  - slow
+  - e2e
+  - ios
+  - role-site-admin
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Stop 1: Verify site-admin affordance on Explore (tab landing)
+- assertVisible:
+    id: button-create-fab
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: link-needs-attention
+- takeScreenshot: ${SHOT_PREFIX}stop-1-profile-admin-links
+
+# Stop 2–3: Platform health + growth stats (Slow Call Trends as stand-in)
+# NOTE: SiteMonitoringScreen with users/bubbles/events dashboard not found.
+# Substituting link-slow-call-trends as platform health read.
+- tapOn:
+    id: link-slow-call-trends
+- waitForAnimationToEnd
+- assertVisible:
+    id: slow-calls-summary-bar
+- takeScreenshot: ${SHOT_PREFIX}stop-2-platform-health
+
+# Stop 2–4 continuation: Span Health as integration status read
+- tapOn:
+    id: button-back
+- waitForAnimationToEnd
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- tapOn:
+    id: link-span-health
+- waitForAnimationToEnd
+- assertVisible:
+    id: span-health-summary-bar
+- takeScreenshot: ${SHOT_PREFIX}stop-3-span-health
+
+# Stop 5: Bubble approval queue
+# NOTE: PendingReviewsScreen uses the same approval buttons for bubbles and events.
+- tapOn:
+    id: button-back
+- waitForAnimationToEnd
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- tapOn:
+    id: link-needs-attention
+- waitForAnimationToEnd
+# Tolerate empty queue if no pending bubbles; screenshot the screen
+- takeScreenshot: ${SHOT_PREFIX}stop-5-approval-queue
+# Try to approve a bubble if one exists (pattern match on button-approve-bubble-*)
+# If none exists, the assertVisible will pass (tolerant wander)
+- assertVisible:
+    id: "button-approve-bubble-.*"
+    optional: true
+
+# Stop 6: Event approval queue (same screen as stop 5, just assert event buttons render)
+- assertVisible:
+    id: "button-approve-event-.*"
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}stop-6-event-queue
+
+# Stop 7: Reported concerns / dismissible reports
+# NOTE: PendingReviewsScreen handles reports via button-resolve-report and button-dismiss-report.
+# Tolerate empty reports (no pending reports locally).
+- assertVisible:
+    id: "button-resolve-report-.*"
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}stop-7-reports
+
+# Stop 8: App-wide rules (ManageRulesScreen)
+- tapOn:
+    id: button-back
+- waitForAnimationToEnd
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- tapOn:
+    id: link-manage-rules
+- waitForAnimationToEnd
+- assertVisible:
+    id: tab-app-rules
+- waitForAnimationToEnd
+- assertVisible:
+    id: "rule-card-.*"
+    optional: true
+- takeScreenshot: ${SHOT_PREFIX}stop-8-app-rules
+
+# Stop 9: Categories hierarchy
+# NOTE: CategoryPlaceholdersScreen has no verified testIDs in the codebase.
+# Screenshot the nearest reachable admin screen instead (ManageRulesScreen serves as proximity stand-in).
+- takeScreenshot: ${SHOT_PREFIX}stop-9-categories-not-found
+
+# Stop 10: Profile — assert the admin-only affordance as the super-admin proxy.
+# NOTE: Super-admin badge testID not verified; link-needs-attention is admin-only and lives
+# on ProfileScreen (text-version is on AccountSettings, not reachable here without a tap).
+- tapOn:
+    id: button-back
+- waitForAnimationToEnd
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: link-needs-attention
+- takeScreenshot: ${SHOT_PREFIX}stop-10-profile-version

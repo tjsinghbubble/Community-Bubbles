@@ -1,0 +1,110 @@
+# ⚠️ DRAFT / INERT — NOT YET DISCOVERED BY THE RUNNER.
+# This flow has NO active qa-id line, so tests/runner/select.ts:discoverAll() skips it
+# (it keys on a "qa-id" colon comment). It will never run in `npm run qa` / `--all`
+# until activated.
+#
+# TO ACTIVATE: (1) land the picker testIDs/a11y fix that unblocks events-0500
+#   (Trello 4Ivuvgkl) and the LocationPicker error-handling fix (Trello hqJLRSwU),
+#   then (2) rename the "qa-id-DRAFT" marker below to the real qa-id comment (value
+#   events-1500) and register it in the events area doc + backlog.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# qa-id-DRAFT: events-1500   (rename to `qa-id:` to activate — see above)
+# qa-reason-DRAFT: Goal 1 — the event location picker stays RESPONSIVE across address
+#   classes; a garbage/empty/incomplete query must not freeze the app (the reported bug).
+#
+# WHAT THIS TESTS (and what it does NOT):
+#   We are NOT testing Google's geocoding correctness — Google's answer is non-deterministic
+#   and out of our control. We test OUR app's resilience: after each query class the picker
+#   remains interactive (header + close button still respond) and the user can recover.
+#
+# Address classes (QA Goal 1):
+#   a. valid+complete  — "700 Jean St, Oakland"      (expect: a suggestion appears)
+#   b. valid+incomplete— "1 Broadway"                (ambiguous; suggestions OR empty — both OK)
+#   c. spooky/local    — "Jim's Cafe"                (locally-resolved or empty — both OK)
+#   d. garbage         — "cheese", ":-)", ""         (expect: empty state, NO freeze)  ← the bug
+#   e. out-of-area     — "Eiffel Tower"              (resolves or empty — both OK)
+#
+# The ONLY hard assertion per class is the non-freeze invariant: the "Search Location"
+# header and the close control remain present/usable. Suggestion presence is a soft
+# screenshot, not a gate (we don't own Google's result set).
+appId: com.bubble.mobile
+tags:
+  - events
+  - bubble-admin
+  - e2e
+  - ios
+  - role-bubble-admin
+  - external          # exercises live Google Places
+  - resilience
+  - bug-filed         # blocked on Trello 4Ivuvgkl / hqJLRSwU — failure is a KNOWN gap, not new
+---
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && typeof METRO_PORT === 'string' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`)"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Into the seeded bubble's in-bubble create-event route (same prelude as events-0500).
+- tapOn:
+    text: "My Bubbles"
+- tapOn:
+    text: "QA Test Bubble"
+- extendedWaitUntil:
+    visible:
+      id: button-create-event-fab
+    timeout: 15000
+- tapOn:
+    id: button-create-event-fab
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-event-title
+- tapOn:
+    id: input-event-title
+- inputText: "QA Location Matrix"
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Open the location picker (Step 2). After this the matrix runs INSIDE the picker,
+# clearing the field between classes rather than re-opening it each time.
+- tapOn:
+    id: button-location-picker
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Search Location"   # picker header — the non-freeze anchor we re-assert below
+
+# A reusable per-class probe lives in a subflow so each class is one line + its query.
+# (Subflow asserts the header still shows and the field is still editable afterward.)
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: "700 Jean St, Oakland", CLASS: "a-valid-complete", SHOT_PREFIX: "${SHOT_PREFIX}" }
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: "1 Broadway", CLASS: "b-incomplete", SHOT_PREFIX: "${SHOT_PREFIX}" }
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: "Jim's Cafe", CLASS: "c-spooky-local", SHOT_PREFIX: "${SHOT_PREFIX}" }
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: "cheese", CLASS: "d-garbage-word", SHOT_PREFIX: "${SHOT_PREFIX}" }
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: ":-)", CLASS: "d-garbage-emoji", SHOT_PREFIX: "${SHOT_PREFIX}" }
+- runFlow:
+    file: ../common/location-probe.DRAFT.yaml
+    env: { QUERY: "Eiffel Tower", CLASS: "e-out-of-area", SHOT_PREFIX: "${SHOT_PREFIX}" }
+
+# Final non-freeze invariant: the picker can still be dismissed cleanly.
+- tapOn:
+    id: button-location-picker-close   # ← testID to be ADDED by the a11y fix (Trello hqJLRSwU)
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-select-date            # back on Step 2, not stuck in the picker

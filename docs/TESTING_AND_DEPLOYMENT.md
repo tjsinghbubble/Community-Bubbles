@@ -296,7 +296,7 @@ graph LR
         R1[DATABASE_URL]
         R2[JWT_SECRET]
         R3[RESEND_API_KEY]
-        R4[COMETCHAT_APP_ID]
+        R4[EXPO_PUBLIC_COMETCHAT_APP_ID]
         R5[COMETCHAT_API_KEY]
         R6[ENCRYPTION_KEY]
         R7[SHARE_BASE_URL]
@@ -326,7 +326,7 @@ graph LR
 | `DATABASE_URL` | Server DB | Replit Secrets | Different URL per environment |
 | `RESEND_API_KEY` | Server email | Replit Secrets | From resend.com dashboard |
 | `ENCRYPTION_KEY` | Server email encrypt | Replit Secrets | 32-byte hex key |
-| `COMETCHAT_APP_ID` | Server + mobile | Replit Secrets + EAS | Same value, two places |
+| `EXPO_PUBLIC_COMETCHAT_APP_ID` | Server + mobile | Replit Secrets + EAS | Same value AND same name in both places |
 | `COMETCHAT_API_KEY` | Server only | Replit Secrets | Never in mobile |
 | `SENTRY_DSN` | Server + mobile + CI | Replit Secrets + EAS + GitHub | Public-safe but keep centralized |
 | `SHARE_BASE_URL` | Server | Replit Secrets | `https://trybubble.io` in production |
@@ -559,7 +559,7 @@ Navigate to: **Replit sidebar → Secrets → + New secret** (set separately for
 | `DATABASE_URL` | Replit PostgreSQL connection string | Different per environment |
 | `RESEND_API_KEY` | resend.com → API Keys | For sending verification emails |
 | `ENCRYPTION_KEY` | Generate 32-byte hex: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` | For email encryption |
-| `COMETCHAT_APP_ID` | CometChat dashboard → Apps | Same value as mobile |
+| `EXPO_PUBLIC_COMETCHAT_APP_ID` | CometChat dashboard → Apps | Same value and name as mobile |
 | `COMETCHAT_API_KEY` | CometChat dashboard → Apps → API Keys | Server only, never in mobile |
 | `SENTRY_DSN` | sentry.io → Project → Settings → Client Keys | Same value as GitHub secret |
 | `SHARE_BASE_URL` | `https://trybubble.io` (production) or staging URL | Used in share link HTML |

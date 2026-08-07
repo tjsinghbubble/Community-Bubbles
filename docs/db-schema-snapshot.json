@@ -1473,6 +1473,12 @@
       "hasDefault": true
     },
     {
+      "column": "created_by",
+      "type": "PgVarchar",
+      "notNull": true,
+      "hasDefault": false
+    },
+    {
       "column": "created_at",
       "type": "PgTimestamp",
       "notNull": true,
@@ -1843,6 +1849,36 @@
       "hasDefault": false
     },
     {
+      "column": "google_id",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "apple_id",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "social_auth_pending",
+      "type": "PgBoolean",
+      "notNull": true,
+      "hasDefault": true
+    },
+    {
+      "column": "gender",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "date_of_birth",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
       "column": "interests",
       "type": "PgArray",
       "notNull": true,
@@ -1901,6 +1937,18 @@
       "type": "PgBoolean",
       "notNull": true,
       "hasDefault": true
+    },
+    {
+      "column": "suspended_at",
+      "type": "PgTimestamp",
+      "notNull": false,
+      "hasDefault": false
+    },
+    {
+      "column": "suspended_reason",
+      "type": "PgText",
+      "notNull": false,
+      "hasDefault": false
     },
     {
       "column": "created_at",

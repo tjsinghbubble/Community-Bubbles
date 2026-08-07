@@ -7,23 +7,27 @@
 
 set -euo pipefail
 
-PROJECT="${HOME}/Documents/src/bubble/TJ-branch-20260220"
-WATCH_ROOT="${PROJECT}"
+# Watchman invokes this handler with cwd set to the watch root.
+PROJECT="$(pwd)"
 
 warn() { echo "watchman-exclude: ⚠ $1" >&2; }
 
 ICLOUD_DOCS=false
 TM_ENABLED=false
-xattr "$HOME/Documents" 2>/dev/null | grep -q 'file-provider-domain-id' && ICLOUD_DOCS=true
-tmutil destinationinfo &>/dev/null && TM_ENABLED=true
+[ -d "$HOME/Library/Mobile Documents/com~apple~CloudDocs" ] && ICLOUD_DOCS=true
+tmutil destinationinfo 2>/dev/null | grep -q 'Name :' && TM_ENABLED=true
 
 while IFS= read -r relpath; do
-  dir="${WATCH_ROOT}/${relpath}"
+  dir="${PROJECT}/${relpath}"
   [ -d "$dir" ] || continue
 
   if $ICLOUD_DOCS; then
+    # fileprovider.ignore#P is the attribute that actually stops iCloud Drive *sync*;
+    # donotbackup only excludes from backup. See scripts/icloud-ignore-churn.zsh.
+    xattr -w 'com.apple.fileprovider.ignore#P' 1 "$dir" 2>/dev/null \
+      || warn "iCloud sync-ignore FAILED: $dir"
     xattr -w com.apple.icloud.donotbackup 1 "$dir" 2>/dev/null \
-      || warn "iCloud FAILED: $dir"
+      || warn "iCloud donotbackup FAILED: $dir"
   fi
 
   touch "${dir}/.metadata_never_index" 2>/dev/null \

@@ -1,0 +1,69 @@
+# qa-id: joining-0520
+# qa-reason: After requesting to join, the UI confirms it and blocks a duplicate request (UI negative for UC 44, counterpart of joining-0510)
+# UI-level duplicate-request guard: "Request Sent" alert, then a disabled "Request Pending"
+# button on revisit.
+#
+# STATUS: unverified. Authored against real testIDs/copy but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Uses the seeded Request-to-Join "QA Request Bubble" (dedicated — the member's pending
+# request must not leak into the other seeded bubbles' state). First visit lands on the
+# Join screen (non-member redirect); requesting shows the "Request Sent" alert whose OK
+# navigates back. The REVISIT does NOT redirect (pending members stay on BubbleDetails,
+# BubbleDetailsScreen.checkMembership) and must show a disabled "Request Pending" button —
+# the UI counterpart of the 400 joining-0510 proves at the API.
+# Relies on Maestro's enabled: selector against RN accessibilityState (also used by
+# joining-0600) — verify on sim.
+appId: com.bubble.mobile
+tags:
+  - joining
+  - smoke
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# First visit: non-member → Join screen; the CTA reads "Request to Join".
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Request Bubble"
+- waitForAnimationToEnd
+- assertVisible: "Request to Join"
+- tapOn:
+    id: button-join-bubble
+- waitForAnimationToEnd
+
+# The submission is confirmed to the user; OK navigates back to Explore.
+- assertVisible: "Request Sent"
+- takeScreenshot: ${SHOT_PREFIX}request-sent-alert
+- tapOn: "OK"
+- waitForAnimationToEnd
+
+# Revisit: pending members stay on the details screen, where the button is a disabled
+# "Request Pending" — the duplicate request is blocked at the UI.
+- tapOn: "QA Request Bubble"
+- waitForAnimationToEnd
+- assertVisible: "Request Pending"
+- assertVisible:
+    id: button-join-leave
+    enabled: false
+- takeScreenshot: ${SHOT_PREFIX}request-pending-blocked

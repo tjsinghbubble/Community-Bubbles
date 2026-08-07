@@ -1,0 +1,68 @@
+# qa-id: events-0720
+# qa-reason: Clearing an event's title disables Save in the edit form (UI negative for UC 162, counterpart of events-0710)
+# UI-level invalid-edit guard: EditEventScreen's isFormValid gates button-save-event, so an
+# empty title can never be submitted from the UI (events-0710 proves the API also rejects it).
+#
+# STATUS: unverified. Authored against real testIDs/copy but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Opens the seeded "QA Seeded Event" (QA Browse Bubble, always 30 days out) from the
+# Explore Events tab as the owning bubble admin. NOTHING IS SAVED — the flow clears the
+# title, asserts Save is disabled, and leaves; the seeded event stays pristine for
+# discovery-0400's upcoming-events assert.
+# The title TextInput has no testID — it is tapped by its current text. The Manage Event
+# entry is kebab → button-manage-event → native action sheet "Edit Event".
+appId: com.bubble.mobile
+tags:
+  - events
+  - smoke
+  - e2e
+  - ios
+  - role-bubble-admin
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Explore → Events tab → the seeded event.
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+- tapOn:
+    id: tab-events
+- waitForAnimationToEnd
+- tapOn: "QA Seeded Event"
+- waitForAnimationToEnd
+
+# Kebab → Manage Event → native action sheet → Edit Event.
+- tapOn:
+    id: button-kebab-menu
+- tapOn:
+    id: button-manage-event
+- tapOn: "Edit Event"
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-save-event
+
+# Clear the title (the input holds the seeded title; no testID on the field).
+- tapOn: "QA Seeded Event"
+- eraseText: 100
+- takeScreenshot: ${SHOT_PREFIX}title-cleared
+
+# Save must be disabled with an empty title — the invalid edit cannot be submitted.
+- assertVisible:
+    id: button-save-event
+    enabled: false
+- takeScreenshot: ${SHOT_PREFIX}save-disabled

@@ -1,0 +1,566 @@
+#!/usr/bin/env python3
+"""testplan — drive the test-expansion backlog without collisions.
+
+Companion to scripts/gen_test_backlog.py and tests/plan/. The backlog
+(tests/plan/backlog.tsv) is the complete enumeration of assignment units. This tool hands
+units to agents one at a time and tracks their state, so many short agent sessions (even
+parallel ones) never grab the same unit or stomp each other's output.
+
+Collision model: a unit is "claimed" by the EXISTENCE of its prompt file
+tests/plan/units/<id>.md. Claiming creates that file with O_EXCL (atomic) — two agents
+racing on the same unit, exactly one wins; the loser moves to the next candidate. The
+output path was reserved in the backlog up front, so two units can never target one file.
+
+Commands:
+  status                 counts by area/status + units currently in progress
+  list   [--status S] [--area A] [--kind K] [--layer L]
+  next   [--area A] [--kind K] [--layer L]   claim the highest-priority todo unit
+  claim  <unit_id>                           claim a specific unit
+  show   <unit_id>                           print the prompt (or the backlog row)
+  done   <unit_id>                           mark a claimed unit finished
+  block  <unit_id> [reason...]               mark blocked (e.g. on a mock)
+  release <unit_id>                          un-claim (delete the prompt file)
+  gen                                        regenerate backlog.tsv (runs the generator)
+
+Stdlib only. Add --json to status/list/next/claim/show for machine-readable output.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from string import Template
+
+REPO = Path(__file__).resolve().parent.parent
+PLAN = REPO / "tests" / "plan"
+BACKLOG = PLAN / "backlog.tsv"
+UNITS = PLAN / "units"
+TEMPLATE = PLAN / "PROMPT_TEMPLATE.md"
+TICKETS_DIR = REPO / "tmp" / "trello-cards"  # bug/ticket drafts (see trello skill)
+
+
+def ticket_counts(areas) -> dict[str, int]:
+    """Approximate count of Trello card drafts attributed to each area.
+
+    Best-effort (the user accepts <100% accuracy): scan card *.md drafts (and
+    ./filed/) and attribute each to at most one area by whole-word match of the
+    area name in the filename + body. Longer area names win (site-admin before
+    site). Cards matching no area are not counted.
+    """
+    counts = {a: 0 for a in areas}
+    if not TICKETS_DIR.exists():
+        return counts
+    ordered = sorted(counts, key=len, reverse=True)
+    files = list(TICKETS_DIR.glob("*.md")) + list((TICKETS_DIR / "filed").glob("*.md"))
+    for f in files:
+        if f.name.startswith("TEMPLATE"):
+            continue
+        try:
+            text = (f.name + "\n" + f.read_text(encoding="utf-8")).lower()
+        except OSError:
+            continue
+        for a in ordered:
+            variants = {a, a.replace("-", " ")}
+            if any(re.search(rf"\b{re.escape(v)}\b", text) for v in variants):
+                counts[a] += 1
+                break
+    return counts
+
+POS_INSTR = (
+    "Write the **positive / blue-sky** path: the use case succeeds for the role(s) above "
+    "and you assert the success (state changed, item visible, 200 OK). ONE clean path — "
+    "do not pile on edge assertions."
+)
+NEG_INSTR = (
+    "Write ONE **negative** path: a single thing goes wrong and the system correctly "
+    "refuses (invalid input rejected with the right message, an unauthorized actor denied, "
+    "a duplicate not duplicated, a required field blocking submit). Assert BOTH the refusal "
+    "AND that no state changed."
+)
+WANDER_INSTR = (
+    "Write a **wandering-path** flow following the step list in the matching "
+    "`tests/plan/wander/<role>.md` doc. This is a tolerant traversal, NOT a strict "
+    "correctness test: assertVisible on landmarks + a screenshot at each stop; tolerate "
+    "empty lists and externally-backed screens (chat, storage). Tag `wander, slow` (NOT "
+    "`smoke`). See tests/plan/wander/README.md."
+)
+
+
+def tag_block(row: dict) -> str:
+    """The exact tag header for this unit, so the Writer copies it verbatim instead of
+    deciding which tags apply (smoke/unverified/role are removed as judgment calls).
+    `unverified` is always included — the Reviewer drops it after one green run."""
+    area, layer, kind, roles = row["area"], row["layer"], row["kind"], row["roles"]
+    tags = [area]
+    if kind == "wander":
+        tags.append("slow")
+    elif row.get("priority", "") == "1":  # priority "1 - Smoke" in the source TSV
+        tags.append("smoke")
+    tags.append(layer)
+    if layer == "e2e":
+        tags.append("ios")
+    tags.append(roles)
+    if "security" in row.get("tags", "").split(","):
+        tags.append("security")
+    tags.append("unverified")
+    reason = f"<one line: what this {kind} test proves (UC {row['uc']})>"
+    if layer == "e2e":
+        listed = "\n".join(f"  - {t}" for t in tags)
+        return (f"# qa-id: {row['unit_id']}\n# qa-reason: {reason}\n"
+                f"# (in the flow header, alongside appId:)\ntags:\n{listed}")
+    return (f"// qa-id: {row['unit_id']}\n"
+            f"// qa-tags: {', '.join(tags)}\n"
+            f"// qa-reason: {reason}")
+
+
+def load_backlog() -> list[dict]:
+    rows: list[dict] = []
+    if not BACKLOG.exists():
+        sys.exit(f"no backlog at {BACKLOG} — run: python3 scripts/testplan.py gen")
+    lines = BACKLOG.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split("\t")
+    for line in lines[1:]:
+        if line.strip():
+            rows.append(dict(zip(header, line.split("\t"))))
+    return rows
+
+
+def unit_file(uid: str) -> Path:
+    return UNITS / f"{uid}.md"
+
+
+def file_status(uid: str) -> str | None:
+    """Status from a claimed unit's frontmatter, or None if not claimed."""
+    p = unit_file(uid)
+    if not p.exists():
+        return None
+    for ln in p.read_text(encoding="utf-8").splitlines():
+        if ln.startswith("status:"):
+            return ln.split(":", 1)[1].strip()
+    return "claimed"
+
+
+def effective_status(row: dict) -> str:
+    """File state (in-progress work) wins over the backlog's static status."""
+    fs = file_status(row["unit_id"])
+    return fs if fs else row["status"]
+
+
+def prio_key(row: dict) -> tuple:
+    p = row.get("priority", "")
+    try:
+        n = int(p)
+    except ValueError:
+        n = 99
+    return (n, row["unit_id"])
+
+
+def render_prompt(row: dict) -> str:
+    tmpl = Template(TEMPLATE.read_text(encoding="utf-8"))
+    mock = row.get("needs_mock", "")
+    mock_line = (
+        f"**Blocked-on-mock:** this unit needs `{mock}` (see docs/Testing_Mocks.md). If the "
+        "mock does not exist yet, do NOT fake it — write the test against the intended API, "
+        "tag it `unverified`, and say so in your handback."
+        if mock else "No mock required."
+    )
+    return tmpl.safe_substitute(
+        unit_id=row["unit_id"], area=row["area"], kind=row["kind"], uc=row["uc"],
+        uc_summary=row["uc_summary"], layer=row["layer"], roles=row["roles"],
+        output_path=row["output_path"], needs_mock=mock or "none",
+        claimed_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        kind_instructions={"pos": POS_INSTR, "neg": NEG_INSTR, "wander": WANDER_INSTR}.get(
+            row["kind"], POS_INSTR),
+        mock_line=mock_line,
+        tag_block=tag_block(row),
+    )
+
+
+def materialize(row: dict) -> Path | None:
+    """Atomic claim: create the prompt file with O_EXCL. None if already claimed."""
+    UNITS.mkdir(parents=True, exist_ok=True)
+    p = unit_file(row["unit_id"])
+    try:
+        with open(p, "x", encoding="utf-8") as fh:
+            fh.write(render_prompt(row))
+        return p
+    except FileExistsError:
+        return None
+
+
+def set_status(uid: str, status: str, note: str = "") -> None:
+    row = next((r for r in load_backlog() if r["unit_id"] == uid), None)
+    if not row:
+        sys.exit(f"unknown unit_id: {uid}")
+    p = unit_file(uid)
+    if not p.exists():
+        materialize(row)  # auto-claim so done/block always has a file to stamp
+    text = p.read_text(encoding="utf-8")
+    out, replaced = [], False
+    for ln in text.splitlines():
+        if ln.startswith("status:") and not replaced:
+            out.append(f"status: {status}")
+            replaced = True
+        else:
+            out.append(ln)
+    if note:
+        out.append(f"\n> testplan {status} {datetime.now(timezone.utc):%Y-%m-%d}: {note}")
+    p.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+# ---- commands ---------------------------------------------------------------
+
+def cmd_status(args) -> int:
+    rows = load_backlog()
+    by_area: dict[str, dict[str, int]] = {}
+    inprog = []
+    for r in rows:
+        st = effective_status(r)
+        by_area.setdefault(r["area"], {}).setdefault(st, 0)
+        by_area[r["area"]][st] += 1
+        if st in ("claimed", "drafted"):
+            inprog.append(r["unit_id"])
+    tickets = ticket_counts(by_area.keys())
+    if args.json:
+        print(json.dumps({"by_area": by_area, "tickets": tickets,
+                          "in_progress": inprog}, indent=2))
+        return 0
+    # The 'claim' column is omitted from the steady-state matrix: a claim is a
+    # transient artifact of test-GENERATION, not a backlog status. It only means
+    # something while writers are running, so it's summarized below — in that
+    # context — rather than shown as a column that reads 0 the rest of the time.
+    print(f"{'area':<14}{'todo':>6}{'block':>7}{'done':>6}{'review':>8}{'tickets':>9}")
+    tot = {"todo": 0, "blocked": 0, "done": 0, "review": 0, "tickets": 0}
+    claims_by_area: dict[str, int] = {}
+    for area in sorted(by_area):
+        c = by_area[area]
+        tk = tickets.get(area, 0)
+        for k in ("todo", "blocked", "done", "review"):
+            tot[k] += c.get(k, 0)
+        tot["tickets"] += tk
+        if c.get("claimed", 0) or c.get("drafted", 0):
+            claims_by_area[area] = c.get("claimed", 0) + c.get("drafted", 0)
+        print(f"{area:<14}{c.get('todo',0):>6}{c.get('blocked',0):>7}"
+              f"{c.get('done',0):>6}{c.get('review',0):>8}{tk:>9}")
+    print(f"{'TOTAL':<14}{tot['todo']:>6}{tot['blocked']:>7}"
+          f"{tot['done']:>6}{tot['review']:>8}{tot['tickets']:>9}")
+    # Claim summary — only when test-generation is actually happening.
+    if claims_by_area:
+        spread = ", ".join(f"{a}×{n}" for a, n in sorted(claims_by_area.items()))
+        print(f"\ntest-generation in progress: {len(inprog)} unit(s) claimed "
+              f"across {len(claims_by_area)} area(s) — {spread}")
+        print("claimed: " + ", ".join(sorted(inprog)))
+    return 0
+
+
+def cmd_list(args) -> int:
+    rows = load_backlog()
+    sel = [r for r in rows
+           if (not args.area or r["area"] == args.area)
+           and (not args.kind or r["kind"] == args.kind)
+           and (not args.layer or r["layer"] == args.layer)
+           and (not args.status or effective_status(r) == args.status)]
+    sel.sort(key=prio_key)
+    if args.json:
+        print(json.dumps(sel, indent=2))
+        return 0
+    for r in sel:
+        print(f"{r['unit_id']:<22} {effective_status(r):<8} P{r['priority']:<3} "
+              f"{r['layer']:<8} {r['kind']:<3} UC{r['uc']:<4} {r['uc_summary'][:54]}")
+    print(f"\n{len(sel)} unit(s).")
+    return 0
+
+
+def _pick_next(args) -> dict | None:
+    rows = [r for r in load_backlog()
+            if (not args.area or r["area"] == args.area)
+            and (not args.kind or r["kind"] == args.kind)
+            and (not args.layer or r["layer"] == args.layer)
+            and effective_status(r) == "todo"]
+    rows.sort(key=prio_key)
+    return rows[0] if rows else None
+
+
+def cmd_next(args) -> int:
+    while True:
+        row = _pick_next(args)
+        if not row:
+            print("no todo units match.", file=sys.stderr)
+            return 1
+        p = materialize(row)
+        if p:
+            break  # won the claim
+        # lost the race; loop picks the next candidate
+    if args.json:
+        print(json.dumps({"unit_id": row["unit_id"], "prompt": str(p.relative_to(REPO)),
+                          "output_path": row["output_path"]}, indent=2))
+    else:
+        print(f"claimed {row['unit_id']} -> {p.relative_to(REPO)}")
+        print(f"output: {row['output_path']}")
+        print(f"hand this file to a test-writing agent; then: testplan.py done {row['unit_id']}")
+    return 0
+
+
+def cmd_claim(args) -> int:
+    row = next((r for r in load_backlog() if r["unit_id"] == args.unit_id), None)
+    if not row:
+        sys.exit(f"unknown unit_id: {args.unit_id}")
+    p = materialize(row)
+    if not p:
+        print(f"{args.unit_id} already claimed: {unit_file(args.unit_id).relative_to(REPO)}")
+        return 1
+    print(f"claimed {args.unit_id} -> {p.relative_to(REPO)}")
+    return 0
+
+
+def cmd_show(args) -> int:
+    p = unit_file(args.unit_id)
+    if p.exists():
+        print(p.read_text(encoding="utf-8"))
+        return 0
+    row = next((r for r in load_backlog() if r["unit_id"] == args.unit_id), None)
+    if not row:
+        sys.exit(f"unknown unit_id: {args.unit_id}")
+    print(json.dumps(row, indent=2) if args.json else
+          "\n".join(f"{k}: {v}" for k, v in row.items()))
+    print("\n(not yet claimed — `testplan.py claim` to materialize the prompt)")
+    return 0
+
+
+def cmd_done(args) -> int:
+    set_status(args.unit_id, "done")
+    msg = f"{args.unit_id} -> done"
+    if not args.no_ratify:
+        changed, residual = ratify_unit(args.unit_id)
+        msg += f"; ratified ({changed} tag edit(s))"
+        if residual:
+            msg += f"; NOTE {residual} comment line(s) still mention 'unverified' — review"
+    print(msg)
+    return 0
+
+
+def cmd_ratify(args) -> int:
+    changed, residual = ratify_unit(args.unit_id)
+    if not args.no_done:
+        set_status(args.unit_id, "done")
+    msg = f"{args.unit_id}: ratified ({changed} tag edit(s)" + ("" if args.no_done else "; marked done") + ")"
+    if residual:
+        msg += f"; NOTE {residual} comment line(s) still mention 'unverified' — review"
+    print(msg)
+    return 0
+
+
+def cmd_block(args) -> int:
+    set_status(args.unit_id, "blocked", " ".join(args.reason))
+    print(f"{args.unit_id} -> blocked")
+    return 0
+
+
+def cmd_release(args) -> int:
+    p = unit_file(args.unit_id)
+    if p.exists():
+        p.unlink()
+        print(f"released {args.unit_id}")
+        return 0
+    print(f"{args.unit_id} not claimed.")
+    return 1
+
+
+def cmd_gen(_args) -> int:
+    return subprocess.call([sys.executable, str(REPO / "scripts" / "gen_test_backlog.py")])
+
+
+# ---- area orchestration (batch ops that replace the manual for-loops) ---------
+
+HEADLESS = REPO / "tests" / "headless"
+VITEST_CFG = "tests/headless/vitest.headless.config.ts"
+
+
+def _area_units(area: str) -> list[dict]:
+    return [r for r in load_backlog() if r["area"] == area]
+
+
+def _area_test_files(area: str) -> list[Path]:
+    d = HEADLESS / area
+    return sorted(d.glob("*.headless.test.ts")) if d.exists() else []
+
+
+def ratify_files(area: str) -> int:
+    """Drop a trailing `, unverified` from each test's qa-tags line (post-green). Returns files changed."""
+    changed = 0
+    for f in _area_test_files(area):
+        txt = f.read_text(encoding="utf-8")
+        new = "\n".join(
+            (ln.replace(", unverified", "") if ("qa-tags" in ln and "unverified" in ln) else ln)
+            for ln in txt.splitlines()
+        ) + ("\n" if txt.endswith("\n") else "")
+        if new != txt:
+            f.write_text(new, encoding="utf-8")
+            changed += 1
+    return changed
+
+
+def ratify_unit(uid: str) -> tuple[int, int]:
+    """Strip the `unverified` tag from ONE unit's test file — handles BOTH the e2e YAML
+    list item (`  - unverified`) and the headless inline form (`// qa-tags: ..., unverified`).
+    Returns (tag edits, residual comment lines still mentioning 'unverified' — prose is left
+    for a human, since auto-rewriting comments isn't safe)."""
+    row = next((r for r in load_backlog() if r["unit_id"] == uid), None)
+    if not row:
+        sys.exit(f"unknown unit_id: {uid}")
+    path = REPO / row["output_path"]
+    if not path.exists():
+        return (0, 0)
+    src = path.read_text(encoding="utf-8")
+    out, changed = [], 0
+    for ln in src.splitlines():
+        if ln.strip() == "- unverified":             # e2e YAML tags: list item
+            changed += 1
+            continue
+        if "qa-tags" in ln and "unverified" in ln:   # headless inline qa-tags list
+            new = ln.replace(", unverified", "").replace(",unverified", "")
+            if new != ln:
+                changed += 1
+                ln = new
+        out.append(ln)
+    path.write_text("\n".join(out) + ("\n" if src.endswith("\n") else ""), encoding="utf-8")
+    residual = sum(1 for ln in out if "unverified" in ln.lower())
+    return (changed, residual)
+
+
+def cmd_preflight(args) -> int:
+    cpu = os.cpu_count() or 1
+    load1 = os.getloadavg()[0]
+    free_gb = shutil.disk_usage(REPO).free / 1e9
+    base = os.environ.get("QA_BASE_URL", "http://localhost:3000")
+    server = "down"
+    for path in ("/api/v1/health", "/api/v1/ping"):
+        try:
+            with urllib.request.urlopen(base + path, timeout=3) as resp:
+                if resp.status == 200:
+                    server = "up"
+                    break
+        except Exception:
+            continue
+    load_ok, disk_ok = load1 < cpu * 1.5, free_gb > 2
+    ok = server == "up" and disk_ok
+    if args.json:
+        print(json.dumps({"load1": round(load1, 2), "cpu": cpu, "load_ok": load_ok,
+                          "free_gb": round(free_gb, 1), "disk_ok": disk_ok, "server": server, "ok": ok}))
+        return 0 if ok else 1
+    flags = [f for f, c in (("HIGH-LOAD", not load_ok), ("LOW-DISK", not disk_ok),
+                            ("SERVER-DOWN", server != "up")) if c]
+    print(f"preflight: load={load1:.2f}/{cpu} disk={free_gb:.0f}GB server={server} "
+          f"-> {'OK' if ok else 'CHECK: ' + ','.join(flags)}")
+    if server != "up":
+        print("  start it with: npm run qa:server:log")
+    print("  (token budget is not scriptable — judge that yourself before a big batch.)")
+    return 0 if ok else 1
+
+
+def cmd_claim_area(args) -> int:
+    want = ("todo", "blocked") if args.include_blocked else ("todo",)
+    rows = sorted((r for r in _area_units(args.area)
+                   if (args.kind in (None, r["kind"])) and effective_status(r) in want),
+                  key=prio_key)
+    claimed = [(r["unit_id"], r["output_path"]) for r in rows if materialize(r)]
+    if args.json:
+        print(json.dumps([{"unit_id": u, "output_path": o} for u, o in claimed], indent=2))
+    else:
+        for u, o in claimed:
+            print(f"{u}\t{o}")
+        print(f"\nclaimed {len(claimed)} unit(s) in {args.area}; hand each units/<id>.md to a Writer.")
+    return 0
+
+
+def cmd_done_area(args) -> int:
+    n = sum(1 for r in _area_units(args.area)
+            if unit_file(r["unit_id"]).exists() and (set_status(r["unit_id"], "done") or True))
+    print(f"{args.area}: marked {n} claimed unit(s) done.")
+    return 0
+
+
+def cmd_ratify_area(args) -> int:
+    print(f"{args.area}: dropped 'unverified' from {ratify_files(args.area)} test file(s).")
+    return 0
+
+
+def cmd_verify_area(args) -> int:
+    """Seed (opt) -> run the area's headless suite serially -> on green, ratify + mark done.
+    One call replaces: qa:seed + npx vitest + the done for-loop + the unverified sed."""
+    files = _area_test_files(args.area)
+    if not files:
+        print(f"no headless tests at tests/headless/{args.area}/", file=sys.stderr)
+        return 1
+    qa_ids = {ln.split(":", 1)[1].strip() for f in files
+              for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip().startswith("// qa-id:")}
+    claimed = [r["unit_id"] for r in _area_units(args.area) if unit_file(r["unit_id"]).exists()]
+    if len(qa_ids) < len(claimed):
+        print(f"WARN: {len(qa_ids)} qa-ids across {len(files)} files but {len(claimed)} units claimed — "
+              "a Writer may have FOLDED units into one file; split before trusting green.")
+    if args.seed:
+        env = dict(os.environ)
+        env.setdefault("TEST_DATABASE_URL", "postgresql://localhost:5432/bubble_test")
+        if subprocess.call(["npm", "run", "qa:seed"], cwd=str(REPO), env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL):
+            print("seed FAILED — aborting verify.", file=sys.stderr)
+            return 1
+    proc = subprocess.run(["npx", "vitest", "run", "--config", VITEST_CFG, f"tests/headless/{args.area}/"],
+                          cwd=str(REPO), capture_output=True, text=True)
+    summary = next((ln.strip() for ln in reversed(proc.stdout.splitlines()) if "Tests" in ln and "(" in ln), "")
+    if proc.returncode != 0:
+        print(f"{args.area}: VERIFY FAILED. {summary}")
+        for ln in proc.stdout.splitlines():
+            if "FAIL" in ln and ".test.ts" in ln:
+                print("  " + ln.strip())
+        return 1
+    n_ratified = 0 if args.keep_unverified else ratify_files(args.area)
+    done = sum(1 for uid in claimed if (set_status(uid, "done") or True))
+    print(f"{args.area}: VERIFY PASS. {summary}; ratified {n_ratified} file(s), marked {done} unit(s) done.")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(prog="testplan", description=__doc__)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("status"); s.add_argument("--json", action="store_true"); s.set_defaults(fn=cmd_status)
+    l = sub.add_parser("list")
+    for f in ("status", "area", "kind", "layer"):
+        l.add_argument(f"--{f}")
+    l.add_argument("--json", action="store_true"); l.set_defaults(fn=cmd_list)
+    n = sub.add_parser("next")
+    for f in ("area", "kind", "layer"):
+        n.add_argument(f"--{f}")
+    n.add_argument("--json", action="store_true"); n.set_defaults(fn=cmd_next)
+    c = sub.add_parser("claim"); c.add_argument("unit_id"); c.set_defaults(fn=cmd_claim)
+    sh = sub.add_parser("show"); sh.add_argument("unit_id"); sh.add_argument("--json", action="store_true"); sh.set_defaults(fn=cmd_show)
+    d = sub.add_parser("done"); d.add_argument("unit_id"); d.add_argument("--no-ratify", action="store_true"); d.set_defaults(fn=cmd_done)
+    rt = sub.add_parser("ratify"); rt.add_argument("unit_id"); rt.add_argument("--no-done", action="store_true"); rt.set_defaults(fn=cmd_ratify)
+    b = sub.add_parser("block"); b.add_argument("unit_id"); b.add_argument("reason", nargs="*"); b.set_defaults(fn=cmd_block)
+    r = sub.add_parser("release"); r.add_argument("unit_id"); r.set_defaults(fn=cmd_release)
+    g = sub.add_parser("gen"); g.set_defaults(fn=cmd_gen)
+
+    pf = sub.add_parser("preflight"); pf.add_argument("--json", action="store_true"); pf.set_defaults(fn=cmd_preflight)
+    ca = sub.add_parser("claim-area"); ca.add_argument("area")
+    ca.add_argument("--kind"); ca.add_argument("--include-blocked", action="store_true")
+    ca.add_argument("--json", action="store_true"); ca.set_defaults(fn=cmd_claim_area)
+    da = sub.add_parser("done-area"); da.add_argument("area"); da.set_defaults(fn=cmd_done_area)
+    ra = sub.add_parser("ratify-area"); ra.add_argument("area"); ra.set_defaults(fn=cmd_ratify_area)
+    va = sub.add_parser("verify-area"); va.add_argument("area")
+    va.add_argument("--seed", action="store_true"); va.add_argument("--keep-unverified", action="store_true")
+    va.set_defaults(fn=cmd_verify_area)
+
+    args = ap.parse_args()
+    return args.fn(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

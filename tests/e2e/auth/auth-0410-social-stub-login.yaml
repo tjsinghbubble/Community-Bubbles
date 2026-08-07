@@ -1,0 +1,51 @@
+# qa-id: auth-0410
+# qa-reason: Google button signs in end-to-end via the qa stub-token seam (vendor signature is the only faked step)
+# UI half of the stub-token seam (server half: auth-0400 headless). Tapping the
+# Google button posts a `qa-social-stub.google.*` token (WelcomeAuthScreen QA
+# seam, active only when EXPO_PUBLIC_QA_SOCIAL_STUB is set in mobile/.env); the
+# qa server verifies nothing vendor-side but runs the real account/JWT path, and
+# the app performs its real post-login navigation. Proves the app→server social
+# wiring Maestro can never prove against real Google (bot detection, external
+# system UI).
+#
+# Determinism: qa:seed provisions the stub account (qa-social-e2e@bubble.test,
+# completed profile, google_id matching the app seam's sub), so this always takes
+# the existing-user path straight to Main. The first-run SocialProfile→Interests
+# completion path is deliberately NOT covered here (future flow, after ft-0005
+# verifies the signup selectors).
+appId: com.bubble.mobile
+tags:
+  - auth
+  - social
+  - smoke
+  - e2e
+  - ios
+  - role-any
+---
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- extendedWaitUntil:
+    visible:
+      text: "Log in or sign up"
+    timeout: 60000
+
+- tapOn:
+    id: button-google-signin
+
+# Existing completed account → straight to the authed Explore screen. If this
+# times out on a fresh DB with the SocialProfile screen visible in the failure
+# screenshot, re-provision the stub account (see header).
+- extendedWaitUntil:
+    visible:
+      id: button-create-fab
+    timeout: 30000
+
+- takeScreenshot: ${SHOT_PREFIX}social-stub-authed

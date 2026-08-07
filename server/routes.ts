@@ -1138,12 +1138,14 @@ export async function registerRoutes(
       const appVersion = process.env.npm_package_version ?? "1.0.0";
 
       // CometChat health check
-      const cometChatAppId = process.env.COMETCHAT_APP_ID ?? "";
-      const cometChatRegion = process.env.COMETCHAT_REGION ?? "us";
+      const cometChatAppId =
+        process.env.EXPO_PUBLIC_COMETCHAT_APP_ID ?? process.env.COMETCHAT_APP_ID ?? "";
+      const cometChatRegion =
+        process.env.EXPO_PUBLIC_COMETCHAT_REGION ?? process.env.COMETCHAT_REGION ?? "us";
       const cometChatApiKey = process.env.COMETCHAT_API_KEY ?? process.env.COMETCHAT_AUTH_KEY ?? "";
       let cometChat: { status: "ok" | "error" | "unconfigured"; latencyMs: number | null; error: string | null };
       if (!cometChatAppId || !cometChatApiKey) {
-        cometChat = { status: "unconfigured", latencyMs: null, error: "COMETCHAT_APP_ID or API key not set" };
+        cometChat = { status: "unconfigured", latencyMs: null, error: "EXPO_PUBLIC_COMETCHAT_APP_ID or COMETCHAT_API_KEY not set" };
       } else {
         const ccUrl = `https://${cometChatAppId}.api-${cometChatRegion}.cometchat.io/v3/users?perPage=1`;
         const result = await pingUrl(ccUrl, 5000, { headers: { apikey: cometChatApiKey, appid: cometChatAppId } });

@@ -1,0 +1,22 @@
+# Subflow: warmup — boots the iOS XCUITest driver before the real tests run.
+#
+# Why: the first `maestro test` of a session pays a slow, variable cold start while the XCUITest
+# runner installs and the driver handshake on :7001 comes up. On a loaded machine that can take
+# minutes and, if it exceeds MAESTRO_DRIVER_STARTUP_TIMEOUT, fails the *first* real test for
+# reasons that have nothing to do with the app (see project memory: trustworthy failures). The
+# qa runner pays that cost here instead, under a generous load-scaled timeout, then runs the real
+# tests with a tighter one once the driver is warm and reused across the subsequent processes.
+#
+# Consequence-free: a plain launchApp with NO clearState, NO login, NO DB interaction. It only
+# needs the driver to come up; whether the JS bundle finishes loading is irrelevant.
+appId: com.bubble.mobile
+---
+- launchApp:
+    appId: com.bubble.mobile
+
+# Quit the app once the driver is up. The XCUITest driver runs as its own process on the simulator,
+# so stopping the app leaves the driver warm — but avoids leaving an UNAUTHENTICATED app sitting in
+# the gap before the first real test, polling /api/auth/me, /api/admin/pending-count, etc. and
+# spraying 401s into the API log. The first real test relaunches with clearState anyway.
+- stopApp:
+    appId: com.bubble.mobile

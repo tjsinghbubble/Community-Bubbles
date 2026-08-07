@@ -1,0 +1,65 @@
+# Bubble local experiment stack — hosting research only, NOT production config.
+# See docs/research/dockerization-plan.md.
+#
+#   cp scripts/one-off/docker/.env.example scripts/one-off/docker/.env.local
+#   # fill in secrets (ENCRYPTION_KEY: openssl rand -hex 32)
+#   docker compose -f scripts/one-off/docker/compose.yaml up -d
+#   # FIRST BOOT ONLY: create base schema (auto-migrate only patches, doesn't bootstrap):
+#   DATABASE_URL=postgres://bubble:bubble_local_only@127.0.0.1:5433/bubble npx drizzle-kit push --force
+#   docker compose -f scripts/one-off/docker/compose.yaml up -d api   # restart api
+#
+# Compose project dir is the file's dir; build context points back to Bubble/.
+
+name: bubble-hosting-research
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bubble
+      POSTGRES_PASSWORD: bubble_local_only
+      POSTGRES_DB: bubble
+    volumes:
+      - bubble_pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"   # host access for db-size measurements
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bubble -d bubble"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # Local stand-in for Replit Object Storage (GCS). @google-cloud/storage
+  # honors STORAGE_EMULATOR_HOST, so no app code change is needed.
+  gcs:
+    image: fsouza/fake-gcs-server:latest
+    command: ["-scheme", "http", "-port", "4443", "-public-host", "gcs:4443"]
+    ports:
+      - "127.0.0.1:4443:4443"
+
+  api:
+    build:
+      context: ../../..
+      dockerfile: scripts/one-off/docker/api.Dockerfile
+    image: bubble-api:research
+    depends_on:
+      db:
+        condition: service_healthy
+      gcs:
+        condition: service_started
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgres://bubble:bubble_local_only@db:5432/bubble
+      STORAGE_EMULATOR_HOST: http://gcs:4443
+      PORT: "5000"
+      # Load tests hit the API from one IP; the default auth limiter
+      # (10/15min, routes.ts) would 429 k6's logins. Local stack only —
+      # production keeps real limits.
+      RATE_LIMIT_AUTH_MAX: "1000000"
+      RATE_LIMIT_AUTH_WINDOW_MIN: "1"
+    ports:
+      - "127.0.0.1:5000:5000"
+
+volumes:
+  bubble_pgdata:

@@ -28,3 +28,25 @@ playwright-report/
 test-results/
 server/__tests__/e2e/.test-context.json
 maestro/output
+# QA test architecture (Phase 1) — run artifacts & panic marker
+tests/output/
+tests/PANIC
+# Test-expansion (Phase 2) — claimed prompt files are transient local work-state
+# (the durable record is backlog.tsv + the produced tests). See tests/plan/README.md.
+tests/plan/units/
+# Local-only: editor project, Expo metadata, scratch dir, device logs
+.idea/
+.expo/
+tmp/
+*.adb.log
+# Ad-hoc debug screenshots belong in tmp/maestro/, never the repo root
+/*.png
+__pycache__/
+# Device-manager SQLite DB (durable local state: loops, aliases, name allocations)
+.device-manager/
+# Process/log artifacts — nohup.out (unanchored: matches root + any subdir, e.g. docs/), status.html at root
+nohup.out
+/status.html
+/.complexipy_cache/
+# coverage.py database at repo root
+/.coverage

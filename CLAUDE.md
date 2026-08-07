@@ -5,6 +5,95 @@ but are intentional. Read this before modifying the files listed below.
 
 ---
 
+## Tooling defaults — search/find/log tools (use these, not the defaults)
+
+These tools are installed and on PATH. Reach for them FIRST; do not fall back to
+`grep`/`find` out of habit. `rg` and `fd` compose well — `fd` selects the file
+set, `rg` searches within it.
+
+- **Search file contents → `rg` (ripgrep), never `grep`.** Faster, recursive by
+  default, respects `.gitignore`.
+- **Find files/dirs by name → `fd`, never `find`.** Faster, simpler syntax.
+- **Read a window/region of a file around a pattern → the `find-within` skill**
+  (wraps `find_within.py`), not a `grep -n | sed`/`awk` pipeline. Use for: the
+  N lines around a match, a leading/trailing window, the span between two
+  patterns (a function/handler body), match counts, or the last match in a log.
+  It reads only the slice needed — fewer tokens, one permission prompt.
+- **Logs:** `bunyan` to pretty-print JSON log streams; `lnav` to explore/filter
+  log files interactively (syslog + json iOS styles). `jq` for JSON.
+
+### `fd`/`rg` gotchas — required flags
+
+1. **Both `fd` AND `rg` skip `.gitignore`d paths by default.** That hides
+   content Claude often needs (`tmp/`, `tests/output/`, build artifacts,
+   `.env`). When the target may be ignored, pass **`fd -I`** (`--no-ignore`) and
+   **`rg -u`** (`--no-ignore`; `-uu` also unhides hidden/binary). Cut the usual
+   noise back with excludes: `fd -I -E node_modules -E .git`,
+   `rg -u -g '!node_modules'`.
+2. **`fd` output ordering is non-deterministic** (parallel walk), unlike `find`.
+   When order must be stable (diffs, comparisons, reproducible lists), pipe
+   `fd … | sort`.
+3. **`fd` exec has two forms:** `-x`/`--exec` runs the command **once per
+   result** (like `find -exec`); `-X`/`--exec-batch` runs it **once** with all
+   results as args. `--print0` (NUL-delimited output) and `--batch-size N`
+   control I/O for downstream consumers.
+
+---
+
+## Ad-hoc Maestro runs — never write artifacts at the repo root
+
+Preferred: run one-off flows through `npm run qa:flow -- <flow.yaml>
+[--role role-user] [-e K=V …]`. It creates a dedicated
+`tests/output/run-manual-<flow>-<UTC>/` dir, points SHOT_PREFIX inside it,
+copies the flow + subflows next to the artifacts, and flattens Maestro's
+`.maestro/tests/<timestamp>/` debris into shell-typeable names.
+
+If you must invoke Maestro outside that wrapper (bare CLI `maestro test`,
+Maestro MCP `run_flow`, or any one-off debug flow), every screenshot and debug
+output MUST land under `tmp/maestro/`, never the repo root:
+
+- `takeScreenshot:` in an ad-hoc flow → use a `tmp/maestro/<name>` path.
+- CLI runs → pass `--debug-output tmp/maestro` and, for flows under
+  `tests/e2e/`, `-e SHOT_PREFIX=tmp/maestro/`.
+
+`tmp/` is excluded from git (`/tmp/` + root `/*.png` in .gitignore), Time
+Machine, iCloud Drive sync, Spotlight, and PyCharm indexing. Screenshots
+dumped at the repo root pollute git status, churn iCloud/backups, and have
+been accidentally committed before. (The `npm run qa` runner already does this
+correctly via run-scoped `tests/output/` dirs.)
+
+Standing rule for any test output the platform creates: filenames must be
+shell-typeable — route new output names through
+`tests/runner/artifacts.ts:sanitizeFileName()` (see "Output naming" in
+tests/README.md).
+
+---
+
+## Test runs and Maestro MCP — rules for AI agents
+
+1. **Do not run full `npm run qa` suites in the agent conversation loop**
+   unless there is no alternative. Launch them detached (background Bash, or a
+   separate terminal) and poll cheaply with `npm run qa:status`
+   (`scripts/testctl.py status --json`). Full runs streamed through the
+   context window have blown token budgets before.
+
+2. **MCP Maestro is for short start-stop bursts only** — verify a selector,
+   inspect a hierarchy, then stop. Never interleave MCP device tools with a
+   CLI `maestro test` run on the same simulator: the simulator-side XCUITest
+   runner is a singleton and each new session kills the other side's driver
+   (CLI pins host port 7001, MCP uses 22087 — the ports already differ, are
+   not the conflict, and are not configurable). The qa runner auto-kills
+   `maestro mcp` before iOS e2e runs. Doc-only MCP tools (query_docs,
+   cheat_sheet, check_flow_syntax) are always safe. `inspect_view_hierarchy`
+   output is huge — use it sparingly and prefer targeted asserts.
+
+3. **Stuck or opaque runs**: diagnose with `npm run qa:status` /
+   `npm run qa:health`; stop things with
+   `python3 scripts/testctl.py nuke --nuke=<targets>` (see tests/README.md).
+   Don't hand-roll pkill incantations.
+
+---
+
 ## mobile/babel.config.js — NativeWind intentionally removed
 
 The file does NOT include `jsxImportSource: "nativewind"` or the
@@ -98,3 +187,11 @@ to initialising Sentry unconditionally on any non-production `NODE_ENV`.
 54.x does not support SDK 55, and Expo Go 55 was not yet available at the time
 of writing. All mobile testing uses the native dev build
 (`com.bubble.mobile`) built with `npm run mobile:build:ios-sim`.
+
+# Token efficiency
+Respond like smart caveman. Cut all filler, keep technical substance.
+- Drop articles (a, an, the), filler (just, really, basically, actually).
+- Drop pleasantries (sure, certainly, happy to).
+- No hedging. Fragments fine. Short synonyms.
+- Technical terms stay exact. Code blocks unchanged.
+- Pattern: [thing] [action] [reason]. [next step].

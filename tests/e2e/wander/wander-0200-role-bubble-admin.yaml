@@ -1,0 +1,246 @@
+# qa-id: wander-0200
+# qa-reason: Owner wander: my-bubbles→own bubble→edit→members→create event→RSVPs→rules→create bubble→account (UC -)
+#
+# KNOWN UNVERIFIED RISKS (resolve on first sim/MCP run, then drop `unverified`):
+#  - Bottom-tab navigation taps go by TEXT label, not tabBarTestID (does not surface as a
+#    resource-id on iOS — see events-0500 header / logout.yaml).
+#  - Stop 4 EditBubble SAVE has no testID; tapped by text "Save" — confirm the label.
+#  - Stop 6 create-event omits a location (events-0500 sets one via Google Places). If a
+#    location is REQUIRED to publish, add a location step or toggle switch-location-tbd.
+#  - Stop 5 join-request queue and stop 8 per-bubble rules entry are tolerant/screenshot.
+appId: com.bubble.mobile
+tags:
+  - wander
+  - slow
+  - e2e
+  - ios
+  - role-bubble-admin
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Stop 1: Login → Explore. Assert the Explore landing landmark.
+- assertVisible:
+    id: button-create-fab
+- takeScreenshot: ${SHOT_PREFIX}01-login-complete
+
+# Stop 2: My bubbles — open the My Bubbles view; assert seeded QA Test Bubble and owner affordance.
+# Bottom tabs are tapped by text label (tabBarTestID does not surface as a resource-id).
+- tapOn:
+    text: "My Bubbles"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- assertVisible:
+    text: "QA Test Bubble"
+- takeScreenshot: ${SHOT_PREFIX}02-my-bubbles
+
+# Stop 3: Open own bubble — QA Test Bubble → Details; assert admin-only controls.
+- tapOn:
+    text: "QA Test Bubble"
+- extendedWaitUntil:
+    visible:
+      id: button-admin-dashboard
+    timeout: 10000
+- assertVisible:
+    id: button-admin-dashboard
+- assertVisible:
+    id: button-kebab-menu
+- takeScreenshot: ${SHOT_PREFIX}03-bubble-details
+
+# Stop 4: Edit the bubble — Manage/Edit → change tagline → save; assert persistence.
+- tapOn:
+    id: button-kebab-menu
+- waitForAnimationToEnd
+- tapOn:
+    id: button-manage-bubble
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-tagline
+- tapOn:
+    id: input-tagline
+- clearText
+- inputText: "Edited tagline ${Date.now()}"
+- takeScreenshot: ${SHOT_PREFIX}04-edit-tagline
+- tapOn:
+    text: "Save"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}04-edit-saved
+
+# Stop 5: Members & join requests — open members; assert roster renders.
+- tapOn:
+    id: tab-details
+- waitForAnimationToEnd
+- tapOn:
+    id: button-view-members
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}05-members
+
+# Stop 6: Create an event — re-enter the bubble via the known-good route (My Bubbles →
+# QA Test Bubble → in-bubble create-event FAB), the same route events-0500 uses. This is
+# robust regardless of where stop 5 left the navigation stack.
+- tapOn:
+    text: "My Bubbles"
+- tapOn:
+    text: "QA Test Bubble"
+- extendedWaitUntil:
+    visible:
+      id: button-create-event-fab
+    timeout: 15000
+- tapOn:
+    id: button-create-event-fab
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-event-title
+- tapOn:
+    id: input-event-title
+- inputText: "QA Wander Event ${Date.now()}"
+- tapOn:
+    id: input-event-description
+- inputText: "Event created during wander test."
+- takeScreenshot: ${SHOT_PREFIX}06-event-step1-filled
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 2 — Date & Location.
+- assertVisible:
+    id: button-select-date
+- tapOn:
+    id: button-select-date
+- waitForAnimationToEnd
+# blind-tap-ok: KNOWN-DEBT — iOS inline date spinner has no per-row testID; this
+# 390x844-calibrated point mis-taps on larger devices (same root cause as P2,
+# tmp/test-problems-prioritized.md). Replace with a selector/robust interaction.
+- tapOn:
+    point: 53%, 41%
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Start time: modal spinner, accept the default via Confirm.
+- tapOn:
+    id: button-select-start-time
+- waitForAnimationToEnd
+- tapOn:
+    text: "Confirm"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}06-event-step2-filled
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 3 — Privacy & Settings.
+- tapOn:
+    id: radio-visibility-public
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 4 — Review & Publish.
+- takeScreenshot: ${SHOT_PREFIX}06-event-review
+- tapOn:
+    id: button-publish-event
+- extendedWaitUntil:
+    visible:
+      text: "Event Created!"
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}06-event-created
+- tapOn:
+    text: "View Event"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "QA Wander Event"
+- takeScreenshot: ${SHOT_PREFIX}06-event-details
+
+# Stop 7: View RSVPs — open an event → button-view-participants; assert roster renders.
+- assertVisible:
+    id: button-view-participants
+- tapOn:
+    id: button-view-participants
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}07-participants
+
+# Stop 8: Rules — open the bubble's rules; assert render (empty or inherited).
+- tapOn:
+    text: "Details"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: link-manage-rules
+- tapOn:
+    id: link-manage-rules
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}08-rules
+
+# Stop 9: Create a new bubble — fill title (unique), tagline, category, privacy Public → finish; assert pending state.
+- tapOn:
+    id: button-create-fab
+- waitForAnimationToEnd
+- tapOn:
+    id: button-create-bubble
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-title
+- takeScreenshot: ${SHOT_PREFIX}09-create-step1-details
+- tapOn:
+    id: input-title
+- inputText: "QA Wander Bubble ${Date.now()}"
+- tapOn:
+    id: input-tagline
+- inputText: "Wander test bubble"
+- tapOn:
+    id: input-description
+- inputText: "Bubble created during wander test."
+- takeScreenshot: ${SHOT_PREFIX}09-create-step1-filled
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}09-create-step2-category
+- tapOn:
+    id: "button-category-.*"
+    index: 0
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}09-create-step3-settings
+- tapOn:
+    id: radio-privacy-public
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}09-create-review
+- tapOn:
+    id: button-submit-review
+- extendedWaitUntil:
+    visible:
+      text: "Bubble Submitted"
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}09-create-submitted
+
+# Stop 10: Profile — open Account; assert version text.
+- tapOn:
+    text: "Profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: link-settings
+- tapOn:
+    id: link-settings
+- waitForAnimationToEnd
+- assertVisible:
+    id: text-version
+- takeScreenshot: ${SHOT_PREFIX}10-account-settings

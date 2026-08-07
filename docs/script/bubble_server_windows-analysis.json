@@ -1,0 +1,90 @@
+{
+  "objective": {
+    "name": "bubble_server_windows.py",
+    "path": "$PROJ_ROOT/scripts/bubble_server_windows.py",
+    "purpose": "Create and arrange a fixed set of macOS Terminal.app windows (API Server, Metro Bundler, iOS App, Android App, General, Testing) with predefined titles, colors, and screen positions for local dev. 'windows' means terminal windows/panes, NOT the Windows OS. No-arg behavior: runs the 'create' command (opens all windows); it does NOT launch any processes — the panes are empty shells for manual commands.",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "Opens ~6 Terminal.app windows/tabs with custom titles, RGB colors, and computed positions. Does not start any server/process. 'kill' closes every Terminal window matching the known titles.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (argparse, subprocess) — no third-party packages",
+    "invoked_languages": [
+      "AppleScript (osascript)",
+      "JavaScript / JXA (osascript -l JavaScript, for NSScreen size)"
+    ],
+    "invoked_programs": [
+      "osascript",
+      "system_profiler",
+      "Terminal.app (via osascript)",
+      "Finder.app (via osascript)"
+    ],
+    "path_assumptions": [
+      "osascript on PATH (macOS standard)",
+      "system_profiler available (macOS standard)"
+    ],
+    "host_requirements": [
+      "macOS only — controls Terminal.app and Finder via AppleScript/osascript",
+      "Terminal.app specifically (not iTerm2)",
+      "An active display with detectable dimensions"
+    ],
+    "invocation_methods": [
+      "No args (defaults to 'create'): python3 scripts/bubble_server_windows.py",
+      "python3 scripts/bubble_server_windows.py create",
+      "Single window by name/partial: python3 scripts/bubble_server_windows.py api",
+      "python3 scripts/bubble_server_windows.py resize",
+      "python3 scripts/bubble_server_windows.py kill",
+      "python3 scripts/bubble_server_windows.py show_boundaries",
+      "help: -h / --help / help"
+    ],
+    "switches": [
+      {
+        "flag": "-h, --help",
+        "args": "none",
+        "effect": "Print help and exit"
+      },
+      {
+        "flag": "--screen",
+        "args": "WIDTHxHEIGHT (e.g. 2560x1440)",
+        "effect": "Override auto-detected screen size for headless/misdetected displays"
+      },
+      {
+        "flag": "--debug",
+        "args": "none",
+        "effect": "Print detected screen dims and computed window bounds before acting"
+      }
+    ],
+    "required_arguments": "None (defaults to 'create')",
+    "has_tests": false,
+    "explicit_env_checks": "false — no checks for Terminal.app/osascript presence; relies on osascript errors. Screen detection falls back JXA→system_profiler→Finder, then exits 1 if all fail",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Run by the developer (Travis) once at the start of a local session to lay out terminal panes; a personal convenience tool, not part of any automated pipeline.",
+    "invocation_change_recommendation": "Move from verb-positional form (create/resize/kill/show_boundaries) to switch form (--create/--resize/--kill or a single --action) for consistency with the other tools. The verb form is acceptable but inconsistent with the switch-driven house style (e.g. bench_sims).",
+    "linux_changes_needed": "Effectively a full rewrite. Every effect goes through Terminal.app via osascript and screen size via NSScreen/JXA — none of which exist on Linux. A port would need a different backend entirely (tmux session+windows, or gnome-terminal/xterm + xdotool) and screen detection via xrandr/Wayland. Treat as macOS-only; do not port — provide a tmux-based equivalent if a container layout is ever needed.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "Deeply macOS-bound: osascript, Terminal.app, Finder, NSScreen, system_profiler. Zero portability by design."
+    },
+    "typical_runtime": "A few seconds (synchronous AppleScript with built-in 0.3s delays per window).",
+    "slow_switch_warning": "None. No switch exceeds 2 minutes.",
+    "dry_run_recommendation": "Yes — a true --dry-run that prints the planned window titles/colors/bounds without opening or closing anything. --debug already prints computed bounds but still acts; promote it to a no-op preview.",
+    "destructive_steps": "'kill' closes every Terminal window whose title matches a known name — could close windows the user did not create with this tool if titles collide. It does not kill processes, but closing a window with a running server underneath effectively stops it.",
+    "rewrite_language_recommendation": "Keep in Python on macOS. If cross-platform layout is ever required, rewrite the backend around tmux (shell or Python+libtmux) rather than extending the osascript approach.",
+    "merge_recommendation": "Keep standalone. It is unrelated to the test runners and is a personal layout helper.",
+    "rename_recommendation": "Yes — the name is misleading ('windows' reads as the OS). Rename to something like bubble_term_layout (and optionally drop .py). Clarify in help that it manages macOS Terminal panes.",
+    "relocate_recommendation": "Yes — it is a personal, rarely-used convenience tool. Move to a scripts/dev/ or scripts/local/ subdir so it does not sit next to the core test infrastructure.",
+    "improvement_suggestions": "URGENT: fix the parse-time SyntaxError on line 335 (`global screen_left, screen_top, scr.en_width, screen_height` — `scr.en_width` should be `screen_width`); the script does not run at all in its current state (verified via python3 -m py_compile). Then add explicit preflight checks (osascript present, running on macOS), make titles/colors/layout data-driven from a small config, and promote --debug to a real --dry-run.",
+    "requirements_check_completeness": "all implicit — no explicit guard for macOS/Terminal.app/osascript; failures surface only as osascript errors or a silent exit 1 when screen detection fails.",
+    "external_dependency_score": 0,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 0 + programs 0 (osascript and system_profiler both ship with macOS) + sim 0 + apps 0 (Terminal.app is a default) = 0. (Down from 2 under v0.9.)",
+    "change_score": 20,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux FULL block +8 (deeply osascript/Terminal.app/NSScreen-bound; needs a tmux or gnome-terminal rewrite). Invocation (verb->switch) +1. Missing --dry-run +1. Destructive title-matched window close +1. Gating all-implicit +2. Rename (misleading name) +1. Relocate (rarely-used personal tool) +1. Backend rewrite for portability +2. Known bug — parse-time SyntaxError line 335, script entirely non-functional (verified via py_compile) +3. Total 20. Highest of the set.",
+    "quality_score": 28,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 5; Tests /20: 0 (no self-tests); Structure/clarity /20: 12; Documentation /15: 9; Portability + explicit requirement checks /20: 2. Total 28. CURRENTLY NON-FUNCTIONAL — a parse-time SyntaxError on line 335 (verified via py_compile) means it does not run at all, so robustness scores near zero regardless of the otherwise-tidy argparse/screen-detection design; plus all-implicit gating and zero portability."
+  }
+}

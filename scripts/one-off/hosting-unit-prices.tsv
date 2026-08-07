@@ -1,0 +1,54 @@
+vendor	resource_class	metric	unit	usd_price	notes
+aws	compute-vm	t4g.medium 2vCPU/4GB on-demand	USD/mo	24.53	Linux us-east-1; t3.medium x86 is 30.37
+aws	compute-container	Fargate ARM 2vCPU/4GB always-on	USD/mo	57.70	x86 is 71.95; App Runner ~134
+aws	block-storage	EBS gp3	USD/GB-mo	0.08	3000 IOPS + 125 MB/s included
+aws	object-storage	S3 Standard first 50TB	USD/GB-mo	0.023	PUT 0.005/1k, GET 0.0004/1k
+aws	object-egress	internet egress first 10TB	USD/GB	0.09	first 100 GB/mo free account-wide
+aws	managed-pg	RDS db.t4g.small Single-AZ PG16 + 20GB gp3	USD/mo	25.66	instance 23.36 + storage 0.115/GB-mo; Multi-AZ ~2x
+aws	public-ipv4	one in-use or idle IPv4	USD/mo	3.65	0.005/hr; IPv6 free
+aws	lb	ALB fixed hours baseline	USD/mo	16.43	+0.008/LCU-hr (~<6/mo at tiny traffic); ACM cert free
+cloudflare	compute-container	containers-always-on-basic 0.25vCPU/1GiB	USD/mo	13	estimate: $5 base + ~$8 overage; active-CPU billing; Containers GA 2026-04
+cloudflare	compute-container	workers-paid-base	USD/mo	5	10M req + 30M CPU-ms incl.; Express monolith needs rewrite to fit Workers
+cloudflare	object-storage	R2 Standard	USD/GB-mo	0.015	10GB free; Class A $4.50/M, Class B $0.36/M ops
+cloudflare	object-egress	R2 egress	USD/GB	0	zero egress all classes — standout lever
+cloudflare	managed-pg	none (Hyperdrive connector to external PG)	USD/mo	0	no managed PG16 on Cloudflare; D1 is SQLite
+cloudflare	public-ipv4	proxied DNS/TLS/CDN free tier	USD/mo	0	Universal SSL; unmetered DDoS
+cloudflare	lb	LB add-on (unneeded single-origin)	USD/mo	5	2 origins incl.; WAF Pro $20-25/mo optional
+gcp	compute-vm	e2-medium 2 shared vCPU/4GB on-demand	USD/mo	24.46	us-central1; e2-standard-2 (2vCPU/8GB) 48.92; 1yr CUD ~37% off
+gcp	compute-container	Cloud Run 2vCPU/4GiB min-instances=1	USD/mo	152	instance-based billing; ~3x VM but bundles HTTPS/LB/certs
+gcp	block-storage	pd-balanced	USD/GB-mo	0.10	pd-ssd 0.17; pd-standard 0.04
+gcp	object-storage	GCS Standard regional	USD/GB-mo	0.020	Class A $0.05/10k, Class B $0.004/10k
+gcp	object-egress	internet egress Premium 0-1TB	USD/GB	0.12	Standard tier 200GB/mo free
+gcp	managed-pg	Cloud SQL PG16 1vCPU/3.75GB zonal + 20GB SSD	USD/mo	54	HA ~105-110; SSD $/GB flagged for calculator confirmation
+gcp	public-ipv4	in-use external IPv4	USD/mo	3.65	$0.005/hr
+gcp	lb	global external ALB baseline	USD/mo	18.26	managed TLS certs free; skip with Caddy on VM
+akamai-linode	compute-vm	shared 2vCPU/4GB (Linode 4GB, 80GB SSD, 4TB transfer)	USD/mo	24	$0.036/hr capped; dedicated 4GB $43
+akamai-linode	block-storage	block storage volume	USD/GB-mo	0.10	10GB min
+akamai-linode	object-storage	base flat incl 250GB + 1TB pooled transfer	USD/mo	5	overage $0.02/GB-mo
+akamai-linode	object-egress	overage beyond pooled allowance (US)	USD/GB	0.005	4TB pooled with VM
+akamai-linode	managed-pg	Managed PG Shared 1GB 1-node 25GB	USD/mo	16	PG16 OK (Aiven); 3-node HA 1GB $37; 4GB $63
+akamai-linode	public-ipv4	additional IPv4	USD/mo	2	first included
+akamai-linode	lb	NodeBalancer	USD/mo	10	TLS incl.; Cloud Firewall/VPC/DDoS free
+azure	compute-vm	B2s Linux 2vCPU/4GB PAYG	USD/mo	30.37	$0.0416/hr x730h East US; disk+IP extra
+azure	compute-container	Container Apps 2vCPU/4GiB always-active	USD/mo	152	schedulers block idle rate; ~46 if idled
+azure	block-storage	Standard SSD E-tier LRS	USD/GB-mo	0.075	E4 32GB=$2.40/mo tier-based
+azure	object-storage	Blob Hot LRS	USD/GB-mo	0.0208	Cool 0.0152
+azure	object-egress	internet egress	USD/GB	0.087	first 100GB/mo free per subscription
+azure	managed-pg	Flexible Server B1ms PG16 + 32GB	USD/mo	16.09	no HA on Burstable; B2s+32GB $53.32
+azure	public-ipv4	Standard static IPv4	USD/mo	3.65	$0.005/hr
+azure	lb	Standard LB baseline	USD/mo	18.25	L4 only, no managed certs; skip with Caddy
+vultr	compute-vm	2vCPU/4GB High Performance	USD/mo	24	100GB NVMe + 5TB transfer + IPv4 incl.; Regular $20
+vultr	block-storage	NVMe block storage	USD/GB-mo	0.10	10GB min; HDD 0.04 min 100GB
+vultr	object-storage	Standard tier base (1TB storage + 1TB transfer)	USD/mo	18	old $6/250GB plan retired; no request fees
+vultr	object-egress	overage beyond pooled transfer	USD/GB	0.01	flat worldwide; ingress free
+vultr	managed-pg	smallest managed PG 1vCPU/1GB/32GB	USD/mo	18	no PITR at this tier; 2vCPU/4GB/128GB $72, +replica $120
+vultr	public-ipv4	reserved/floating IPv4	USD/mo	3	first IPv4 per VM included
+vultr	lb	Vultr Load Balancer	USD/mo	10	TLS incl.; firewall/VPC free; DDoS add-on $10
+ibm-cloud	compute-vm	cx2-2x4 2vCPU/4GB Linux us-east	USD/mo	53.86	bx2-2x8 (8GB) 66.87; hourly parts pricing
+ibm-cloud	compute-container	Code Engine always-on 2vCPU/4GB min=1	USD/mo	213.55	net of ~$4 free tier; only wins if scale-to-zero
+ibm-cloud	block-storage	Block Storage VPC general-purpose 3IOPS/GB	USD/GB-mo	0.0878	5iops-tier 0.1536
+ibm-cloud	object-storage	COS Smart Tier hot US regional	USD/GB-mo	0.0227	Class A $0.005/1k, Class B $0.004/10k
+ibm-cloud	object-egress	COS public egress	USD/GB	0.09	One-Rate plan alternative includes egress
+ibm-cloud	managed-pg	Databases for PG smallest prod (2 members 0.5vCPU/4GB/5GB)	USD/mo	82.54	mandatory 2 data members double everything; PG16 OK
+ibm-cloud	public-ipv4	VPC floating IP	USD/mo	4.38	security groups/ACLs/public gateway free
+ibm-cloud	lb	ALB for VPC baseline	USD/mo	21.57	+$0.00844/GB processed

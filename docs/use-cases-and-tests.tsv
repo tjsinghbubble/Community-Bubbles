@@ -1,0 +1,149 @@
+Overall Rank	Grouping	Functional Area	Area Rank	Roles	Group rank	Dynamic Group rank	Orig Use Case Rank	Use Case Summary	Use Case Priority	Use Case Priority (Nav) 	Use Case Status	Comments	Negative tests	Manual testing status	Security, Trust, Safety	2 accounts		Count Dupe Use Cases	Use Case Priority	Count	Freq	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	1	2	180	Sign up with name, email, date of birth, and password	1 - Smoke				X	1 - Works Fine				1	0 - Hmmm	30	13.76%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	3	2	182	Sign in with email and password	1 - Smoke					2 - Works P3 Bugs	x			2	1 - Smoke	19	8.72 
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	9	2	188	Reset or change password	1 - Smoke				X	3 - Works P2 Bugs	x			1	2 - ⍺ High	19	8.72%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	2	100	181	Select interests during onboarding (multi-select)	2 - ⍺ High					4 - Fails P1 Bugs				1	3 - ⍺ Low	8	3.67%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	5	100	184	Edit profile photo	2 - ⍺ High									1	4 - β High	11	5.05%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	6	100	185	Edit display name	2 - ⍺ High									1	5 - β Low	6	2.75%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	7	100	186	Edit "about me" bio	2 - ⍺ High				X					1	6 - Prod High	0	0.00%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	8	100	187	Edit interests	2 - ⍺ High				X					1	7 - Prod Low	0	0.00%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	3	100	191	Export their personal data	4 - β High			app store testing priority			CCPA			1	8 - None Yet	70	32.11%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	4	1	192	Delete account	4 - β High			app store testing priority			CCPA			1	9 - None	0	0.00%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	1	1	189	Configure notification preferences (push, email)	5 - β Low									1	Unassigned	55	25.23%	
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	2	1	190	Configure privacy settings	5 - β Low									1				
+	Deeper-Level	Account & Onboarding	1	3 - Group Member	4	1	183	Sign out	5 - β Low									1				
+	Top-Level	Discovering Bubbles	2	3 - Group Member	1	1	45	View bubble details, rules, and upcoming events before joining	1 - Smoke									1				
+	Deeper-Level	Discovering Bubbles	2	3 - Group Member	2	1	204	Browse bubbles in the Explore tab	1 - Smoke									1				
+	Deeper-Level	Discovering Bubbles	2	3 - Group Member	4	1	206	View a bubble's cover image, tagline, member count, and category before joining	3 - ⍺ Low									1				
+	Deeper-Level	Discovering Bubbles	2	3 - Group Member	5	1	207	View a bubble's full details (description, rules, events, members)	3 - ⍺ Low									1				
+	Deeper-Level	Discovering Bubbles	2	3 - Group Member	6	1	208	View upcoming events inside a bubble before joining	3 - ⍺ Low									1				
+	Deeper-Level	Discovering Bubbles	2	3 - Group Member	3	1	205	Filter or search bubbles by interest/category	4 - β High									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	2	2	44	Request to join a Request-to-Join or Private bubble	1 - Smoke									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	3	2	46	RSVP to events	1 - Smoke									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	4	2	47	Participate in bubble group chat (via CometChat)	1 - Smoke									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	5	2	48	Leave a bubble	3 - ⍺ Low									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	6	2	49	Share a bubble with others	3 - ⍺ Low							x		1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	7	2	50	Report a concern about a bubble or member	4 - β High						High	x		1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	9	1	52	Enable or join Campus Mode (if university verified)	5 - β Low									1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	10	1	54	Delete their account	5 - β Medium						CCPA			1				
+	Top-Level	Joining Bubbles	3	3 - Group Member	11	1	55	Manage notification and privacy settings	5 - β Low									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	12	1	212	Join a public bubble instantly	1 - Smoke									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	13	1	213	Accept bubble rules before joining (checkbox confirmation)	1 - Smoke						X			1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	14	1	215	Receive confirmation that a join request was submitted	4 - β High									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	15	1	216	Access a Private bubble via a direct link	4 - β High									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	16	1	217	See how many spots are left if a member limit is set	4 - β High									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	17	1	218	Be added to a waitlist if a bubble is full	4 - β High									1				
+	Deeper-Level	Joining Bubbles	3	3 - Group Member	18	1	227	View other members	2 - ⍺ High									1				
+	Deeper-Level	Events	5	2 - Group Admin	1	1	160	Create an event (title, date, time, location, description, timezone)	1 - Smoke									1				
+	Deeper-Level	Events	5	2 - Group Admin	2	1	161	Upload event photos	1 - Smoke									1				
+	Deeper-Level	Events	5	2 - Group Admin	3	1	162	Edit an event	1 - Smoke									1				
+	Deeper-Level	Events	5	2 - Group Admin	4	1	163	Delete an event	1 - Smoke									1				
+	Deeper-Level	Events	5	2 - Group Admin	5	1	164	View who has RSVPed to an event	2 - ⍺ High									1				
+	Deeper-Level	Events	5	3 - Group Member	6	1	224	View upcoming and past events	2 - ⍺ High									1				
+	Deeper-Level	Events	5	3 - Group Member	7	1	225	RSVP to an event	1 - Smoke							x		1				
+	Deeper-Level	Events	5	3 - Group Member	8	1	226	Cancel an RSVP	2 - ⍺ High							x		1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	1	4	68	Approve a submitted bubble (make it live)	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	2	4	69	Reject a bubble with a written reason	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	3	4	70	Approve an event	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	4	4	71	Reject an event	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	5	4	72	Edit any bubble on the platform	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	6	4	73	Delete any bubble on the platform	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	7	4	74	Edit any event on the platform	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	8	3	75	Delete any event on the platform	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	9	3	76	** is there a badge for being a bubble admin	0 - Hmmm			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	1 - Super Admin	10	3	77	** negative tests on failed login	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						2				
+	Top-Level	Bubble Admin	6	2 - Group Admin	12	3	26	Edit their bubble's details at any time	3 - ⍺ Low			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	13	3	27	Delete their bubble	3 - ⍺ Low			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	14	3	28	Set bubble privacy (Public, Request to Join, Private)	3 - ⍺ Low			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	15	3	29	Add, edit, and delete bubble-specific rules	4 - β High			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	16	3	30	Override inherited app/category rules for their bubble	4 - β High			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	17	3	31	Approve or reject membership requests	4 - β High			All Bubble Admin stuff needs to be re-arranged				x		1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	18	3	32	Remove members from their bubble	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	19	2	33	Create events within their bubble	1 - Smoke			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	20	2	34	Edit or delete their bubble's events	1 - Smoke			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	21	2	35	Contact members via in-app messaging	1 - Smoke			All Bubble Admin stuff needs to be re-arranged				x		1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	22	2	36	Set a member limit for their bubble	5 - β Low			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Bubble Admin	6	2 - Group Admin	23	2	37	Share their bubble via QR code or link	2 - ⍺ High			All Bubble Admin stuff needs to be re-arranged						1				0 - Hmmm
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	24	2	129	Create a new bubble (title, description, category, privacy, cover images, rules)	1 - Smoke			All Bubble Admin stuff needs to be re-arranged						1				1 - Smoke
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	25	2	130	Upload a cover image for the bubble	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				2 - ⍺ High
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	26	2	131	Upload additional bubble photos (up to the configured max)	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				3 - ⍺ Low
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	27	2	132	Set a member limit (cap on total members)	5 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				4 - β High
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	28	2	133	Set bubble location	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				5 - β Low
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	29	1	134	Edit any of the above bubble details after creation	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				6 - Prod High
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	30	1	135	Submit bubble for super admin approval	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				7 - Prod Low
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	31	1	136	Delete the bubble entirely	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				8 - None Yet
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	32	1	138	Share the bubble via QR code	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				9 - None
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	33	1	139	Share the bubble via the native share sheet	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				Unassigned
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	34	1	140	Copy the bubble's short link	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	35	1	153	View all current members of the bubble	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	36	1	154	Approve a pending join request	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	37	1	155	Reject a pending join request	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Bubble Admin	6	2 - Group Admin	38	1	156	Remove an existing member from the bubble	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	1	2	10	Approve or reject bubble submissions (with optional rejection reason)	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	2	2	11	Approve or reject events	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	3	2	12	Edit or delete any bubble or event on the platform	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	4	2	13	Manage app-wide rules (create, edit, delete, reorder)	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	5	1	14	Manage category-level rules	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	6	1	15	Manage the full category hierarchy (create, edit, delete parent/subcategories)	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	7	1	16	View platform health dashboard (users, bubbles, events, memory, integrations)	3 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	8	1	17	View growth metrics and content health stats	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	9	1	18	Manage the waitlist	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	10	1	19	Review reported content/concerns	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Top-Level	Site Admin	7	1 - Super Admin	11	1	20	Access all admin pages	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Site Admin	7	1 - Super Admin	12	1	63	Sign in with email and password	1 -- Claude eval			All Bubble Admin stuff needs to be re-arranged	C					2				
+	Deeper-Level	Site Admin	7	1 - Super Admin	13	1	64	View super admin badge on profile	4 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						1				
+	Deeper-Level	Site Admin	7	1 - Super Admin	14	1	65	** Negative tests on failed login	2 -- Claude eval			All Bubble Admin stuff needs to be re-arranged						2				
+	Deeper-Level	Communication	10	2 - Group Admin	1	2	168	Message any member of their bubble directly								x		2				
+	Deeper-Level	Communication	10	2 - Group Admin	2	1	169	View group chat for their bubble										1				
+	Deeper-Level	Communication	10	2 - Group Admin	3	1	170	** inappropriate language										1				
+	Deeper-Level	Communication	10	3 - Group Member	4	1	222	View the bubble's group chat										1				
+	Deeper-Level	Communication	10	3 - Group Member	5	1	223	Send messages in the group chat										1				
+	Deeper-Level	Communication	10	3 - Group Member	6	1	228	Message any member of their bubble directly								x		2				
+	Deeper-Level	Communication	10	3 - Group Member	7	1	230	Share the bubble with someone else										1				
+	Deeper-Level	Communication	10	3 - Group Member	8	1	242	View all direct message conversations										1				
+	Deeper-Level	Communication	10	3 - Group Member	9	1	243	Filter messages (all, groups, direct)										1				
+	Deeper-Level	Communication	10	3 - Group Member	10	1	244	Start a new direct conversation										1				
+	Deeper-Level	Communication	10	3 - Group Member	11	1	245	View unread message count										1				
+	Deeper-Level	Campus Mode	11	3 - Group Member	1	1	196	See a prompt to verify a university email										1				
+	Deeper-Level	Campus Mode	11	3 - Group Member	2	1	197	Enter a .edu email to begin campus verification										1				
+	Deeper-Level	Campus Mode	11	3 - Group Member	3	1	198	Enter the verification code received by email										1				
+	Deeper-Level	Campus Mode	11	3 - Group Member	4	1	199	Gain access to campus-exclusive bubbles and events after verification										1				
+	Deeper-Level	Campus Mode	11	3 - Group Member	5	1	200	Dismiss the campus mode prompt										1				
+	Deeper-Level	Notifications	12	2 - Group Admin	1	1	173	Receive notifications for join requests										1				
+	Deeper-Level	Notifications	12	2 - Group Admin	2	1	174	Configure notification preferences										1				
+	Deeper-Level	Notifications	12	2 - Group Admin	101	1	176	Mark notifications as read										2				
+	Deeper-Level	Notifications	12	3 - Group Member	102	1	236	Receive a notification when a join request is approved or rejected										1				
+	Deeper-Level	Notifications	12	3 - Group Member	103	1	237	View all unread notifications										1				
+	Deeper-Level	Notifications	12	3 - Group Member	104	1	238	Mark notifications as read										2				
+	Deeper-Level	Categories	13	1 - Super Admin	1	1	89	View the full category hierarchy										1				
+	Deeper-Level	Categories	13	1 - Super Admin	2	1	90	Create a new parent category										1				
+	Deeper-Level	Categories	13	1 - Super Admin	3	1	91	Create a subcategory under a parent										1				
+	Deeper-Level	Categories	13	1 - Super Admin	4	1	92	Edit a category name or icon										1				
+	Deeper-Level	Categories	13	1 - Super Admin	5	1	93	Delete a category										1				
+	Deeper-Level	Categories	13	1 - Super Admin	6	1	94	Reorder categories										1				
+	Deeper-Level	Waitlist & Reports	14	1 - Super Admin	1	1	110	View users on the waitlist										1				
+	Deeper-Level	Waitlist & Reports	14	1 - Super Admin	2	1	111	Review reported concerns submitted by members										1				
+	Deeper-Level	Waitlist & Reports	14	1 - Super Admin	3	1	115	Account										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	1	1	98	View platform stats (total users, bubbles, events, memberships)										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	2	1	99	View growth metrics (new users and bubbles over 7 and 30 days)										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	3	1	100	View content health (orphan bubbles, avg members per bubble, rejected count)										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	4	1	101	View campus stats (campuses, verified users, campus bubbles)										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	5	1	102	View server memory usage and environment										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	6	1	103	Check CometChat integration status and latency										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	7	1	104	Check object storage status and latency										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	8	1	105	View count of pending items awaiting review										1				
+	Deeper-Level	Site Monitoring	15	1 - Super Admin	9	1	106	See auto-refreshed stats every 30 seconds										1				
+	Deeper-Level	Rules	16	1 - Super Admin	1	2	79	View all app-wide rules										1				
+	Deeper-Level	Rules	16	1 - Super Admin	2	2	80	Create a new app-wide rule										1				
+	Deeper-Level	Rules	16	1 - Super Admin	3	2	81	Edit an existing app-wide rule										1				
+	Deeper-Level	Rules	16	1 - Super Admin	4	2	82	Delete an app-wide rule										1				
+	Deeper-Level	Rules	16	1 - Super Admin	5	1	83	Reorder app-wide rules										1				
+	Deeper-Level	Rules	16	1 - Super Admin	6	1	84	Assign rules to a specific category										1				
+	Deeper-Level	Rules	16	1 - Super Admin	7	1	85	Edit or remove category-level rules										1				
+	Deeper-Level	Rules	16	2 - Group Admin	8	1	144	View inherited app-level and category-level rules										1				
+	Deeper-Level	Rules	16	2 - Group Admin	9	1	145	Hide (override) an inherited rule from displaying in their bubble										1				
+	Deeper-Level	Rules	16	2 - Group Admin	10	1	146	Add a custom bubble-level rule										1				
+	Deeper-Level	Rules	16	2 - Group Admin	11	1	147	Edit a custom bubble-level rule										1				
+	Deeper-Level	Rules	16	2 - Group Admin	12	1	148	Delete a custom bubble-level rule										1				
+	Deeper-Level	Rules	16	2 - Group Admin	13	1	149	Reorder custom rules										1				
+	Deeper-Level	Rules	16	3 - Group Member	14	1	229	View the bubble's full rules										1				

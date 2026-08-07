@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to move Bubble to a Linode test host</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1d21; --muted: #5b6470; --line: #d9dee5;
+    --card: #f6f8fa; --code-bg: #0f172a; --code-fg: #e2e8f0;
+    --accent: #0b6bcb; --ok: #1a7f37; --warn: #9a6700; --danger: #b42318;
+    --badge-local: #0b6bcb22; --badge-server: #1a7f3722;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #9aa4b2; --line: #2d333b;
+      --card: #161b22; --code-bg: #010409; --code-fg: #dbe3ec;
+      --accent: #58a6ff; --ok: #3fb950; --warn: #d29922; --danger: #f85149;
+      --badge-local: #58a6ff22; --badge-server: #3fb95022;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; max-width: 60rem; padding: 2rem 1.25rem 6rem;
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 .25rem; }
+  h2 { font-size: 1.35rem; margin: 2.6rem 0 .6rem; padding-top: 1rem; border-top: 2px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 1.4rem 0 .4rem; }
+  p, li { max-width: 52rem; }
+  .subtitle { color: var(--muted); margin-bottom: 1.5rem; }
+  .note, .warnbox, .dangerbox {
+    border: 1px solid var(--line); border-left-width: 5px; border-radius: 6px;
+    padding: .7rem 1rem; margin: 1rem 0; background: var(--card);
+  }
+  .note { border-left-color: var(--accent); }
+  .warnbox { border-left-color: var(--warn); }
+  .dangerbox { border-left-color: var(--danger); }
+  .badge {
+    display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .04em;
+    padding: .1rem .5rem; border-radius: 99px; vertical-align: middle; text-transform: uppercase;
+  }
+  .b-local { background: var(--badge-local); color: var(--accent); }
+  .b-server { background: var(--badge-server); color: var(--ok); }
+  .b-forward { background: var(--badge-local); color: var(--accent); }
+  .b-check { background: #8884; color: var(--muted); }
+  .b-rollback { background: #b4231822; color: var(--danger); }
+  .b-toggle { background: #9a670022; color: var(--warn); }
+  .cmd { position: relative; margin: .8rem 0 1.1rem; }
+  .cmd .labels { margin-bottom: .25rem; display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+  .cmd .labels .what { font-size: .85rem; color: var(--muted); }
+  .cmd pre {
+    margin: 0; padding: .85rem 1rem; padding-right: 4.5rem;
+    background: var(--code-bg); color: var(--code-fg); border-radius: 8px;
+    overflow-x: auto; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre;
+  }
+  .cmd button.copy {
+    position: absolute; right: .5rem; bottom: .5rem;
+    font: 600 .75rem/1 inherit; padding: .45rem .7rem; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer;
+  }
+  .cmd button.copy:hover { border-color: var(--accent); color: var(--accent); }
+  .cmd button.copy.done { border-color: var(--ok); color: var(--ok); }
+  ul.checklist { list-style: none; padding-left: 0; }
+  ul.checklist li { margin: .45rem 0; padding-left: .1rem; }
+  ul.checklist input[type=checkbox] { transform: scale(1.25); margin-right: .6rem; accent-color: var(--accent); }
+  code { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: .05rem .3rem; font-size: .85em; }
+  pre code { background: none; border: none; padding: 0; font-size: inherit; }
+  table { border-collapse: collapse; margin: 1rem 0; display: block; overflow-x: auto; }
+  th, td { border: 1px solid var(--line); padding: .4rem .7rem; text-align: left; font-size: .92rem; }
+  th { background: var(--card); }
+  .toc { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem 1.4rem; }
+  .toc ol { margin: .3rem 0; padding-left: 1.2rem; }
+  a { color: var(--accent); }
+  .progressnote { font-size: .85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<h1>How to move Bubble to a Linode test host</h1>
+<p class="subtitle">A command-by-command weekend runbook. Written 2026-07-18 · companion to
+<a href="Move-from-Replit.md">Move-from-Replit.md</a> · performance/cost testing continues in
+<a href="How-to-test-on-Linode.md">How-to-test-on-Linode.md</a></p>
+
+<div class="note">
+<strong>What this runbook does.</strong> It stands up a complete, working copy of Bubble
+(application, database, stand-in photo storage, HTTPS) on a rented Linode server, under
+<strong>your own domain</strong> — it never touches <code>trybubble.io</code>, its DNS, or the
+live Replit deployment. Everything is disposable: the final section deletes it all.
+<br><br>
+<strong>Cost:</strong> the server bills hourly at $0.036/hr — a full weekend ≈ <strong>$2.60</strong>,
+plus your test domain (~$10–15/yr if you register a new one).
+<strong>Time:</strong> roughly 2–3 hours of hands-on work, plus DNS and upload waiting.
+</div>
+
+<div class="warnbox">
+<strong>How to read the commands.</strong> Each command block is labeled with
+<span class="badge b-local">your&nbsp;mac</span> (run in a local terminal, from the
+<code>Bubble/</code> repo directory unless said otherwise) or
+<span class="badge b-server">server</span> (run inside an SSH session on the Linode), and with its
+purpose: <span class="badge b-forward">forward</span> moves the migration ahead,
+<span class="badge b-check">check</span> verifies status and changes nothing,
+<span class="badge b-rollback">rollback</span> undoes the step, and
+<span class="badge b-toggle">enable/disable</span> pauses or resumes without destroying anything.
+Checkboxes remember themselves in this browser. <span class="progressnote">(Stored locally only.)</span>
+</div>
+
+<div class="toc">
+<strong>Phases</strong>
+<ol>
+  <li><a href="#p0">Prepare your Mac (tools, keys, variables)</a></li>
+  <li><a href="#p1">Pick and register the test domain (Boudicca availability included)</a></li>
+  <li><a href="#p2">Create the server</a></li>
+  <li><a href="#p3">Lock it down (firewall + SSH)</a></li>
+  <li><a href="#p4">Point DNS at the server</a></li>
+  <li><a href="#p5">Install Docker and Caddy on the server</a></li>
+  <li><a href="#p6">Build the app container locally and ship it up</a></li>
+  <li><a href="#p7">Configure and start the stack</a></li>
+  <li><a href="#p8">Create the database schema and seed test data</a></li>
+  <li><a href="#p9">Turn on HTTPS</a></li>
+  <li><a href="#p10">Verify the deployment</a></li>
+  <li><a href="#p11">Build the mobile app against the test site</a></li>
+  <li><a href="#p12">Optional: rehearse with a copy of real data</a></li>
+  <li><a href="#p13">Pause, resume, and full teardown</a></li>
+  <li><a href="#p14">What this weekend deliberately does not cover</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="p0">Phase 0 — Prepare your Mac</h2>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c0-1"> Linode account created at <a href="https://cloud.linode.com">cloud.linode.com</a>, billing set up, and a personal access token generated (Cloud Manager → profile → API Tokens; give it read/write on Linodes, Firewalls, Domains).</label></li>
+  <li><label><input type="checkbox" id="c0-2"> Homebrew, Docker Desktop, and an SSH key present on this Mac.</label></li>
+</ul>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Install and configure the Linode command-line tool (paste your token when prompted; pick region <code>us-east</code>)</span></div>
+<pre><code>brew install linode-cli
+linode-cli configure</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Confirm the CLI works and you have an SSH key</span></div>
+<pre><code>linode-cli account view --text
+ls ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519</code></pre><button class="copy">Copy</button></div>
+
+<p>Set the working variables for this whole runbook. <strong>Every later command assumes these are
+set in your current terminal</strong> — re-paste this block in any new terminal window (and fill in
+the values you learn as you go).</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Session variables — edit the first two lines, then paste the whole block</span></div>
+<pre><code>export BUBBLE_DOMAIN="yourdomain.example"        # the domain YOU control (Phase 1)
+export BUBBLE_HOST="bubble.$BUBBLE_DOMAIN"       # the test site's full address
+export BUBBLE_IP=""                              # filled in after Phase 2
+export PG_PASS="$(openssl rand -hex 16)"; echo "PG_PASS=$PG_PASS  (save this)"</code></pre><button class="copy">Copy</button></div>
+
+<!-- ============================================================ -->
+<h2 id="p1">Phase 1 — Pick and register the test domain</h2>
+
+<p>This runbook assumes a domain <strong>you personally control</strong> (you do not have control
+of <code>trybubble.io</code>, and this test must not touch it). Any registrar works — Cloudflare
+Registrar and Porkbun are cheap and sane. You only need one A-record, so nothing fancy.</p>
+
+<h3>Boudicca-themed availability (checked 2026-07-18)</h3>
+<p>A non-exhaustive registration check centered on <em>Boudicca</em>, <em>Boudicca Software</em>,
+and variant spellings, via the public RDAP registry service. "Available" means <em>no registration
+existed at check time</em> — verify at the registrar before you get attached; good names go fast
+and some registries park premium prices on short names.</p>
+
+<table>
+<tr><th>Likely available</th><th>Already taken</th></tr>
+<tr><td>
+boudicca.io · boudicca.co · boudicca.dev · boudicca.app · boudicca.software<br>
+boudiccasoftware.com · boudiccasoftware.io · boudiccasoftware.dev · boudicca-software.com<br>
+boudica.io · boudica.dev · boudicasoftware.com<br>
+boadicea.io · boadicea.dev · boudikka.com
+</td><td>
+boudicca.com · boudicca.net<br>
+boudica.com · boudica.app<br>
+boadicea.com · boudicea.com · bodicca.com
+</td></tr>
+</table>
+
+<div class="note"><strong>Heads-up on <code>.dev</code> and <code>.app</code>:</strong> both
+force HTTPS in every browser (no plain-HTTP fallback while you debug). That's fine for this
+runbook — Caddy gives you HTTPS in Phase 9 — but <code>.io</code>, <code>.co</code>, or a
+<code>.com</code> variant leaves more slack. <code>boudicca.io</code> and
+<code>boudiccasoftware.com</code> were the cleanest available picks at check time.</div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c1-1"> Domain registered and visible in your registrar account.</label></li>
+  <li><label><input type="checkbox" id="c1-2"> <code>BUBBLE_DOMAIN</code> updated in your terminal (Phase 0 block).</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p2">Phase 2 — Create the server</h2>
+
+<p>One "Linode 4GB" shared server (2 CPUs, 4 GB memory — the size all the research sizing points
+at), in Newark, running Ubuntu 24.04, with your SSH key installed from the start.</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Create the server (root password is required by Linode; make it long and random — you'll never type it)</span></div>
+<pre><code>linode-cli linodes create \
+  --label bubble-test \
+  --region us-east \
+  --type g6-standard-2 \
+  --image linode/ubuntu24.04 \
+  --root_pass "$(openssl rand -base64 24)" \
+  --authorized_keys "$(cat ~/.ssh/id_ed25519.pub)" \
+  --text</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Watch it boot (status becomes <code>running</code> in ~1 minute) and capture its address into <code>$BUBBLE_IP</code></span></div>
+<pre><code>linode-cli linodes list --label bubble-test --text
+export BUBBLE_IP=$(linode-cli linodes list --label bubble-test --format ipv4 --text --no-headers)
+echo "BUBBLE_IP=$BUBBLE_IP"</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">First login (accept the host key)</span></div>
+<pre><code>ssh root@$BUBBLE_IP 'hostname; uptime'</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-rollback">rollback</span><span class="what">Undo this phase — destroy the server (stops all billing for it)</span></div>
+<pre><code>linode-cli linodes delete $(linode-cli linodes list --label bubble-test --format id --text --no-headers)</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c2-1"> Server shows <code>running</code>; <code>$BUBBLE_IP</code> is set; SSH works.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p3">Phase 3 — Lock it down</h2>
+
+<p>Two layers, both free: Linode's Cloud Firewall in front of the machine (only SSH and the two web
+ports may pass), and on the machine, key-only SSH plus fail2ban to ban brute-forcers.</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Create the firewall (default-deny inbound; allow only 22, 80, 443) and attach it to the server</span></div>
+<pre><code>linode-cli firewalls create --label bubble-fw \
+  --rules.inbound_policy DROP --rules.outbound_policy ACCEPT \
+  --rules.inbound '[
+    {"label":"ssh","action":"ACCEPT","protocol":"TCP","ports":"22","addresses":{"ipv4":["0.0.0.0/0"],"ipv6":["::/0"]}},
+    {"label":"http","action":"ACCEPT","protocol":"TCP","ports":"80","addresses":{"ipv4":["0.0.0.0/0"],"ipv6":["::/0"]}},
+    {"label":"https","action":"ACCEPT","protocol":"TCP","ports":"443","addresses":{"ipv4":["0.0.0.0/0"],"ipv6":["::/0"]}}
+  ]' --text
+FW_ID=$(linode-cli firewalls list --label bubble-fw --format id --text --no-headers)
+LINODE_ID=$(linode-cli linodes list --label bubble-test --format id --text --no-headers)
+linode-cli firewalls device-create $FW_ID --id $LINODE_ID --type linode --text</code></pre><button class="copy">Copy</button></div>
+
+<div class="note">If you know your home IP is stable, tighten SSH by replacing
+<code>"0.0.0.0/0"</code> in the ssh rule with <code>"&lt;your-ip&gt;/32"</code>. Skippable for a
+weekend test — fail2ban below covers the noise.</div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Key-only SSH + fail2ban (run inside <code>ssh root@$BUBBLE_IP</code>)</span></div>
+<pre><code>printf 'PasswordAuthentication no\nPermitRootLogin prohibit-password\n' > /etc/ssh/sshd_config.d/90-bubble.conf
+systemctl reload ssh
+apt-get update && apt-get install -y fail2ban
+systemctl enable --now fail2ban</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Confirm: password auth refused, firewall attached</span></div>
+<pre><code>ssh -o PubkeyAuthentication=no -o PasswordAuthentication=yes root@$BUBBLE_IP true 2>&1 | tail -1   # expect: Permission denied
+linode-cli firewalls list --text</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c3-1"> Firewall <code>bubble-fw</code> attached; only 22/80/443 open.</label></li>
+  <li><label><input type="checkbox" id="c3-2"> Password SSH refused; fail2ban active.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p4">Phase 4 — Point DNS at the server</h2>
+
+<p>Two routes — pick one. <strong>Route A (recommended for the weekend):</strong> add one record at
+your registrar's own DNS panel: an <code>A</code> record, name <code>bubble</code>, value
+<code>$BUBBLE_IP</code>, TTL 300. Done — skip to the check below. <strong>Route B:</strong> host the
+zone at Linode so everything lives in one CLI (requires switching your domain's nameservers at the
+registrar to <code>ns1–ns5.linode.com</code>, which can take hours to propagate — do it Friday, not
+Saturday night).</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Route B only — create the zone and the record at Linode</span></div>
+<pre><code>linode-cli domains create --type master --domain "$BUBBLE_DOMAIN" --soa_email "travis.winfrey@gmail.com" --text
+DOMAIN_ID=$(linode-cli domains list --domain "$BUBBLE_DOMAIN" --format id --text --no-headers)
+linode-cli domains records-create $DOMAIN_ID --type A --name bubble --target "$BUBBLE_IP" --ttl_sec 300 --text
+# then, at your registrar: set nameservers to ns1.linode.com ... ns5.linode.com</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Confirm the name resolves to your server (repeat until it does; TTL 300 = re-check every 5 min)</span></div>
+<pre><code>dig +short $BUBBLE_HOST @1.1.1.1
+echo "should print: $BUBBLE_IP"</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-rollback">rollback</span><span class="what">Undo — delete the record (Route A: delete it in the registrar panel)</span></div>
+<pre><code>DOMAIN_ID=$(linode-cli domains list --domain "$BUBBLE_DOMAIN" --format id --text --no-headers)
+linode-cli domains records-list $DOMAIN_ID --text
+linode-cli domains records-delete $DOMAIN_ID &lt;record-id&gt;</code></pre><button class="copy">Copy</button></div>
+
+<div class="note"><strong>No domain yet / DNS not propagating?</strong> You can proceed with a
+zero-setup fallback name: <code>export BUBBLE_HOST="$(echo $BUBBLE_IP | tr . -).sslip.io"</code> —
+a public convenience service that resolves that name to your IP automatically. Fine for a weekend
+test; use your real domain for anything you show to others.</div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c4-1"> <code>dig</code> returns <code>$BUBBLE_IP</code> for <code>$BUBBLE_HOST</code>.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p5">Phase 5 — Install Docker and Caddy on the server</h2>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Docker (official convenience installer) + Caddy (official apt repo)</span></div>
+<pre><code>curl -fsSL https://get.docker.com | sh
+apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list
+apt-get update && apt-get install -y caddy</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-check">check</span><span class="what">Confirm both installed and running</span></div>
+<pre><code>docker --version && docker compose version
+systemctl is-active caddy</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c5-1"> Docker and docker compose respond; Caddy service is <code>active</code>.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p6">Phase 6 — Build the app container locally and ship it up</h2>
+
+<p>The container is built on your Mac with the existing research build script (already proven in the
+load tests), then copied to the server over SSH. The compressed image is a few hundred MB — expect
+10–30 minutes depending on your uplink; start it and get coffee.</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Build the image (from the <code>Bubble/</code> repo directory)</span></div>
+<pre><code>scripts/one-off/hosting-docker-build.sh</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Ship it to the server</span></div>
+<pre><code>docker save bubble-api:research | gzip | ssh root@$BUBBLE_IP 'gunzip | docker load'</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Confirm the image arrived</span></div>
+<pre><code>ssh root@$BUBBLE_IP docker images</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c6-1"> <code>bubble-api:research</code> listed on the server (~1.18 GB).</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p7">Phase 7 — Configure and start the stack</h2>
+
+<p>Three containers on the server, same shape as the local experiment stack: the app, PostgreSQL 16,
+and a stand-in photo store (the documented no-code-change workaround for the Replit storage
+coupling — see the plan's §"one real obstacle"). All of them listen only on the server's loopback;
+the outside world reaches the app solely through Caddy (Phase 9).</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Create the deployment directory and compose file</span></div>
+<pre><code>mkdir -p /opt/bubble && cd /opt/bubble
+cat > compose.yaml &lt;&lt;'EOF'
+name: bubble
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bubble
+      POSTGRES_PASSWORD: ${PG_PASS}
+      POSTGRES_DB: bubble
+    volumes: [ bubble_pgdata:/var/lib/postgresql/data ]
+    ports: [ "127.0.0.1:5433:5432" ]     # loopback only — for the SSH-tunnel schema/seed step
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bubble -d bubble"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  gcs:
+    image: fsouza/fake-gcs-server:latest
+    restart: unless-stopped
+    command: ["-scheme", "http", "-port", "4443", "-public-host", "gcs:4443"]
+  api:
+    image: bubble-api:research
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      gcs: { condition: service_started }
+    env_file: [ .env ]
+    environment:
+      DATABASE_URL: postgres://bubble:${PG_PASS}@db:5432/bubble
+      STORAGE_EMULATOR_HOST: http://gcs:4443
+      PORT: "5000"
+    ports: [ "127.0.0.1:5000:5000" ]     # loopback only — Caddy is the front door
+volumes:
+  bubble_pgdata:
+EOF</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Create the secrets file with FRESH secrets (never reuse Replit's — they are visible to every Replit collaborator). Fill in the CometChat values from the team vault if you want chat to work; leave them blank otherwise and everything else still runs.</span></div>
+<pre><code>cd /opt/bubble
+cat > .env &lt;&lt;EOF
+JWT_SECRET=$(openssl rand -hex 32)
+ENCRYPTION_KEY=$(openssl rand -hex 32)
+EXPO_PUBLIC_COMETCHAT_APP_ID=
+EXPO_PUBLIC_COMETCHAT_REGION=us
+COMETCHAT_AUTH_KEY=
+COMETCHAT_API_KEY=
+PRIVATE_OBJECT_DIR=/bubble-local/private
+PUBLIC_OBJECT_SEARCH_PATHS=/bubble-local/public
+EOF
+chmod 600 .env
+echo "PG_PASS=&lt;paste the PG_PASS value from your Mac&gt;" > .pgpass.env   # then edit it for real
+chmod 600 .pgpass.env</code></pre><button class="copy">Copy</button></div>
+
+<div class="warnbox">Edit <code>/opt/bubble/.pgpass.env</code> so it contains the actual
+<code>PG_PASS=…</code> value you generated in Phase 0 (it's the database password both sides must
+agree on). Then start the stack with that value loaded:</div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Start everything</span></div>
+<pre><code>cd /opt/bubble && set -a && . ./.pgpass.env && set +a
+docker compose up -d</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-check">check</span><span class="what">Status and logs — the API will complain about a missing schema until Phase 8; that's expected</span></div>
+<pre><code>docker compose ps
+docker compose logs --tail 50 api</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-rollback">rollback</span><span class="what">Undo — stop and remove containers (add <code>-v</code> to also erase the database volume for a truly clean slate)</span></div>
+<pre><code>cd /opt/bubble && docker compose down        # or: docker compose down -v</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c7-1"> <code>docker compose ps</code> shows db healthy, gcs and api present.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p8">Phase 8 — Create the database schema and seed test data</h2>
+
+<p>A brand-new database has no tables — the app's boot-time migrator only patches, it doesn't
+bootstrap (a documented gotcha). You run the one-time schema push <em>from your Mac</em>, through an
+SSH tunnel to the server's loopback-only database port, using the repo's own tooling. Same tunnel
+seeds the test accounts.</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Open the tunnel (leave this running in its own terminal; Ctrl-C closes it)</span></div>
+<pre><code>ssh -N -L 5433:127.0.0.1:5433 root@$BUBBLE_IP</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">In a second terminal (with Phase 0 variables set, from <code>Bubble/</code>): create the schema, seed test data, restart the app</span></div>
+<pre><code>export TUNNEL_DB="postgres://bubble:$PG_PASS@127.0.0.1:5433/bubble"
+DATABASE_URL="$TUNNEL_DB" npx drizzle-kit push --force
+DATABASE_URL="$TUNNEL_DB" npx tsx scripts/seed-test-data.ts
+ssh root@$BUBBLE_IP 'cd /opt/bubble && set -a && . ./.pgpass.env && set +a && docker compose restart api'</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">The app should now answer on the server's loopback</span></div>
+<pre><code>ssh root@$BUBBLE_IP 'curl -fsS http://127.0.0.1:5000/api/v1/ping && echo OK'</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c8-1"> Schema pushed, seed script completed, ping answers OK.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p9">Phase 9 — Turn on HTTPS</h2>
+
+<p>Caddy fetches and renews a free certificate automatically the moment its config names your
+domain — provided Phase 4's DNS record already points here (the certificate authority checks).</p>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-forward">forward</span><span class="what">Point Caddy at the app — replace <code>BUBBLE_HOST_HERE</code> with your actual host name (e.g. <code>bubble.boudicca.io</code>)</span></div>
+<pre><code>cat > /etc/caddy/Caddyfile &lt;&lt;'EOF'
+BUBBLE_HOST_HERE {
+    reverse_proxy 127.0.0.1:5000
+}
+EOF
+sed -i "s/BUBBLE_HOST_HERE/bubble.yourdomain.example/" /etc/caddy/Caddyfile   # &lt;-- edit me
+systemctl reload caddy</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">The site is live on the real internet</span></div>
+<pre><code>curl -fsS https://$BUBBLE_HOST/api/v1/ping && echo && echo "OPEN IN BROWSER: https://$BUBBLE_HOST"</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-rollback">rollback</span><span class="what">Undo — take the site off the internet (containers keep running privately)</span></div>
+<pre><code>systemctl stop caddy</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c9-1"> <code>https://$BUBBLE_HOST</code> loads with a valid padlock.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p10">Phase 10 — Verify the deployment</h2>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">The safe production-mode probes (from the plan's appendix A.6 — these can never crash a server)</span></div>
+<pre><code>curl -fsS https://$BUBBLE_HOST/api/v1/ping ; echo
+curl -fsS https://$BUBBLE_HOST/api/v1/version ; echo
+curl -fsS https://$BUBBLE_HOST/ | grep -o '/assets/index-[^"]*\.js' | head -1   # hashed asset => production mode
+curl -fsS https://$BUBBLE_HOST/ | grep -c '@vite/client'                        # MUST print 0</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c10-1"> Ping and version answer over HTTPS.</label></li>
+  <li><label><input type="checkbox" id="c10-2"> Hashed <code>/assets/index-*.js</code> present and <code>@vite/client</code> count is 0 (production mode confirmed).</label></li>
+  <li><label><input type="checkbox" id="c10-3"> Website loads in a browser; log in with the seeded account (<code>test@example.com</code> from <code>scripts/seed-test-data.ts</code>).</label></li>
+  <li><label><input type="checkbox" id="c10-4"> Category images load; upload a photo to confirm the stand-in photo store round-trips.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p11">Phase 11 — Build the mobile app against the test site</h2>
+
+<p>The phone app learns its server address <strong>at build time</strong> from
+<code>EXPO_PUBLIC_API_URL</code> — the released app is pinned to <code>trybubble.io</code>, so
+testing the Linode site needs its own build with the variable overridden. Two paths:</p>
+
+<h3>Path A — simulator/emulator dev build (recommended for the weekend)</h3>
+
+<div class="note">With a dev build, the JavaScript is served by Metro on your Mac, so the override
+must be set on <strong>both</strong> the build and the Metro process. Note: per current Apple team
+roles, only simulator builds are possible from this machine (no device signing) — the iOS simulator
+and Android emulator are exactly what this weekend needs anyway.</div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">iOS simulator build + Metro, both pointed at the test site (two terminals)</span></div>
+<pre><code># terminal 1 — build & install to the simulator
+EXPO_PUBLIC_API_URL="https://$BUBBLE_HOST" npm run mobile:build:ios-sim
+
+# terminal 2 — Metro, with the same override
+EXPO_PUBLIC_API_URL="https://$BUBBLE_HOST" npm run metro_bundler</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Android emulator equivalent</span></div>
+<pre><code>cd mobile && EXPO_PUBLIC_API_URL="https://$BUBBLE_HOST" npx expo run:android</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-check">check</span><span class="what">Confirm the app is really talking to Linode, not Replit — watch the test server's live request log while tapping around the app</span></div>
+<pre><code>ssh root@$BUBBLE_IP 'cd /opt/bubble && docker compose logs -f --tail 5 api'</code></pre><button class="copy">Copy</button></div>
+
+<h3>Path B — a shareable standalone build (only if others must install it)</h3>
+<p>Add a copy of the <code>preview</code> profile to <code>mobile/eas.json</code> named
+<code>linode-test</code>, with <code>"EXPO_PUBLIC_API_URL": "https://bubble.&lt;your-domain&gt;"</code>
+in its <code>env</code> block, then <code>eas build --profile linode-test</code>. This spends EAS
+build credits and needs store-signing roles — defer it unless genuinely needed.</p>
+
+<div class="warnbox"><strong>Two known limits of the test build:</strong> tap-a-link-opens-the-app
+("universal links") won't trigger for your test domain — the association file and the app's
+entitlements are tied to <code>trybubble.io</code>; test links in the browser instead. And chat
+stays dead unless you filled in the CometChat keys in Phase 7.</div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c11-1"> Simulator app logs in and browses against <code>https://$BUBBLE_HOST</code>; requests visible in the server log.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p12">Phase 12 — Optional: rehearse with a copy of real data</h2>
+
+<div class="dangerbox"><strong>Think before doing this.</strong> Copying production data puts real
+users' information on a weekend test box. Only proceed after Phases 3 and 9 are verified (firewall,
+key-only SSH, HTTPS), keep the copy's lifetime short, and delete the server (Phase 13) when done —
+don't let it linger. The seeded test data is enough for almost everything this weekend is for.</div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-forward">forward</span><span class="what">Dump production (needs the Replit database URL from the team vault) and restore through the Phase-8 tunnel</span></div>
+<pre><code>pg_dump --no-owner --no-privileges -Fc "$REPLIT_DATABASE_URL" -f /tmp/bubble-prod.dump
+pg_restore --no-owner --clean --if-exists -d "postgres://bubble:$PG_PASS@127.0.0.1:5433/bubble" /tmp/bubble-prod.dump
+ssh root@$BUBBLE_IP 'cd /opt/bubble && set -a && . ./.pgpass.env && set +a && docker compose restart api'
+rm /tmp/bubble-prod.dump</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-rollback">rollback</span><span class="what">Undo — wipe the copied data entirely and re-seed fresh test data (Phase 8)</span></div>
+<pre><code>ssh root@$BUBBLE_IP 'cd /opt/bubble && set -a && . ./.pgpass.env && set +a && docker compose down -v && docker compose up -d'</code></pre><button class="copy">Copy</button></div>
+
+<!-- ============================================================ -->
+<h2 id="p13">Phase 13 — Pause, resume, and full teardown</h2>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-toggle">disable</span><span class="what">Pause the site (keeps all data; frees nothing on the bill)</span></div>
+<pre><code>systemctl stop caddy
+cd /opt/bubble && docker compose stop</code></pre><button class="copy">Copy</button></div>
+
+<div class="cmd"><div class="labels"><span class="badge b-server">server</span><span class="badge b-toggle">enable</span><span class="what">Resume the site</span></div>
+<pre><code>cd /opt/bubble && set -a && . ./.pgpass.env && set +a && docker compose start
+systemctl start caddy</code></pre><button class="copy">Copy</button></div>
+
+<div class="warnbox"><strong>Billing truth:</strong> Linode charges for a server <em>even while it
+is powered off</em> — the hardware stays reserved. <code>linode-cli linodes shutdown</code> does
+not stop the meter; only <strong>deleting</strong> the server does. At $0.036/hr an idle week is
+about $6 — not ruinous, but don't assume "off" means "free."</div>
+
+<div class="cmd"><div class="labels"><span class="badge b-local">your mac</span><span class="badge b-rollback">rollback</span><span class="what">Full teardown — destroys the server, its data, the firewall, and (Route B) the DNS zone. Billing stops. This is the "leave no trace" button.</span></div>
+<pre><code>linode-cli linodes delete $(linode-cli linodes list --label bubble-test --format id --text --no-headers)
+linode-cli firewalls delete $(linode-cli firewalls list --label bubble-fw --format id --text --no-headers)
+# Route B only:
+# linode-cli domains delete $(linode-cli domains list --domain "$BUBBLE_DOMAIN" --format id --text --no-headers)
+# Route A: also delete the A record in your registrar panel.</code></pre><button class="copy">Copy</button></div>
+
+<ul class="checklist">
+  <li><label><input type="checkbox" id="c13-1"> When the weekend ends: teardown executed, <code>linode-cli linodes list</code> is empty.</label></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="p14">Phase 14 — What this weekend deliberately does not cover</h2>
+
+<p>This runbook proves the move works. A <em>production</em> cutover adds, per
+<a href="Move-from-Replit.md">the main report</a> and
+<a href="dockerization-plan.md">the deployment plan</a>:</p>
+<ul>
+  <li>Linode's <strong>managed PostgreSQL</strong> (daily backups + point-in-time recovery) instead of the database container — this is the whole point of the move.</li>
+  <li><strong>Real photo storage</strong> instead of the stand-in: the small code change (option 3 in the plan) or the credential shim, plus migrating existing photos.</li>
+  <li>The <strong>trybubble.io DNS cutover</strong> — owned by whoever controls that zone, with lowered TTL, a dual-run rehearsal on real data, and Replit kept warm for 1–2 weeks of instant rollback.</li>
+  <li><strong>Rotation of every secret</strong> in Replit's shared configuration, on a coordinated schedule.</li>
+  <li>A <strong>rehearsed, timed database-restore drill</strong>, monitoring/alerting, and unattended OS security updates.</li>
+</ul>
+<p>Next step after the weekend: the measured cost-and-performance pass in
+<a href="How-to-test-on-Linode.md">How-to-test-on-Linode.md</a> — it reuses this exact deployment.</p>
+
+<script>
+document.querySelectorAll('.cmd').forEach(function (cmd) {
+  var btn = cmd.querySelector('button.copy');
+  var pre = cmd.querySelector('pre');
+  btn.addEventListener('click', function () {
+    var text = pre.innerText;
+    function done() { btn.textContent = 'Copied ✓'; btn.classList.add('done');
+      setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      var ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done();
+    }
+  });
+});
+document.querySelectorAll('ul.checklist input[type=checkbox]').forEach(function (box) {
+  var key = 'bubble-linode-' + box.id;
+  box.checked = localStorage.getItem(key) === '1';
+  box.addEventListener('change', function () { localStorage.setItem(key, box.checked ? '1' : '0'); });
+});
+</script>
+</body>
+</html>

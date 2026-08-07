@@ -1,0 +1,74 @@
+# qa-id: joining-0600
+# qa-reason: Accept bubble rules (checkbox) before joining (UC 213)
+# Accept bubble rules before joining — checkbox confirmation (UC 213 / row 31).
+#
+# STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Uses the seeded "QA Rules Bubble" (one bubble-level rule). For a public bubble the join
+# API call fires only from the welcome modal's "Let's Go" (JoinBubbleScreen.handleLetsGo),
+# and WelcomeBubbleModal disables that button until every rule row is checked — so this
+# flow proves the checkbox actually GATES the join:
+#   1. "Let's Go" is disabled while the rule is unchecked
+#   2. checking the rule enables it
+#   3. tapping it completes the join (details screen, members visible)
+appId: com.bubble.mobile
+tags:
+  - joining
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-user
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Rules Bubble"
+- waitForAnimationToEnd
+
+# Non-member is auto-redirected to the Join screen; start the join.
+- tapOn:
+    id: button-join-bubble
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}welcome-modal
+
+# Welcome modal: the seeded rule row is shown and "Let's Go" is disabled until checked.
+- assertVisible:
+    id: button-rule-0
+- assertVisible:
+    id: button-lets-go
+    enabled: false
+
+- tapOn:
+    id: button-rule-0
+- takeScreenshot: ${SHOT_PREFIX}rule-checked
+- assertVisible:
+    id: button-lets-go
+    enabled: true
+
+# "Let's Go" performs the actual join and replaces to the details screen.
+- tapOn:
+    id: button-lets-go
+- waitForAnimationToEnd
+- assertVisible:
+    id: button-view-members
+- takeScreenshot: ${SHOT_PREFIX}joined-after-rules

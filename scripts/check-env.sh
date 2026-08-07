@@ -405,8 +405,10 @@ export ENCRYPTION_KEY="change-me-32-chars-long-exactly!!"
 export PORT=3000
 
 # ── CometChat (get credentials from the CometChat dashboard) ─────────────────
-export COMETCHAT_APP_ID=""
-export COMETCHAT_REGION="us"
+# EXPO_PUBLIC_* = sharable identifiers (same name in every build context);
+# unprefixed = server-only secrets. See docs/SECRETS_MANAGEMENT.md.
+export EXPO_PUBLIC_COMETCHAT_APP_ID=""
+export EXPO_PUBLIC_COMETCHAT_REGION="us"
 export COMETCHAT_AUTH_KEY=""
 export COMETCHAT_API_KEY=""
 
@@ -529,9 +531,9 @@ check_var ENCRYPTION_KEY required "Data encryption key (32+ chars)"
 check_var PORT           optional "API port (default: 3000)"
 
 sub "CometChat"
-check_var COMETCHAT_APP_ID   required "CometChat application ID"
-check_var COMETCHAT_REGION   required "CometChat region (e.g. 'us')"
-check_var COMETCHAT_AUTH_KEY required "CometChat auth key"
+check_var EXPO_PUBLIC_COMETCHAT_APP_ID required "CometChat application ID (sharable; same name in all build contexts)"
+check_var EXPO_PUBLIC_COMETCHAT_REGION required "CometChat region (e.g. 'us')"
+check_var COMETCHAT_AUTH_KEY required "CometChat auth key (server-only secret)"
 check_var COMETCHAT_API_KEY  optional "CometChat API key (server-to-server)"
 
 sub "Sentry"

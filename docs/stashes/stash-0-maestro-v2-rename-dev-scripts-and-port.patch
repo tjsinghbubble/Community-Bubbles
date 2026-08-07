@@ -1,0 +1,48 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 6cbc635..a9a33f6 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -60,7 +60,7 @@ is upgraded to 4.3.x or later.
+ ```
+ 
+ The `--no-bundler` flag is intentional. These scripts only compile and install
+-the native binary. Metro is started separately via `npm run mobile:start`.
++the native binary. Metro is started separately via `npm run metro_bundler`.
+ Running both in the same process makes it harder to restart Metro independently
+ and mixes build output with runtime logs.
+ 
+diff --git a/package.json b/package.json
+index c1becb0..f77a3c3 100644
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,7 @@
+   "scripts": {
+     "dev:client": "vite dev --port 5000",
+     "dev": "NODE_ENV=development tsx server/index.ts",
+-    "dev:local": "node scripts/qr.mjs & NODE_ENV=development tsx --env-file=.env server/index.ts",
++    "api_server": "node scripts/qr.mjs & NODE_ENV=development tsx --env-file=.env server/index.ts",
+     "build": "tsx scripts/build.ts",
+     "start": "NODE_ENV=production node dist/index.cjs",
+     "check": "tsc",
+@@ -15,7 +15,7 @@
+     "db:reset:local": "node --env-file=.env scripts/db-reset.mjs && npm run db:push:local",
+     "db:seed-test:local": "tsx --env-file=.env scripts/seed-test-data.ts",
+     "db:reset-full:local": "npm run db:reset:local && npm run db:seed-test:local",
+-    "mobile:start": "npm --prefix mobile run start",
++    "metro_bundler": "npm --prefix mobile run start",
+     "mobile:ios": "npm --prefix mobile run start -- --ios",
+     "mobile:android": "npm --prefix mobile run start -- --android",
+     "mobile:build:ios-sim": "npm --prefix mobile run ios",
+diff --git a/server/index.ts b/server/index.ts
+index 4e5893b..a7a539a 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -179,7 +179,7 @@ app.use((req, res, next) => {
+   // Other ports are firewalled. Default to 5000 if not specified.
+   // this serves both the API and the client.
+   // It is the only port that is not firewalled.
+-  const port = parseInt(process.env.PORT || "5000", 10);
++  const port = parseInt(process.env.API_WEB_SERVER_PORT || "5000", 10);
+   httpServer.listen(
+     {
+       port,

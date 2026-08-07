@@ -1,0 +1,33 @@
+# qa-id: auth-0100
+# qa-reason: Sign in as ${ROLE} with email + password (UC 182)
+# Sign in with email + password (UC 182). Happy path; runner iterates all three roles.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - smoke
+  - e2e
+  - ios
+  - role-any
+---
+# Fail fast if required env is missing. Values come ONLY from -e flags (the qa runner sets
+# them). env: defaults are FORBIDDEN in this header — in Maestro 2.2.0 a flow file's env
+# defaults OVERRIDE the CLI's -e values (verified live 2026-06-11, run ec85e9: -e SHOT_PREFIX
+# and -e EMAIL lost to the defaults that used to sit here, so every role ran as member).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Reaching the Explore tab's create FAB confirms an authenticated session.
+- assertVisible:
+    id: button-create-fab
+
+- takeScreenshot: ${SHOT_PREFIX}signed-in

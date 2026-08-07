@@ -1,0 +1,84 @@
+# qa-id: auth-0230
+# qa-reason: Signing up with a registered email surfaces the server error in an alert and stays on the form (UI negative for UC 180)
+# UI-level error display: the duplicate-email rejection (headless counterpart: auth-0210).
+#
+# STATUS: unverified. Authored against real testIDs/copy but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Form-fill steps mirror auth-0200 (gender picker first option; DOB picker accepts the
+# default). "Agree & Continue" calls /api/auth/send-verification, which 400s with
+# "Email already exists" for a registered address; SignupScreen surfaces it via
+# Alert.alert('Error', data.error). Uses the seeded member email (same hardcoding
+# precedent as auth-0110). NOTE: this alert wording is the enumeration leak sec-0110
+# documents — if that is ever fixed with a uniform message, update the assert here too.
+appId: com.bubble.mobile
+tags:
+  - auth
+  - smoke
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Welcome → Signup, fill the whole form (Continue is disabled until it is valid).
+- tapOn:
+    id: button-sign-up
+- waitForAnimationToEnd
+- assertVisible:
+    id: input-name
+
+- tapOn:
+    id: input-name
+- inputText: "QA Duplicate Email"
+
+- tapOn:
+    id: button-select-gender
+- tapOn:
+    id: "option-gender-.*"
+    index: 0
+- tapOn:
+    id: button-close-gender-picker
+    optional: true
+
+- tapOn:
+    id: button-select-dob
+- tapOn:
+    id: button-confirm-date
+
+# The seeded role-user's address — already registered after every qa:seed.
+- tapOn:
+    id: input-email
+- inputText: "member@bubble.test"
+- tapOn:
+    id: input-password
+- inputText: "Passw0rd!23"
+
+- tapOn:
+    id: checkbox-terms
+
+- tapOn:
+    id: button-continue
+- waitForAnimationToEnd
+
+# The server rejection must be SHOWN to the user (native alert), and dismissing it must
+# leave them on the signup form — not navigated to email verification.
+- assertVisible: "Email already exists"
+- takeScreenshot: ${SHOT_PREFIX}duplicate-email-alert
+- tapOn: "OK"
+- assertVisible:
+    id: input-email
+- assertVisible:
+    id: button-continue
+- takeScreenshot: ${SHOT_PREFIX}still-on-signup

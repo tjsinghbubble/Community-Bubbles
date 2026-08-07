@@ -1,0 +1,46 @@
+# Subflow: reconnect-metro
+# Launches the native dev build from a clean state and reconnects it to Metro.
+#
+# Why: with the Expo Dev Client, `clearState: true` wipes the stored Metro bundle URL, so the
+# app can't find the bundler on next launch. The openLink immediately re-points it. (See
+# CLAUDE.md / project memory: this is why a separate native Maestro flow set exists.)
+#
+# Env (REQUIRED, no defaults — every caller must pass them):
+#   METRO_HOST, METRO_PORT
+#
+# DO NOT add an `env:` defaults block: subflow defaults OVERRIDE caller-passed values
+# (see login-as.yaml for the incident). A missing value leaves the literal ${METRO_HOST}
+# in the openLink URL, which fails loudly at the Metro connect step.
+appId: com.bubble.mobile
+---
+# Fail fast: catch a missing value (JS-undefined) or a forwarded-but-unset one (literal "${…}").
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$'}
+    label: "reconnect-metro requires METRO_HOST and METRO_PORT via runFlow env (no defaults by design)"
+
+- launchApp:
+    appId: com.bubble.mobile
+    clearState: true
+    # clearState wipes permissions every run, so pre-grant here to suppress the first-run
+    # "…Would Like to Send You Notifications" system prompt that otherwise blocks the flow.
+    permissions:
+      notifications: allow
+
+- openLink: "com.bubble.mobile://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A${METRO_PORT}"
+
+# A freshly-erased device shows a SpringBoard confirmation for the custom URL scheme
+# (『Open in "Bubble"?』) that blocks every subsequent assert. The grant is
+# SpringBoard-level and PERSISTS across clearState (verified live 2026-07-04), so it
+# fires at most once per `simctl erase`. The dialog renders ~1s AFTER openLink returns,
+# so a bare tap races and misses it — let it settle first (bounded; a static screen
+# settles fast, so this is cheap on the already-granted path), then dismiss it only
+# when actually present (skipped on granted devices).
+- waitForAnimationToEnd:
+    timeout: 2500
+- runFlow:
+    when:
+      visible:
+        text: "Open"
+    commands:
+      - tapOn:
+          text: "Open"

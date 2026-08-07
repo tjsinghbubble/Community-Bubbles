@@ -1,0 +1,34 @@
+# must-view.yaml — enforce the "above the fold" design rule.
+#
+# A MUST-VIEW element (login / create buttons, the tab bar) must be visible WITHOUT
+# scrolling on EVERY form factor. This subflow flags a layout defect WITHOUT breaking the
+# functional flow:
+#   - if ID is NOT visible on the current screen => LAYOUT DEFECT: record it in
+#     output.mustViewViolations and capture ${SHOT_PREFIX}MUSTVIEW-VIOLATION-<ID>.png,
+#     then scroll so the remaining functional steps can still run.
+#   - if ID IS visible                           => compliant, no-op.
+#
+# The qa runner / a layout audit scans for MUSTVIEW-VIOLATION-*.png filenames to report.
+# Criticality is by element: login/create/tab-bar violations are must-fix (treat as ERROR);
+# others are WARN.
+#
+# env (REQUIRED, no defaults — suite rule): ID (the testID), SHOT_PREFIX (runner sets it).
+# Tag the CALLING flow `must-view` so the audit can find these checks.
+appId: com.bubble.mobile
+---
+- assertTrue:
+    condition: ${typeof ID === 'string' && ID.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "must-view requires ID (+ SHOT_PREFIX) via runFlow env — no defaults by design"
+
+- runFlow:
+    when:
+      notVisible:
+        id: ${ID}
+    commands:
+      - evalScript: "${output.mustViewViolations = (output.mustViewViolations || '') + ID + ' '}"
+      - takeScreenshot: "${SHOT_PREFIX}MUSTVIEW-VIOLATION-${ID}"
+      - scrollUntilVisible:
+          element:
+            id: ${ID}
+          direction: DOWN
+          timeout: 10000

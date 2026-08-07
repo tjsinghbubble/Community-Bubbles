@@ -1,0 +1,73 @@
+# qa-id: joining-2000
+# qa-reason: Member can view the roster of bubble members after joining (UC 227)
+# Positive test: join a rule-free bubble, then access the member roster.
+#
+# STATUS: unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Uses the seeded "QA Test Bubble" (public, no rules). Flow:
+#   1. Navigate to bubbles and open QA Test Bubble
+#   2. Join (button-join-bubble → button-lets-go, enabled immediately because no rules)
+#   3. On the bubble details, tap button-view-members
+#   4. Assert the member roster is visible (at least one button-member-profile-*)
+#   5. Screenshot each major step
+appId: com.bubble.mobile
+tags:
+  - joining
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Test Bubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}bubble-details-before-join
+
+# Non-member is auto-redirected to the Join screen; start the join.
+- tapOn:
+    id: button-join-bubble
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}join-screen
+
+# QA Test Bubble has no rules, so button-lets-go is enabled immediately.
+- assertVisible:
+    id: button-lets-go
+    enabled: true
+- tapOn:
+    id: button-lets-go
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}bubble-details-after-join
+
+# After joining, the members view becomes available on the details screen.
+- assertVisible:
+    id: button-view-members
+- tapOn:
+    id: button-view-members
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}member-roster
+
+# Assert the roster is visible (at least one member profile button — the owner).
+- assertVisible:
+    id: "button-member-profile-.*"
+- takeScreenshot: ${SHOT_PREFIX}roster-confirmed

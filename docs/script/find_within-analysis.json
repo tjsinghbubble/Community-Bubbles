@@ -1,0 +1,111 @@
+{
+  "objective": {
+    "name": "find_within.py",
+    "path": "$PROJ_ROOT/scripts/find_within.py",
+    "purpose": "Read a targeted window/region of a file by pattern instead of a grep|cut|sed pipeline. Three modes: (1) a pattern match with N lines of context (-A/-B/-C), (2) a trailing/leading window from a match, (3) the inclusive region between two patterns (--between). With no flags it prints every match with line numbers to stdout. Backs the find-within skill.",
+    "script_category": "Internal",
+    "side_effects": "Read-only. Reads the named file(s), prints sliced output (line-numbered) to stdout; non-fatal per-file errors go to stderr. No files written.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (argparse, re, sys, glob)",
+    "invoked_languages": [],
+    "invoked_programs": [],
+    "path_assumptions": [
+      "Path args may be globs; glob expansion applies",
+      "Reads from cwd or absolute paths; no cwd assumption"
+    ],
+    "host_requirements": [
+      "Python 3 only; OS-agnostic"
+    ],
+    "invocation_methods": [
+      "Direct: python3 scripts/find_within.py PATTERN PATH [flags]",
+      "Via the find-within skill (subprocess)",
+      "Programmatic: import and call main()"
+    ],
+    "switches": [
+      {
+        "flag": "--between",
+        "args": "ENDPAT",
+        "effect": "Region mode: print from each match of PATTERN to the next match of ENDPAT, inclusive. Last positional becomes the file/glob."
+      },
+      {
+        "flag": "-A",
+        "args": "int (default 0)",
+        "effect": "Lines of trailing context after a match"
+      },
+      {
+        "flag": "-B",
+        "args": "int (default 0)",
+        "effect": "Lines of leading context before a match"
+      },
+      {
+        "flag": "-C",
+        "args": "int (default 0)",
+        "effect": "Context on both sides (overrides -A/-B)"
+      },
+      {
+        "flag": "-i",
+        "args": "none",
+        "effect": "Case-insensitive matching"
+      },
+      {
+        "flag": "-F",
+        "args": "none",
+        "effect": "Treat patterns as literal strings (re.escape), not regex"
+      },
+      {
+        "flag": "--first",
+        "args": "none",
+        "effect": "Only the first match/region, then exit"
+      },
+      {
+        "flag": "--last",
+        "args": "none",
+        "effect": "Only the last match (single-pattern mode; ignored with --between)"
+      },
+      {
+        "flag": "--count",
+        "args": "none",
+        "effect": "Print only the total match count across all files, then exit"
+      },
+      {
+        "flag": "--max",
+        "args": "int (default 0)",
+        "effect": "Cap regions/windows printed (0 = no cap)"
+      }
+    ],
+    "required_arguments": "PATTERN and at least one PATH (file or glob)",
+    "has_tests": false,
+    "explicit_env_checks": "false — no environment to check; argparse validates flags and reports regex errors clearly",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Invoked indirectly by the find-within skill on the developer's behalf to read a slice of a file with fewer tokens than a grep pipeline; occasionally run directly by a developer at the CLI.",
+    "invocation_change_recommendation": "None. argparse switch-form is already idiomatic and grep-compatible (-A/-B/-C/-i/-F). No verb form, no 'python3 < file' pattern.",
+    "linux_changes_needed": "None. Pure stdlib, no OS-specific calls. Runs unchanged in an Ubuntu container.",
+    "macos_dependency": {
+      "value": false,
+      "notes": "No macOS dependency."
+    },
+    "typical_runtime": "Sub-second for typical source files; single pass over lines.",
+    "slow_switch_warning": "None. No switch exceeds 2 minutes. Reads the whole file into memory, so a multi-GB file would be slow/memory-heavy — not a normal case.",
+    "dry_run_recommendation": "Not applicable — the tool is read-only by nature.",
+    "destructive_steps": "None.",
+    "rewrite_language_recommendation": "No. Python stdlib is the right fit for a text-slicing CLI that backs a skill.",
+    "merge_recommendation": "Keep standalone. It is a reusable CLI with more than one potential consumer; folding it into the skill would lose direct-CLI use.",
+    "rename_recommendation": "Optional/low value. Could drop the .py to read as a command, but it is invoked by path from the skill, so renaming buys little.",
+    "relocate_recommendation": "Keep in scripts/. It is a general utility, not a rarely-used helper.",
+    "improvement_suggestions": "Add a small test suite (pure-function logic, trivially testable — context windows, --between, --last, --count, -F). Optionally stream large files line-by-line instead of reading fully into memory.",
+    "requirements_check_completeness": "explicit and complete (argparse validation + clear regex/file error handling); no environment requirements to check.",
+    "external_dependency_score": 0,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 0 + programs 0 + sim 0 + apps 0 = 0.",
+    "change_score": 2,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux portable 0. Read-whole-file improvement +1. No tests (very testable, backs a skill) +1. Total 2.",
+    "quality_score": 68,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 17; Tests /20: 0 (no self-tests); Structure/clarity /20: 18; Documentation /15: 13; Portability + explicit requirement checks /20: 20. Total 68. Clean grep-compatible argparse CLI with careful index-bound math and graceful per-file errors; fully portable. Only missing tests and a full-file read."
+  }
+}

@@ -1,0 +1,190 @@
+# qa-id: bubble-admin-0600
+# qa-reason: Bubble-admin creates a new bubble end-to-end (UC 129)
+# Create a new bubble (UC 129). Adapted from the known-good maestro/flows/create-bubble.yaml,
+# re-pointed at the seeded bubble-admin role and the new run-scoped screenshot scheme.
+appId: com.bubble.mobile
+tags:
+  - bubble-admin
+  - smoke
+  - e2e
+  - ios
+  - role-bubble-admin
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+# Seed a device location (Jack London's cabin, Oakland) as a hint for any
+# downstream geo/location lookups in the create-bubble flow.
+- setLocation:
+    latitude: 37.7942
+    longitude: -122.2747
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- assertVisible:
+    id: button-create-fab
+- takeScreenshot: ${SHOT_PREFIX}login-complete
+
+# Open the create-bubble wizard via the My Bubbles FAB. (The Explore "Create New" sheet's
+# button-create-bubble item does not reliably surface in the accessibility tree — see the
+# events-0500 header — so the FAB tap "completes" but the wizard never opens. The My Bubbles
+# route is the reliable one, mirroring how events-0500 reaches create-event.)
+# Bottom tabs expose their LABELS, not testIDs, so tap the tab by text.
+# FIXME: add test-ids
+# FIXME: "My bubbles" doesn't actually appear in the copy.
+- tapOn:
+    text: "My Bubbles"
+
+# Screen shows contents for the "My Bubbles page". 
+# Assert that both of the upper UI features are there
+- assertVisible: "My Bubbles"
+- assertVisible:
+    id: "button-notifications"
+
+# FIXME: unknown behavior for the create/plus-mark button if 
+# an account had like 10 bubbles or was on a tiny phone. The create-bubble
+# button might be visible or not.
+- scrollUntilVisible:
+    element:
+        id: button-create-bubble-fab
+- tapOn:
+    id: button-create-bubble-fab
+
+# Sliding animation from the right.
+- waitForAnimationToEnd
+
+# Create-a-Bubble is a 5-step wizard (CreateBubbleScreen): 0 Category → 1 Details →
+# 2 Rules → 3 Privacy → 4 Preview. Each step's Next (button-next) is gated until the step
+# is valid; the final step submits via button-submit-review. (The category step is FIRST —
+# this flow used to assume title was step 1, which broke once the wizard was reordered.)
+
+# Step 0 — Category. Wait out the async /api/categories load (a spinner shows until then;
+# the prompt text appears only once loaded), then pick the first subcategory card, which
+# sets `category` and enables Next.
+# FIXME: add ids, this is not robust
+- extendedWaitUntil:
+    visible:
+      text: "What category will your bubble be in?"
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}create-step0-category
+- tapOn:
+    id: "button-category-.*"
+    index: 0
+# FIXME: could check for icon in theory. In practice, the icons appear
+# to Maestro as Unicode chars in the "private use area" of the 
+# multi-lingual plane of unicode. Maybe that's how they're looking 
+# up the icons??
+# - assertVisible: "" Coffee category, no checkmark
+# - assertVisible: "" Dining Out category, checkmark
+# FIXME: should have variants with checking all visible, check-uncheck
+
+- scrollUntilVisible:
+    element:
+      id: "button-next"
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 1 — Bubble Details (title + description are required to advance).
+# FIXME: add negative tests for missing Title, Description
+# FIXME: add out-of-scope negative tests for trust & safety concerns
+- assertVisible:
+    id: input-title
+- tapOn:
+    id: input-title
+- inputText: "QA E2E Bubble"
+- tapOn:
+    id: input-tagline
+- inputText: "This is the greatest bubble"
+
+- scrollUntilVisible:
+    element:
+      id: "input-description"
+- tapOn:
+    id: input-description
+- inputText: "Deterministic bubble created by the qa e2e suite."
+- takeScreenshot: ${SHOT_PREFIX}create-step1-filled
+
+# Dismiss the description keyboard so the sticky footer's Next button (rendered OUTSIDE
+# the KeyboardAvoidingView, hence covered) is tappable. hideKeyboard FAILS on iOS, and
+# tapping a field LABEL re-focuses the input below it (keyboard stays up, and blind
+# button-next taps then land on keyboard keys → "Bubblevvv"). FRAGILE STOPGAP: this form
+# exposes NO non-input element with a stable id to tap (verified via `maestro hierarchy`:
+# only inputs + nav carry testIDs; every label is bare Text), so we fall back to a
+# coordinate tap on the non-interactive MARGIN between field groups — the FlatList sets
+# keyboardShouldPersistTaps="handled", so a tap on real empty space dismisses. 40% height
+# sits between the tagline and description groups in the keyboard-up layout on the fixed
+# QA sim (iPhone 17). Replace with an id-based dismiss once the app adds one — Trello
+# "Create-bubble form needs testIDs… for keyboard dismiss". See [[ios-maestro-hide-keyboard]].
+- waitForAnimationToEnd
+# brittle-ok: no id'd non-input element exists to dismiss the keyboard (verified via
+# maestro hierarchy); fixed-device sim; app-side testID fix tracked on Trello.
+- tapOn:
+    point: "50%,40%"
+
+# Location is intentionally NOT set here. It is OPTIONAL for bubble creation
+# (canGoNext step 1 = title && description), and the LocationPickerModal — the same
+# Google-Places modal this would open — is already driven end-to-end by
+# events-0500-create-event. Exercising it again here only adds a keyboard/modal
+# failure surface for no extra coverage.
+
+# FIXME: add variants: different mile ranges, cover photos
+# FIXME: trust & safety issues with picture
+# FIXME: check interaction with headless tests
+
+- takeScreenshot: ${SHOT_PREFIX}create-step1-filled-dismissed
+- assertVisible: "Bubble Details"
+
+# Keyboard dismissed → the sticky footer's Next button is tappable. Scroll it into view
+# and advance.
+- scrollUntilVisible:
+    element:
+      id: "button-next"
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 2 — Rules (optional; Next is always enabled).
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 3 — Privacy (defaults to Public, so the step is already valid).
+- takeScreenshot: ${SHOT_PREFIX}create-step3-privacy
+- tapOn:
+    id: button-next
+- waitForAnimationToEnd
+
+# Step 4 — Preview → submit.
+- assertVisible:
+    id: button-submit-review
+- takeScreenshot: ${SHOT_PREFIX}create-step4-preview
+- tapOn:
+    id: button-submit-review
+- waitForAnimationToEnd
+
+# Submitted: a success screen ("Thanks for submitting your bubble") with Finish, which
+# navigates back to My Bubbles. The bubble is submitted for approval, not auto-approved.
+- extendedWaitUntil:
+    visible:
+      id: button-finish
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}create-submitted
+- tapOn:
+    id: button-finish
+- waitForAnimationToEnd
+
+# Land back on My Bubbles (the FAB we came in through).
+- assertVisible:
+    id: button-create-bubble-fab
+- takeScreenshot: ${SHOT_PREFIX}create-done

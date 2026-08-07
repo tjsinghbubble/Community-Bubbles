@@ -1,0 +1,48 @@
+# qa-id: discovery-0900
+# qa-reason: View upcoming events in a bubble before joining (UC 208)
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# Open the seeded QA Browse Bubble (contains the seeded QA Seeded Event).
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Browse Bubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}bubble-preview
+
+# Assert the upcoming events section and at least one event card are visible.
+# The seeded QA Seeded Event should be present.
+- assertVisible:
+    id: text-upcoming-events
+- scrollUntilVisible:
+    id: "card-event-.*"
+    timeout: 5000
+- takeScreenshot: ${SHOT_PREFIX}upcoming-events-visible
+
+# Verify the event card is still visible after scroll.
+- assertVisible:
+    id: "card-event-.*"

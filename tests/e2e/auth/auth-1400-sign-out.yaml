@@ -1,0 +1,37 @@
+# qa-id: auth-1400
+# qa-reason: Sign out ends session and returns to unauthenticated Welcome screen (UC 183)
+appId: com.bubble.mobile
+tags:
+  - auth
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- takeScreenshot: ${SHOT_PREFIX}01-signed-in
+
+# Perform logout via verified logout subflow
+- runFlow:
+    file: ../common/logout.yaml
+
+- takeScreenshot: ${SHOT_PREFIX}02-signed-out
+
+# Assert Welcome screen with login/signup buttons
+- assertVisible:
+    id: button-log-in
+
+- assertVisible:
+    id: button-sign-up

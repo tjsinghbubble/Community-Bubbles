@@ -1,0 +1,118 @@
+{
+  "_README": "Opportunistic notes for FUTURE test work, captured while reading code (not a backlog of committed tests). Each entry: where it came from, what was observed, why it matters, and candidate tests. Append-only; promote items into tests/plan/backlog.tsv when scheduled.",
+  "schema_version": 1,
+  "notes": [
+    {
+      "id": "ft-0001",
+      "area": "auth/social-login",
+      "captured": "2026-06-30",
+      "source": "merge of origin/develop social-auth (AuthContext, WelcomeAuth/SocialProfile screens, server/social-auth-handler.ts)",
+      "observation": "Google + Apple sign-in were added with no test coverage. New users land in a social_auth_pending state and must complete a SocialProfileScreen (gender, date_of_birth) before the account is usable.",
+      "why_it_matters": "OAuth/native sign-in is hard to automate (system webviews, real accounts) but the pending->complete transition and the server token exchange ARE testable at the API layer.",
+      "candidate_tests": [
+        "headless: social-auth-handler accepts a valid (mocked) Google idToken and creates a user with google_id set, social_auth_pending=true",
+        "headless: completing the social profile (gender + dob) flips social_auth_pending=false and issues a usable JWT",
+        "headless: an Apple idToken without email is accepted only for an existing apple_id (matches develop commit dbd7011)",
+        "e2e (entry-point only): the Google and Apple buttons render and are reachable on WelcomeAuthScreen"
+      ]
+    },
+    {
+      "id": "ft-0002",
+      "area": "compliance/app-store",
+      "captured": "2026-06-30",
+      "source": "implication of adding Apple Sign In",
+      "observation": "Adding 'Sign in with Apple' triggers App Store review requirements the app may not yet satisfy: (a) Apple's 'Hide My Email' relay must be handled (email may be a privaterelay.appleid.com address), (b) where any third-party login exists Apple requires Sign in with Apple be offered too (satisfied), (c) App Store now mandates in-app account deletion.",
+      "why_it_matters": "These are reviewer-blocking, not optional. The relay-email case affects emailHash uniqueness and any email-based dedup (server uses email_hash unique).",
+      "candidate_tests": [
+        "headless: a privaterelay.appleid.com email is stored/hashed without colliding and without breaking duplicate-email detection",
+        "headless/e2e: in-app account deletion exists and actually deletes (or anonymizes) the user"
+      ]
+    },
+    {
+      "id": "ft-0003",
+      "area": "db/schema-integrity",
+      "captured": "2026-06-30",
+      "source": "qa:provision drizzle-kit push during the merge reconcile",
+      "observation": "migrations/0009_add_social_auth_fields.sql creates PARTIAL unique indexes (users_google_id_unique ... WHERE google_id IS NOT NULL), but shared/schema.ts declares googleId/appleId with .unique() (a FULL unique constraint). drizzle-kit push therefore sees drift and wants to add a full constraint (prompting to truncate users).",
+      "why_it_matters": "The migration and the ORM schema definition disagree, so `drizzle-kit push` is not a no-op against a migration-built DB. This is a latent footgun for anyone using db:push and for the schema-drift gate baseline.",
+      "candidate_tests": [
+        "infra: assert the migration-built schema and a drizzle-push schema converge (no pending drift) for the users uniqueness constraints",
+        "decision needed: standardize on partial vs full unique for google_id/apple_id and make migration + schema.ts agree"
+      ]
+    },
+    {
+      "id": "ft-0004",
+      "area": "offline/resilience",
+      "captured": "2026-06-30",
+      "source": "mobile/src reading during recon (ExploreScreen, api.service.ts, AuthContext, crashReporter)",
+      "observation": "App assumes connectivity for all user data. Only the crash reporter has a NetInfo offline queue; there is no offline cache/queue for bubbles, events, or images. On network failure ExploreScreen renders a generic empty state (no offline messaging/retry) and images silently blank. AuthContext.refreshUser is the one graceful path (keeps cached profile).",
+      "why_it_matters": "User-reported: app is largely non-functional offline (bubbles you belong to vanish, icons missing). Out of scope to FIX now (characterize-state PR); these document current behavior so a fix can be regression-tested.",
+      "candidate_tests": [
+        "characterization e2e/unit: with the network down, ExploreScreen shows an offline-distinct state (currently it does NOT) — mark known-fail until fixed",
+        "unit: api.service surfaces a typed offline error rather than a bare throw"
+      ]
+    },
+    {
+      "id": "ft-0005",
+      "area": "e2e/platform-parity",
+      "captured": "2026-06-30",
+      "source": "tests/e2e/auth/auth-0200-signup.yaml (this branch) vs the new signup screens",
+      "observation": "auth-0200 was updated to drive gender/DOB picker steps (button-select-gender, button-select-dob) that correspond to the new social-signup fields, but those testIDs are unverified against the merged WelcomeAuth/SocialProfile screens (native e2e deferred this session).",
+      "why_it_matters": "If the new screens lack those testIDs, the flow fails on selectors, not logic — exactly the 'mainly bad-selectors' category to triage when native e2e runs.",
+      "candidate_tests": [
+        "verify (Maestro MCP) that button-select-gender / button-select-dob / input-name exist on the merged signup path before counting auth-0200 as a real failure"
+      ]
+    },
+    {
+      "id": "ft-0006",
+      "area": "mobile/type-safety",
+      "captured": "2026-06-30",
+      "source": "P5 native-build sanity (`npm run type-check`) during the test-platform->develop merge",
+      "observation": "Root `tsc --noEmit` is GREEN; the mobile half (`cd mobile && tsc --noEmit`) FAILS. mobile/src/utils/crashReporter.ts is IDENTICAL to origin/develop (verified: no diff develop..HEAD; last touched by develop commits 864c62a + 1e3d6f1), so the errors are pre-existing on develop, NOT introduced by the merge. Errors are @sentry/react-native API drift: `Sentry.configureScope` was removed, `autoSessionTracking` renamed to `enableAutoSessionTracking`, plus a SpanExpiryEvent missing sessionId in crashReporter.test.ts. CI does not catch these (CI typechecks server/shared/client only, not mobile).",
+      "why_it_matters": "Type errors do not block Metro/native builds (Babel strips types), so the iOS/Android dev builds still compile; but the mobile app has untyped/incorrect Sentry calls that will no-op or throw at runtime (configureScope is undefined on the installed SDK). This is a develop bug surfaced by, not caused by, the merge.",
+      "candidate_tests": [
+        "fix (separate PR against develop): migrate crashReporter.ts off removed Sentry APIs (configureScope -> Sentry.getCurrentScope()/withScope; autoSessionTracking -> enableAutoSessionTracking) and add sessionId to the test's SpanExpiryEvent fixtures",
+        "ci-gap: add a mobile `tsc --noEmit` job (allowed-to-fail or gated) so mobile type regressions are visible in CI"
+      ]
+    },
+    {
+      "id": "ft-0007",
+      "area": "tooling/testctl-nuke",
+      "captured": "2026-06-30",
+      "source": "stopping the P6 android e2e run with `python3 scripts/testctl.py nuke --nuke=qa,maestro,cli` during the test-platform->develop merge",
+      "observation": "`nuke --help` advertises `mcp` as a valid kill target (qa,cli,mcp,xcodebuild,headless,playwright,maestro,all|them-all), but nuke does not handle it: the command printed `Unknown nuke target(s) ignored: mcp` even though `mcp` was NOT in the list passed (qa,maestro,cli). Two distinct defects: (1) the `mcp` target is documented but unimplemented in the dispatch, so there is no working `testctl` way to kill a stray `maestro mcp` session; (2) a phantom `mcp` appeared in the 'ignored' warning when it was never requested, suggesting the target list is mis-parsed/expanded (likely `maestro` fans out to `maestro`+`mcp`, then `mcp` falls through as unknown). The qa runner's automatic kill of `maestro mcp` before iOS e2e still works; only the manual escape hatch is broken.",
+      "why_it_matters": "CLAUDE.md's standing rule is that MCP Maestro and a CLI `maestro test` run fight over the singleton on-device XCUITest driver. The mitigation depends on being able to kill MCP. If an MCP session wedges a driver, an operator currently cannot clear it through the sanctioned tool (`testctl nuke mcp` is a no-op). Low urgency (auto-kill path covers iOS e2e), but a real gap in the documented tooling contract.",
+      "candidate_tests": [
+        "fix: wire `mcp` into testctl nuke dispatch (pgrep/pkill the `maestro mcp` process) and reconcile target parsing so the 'ignored' warning only fires for genuinely unrequested targets",
+        "testctl self-test: assert every nuke target advertised in --help is actually handled (no documented-but-ignored targets)"
+      ]
+    },
+    {
+      "id": "ft-0008",
+      "area": "e2e/android-dev-client-reconnect",
+      "captured": "2026-06-30",
+      "source": "P6 native android e2e smoke (two runs) during the test-platform->develop merge; failure screenshots in tests/output/run-20260630t08{3001Z-566dd8,4519Z-dee674}",
+      "observation": "EVERY android smoke test fails at login-as.yaml step 1: after `reconnect-metro.yaml` runs (launchApp clearState -> openLink com.bubble.mobile://expo-development-client/?url=http://localhost:8081 -> wait), the `Assert \"Log In\" is visible` (60s) fails because the app never renders. Run 1 screenshot = blank white. Run 2 screenshot = the React Native RedBox: 'Unable to load script. Make sure you're running Metro or that your bundle index.android.bundle is packaged correctly for release', stack = loadJSBundleFromAssets -> loadScriptFromAssets -> loadJSBundle. So the dev client, after clearState wipes its stored Metro URL, is NOT reconnecting to Metro via the openLink deep link — it falls back to loading the bundle from ASSETS, which a dev build does not contain. Verified NOT caused by: (a) cold bundle build — a new metro-bundle gate pre-warmed it (HTTP 200 in 0.1s) and the failure persisted; (b) adb reverse — `adb reverse --list` shows tcp:8081 and tcp:3000 both forwarded; (c) the merge — root tsc green, ios `expo export` + android `index.bundle` both build clean, and headless/API smoke is 23/23.",
+      "why_it_matters": "This blocks ALL android native e2e (all flows start with login-as), so the 6/7 android baseline cannot currently be reproduced on this emulator. It is an Expo-dev-client reconnect fragility (the documented clearState-wipes-URL hazard), NOT a merge regression. The robust fix is release/embedded-bundle 'Mode B' (the bundle ships in assets, so loadJSBundleFromAssets succeeds and there is no Metro dependency or reconnect step at all).",
+      "resolution": "PROVEN 2026-06-30. Built a local android release variant (debug-signed, embedded Hermes bundle; required the ft-0009 hermesc+Sentry fixes) and ran `npm run qa -- --layer e2e --release-mode staging --sim android`. release-0100 went RED then GREEN: it first failed only on a STALE 'Log In' selector (the merged WelcomeAuth screen renders 'Log in or sign up' / 'Continue' / 'Continue with Google' — confirms ft-0001/ft-0005), and PASSED (36.9s) once the selector was corrected. The embedded bundle rendered the full merged Welcome screen with NO Metro, NO reconnect, NO blank/RedBox — the ft-0008 failure class is eliminated by Mode B. (run-20260630t092447Z-412ac6 = red, then green.)",
+      "candidate_tests": [
+        "DONE: BUILD Mode B (native-device-tooling plan Phase 8): expo run:android --variant release with the embedded bundle; release flows in tests/e2e/release/ that DROP reconnect-metro.yaml; release-0100-launch-welcome PASSES where the dev-client smoke blanks. NEXT: expand release flows beyond launch-welcome (still auth-free / safe_for_prod) and add Mode B to CI.",
+        "dev-mode investigation (if keeping dev client): does the openLink expo-development-client deep link actually set the dev-server URL on android? try re-issuing openLink with autoVerify, adding a post-openLink retry/poll for a known first-screen element, or asserting the dev-server URL was registered before proceeding",
+        "gate idea: after reconnect-metro, assert NOT the RedBox text 'Unable to load script' (fail fast + distinct message) instead of timing out 60s on the 'Log In' assert"
+      ]
+    },
+    {
+      "id": "ft-0009",
+      "area": "mobile/release-build-toolchain",
+      "captured": "2026-06-30",
+      "source": "building a local android RELEASE variant (`expo run:android --variant release`) to prove Mode B, during the test-platform->develop merge",
+      "observation": "The local android release build (which, unlike the dev build, runs hermesc + the Sentry gradle plugin) fails on TWO pre-existing toolchain issues, both unrelated to the merge: (1) HERMESC PATH: mobile/android/app/build.gradle:14 hardcodes hermesCommand = <react-native>/sdks/hermesc/%OS-BIN%/hermesc, but in RN 0.83 the Hermes compiler moved to a separate `hermes-compiler` package — node_modules/react-native/sdks/hermesc/ no longer exists (only sdks/hermes-engine + .hermesversion), and the real binary is at node_modules/hermes-compiler/hermesc/osx-bin/hermesc. createBundleReleaseJsAndAssets dies with 'A problem occurred starting process hermesc' (missing file). (2) SENTRY UPLOAD: build.gradle applies @sentry/react-native/sentry.gradle, whose release source-map upload task fails with 'An organization ID or slug is required (--org)' because no SENTRY_ORG/auth is set locally. Local workaround that unblocked the build: symlink react-native/sdks/hermesc/osx-bin/hermesc -> ../../hermes-compiler/hermesc/osx-bin/hermesc, and build with SENTRY_DISABLE_AUTO_UPLOAD=true (sentry.gradle honors this env at line 11).",
+      "why_it_matters": "Mode B (release/embedded-bundle e2e — the real fix for ft-0008) cannot be built locally until the release toolchain works. The dev build never exercises either path (Metro serves JS; no hermesc, no Sentry upload at build time), so these are invisible until you build a release. The symlink is a node_modules hack (wiped on reinstall); the proper fixes belong in a separate MOBILE PR, NOT this merge PR.",
+      "candidate_tests": [
+        "fix (mobile PR): set react{ hermesCommand } in build.gradle to resolve the `hermes-compiler` package (require.resolve('hermes-compiler')), or regenerate android/ via expo prebuild for the installed SDK so the path is correct; remove the symlink hack",
+        "fix (mobile PR): gate the Sentry release source-map upload on credentials present (SENTRY_DISABLE_AUTO_UPLOAD=true by default for local/non-CI release builds, or wire SENTRY_ORG/SENTRY_AUTH_TOKEN in the release build env)",
+        "ci/build-proof: add a 'release build smoke' that assembles a debug-signed release APK locally (no prod signing needed — release buildType already uses signingConfigs.debug) so this toolchain breakage is caught without EAS"
+      ]
+    }
+  ]
+}

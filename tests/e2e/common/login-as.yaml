@@ -1,0 +1,87 @@
+# Subflow: login-as
+# Clean login: clearState reinstall (via reconnect-metro) + sign in, then confirm the authed screen.
+# clearState is the ROBUST, self-isolating reset — every test starts from a guaranteed-clean slate
+# with no cross-test order dependency.
+#
+# Why not a faster no-clearState + logout approach? Tried and VALIDATED LIVE 2026-06-10: after a
+# no-clearState launch the Expo dev-client briefly shows the STALE previous frame while the JS bundle
+# reloads, so a visual "am I already logged in?" guard misfires and runs logout on the wrong screen —
+# flaky (spurious failures). clearState sidesteps that entirely. And the dominant per-test cost is the
+# sim's CPU starvation (~35s of 3–5s-per-command), not the ~6s clearState — see project memory.
+#
+# Env (REQUIRED, no defaults — every caller must pass them):
+#   EMAIL, PASSWORD, ROLE, METRO_HOST, METRO_PORT
+#
+# DO NOT add an `env:` defaults block here. A subflow's own env defaults OVERRIDE the
+# values the caller passes via `runFlow: env:` (verified live 2026-06-11: with defaults
+# present, every test logged in as the default member@bubble.test no matter what the
+# caller or the qa runner's -e flags specified — bubble-admin tests silently ran as the
+# wrong role). With no defaults, a caller that forgets to pass EMAIL types the literal
+# string "${EMAIL}" and the login fails loudly.
+appId: com.bubble.mobile
+---
+# Fail fast: catch both a caller that passed nothing (JS-undefined) and a caller that
+# forwarded an unset var (the literal string "${EMAIL}" arrives — charAt(0) is '$').
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$'}
+    label: "login-as requires EMAIL, PASSWORD, METRO_HOST, METRO_PORT via runFlow env (no defaults by design)"
+
+- runFlow:
+    file: reconnect-metro.yaml
+    env:
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+# Marker gate: wait until the Welcome screen finished loading the JS bundle (returns the instant
+# the header appears; the generous timeout only covers a slow cold bundle). The social-auth merge
+# replaced the bare "Log In" button with an email-first flow: header "Log in or sign up" +
+# input-email + button-continue; check-email then routes to Login (email prefilled) or Signup.
+- extendedWaitUntil:
+    visible:
+      text: "Log in or sign up"
+    timeout: 60000   # android dev build has no bundle/driver pre-warm (iOS-only in qa.ts), so the
+                     # FIRST cold-Metro welcome render rides the ~30s edge and flakes; 60s absorbs it
+
+- tapOn:
+    id: input-email
+- inputText: ${EMAIL}
+# Android: the soft keyboard covers the controls below — they drop out of the queryable
+# hierarchy ("element not found"). Dismiss it to reveal the lower form. (hw.keyboard=yes +
+# show_ime_with_hard_keyboard=0 did NOT suppress the soft IME on this emulator, so handle it in-flow.)
+# Safe on iOS: no-op when nothing needs hiding; the next tap re-opens the field's keyboard.
+- hideKeyboard
+- tapOn:
+    id: button-continue
+
+# check-email round-trip, then the Login screen (email arrives prefilled via route param).
+- extendedWaitUntil:
+    visible:
+      id: input-password
+    timeout: 30000
+
+- tapOn:
+    id: input-password
+- inputText: ${PASSWORD}
+# Same reason: reveal the Log In button the keyboard now covers.
+- hideKeyboard
+
+- tapOn:
+    id: button-log-in
+
+# iOS "Save Password?" system sheet (can't be pre-granted). Bounded wait, optional dismiss.
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    text: "Not Now"
+    optional: true
+
+# Dismiss the campus prompt if it appears.
+- tapOn:
+    id: button-dismiss-campus-prompt
+    optional: true
+
+# Confirm the authenticated session is up (state marker for the post-login Explore load).
+- extendedWaitUntil:
+    visible:
+      id: button-create-fab
+    timeout: 60000   # post-login Explore load is likewise slow under any host pressure on android

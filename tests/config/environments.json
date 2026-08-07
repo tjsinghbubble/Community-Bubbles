@@ -1,0 +1,26 @@
+{
+  "_comment": "Target environments for the qa runner. DB URLs are read from env vars (never committed). 'dbClass' is the EXPECTED classification; the meta.testing_journal production-guard is the authoritative check at runtime.",
+  "environments": {
+    "local": {
+      "label": "Local dev machine",
+      "apiBaseUrl": "http://localhost:3000",
+      "metroHost": "localhost",
+      "metroPort": 8081,
+      "dbUrlEnv": "TEST_DATABASE_URL",
+      "dbUrlFallback": "postgresql://localhost:5432/bubble_test",
+      "dbClass": "test",
+      "appId": "com.bubble.mobile"
+    },
+    "staging": {
+      "label": "Remote staging build",
+      "apiBaseUrl": "https://staging.bubble.example",
+      "metroHost": "localhost",
+      "metroPort": 8081,
+      "dbUrlEnv": "STAGING_DATABASE_URL",
+      "dbUrlFallback": "",
+      "dbClass": "unknown",
+      "appId": "com.bubble.mobile"
+    }
+  },
+  "defaultEnvironment": "local"
+}

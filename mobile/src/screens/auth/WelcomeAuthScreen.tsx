@@ -42,10 +42,36 @@ const GRID_IMAGES = [
   require('../../assets/images/LandingPage/mask_group.jpg'),
 ];
 
-GoogleSignin.configure({
-  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
-});
+// iOS GIDSignIn throws (crashing the app at import time) when it can't determine
+// a clientID — configure only when the platform's client ID is actually set.
+const GOOGLE_SIGNIN_AVAILABLE = !!(Platform.OS === 'ios'
+  ? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS
+  : process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID);
+
+if (GOOGLE_SIGNIN_AVAILABLE) {
+  GoogleSignin.configure({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID,
+  });
+}
+
+// QA seam: when EXPO_PUBLIC_QA_SOCIAL_STUB is set (e2e env only), the social
+// buttons post a qa stub token instead of calling the vendor SDK, so Maestro can
+// exercise the full app→server social-auth pipeline. The server accepts stub
+// tokens ONLY in BUBBLE_SERVER_MODE=qa (fail-closed — a 401 against dev/staging/
+// prod; see server/social-auth-handler.ts). Unset var = this code is inert.
+const QA_SOCIAL_STUB = process.env.EXPO_PUBLIC_QA_SOCIAL_STUB;
+
+function qaStubToken(provider: 'google' | 'apple'): string {
+  const email =
+    QA_SOCIAL_STUB && QA_SOCIAL_STUB.includes('@') ? QA_SOCIAL_STUB : 'qa-social-e2e@bubble.test';
+  return `qa-social-stub.${provider}.${JSON.stringify({
+    sub: `qa-e2e-${provider}-${email}`,
+    email,
+    email_verified: true,
+    name: 'QA Social E2E',
+  })}`;
+}
 
 export default function WelcomeAuthScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
@@ -83,12 +109,22 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
   }, [email, navigation]);
 
   const handleGoogle = useCallback(async () => {
+    if (!GOOGLE_SIGNIN_AVAILABLE && !QA_SOCIAL_STUB) {
+      Alert.alert('Unavailable', 'Google Sign In is not configured in this build.');
+      return;
+    }
     setGoogleLoading(true);
     try {
-      await GoogleSignin.hasPlayServices();
-      await GoogleSignin.signIn();
-      const { idToken } = await GoogleSignin.getTokens();
-      if (!idToken) throw new Error('No Google ID token received');
+      let idToken: string;
+      if (QA_SOCIAL_STUB) {
+        idToken = qaStubToken('google');
+      } else {
+        await GoogleSignin.hasPlayServices();
+        await GoogleSignin.signIn();
+        const tokens = await GoogleSignin.getTokens();
+        if (!tokens.idToken) throw new Error('No Google ID token received');
+        idToken = tokens.idToken;
+      }
 
       const res = await fetch(`${API_URL}/api/auth/google`, {
         method: 'POST',
@@ -136,21 +172,30 @@ export default function WelcomeAuthScreen({ navigation }: Props) {
   const handleApple = useCallback(async () => {
     setAppleLoading(true);
     try {
-      console.log('[Apple] Starting sign-in...');
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      console.log('[Apple] Credential received, hasToken:', !!credential.identityToken, 'hasEmail:', !!credential.email, 'fullName:', JSON.stringify(credential.fullName));
+      let identityToken: string | null | undefined;
+      let fullName: { givenName?: string | null; familyName?: string | null } | null;
+      if (QA_SOCIAL_STUB) {
+        identityToken = qaStubToken('apple');
+        fullName = { givenName: 'QA', familyName: 'Social' };
+      } else {
+        console.log('[Apple] Starting sign-in...');
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+        console.log('[Apple] Credential received, hasToken:', !!credential.identityToken, 'hasEmail:', !!credential.email, 'fullName:', JSON.stringify(credential.fullName));
+        identityToken = credential.identityToken;
+        fullName = credential.fullName;
+      }
 
       const res = await fetch(`${API_URL}/api/auth/apple`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          identityToken: credential.identityToken,
-          fullName: credential.fullName,
+          identityToken,
+          fullName,
         }),
       });
 

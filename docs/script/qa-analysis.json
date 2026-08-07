@@ -1,0 +1,161 @@
+{
+  "objective": {
+    "name": "npm run qa",
+    "path": "$PROJ_ROOT/tests/runner/qa.ts (invoked via `npm run qa`; also `npm run qa:list` and direct `tsx tests/runner/qa.ts`)",
+    "purpose": "The unified test runner. Orchestrates Maestro e2e flows (iOS/Android/web) and headless tests (Vitest/Newman/Postman) across roles, through phases: select -> gate (preflight) -> seed test DB -> run jobs -> report. No-arg behavior: smoke tag, all three roles (user / bubble-admin / site-admin), iOS platform, gated and seeded.",
+    "script_category": "High Use Test Runners",
+    "side_effects": "Creates a run-scoped artifact dir tests/output/run-<ts>-<id>/ (run-params.json, summary.json, per-test artifact dirs, seed.log). Writes tests/output/current-run.json as a live heartbeat. Acquires the runner lock (via testctl) for the run. Clears the PANIC marker at start. Seeds (truncates+reseeds) the bubble_test DB unless --no-seed.",
+    "main_language": "TypeScript (tsx / Node)",
+    "language_packages": [
+      "tsx",
+      "vitest",
+      "newman",
+      "maestro",
+      "node:fs/path/child_process"
+    ],
+    "invoked_languages": [
+      "python3 (manage_devices.py for resolve/kind-of; testctl.py for lock + mcp-nuke)",
+      "maestro (e2e YAML flows)"
+    ],
+    "invoked_programs": [
+      "maestro",
+      "npx",
+      "python3",
+      "adb (Android e2e port-reverse)",
+      "xcrun / simctl (iOS gating only)"
+    ],
+    "path_assumptions": [
+      "cwd is repo root (derived from __dirname)",
+      "maestro, npx, python3 on PATH",
+      "adb on PATH or under $ANDROID_HOME/platform-tools (Android only)",
+      "Metro running on METRO_HOST:METRO_PORT before e2e",
+      "API server running before headless/e2e",
+      "sims/emulators already defined (resolved via manage_devices)"
+    ],
+    "host_requirements": [
+      "macOS for iOS e2e (xcrun/simctl gating); Android/web have no sim gating",
+      "Node.js + npm",
+      "Python 3",
+      "Maestro CLI",
+      "PostgreSQL with a schema-initialized test DB (bubble_test by default)",
+      "Xcode (iOS e2e) and/or Android SDK (Android e2e)"
+    ],
+    "invocation_methods": [
+      "npm run qa (no args: smoke / all roles / ios / gated+seeded)",
+      "npm run qa -- [flags] (e.g. --tag, --area, --all, --role, --layer, --platform, --sim, --env, --no-gate, --no-seed, --include-unverified, --jobs, --verbose)",
+      "npm run qa:list (alias for --list: print selection and exit)",
+      "tsx tests/runner/qa.ts [flags] (direct; what npm invokes)"
+    ],
+    "switches": [
+      {
+        "flag": "--tag",
+        "args": "a,b",
+        "effect": "Require ALL listed tags; default 'smoke' when no --area/--all"
+      },
+      {
+        "flag": "--area",
+        "args": "a,b | all",
+        "effect": "Select by area (closed vocabulary); relaxes smoke, includes unverified; 'all' == --all"
+      },
+      {
+        "flag": "--all",
+        "args": "none",
+        "effect": "Every test, all layers, include unverified"
+      },
+      {
+        "flag": "--role",
+        "args": "r,b",
+        "effect": "Restrict roles (role-user / role-bubble-admin / role-site-admin); default all three"
+      },
+      {
+        "flag": "--layer",
+        "args": "e2e|headless",
+        "effect": "Run only the named layers; default both"
+      },
+      {
+        "flag": "--platform",
+        "args": "ios|android|web",
+        "effect": "E2e platform; default ios; must agree with --sim's inferred kind (else abort exit 2)"
+      },
+      {
+        "flag": "--sim, --simulator",
+        "args": "id/alias",
+        "effect": "Pin e2e to a device; infers platform from its kind via manage_devices"
+      },
+      {
+        "flag": "--env",
+        "args": "name",
+        "effect": "Environment from config/environments.json (API URL, Metro, DB var, app id); default 'local'"
+      },
+      {
+        "flag": "--no-gate",
+        "args": "none",
+        "effect": "Skip all preflight gates (unsafe if infra is down)"
+      },
+      {
+        "flag": "--no-seed / --seed",
+        "args": "none",
+        "effect": "Skip / force test-DB reseed; default seed"
+      },
+      {
+        "flag": "--include-unverified",
+        "args": "none",
+        "effect": "Include 'unverified'-tagged tests"
+      },
+      {
+        "flag": "--list",
+        "args": "none",
+        "effect": "Print selected tests and exit (no run)"
+      },
+      {
+        "flag": "--jobs",
+        "args": "N (default 5)",
+        "effect": "Headless tests per parallel batch; e2e always serial"
+      },
+      {
+        "flag": "-v, --verbose",
+        "args": "none",
+        "effect": "Stream seed/Maestro output live instead of capturing"
+      },
+      {
+        "flag": "-h, --help",
+        "args": "none",
+        "effect": "Print usage and exit"
+      }
+    ],
+    "required_arguments": "None — defaults cleanly to smoke / all roles / ios / local / gated+seeded.",
+    "has_tests": false,
+    "explicit_env_checks": "true (partial) — gating checks load average, API health, DB classification/identity, schema drift, sim/emulator booted, brittle selectors, app installed, Metro, and driver warmup (failures exit 2). Does NOT explicitly check for maestro/adb/python3/xcrun binaries (those fail implicitly).",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Run constantly by the developer during test work via the npm script, both interactively (a quick smoke or single --area) and detached for large --all sweeps. Also the backbone invoked by bench_sims.zsh for each benchmark round. Per project rules, full --all runs should be launched detached and polled via qa:status, never streamed in an agent loop.",
+    "invocation_change_recommendation": "Switch form is already idiomatic. The most useful addition is a true --dry-run (see below) distinct from --list, which only prints selection. Otherwise no change.",
+    "linux_changes_needed": "Partial. The iOS gating (xcrun/simctl in gateSimulatorBooted/Age) is macOS-only; Android (adb reverse + emulator) and web paths are Linux-portable, as is the headless layer (Vitest/Newman against the API). For a container: skip/replace the iOS gates, ensure adb + Android SDK present, and provide Postgres. Headless-only runs are the most container-friendly subset.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True for iOS e2e (xcrun/simctl gating, the default platform). False for headless-only and Android/web e2e, which are Linux-portable."
+    },
+    "typical_runtime": "Highly scope-dependent. Headless tests run in parallel batches (~seconds each). E2e runs serially at roughly 50-140s/test, so a smoke run is minutes while a full --all iOS suite can run 1-2+ hours. The gating + driver-warmup phase adds ~15-60s on a cold driver; seeding ~30-60s.",
+    "slow_switch_warning": "Yes. --all (and broad --area selections) on the e2e layer are inherently long (1-2+ hours) because e2e is serial; this is the standard 'launch detached, poll qa:status' case. A per-test SIGKILL timeout (QA_MAESTRO_TIMEOUT_MS, default 6 min) guards against a single hung test wedging the suite.",
+    "dry_run_recommendation": "Yes — a real --dry-run that runs selection + gating + (optionally) seed planning and reports exactly what would execute, on which device, with which env, WITHOUT launching Maestro or mutating the DB. --list covers selection only; --no-gate --no-seed still executes tests.",
+    "destructive_steps": "Seeding truncates and reseeds the bubble_test DB (guarded by a production/identity gate that aborts if the target is not a dedicated test DB). Also kills a hung Maestro process via SIGKILL on timeout and clears the PANIC marker at start. No project-source mutation.",
+    "rewrite_language_recommendation": "No. TypeScript/tsx is the right choice — it shares types/config with the app and the test fixtures, and the orchestration logic benefits from the Node ecosystem (vitest/newman).",
+    "merge_recommendation": "Keep as the central runner. It correctly delegates device resolution to manage_devices and locking/health to testctl rather than absorbing them; that separation should stay.",
+    "rename_recommendation": "No — it is fronted by the `qa` npm script; the .ts implementation path is an internal detail and need not be renamed.",
+    "relocate_recommendation": "No. tests/runner/ is the correct home.",
+    "improvement_suggestions": "Add a true --dry-run; add explicit preflight for required binaries (maestro/adb/python3/xcrun) so a missing tool fails as a clear gate (exit 2) rather than implicitly mid-run; consider caching the device-resolution/kind lookups within a run; document the macOS-only gates so a Linux/headless profile can skip them cleanly.",
+    "requirements_check_completeness": "explicit and incomplete — strong infra gating (load/API/DB/schema/sim/Metro/driver/brittle-selectors, all exit 2 on failure) but no explicit presence checks for the external binaries it shells out to (maestro, adb, python3, xcrun), which fail implicitly.",
+    "external_dependency_score": 52,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 11 + programs 6 (maestro, npx/node, python3, adb, xcrun, simctl) + sim 5 + apps 30 (Xcode 10 + Android SDK 10 + Postgres 10) = 52. Highest of the set — the orchestrator that pulls in everything.",
+    "change_score": 8,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (iOS gates macOS-only; headless/android/web portable). True --dry-run missing +1. Destructive-but-guarded seeding (production gate present) +1. Gating incomplete (no binary-presence preflight) +1. No tests +1. Total 8.",
+    "quality_score": 65,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 21; Tests /20: 0 (no self-tests); Structure/clarity /20: 18; Documentation /15: 12; Portability + explicit requirement checks /20: 14. Total 65. Strong phased structure (gate->seed->verify->run->report), signal handlers, per-test SIGKILL timeout, precise exit codes; Tests=0 because the runner has none of its own; portability docked for iOS-only gates and no binary preflight."
+  }
+}

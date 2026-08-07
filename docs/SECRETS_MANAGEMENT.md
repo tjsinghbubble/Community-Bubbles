@@ -56,6 +56,29 @@ important distinction is **where the value runs**.
 
 `*.env.example` files are committed and contain **placeholders only**.
 
+### Naming convention: one canonical name per value
+
+Every logical value has exactly **one** env-var name, used identically in every
+context (local `.env`, Replit, EAS). The prefix encodes sharability:
+
+- **`EXPO_PUBLIC_*` — sharable public identifiers.** Expo requires this prefix to
+  inline a value into the client bundle, so it is the canonical name everywhere —
+  the **server reads the same `EXPO_PUBLIC_*` name** for values it shares with the
+  client (e.g. `EXPO_PUBLIC_COMETCHAT_APP_ID`, `EXPO_PUBLIC_COMETCHAT_REGION`).
+  Corollary: anything named `EXPO_PUBLIC_*` is public by definition — never name a
+  secret that way.
+- **Unprefixed — server-only secrets.** `COMETCHAT_AUTH_KEY`, `COMETCHAT_API_KEY`,
+  `JWT_SECRET`, etc. These never appear in `mobile/.env`, `eas.json`, or `.replit`.
+- `SENTRY_DSN` is the one shared value without the prefix: the mobile app receives
+  it at **build time** via `app.config.js` `extra` (not Metro inlining), so no
+  prefix is required and the server/CI name is reused as-is.
+
+**Migration note (2026-06):** the server previously read `COMETCHAT_APP_ID` /
+`COMETCHAT_REGION`. It now prefers the `EXPO_PUBLIC_*` names and falls back to the
+old ones, so un-migrated Replit Secrets keep working. Rename them in Replit when
+convenient, then the fallbacks in `server/cometchat.ts`, `server/routes.ts`, and
+`server/health.ts` can be dropped.
+
 ---
 
 ## b. Why is my build breaking?
@@ -88,12 +111,15 @@ source). There are two layers:
   → The bundle was built without the var. Set it and rebuild (restart Metro after
   editing `mobile/.env` — `EXPO_PUBLIC_*` values are inlined at bundle time).
 
-- **Local health check (`scripts/local_bubble_health`):**
+- **Local health check (`npm run qa:health`):**
   ```
-  ❌  Secrets: mobile/.env missing/empty: EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
-  ❌  Secrets: .env is NOT gitignored — secrets could be committed
-  ❌  Secrets: possible live secret(s) committed: ...
+  ❌  secrets-env: mobile/.env missing/empty: EXPO_PUBLIC_GOOGLE_PLACES_API_KEY
+  🚨  secrets-gitignore: .env is NOT gitignored — secrets could be committed
+  🚨  secrets-leak-scan: possible live secrets committed (values redacted)
   ```
+  It also covers the EAS side: whether the EAS CLI is installed (needed for
+  `eas build --local`) and which required client vars each `eas.json` profile
+  must get from EAS env vars (login state is probed under `-v`).
 
 - **Feature works on the simulator but not the device / not after a build:** usually
   a value that resolves on your Mac (e.g. a Bonjour `*.local` host or a key in your
@@ -158,9 +184,9 @@ eas build --local --profile preview
 1. `cp mobile/.env.example mobile/.env` and fill in real values (this file is
    gitignored).
 2. For the server, populate the root `.env` (DB URL, `JWT_SECRET`, `ENCRYPTION_KEY`).
-3. Run `scripts/local_bubble_health` — its `check_secrets` step verifies the env
-   files are complete, that `.env` is gitignored, and that no live secret is
-   committed.
+3. Run `npm run qa:health` — its secrets checks verify the env files are
+   complete, that `.env` is gitignored, and that no live secret is committed
+   (hits are shown with values redacted).
 4. Restart Metro after editing `mobile/.env`.
 
 ---

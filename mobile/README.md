@@ -24,9 +24,8 @@ Create a `.env` file in the `mobile` directory:
 
 ```env
 EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_IP:3000
-COMETCHAT_APP_ID=your_app_id
-COMETCHAT_REGION=us
-COMETCHAT_AUTH_KEY=your_auth_key
+EXPO_PUBLIC_COMETCHAT_APP_ID=your_app_id
+EXPO_PUBLIC_COMETCHAT_REGION=us
 SENTRY_DSN=https://<key>@<org>.ingest.sentry.io/<project>
 ```
 
@@ -59,7 +58,7 @@ node mobile/scripts/setup-sentry-dashboard.js
 
 Generate an auth token at **Sentry → Settings → Account → API Auth Tokens** with the `org:read` and `dashboards:write` scopes. The script is idempotent and prints the final dashboard URL — paste it above to replace the placeholder.
 
-See `mobile/SENTRY_DASHBOARD_SETUP.md` for full configuration details and a manual-setup guide.
+See `docs/SENTRY_DASHBOARD_SETUP.md` for full configuration details and a manual-setup guide.
 
 ---
 
@@ -254,7 +253,7 @@ SENTRY_ALERT_EMAIL=team@example.com  \
 node mobile/scripts/setup-sentry-crash-free-alert.js
 ```
 
-See `mobile/SENTRY_DASHBOARD_SETUP.md` for full details on both scripts and the alert rule configuration.
+See `docs/SENTRY_DASHBOARD_SETUP.md` for full details on both scripts and the alert rule configuration.
 
 ### Releasing a new version
 

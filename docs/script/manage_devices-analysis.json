@@ -1,0 +1,207 @@
+{
+  "objective": {
+    "name": "manage_devices.py",
+    "path": "$PROJ_ROOT/scripts/manage_devices.py",
+    "purpose": "Multi-device manager and oracle for iOS simulators and Android emulators, backed by a SQLite (WAL) database. Lists/resolves devices, boots/stops them with host-tuned perf flags, warms and bakes them (Android dexopt compile levels + default_boot snapshots), clones/renames AVDs, manages aliases and ordered loops, and samples host-side CPU load. No-arg behavior: argparse error — exactly one mutually-exclusive action is required.",
+    "script_category": "High-manual use Testing Targets",
+    "side_effects": "Writes SQLite at .device-manager/devices.db (device state, aliases, compile levels, warmup/bake timings, host profile). Boots/kills iOS sims (xcrun simctl) and Android emulators (adb), saves default_boot snapshots, clones/renames AVD dirs on disk, records history/last-used rows, logs host CPU samples.",
+    "main_language": "Python 3",
+    "language_packages": "stdlib only (sqlite3, subprocess, argparse, pathlib, datetime, signal, os, re, random, shutil, time, platform)",
+    "invoked_languages": [
+      "shell (via subprocess)"
+    ],
+    "invoked_programs": [
+      "xcrun",
+      "simctl",
+      "adb",
+      "emulator",
+      "sdkmanager",
+      "pgrep",
+      "ps",
+      "top",
+      "sysctl",
+      "open"
+    ],
+    "path_assumptions": [
+      "ANDROID_HOME or ANDROID_SDK_ROOT (default ~/Library/Android/sdk)",
+      "platform-tools/adb, emulator, cmdline-tools/latest/bin/sdkmanager resolvable",
+      "xcrun/simctl/sysctl/open on PATH (macOS)"
+    ],
+    "host_requirements": [
+      "macOS (xcrun/simctl/sysctl/open are macOS-only) for the iOS half and host profiling",
+      "Android SDK installed for the Android half",
+      "defined iOS sims and/or Android AVDs"
+    ],
+    "invocation_methods": [
+      "Direct: python3 scripts/manage_devices.py <action> [args]",
+      "Called by qa.ts (--resolve, --kind-of) and bench_sims.zsh (--kind-of, --warmup, --kill)",
+      "Manual CLI for -l/--list, -s/--start, -k/--kill, --warm:*, --bake, --copy, --loop, --next, --alias, --rename, etc."
+    ],
+    "switches": [
+      {
+        "flag": "-l, --list",
+        "args": "[-v]",
+        "effect": "List all sims + AVDs (RUNNING then AVAILABLE); -v dumps full TSV record"
+      },
+      {
+        "flag": "-r, --running",
+        "args": "[-v]",
+        "effect": "List only running / mid-boot devices"
+      },
+      {
+        "flag": "--resolve",
+        "args": "ID",
+        "effect": "Resolve id/alias (incl. ios/android/last-ios/last-android) to a maestro device id; bare id to stdout, rich desc to stderr; marks last-used"
+      },
+      {
+        "flag": "--mark-used",
+        "args": "ID",
+        "effect": "Record id/alias as last-<platform> without stdout output (for manual qa:flow runs)"
+      },
+      {
+        "flag": "--kind-of",
+        "args": "ID",
+        "effect": "Print device platform (ios/android), offline (qa infers --platform from --sim)"
+      },
+      {
+        "flag": "--headless-of",
+        "args": "ID",
+        "effect": "Print a running Android emulator's screen mode (headless/windowed/unknown)"
+      },
+      {
+        "flag": "--history",
+        "args": "[ID]",
+        "effect": "Dump warmup/bake/start/kill timings (When, Device, Event, Detail, Dur, CPU%, Load)"
+      },
+      {
+        "flag": "-s, --start",
+        "args": "ID",
+        "effect": "Start device(s) with host-tuned perf flags (-gpu swiftshader_indirect, -cores, -memory, -no-boot-anim, -no-audio)"
+      },
+      {
+        "flag": "--start:headless",
+        "args": "ID",
+        "effect": "Start headless (-no-window -read-only) + perf flags (CI; screenshots black, a11y asserts work)"
+      },
+      {
+        "flag": "-S, --start-basic",
+        "args": "ID",
+        "effect": "Start with legacy windowed behavior (no perf flags)"
+      },
+      {
+        "flag": "-k, --kill",
+        "args": "ID",
+        "effect": "Stop device(s) gracefully (simctl shutdown / adb emu kill, saving quick-boot snapshot)"
+      },
+      {
+        "flag": "--nuke",
+        "args": "none",
+        "effect": "Stop everything with narrated SIGQUIT (EMU_KILL_GRACE_S grace) then SIGKILL escalation"
+      },
+      {
+        "flag": "-w, --warmup",
+        "args": "ID",
+        "effect": "Boot + wait until responsive; record warmup timing + host CPU/load; exit 1 on boot timeout"
+      },
+      {
+        "flag": "--warm:low",
+        "args": "ID",
+        "effect": "Warmup + bg-dexopt-job (~20-30 min, Android-only) + save default_boot; compile_level=low"
+      },
+      {
+        "flag": "--warm:medium",
+        "args": "ID",
+        "effect": "Warmup + compile speed-profile (~20-40 min) + save default_boot; compile_level=medium"
+      },
+      {
+        "flag": "--warm:hot",
+        "args": "ID",
+        "effect": "Warmup + compile everything --compile-layouts (~40-90 min) + save default_boot; compile_level=hot"
+      },
+      {
+        "flag": "-c, --copy",
+        "args": "ID [ALIAS]",
+        "effect": "Clone Android AVD (ATD-ify): copy, re-point to ATD image, wipe userdata, bake; iOS not implemented (FIXME)"
+      },
+      {
+        "flag": "--copy:orig",
+        "args": "ID [ALIAS]",
+        "effect": "Clone Android AVD as-is (no ATD re-point, no bake)"
+      },
+      {
+        "flag": "--save-quickboot",
+        "args": "ID",
+        "effect": "Persist a running AVD's state as default_boot snapshot"
+      },
+      {
+        "flag": "--bake",
+        "args": "ID",
+        "effect": "Boot headless, apply safe optimizations (compile optional), save default_boot, halt; Android-only"
+      },
+      {
+        "flag": "-m, --monitor",
+        "args": "[SECONDS]",
+        "effect": "Periodic host-side CPU sampling of running devices (default 10s); runs until Ctrl-C"
+      },
+      {
+        "flag": "-a, --alias",
+        "args": "ID ALIAS",
+        "effect": "Create a user alias (persists across device deletion)"
+      },
+      {
+        "flag": "--rename",
+        "args": "OLD NEW",
+        "effect": "Rename an AVD (moves dir + migrates DB refs) or a user alias; rejects internal aliases"
+      },
+      {
+        "flag": "--loop",
+        "args": "NAME CSV",
+        "effect": "Define a named ordered loop of ids/aliases (validated)"
+      },
+      {
+        "flag": "-n, --next",
+        "args": "[NAME]",
+        "effect": "Advance loop cursor (ACID BEGIN IMMEDIATE); next id to stdout, aliases to stderr"
+      },
+      {
+        "flag": "-v, --verbose",
+        "args": "none",
+        "effect": "With --list/--running: full per-device TSV (UDID, serial, compile_level, has_default_boot, timestamps, notes)"
+      }
+    ],
+    "required_arguments": "Exactly one action from the mutually-exclusive group (e.g. --list, --resolve, --start, --kill, --warmup, --bake, --next, ...). No action -> argparse usage error.",
+    "has_tests": false,
+    "explicit_env_checks": "true — reads MANAGE_DEVICES_DB (default .device-manager/devices.db), ANDROID_HOME / ANDROID_SDK_ROOT (default ~/Library/Android/sdk), EMU_KILL_GRACE_S (default 4s)",
+    "analysis_date": "2026-06-23",
+    "analyzers": [
+      "LLM/Opus (synthesis)",
+      "LLM/Haiku (extraction)"
+    ],
+    "prompt_version": "v1.0"
+  },
+  "subjective": {
+    "usual_invocation": "Two modes: (a) called programmatically by qa.ts and bench_sims.zsh for fast offline lookups (--resolve, --kind-of); (b) run manually by the developer for device lifecycle work (list, start, kill, warm, bake, clone, loop). The bare-id-to-stdout / rich-to-stderr split is designed for the programmatic callers.",
+    "invocation_change_recommendation": "Mostly fine — it is already switch/long-option driven. One concrete change (from project memory): the bake/warm family (--warm:*, --bake, --save-quickboot, -w) take a single ID; make them nargs='+' like -s/-k/-c so a whole SIMS set can be baked in one sequential call. The action set is large; an interactive subcommand (à la testctl inspect) for device selection could help manual use.",
+    "linux_changes_needed": "Partial port. HARD blockers: xcrun/simctl (iOS) and sysctl-based host_profile (hw.logicalcpu/memsize/cpu.brand) are macOS-only; SOFT blocker: `open -a Simulator`. PORTABLE: adb/emulator/sdkmanager and all SQLite/argparse logic. A Linux port needs the iOS code paths gated off and a Linux host-profile shim (/proc/cpuinfo, nproc, /proc/meminfo); Android management is otherwise viable in a container.",
+    "macos_dependency": {
+      "value": true,
+      "notes": "True for the iOS half (xcrun/simctl) and host profiling (sysctl/open). The Android half (adb/emulator/sdkmanager) is Linux-portable."
+    },
+    "typical_runtime": "Most actions are fast (list/resolve/kind-of/start/kill: seconds; warmup cold boot ~10-40s iOS, ~1-4 min Android). The compile/bake family is inherently long.",
+    "slow_switch_warning": "Yes. --warm:low ~20-30 min, --warm:medium ~20-40 min, --warm:hot ~40-90 min, --bake (boot + optional compile + snapshot), and --copy with an ATD image download are all well over 2 minutes by design. These should carry an up-front time estimate/confirmation like bench_sims does.",
+    "dry_run_recommendation": "Yes — strongly. This is the most destructive script in the set (clones, renames, wipes userdata, kills, overwrites snapshots) and has no --dry-run. Add one that prints the planned filesystem/device mutations (and AVD paths affected) without performing them.",
+    "destructive_steps": "Many: kills sims/emulators; strips lock files and deletes snapshot dirs on clone; copytree/move of AVD dirs with no rollback on partial failure; wipes userdata*.img on ATD-ify; overwrites ~/.android/avd/config.ini on rename/clone; SQLite writes (WAL-protected).",
+    "rewrite_language_recommendation": "No. Python + sqlite3 stdlib is well-suited to a stateful oracle; the WAL/ACID design depends on it.",
+    "merge_recommendation": "Keep standalone — it is the shared device oracle for both qa and bench_sims (more than one consumer), so it must not be folded into either.",
+    "rename_recommendation": "Optional — could expose as `manage_devices` (drop .py) since callers invoke it by path; low priority and would touch qa.ts/bench_sims call sites.",
+    "relocate_recommendation": "Keep in scripts/. It is core, frequently used by the runners, not a rarely-used helper.",
+    "improvement_suggestions": "Add --dry-run; add nargs='+' to the bake/warm family so a SIMS set bakes in one call; add up-front time estimates/confirmation to the long compile actions; add rollback (or a transaction/temp-dir swap) around AVD clone/rename so a partial failure does not leave a half-migrated AVD; cache the host profile so sysctl is not re-run every invocation; add an OS guard + Linux host-profile shim to enable Android-only use in containers.",
+    "requirements_check_completeness": "explicit and incomplete — env vars and device existence are handled, but several subprocess steps proceed without validating success (e.g. ATD image download), AVD clone/rename have no rollback on partial failure, and the Android boot timeout is a hard-coded 300s.",
+    "external_dependency_score": 33,
+    "external_dependency_breakdown": "Scoring policy (v1.0): +1 per env var; +1 per non-standard / separately-installed program (xcrun/simctl, Android SDK tools, maestro, grpcurl, psql, gmtool, node/npm, lnav, etc.); programs shipped with macOS (ps, lsof, top, pgrep, sysctl, open, pbcopy, curl, osascript, system_profiler, git, grep/sed/awk) are NOT counted; +5 if a simulator/emulator is required on the primary path; +10 per large non-default app required (Xcode, Android Studio/SDK, Genymotion, Postgres, brew). Here: env 3 + programs 5 (xcrun, simctl, adb, emulator, sdkmanager) + sim 5 + apps 20 (Xcode 10 + Android SDK 10) = 33. (Ubiquitous ps/pgrep/top/sysctl/open no longer counted; down from 38 under v0.9.)",
+    "change_score": 10,
+    "change_score_rationale": "Weights (v1.0): Linux portability full-block +8 / partial +4 / portable 0; other dimensions +1 (or +2 where noted). Linux partial +4 (iOS hard-block, Android portable). Invocation (nargs='+' for the bake/warm family) +1. Missing --dry-run on a highly destructive tool +2. Destructive-without-rollback (clone/rename partial failure) +1. Gating incomplete +1. No tests +1. Total 10.",
+    "quality_score": 62,
+    "quality_score_rationale": "Anchored rubric (v1.0), sub-scores sum to 100 — Error-handling/robustness /25: 19; Tests /20: 0 (no self-tests); Structure/clarity /20: 18; Documentation /15: 13; Portability + explicit requirement checks /20: 12. Total 62. Excellent SQLite WAL/ACID oracle and graceful kill ladder; docked for no rollback on partial AVD clone/rename, some unchecked subprocess steps, a hard-coded boot timeout, and no tests on a 2000-line stateful tool."
+  }
+}

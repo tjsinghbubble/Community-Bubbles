@@ -1,42 +1,55 @@
 #!/usr/bin/env node
 // Displays the Expo Go QR code for the mobile dev server.
-// Reads the IP from mobile/.env, then exits after 30 seconds.
-// Usage: node scripts/qr.mjs        (foreground, auto-exits)
+// Uses the Mac's mDNS Bonjour hostname (e.g. TLW-2024.local) so physical
+// iOS devices can resolve it automatically on the same WiFi — no /etc/hosts
+// needed on the phone.
+// Usage: node scripts/qr.mjs        (foreground, auto-exits in 30s)
 //        node scripts/qr.mjs &      (background)
 
-import { readFileSync } from "fs";
+import { execSync } from "child_process";
+import { tmpdir } from "os";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { dirname, resolve, join } from "path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 
-// Parse mobile/.env to get EXPO_PUBLIC_API_URL
-const envPath = resolve(__dirname, "../mobile/.env");
-let apiUrl = "http://localhost:3000";
-try {
-  const envText = readFileSync(envPath, "utf8");
-  const match = envText.match(/^EXPO_PUBLIC_API_URL=(.+)$/m);
-  if (match) apiUrl = match[1].trim();
-} catch {
-  console.warn("Could not read mobile/.env — defaulting to", apiUrl);
+// Use the Mac's Bonjour mDNS hostname (e.g. TLW-2024.local).
+// iOS devices resolve .local names automatically via Bonjour on the same WiFi.
+function getBonjourHost() {
+  try {
+    const name = execSync("scutil --get LocalHostName", { stdio: ["pipe", "pipe", "ignore"] })
+      .toString().trim();
+    return `${name}.local`;
+  } catch {
+    return null;
+  }
 }
 
-// Convert http://192.168.x.x:PORT -> exp://192.168.x.x:8081 (Metro port)
-const url = new URL(apiUrl);
-const expoUrl = `exp://${url.hostname}:8081`;
+const metroHost = getBonjourHost() || "metro_host";
+const expoUrl = `exp://${metroHost}:8081`;
 
 // Load qrcode (installed at project root)
 const QRCode = require(resolve(__dirname, "../node_modules/qrcode"));
 
 console.log(`\nScan with Expo Go → ${expoUrl}\n`);
-QRCode.toString(expoUrl, { type: "terminal", small: true }, (err, str) => {
+
+// Generate a PNG — terminal block-character QR codes break in most fonts
+// due to line-height gaps. Open in Preview to scan.
+const qrFile = join(tmpdir(), "expo-qr.png");
+QRCode.toFile(qrFile, expoUrl, { margin: 4, scale: 10 }, (err) => {
   if (err) {
     console.error("QR generation failed:", err.message);
     process.exit(1);
   }
-  console.log(str);
+  console.log(`QR code saved → ${qrFile}`);
+  try {
+    execSync(`open "${qrFile}"`);
+    console.log("Opened in Preview — scan with Expo Go app.\n");
+  } catch {
+    console.log(`Could not auto-open. Open manually: open "${qrFile}"\n`);
+  }
   console.log("(auto-exits in 30 seconds)\n");
 });
 

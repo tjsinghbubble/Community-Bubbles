@@ -1,0 +1,20 @@
+						
+						
+						
+Functional Area	Maestro Name	Gen Rank	Force rank	Alpha Test Important?	Use Cases	Original Order
+Account & Onboarding	auth	1	1	1	28	14
+Discovering Bubbles	discovery	1	2	1	9	16
+Joining Bubbles	joining	1	3	1	28	17
+Inside a Bubble	inside	1	4	1	5	18
+Events	events	1	5	2	11	11
+Bubble Admin	bubble-admin	2	6	2	50	2
+Site Admin	site-admin	2	7	2	20	1
+__Performance	perf	2	7.5	2	TBD	
+__Security	security	2	7.7	2	TBD	
+Communication	comms	2	8	2	17	12
+Campus Mode	campus	1	9	3	8	15
+Notifications	notification	2	10	3	13	13
+Categories	categories	3	11	4	9	6
+Waitlist & Reports	reports	3	12	4	7	8
+Site Monitoring	monitoring	4	13	4	12	7
+Rules	rules	5	14	4	20	5

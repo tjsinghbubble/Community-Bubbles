@@ -1,0 +1,11 @@
+# Probe subflow for infra-0200 (NOT a test — no qa-id, never discovered by the runner).
+# Deliberately declares NO env defaults; records exactly what arrives so the parent can
+# assert on it. output.* is shared across the whole flow run.
+appId: com.bubble.mobile
+---
+# NB: the evalScript values MUST be quoted — the ` : ` inside the ternary
+# (`? '<undefined>' : PROBE`) is otherwise parsed by YAML as a mapping
+# ("mapping values are not allowed here") and the whole flow fails to load.
+- evalScript: "${output.probePassthrough = (typeof PROBE === 'undefined') ? '<undefined>' : PROBE}"
+- evalScript: "${output.probeLiteral = (typeof PROBE_LIT === 'undefined') ? '<undefined>' : PROBE_LIT}"
+- evalScript: "${output.probeInherited = (typeof CANARY_INHERIT === 'undefined') ? '<undefined>' : CANARY_INHERIT}"

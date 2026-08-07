@@ -1,0 +1,79 @@
+# qa-id: infra-0200
+# qa-reason: Guard: Maestro env-precedence semantics still match what every flow in this suite assumes
+#
+# WHY THIS EXISTS — two live incidents (2026-06-11) came from Maestro env precedence:
+#   1. A SUBFLOW's env defaults override values the caller passes via `runFlow: env:` —
+#      every role test silently logged in as member@bubble.test while login-as.yaml
+#      still had defaults.
+#   2. A TOP-LEVEL flow's env defaults override the CLI's -e flags — the qa runner's
+#      -e SHOT_PREFIX and -e EMAIL lost to file defaults (run ec85e9: screenshots landed
+#      in the repo root, role runs were member again).
+# Every flow in tests/e2e now assumes these semantics: NO env: defaults anywhere, explicit
+# runFlow env forwarding, and fail-fast assertTrue guards. If a future Maestro version (or a
+# different platform — e.g. the Windows dev machine) changes precedence, THIS test fails
+# first with a label saying exactly what changed, instead of role tests silently passing as
+# the wrong user.
+#
+# No launchApp, no UI: evalScript + assertTrue only — near-zero cost even on a loaded box.
+appId: com.bubble.mobile
+tags:
+  - infra
+  - smoke
+  - e2e
+  - ios
+# DELIBERATE exception to the suite-wide "no env: defaults" rule — in this file the defaults
+# ARE the probes. Do not copy this pattern into real tests or common/ subflows.
+env:
+  SHOT_PREFIX: "__file-default__"
+  CANARY_INHERIT: "inherit-me"
+---
+# (1) -e injection works for vars with NO file default: the qa runner always passes
+# -e METRO_HOST / -e METRO_PORT, and nothing here shadows them.
+- assertTrue:
+    condition: ${typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$'}
+    label: "-e values no longer reach a flow that declares no default for them (or: run via npm run qa / pass -e METRO_HOST -e METRO_PORT)"
+
+# (2) PIN: a top-level file env default BEATS the CLI's -e. The runner passes a real
+# -e SHOT_PREFIX path, yet under Maestro 2.2.0 semantics the file default above must win.
+# (Safe to hijack here: this flow takes no screenshots.) If this fails, Maestro changed
+# precedence to CLI-wins — likely GOOD news: re-audit the flows, then update this pin.
+- assertTrue:
+    condition: ${SHOT_PREFIX === '__file-default__'}
+    label: "SEMANTICS CHANGED: CLI -e now overrides a top-level file env default (was file-wins in Maestro 2.2.0) — re-audit flows + update infra-0200"
+
+# (3) a file default applies normally when nobody passes the var.
+- assertTrue:
+    condition: ${CANARY_INHERIT === 'inherit-me'}
+    label: "a file env default no longer applies when the var is not passed at all"
+
+# (4) runFlow env reaches a subflow that declares NO defaults (what login-as relies on for
+# credentials), and an unset forwarded var arrives as a literal dollar-brace string (what
+# every fail-fast guard's charAt(0) !== '$' check relies on).
+- runFlow:
+    file: _probe-passthrough.yaml
+    env:
+      PROBE: "caller-value"
+      PROBE_LIT: ${NEVER_SET_VAR_XYZ}
+- assertTrue:
+    condition: ${output.probePassthrough === 'caller-value'}
+    label: "runFlow env no longer reaches a no-default subflow — login-as would receive no credentials"
+- assertTrue:
+    condition: ${typeof output.probeLiteral === 'string' && output.probeLiteral.charAt(0) === '$'}
+    label: "SEMANTICS CHANGED: forwarding an unset var no longer yields a literal dollar-brace string — the fail-fast guards in common/ would stop firing"
+
+# (5) PIN: a subflow's own env default OVERRIDES the caller's runFlow env value (the
+# 2026-06-11 wrong-role incident). If this fails, Maestro flipped to caller-wins — likely
+# GOOD news: the no-defaults rule in common/ could be relaxed; update flows + this pin.
+- runFlow:
+    file: _probe-default-override.yaml
+    env:
+      PROBE: "caller-value"
+- assertTrue:
+    condition: ${output.probeDefaultOverride === 'subflow-default'}
+    label: "SEMANTICS CHANGED: a subflow env default no longer overrides the caller's runFlow env (was subflow-wins in Maestro 2.2.0) — revisit no-defaults rule + update infra-0200"
+
+# Implicit inheritance (does a subflow see the parent's env WITHOUT explicit forwarding?)
+# is recorded by the passthrough probe into output.probeInherited and logged to maestro.log,
+# but NOT asserted yet — observe one live run, then promote to an assert with the observed
+# value ('inherit-me' if subflows inherit, '<undefined>' if not).
+- evalScript: "${console.log('[infra-0200] implicit inheritance probe — CANARY_INHERIT in subflow = ' + output.probeInherited)}"

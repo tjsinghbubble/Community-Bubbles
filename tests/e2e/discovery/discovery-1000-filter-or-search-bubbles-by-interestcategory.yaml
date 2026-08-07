@@ -1,0 +1,53 @@
+# qa-id: discovery-1000
+# qa-reason: Search the Explore tab filters bubbles by query and clear restores the list (UC 205)
+# Filter/search bubbles (UC 205 / row 20). Positive path.
+#
+# Verified green on simulator 2026-06-13. Signs in as role-user, searches "QA" (matches
+# the seeded QA bubbles), asserts a known seeded bubble surfaces, then clears and asserts
+# the full list returns. Read-only — joins nothing, mutates nothing.
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - e2e
+  - ios
+  - role-user
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+# Baseline: the unfiltered list shows bubble cards.
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}explore-baseline
+
+# Search narrows the list to matching bubbles. "QA" matches the seeded QA bubbles.
+- tapOn:
+    id: input-search
+- inputText: "QA"
+- waitForAnimationToEnd
+- assertVisible: "QA Browse Bubble"
+- takeScreenshot: ${SHOT_PREFIX}search-results
+
+# Clearing the search restores the full list.
+- tapOn:
+    id: button-clear-search
+- waitForAnimationToEnd
+- assertVisible:
+    id: "card-bubble-.*"
+- takeScreenshot: ${SHOT_PREFIX}search-cleared

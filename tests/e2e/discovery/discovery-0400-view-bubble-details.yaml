@@ -1,0 +1,64 @@
+# qa-id: discovery-0400
+# qa-reason: View a bubble's details (tagline, members, about) before joining (UC 45)
+# View bubble details before joining (UC 45 / row 15).
+#
+# STATUS: smoke + unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run. Signs in as the role-user (member), opens the seeded
+# "QA Browse Bubble" WITHOUT joining it, and asserts the pre-join details surface
+# (JoinBubbleScreen — non-members are auto-redirected there from BubbleDetails).
+# QA Browse Bubble is the view-only fixture: NO test may ever join it, which keeps this
+# pre-join read order-independent from joining-0400/0600.
+appId: com.bubble.mobile
+tags:
+  - discovery
+  - smoke
+  - unverified
+  - e2e
+  - ios
+  - role-user
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Browse Bubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}pre-join-details
+
+# Pre-join surface: title, tagline, member info, upcoming events ("QA Seeded Event" is
+# seeded into this bubble), and the join CTA (NOT tapped — this use case is explicitly
+# "before joining").
+- assertVisible:
+    id: text-header-title
+- assertVisible:
+    id: text-tagline
+- assertVisible:
+    id: member-info
+- assertVisible:
+    id: text-upcoming-events
+- assertVisible:
+    id: button-join-bubble
+
+# About section expands to show the bubble description.
+- tapOn:
+    id: button-about-toggle
+- assertVisible:
+    id: text-about-description
+- takeScreenshot: ${SHOT_PREFIX}about-expanded

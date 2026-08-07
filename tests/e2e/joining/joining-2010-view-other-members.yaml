@@ -1,0 +1,62 @@
+# qa-id: joining-2010
+# qa-reason: Non-member cannot access member roster — button-view-members is gated to members only (UC 227)
+# Negative test: non-members viewing a bubble detail should not see the view-members button.
+#
+# STATUS: unverified. Authored against real testIDs but not yet run on a simulator.
+# Drop `unverified` after one green run.
+#
+# Uses the seeded "QA Browse Bubble" (public, view-only — do NOT join). Flow:
+#   1. Navigate to bubbles and open QA Browse Bubble
+#   2. Stay as non-member (do NOT tap join)
+#   3. Verify the bubble preview is visible (member-info, text-tagline, button-join-bubble)
+#   4. Assert button-view-members is NOT visible (assertNotVisible)
+#   5. Screenshot each stop
+#
+# NOTE: This test verifies only that the member-management roster entry is gated to members;
+# the bubble details/count remain visible to non-members.
+appId: com.bubble.mobile
+tags:
+  - joining
+  - e2e
+  - ios
+  - role-user
+  - unverified
+---
+# Fail fast if required env is missing. env: defaults are FORBIDDEN here — file defaults
+# OVERRIDE the CLI's -e values in Maestro 2.2.0 (see auth-0100 header / project memory).
+- assertTrue:
+    condition: ${typeof EMAIL === 'string' && EMAIL.charAt(0) !== '$' && typeof PASSWORD === 'string' && PASSWORD.charAt(0) !== '$' && typeof METRO_HOST === 'string' && METRO_HOST.charAt(0) !== '$' && typeof METRO_PORT === 'string' && METRO_PORT.charAt(0) !== '$' && typeof SHOT_PREFIX === 'string'}
+    label: "env guard: required Maestro env must be set (run via `npm run qa`) — otherwise pass -e EMAIL -e PASSWORD -e METRO_HOST=localhost -e METRO_PORT=8081 -e SHOT_PREFIX=tmp/maestro/"
+
+- runFlow:
+    file: ../common/login-as.yaml
+    env:
+      EMAIL: ${EMAIL}
+      PASSWORD: ${PASSWORD}
+      ROLE: ${ROLE}
+      METRO_HOST: ${METRO_HOST}
+      METRO_PORT: ${METRO_PORT}
+
+- tapOn:
+    id: tab-bubbles
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "card-bubble-.*"
+- tapOn: "QA Browse Bubble"
+- waitForAnimationToEnd
+- takeScreenshot: ${SHOT_PREFIX}non-member-bubble-preview
+
+# Non-member preview: verify the bubble preview is visible.
+- assertVisible:
+    id: member-info
+- assertVisible:
+    id: text-tagline
+- assertVisible:
+    id: button-join-bubble
+
+# Assert that button-view-members is NOT visible to non-members.
+# This proves the roster access is gated to members only.
+- assertNotVisible:
+    id: button-view-members
+- takeScreenshot: ${SHOT_PREFIX}roster-entry-gated
