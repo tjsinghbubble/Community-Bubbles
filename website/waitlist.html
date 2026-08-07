@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Bubble Waitlist</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        main {
+            padding: 0;
+            background: linear-gradient(135deg, #7DD3FC 0%, #35A8F7 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0;
+        }
+
+        .signup-section {
+            width: 100%;
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .signup-hero {
+            margin-bottom: 3rem;
+            color: white;
+        }
+
+        .signup-hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        .signup-hero p {
+            font-size: 1.15rem;
+            margin: 0 auto;
+            max-width: 800px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .signup-container {
+            max-width: 550px;
+            margin: 0 auto;
+        }
+
+        .waitlist-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .waitlist-form label {
+            text-align: left;
+            font-weight: 600;
+            color: white;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .waitlist-form input,
+        .waitlist-form select {
+            padding: 1rem 1.25rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-family: inherit;
+            background: white;
+            color: var(--charcoal);
+        }
+
+        .waitlist-form input::placeholder {
+            color: #999;
+        }
+
+        .waitlist-form input:focus,
+        .waitlist-form select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+        }
+
+        .waitlist-form button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            background: white;
+            color: var(--midnight);
+            font-weight: 700;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+        }
+
+        .waitlist-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .waitlist-form button:active {
+            transform: translateY(0);
+        }
+
+        /* Override nav styling for waitlist page */
+        nav {
+            position: fixed !important;
+            top: 0 !important;
+            z-index: 1000 !important;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <img src="images/bubble-logo-new.png" alt="Bubble" class="logo-img" style="height: 70px; width: auto;">
+
+            </a>
+            <ul class="nav-links">
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="faq.html">FAQ</a></li>
+                <li><a href="waitlist.html" class="cta-button">Join Waitlist</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="signup-section">
+            <div class="signup-hero">
+                <h1>Be Among the First</h1>
+                <p>Join our waitlist and get early access when we launch. Starting with Berkeley, SF, the Bay Area, and beyond.</p>
+            </div>
+            <div class="signup-container">
+                <form name="waitlist" method="POST" netlify class="waitlist-form">
+                    <div>
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="your.email@university.edu" required>
+                    </div>
+                    
+                    <div>
+                        <label>Full Name</label>
+                        <input type="text" name="full-name" placeholder="Full Name" required>
+                    </div>
+                    
+                    <div>
+                        <label>Campus / Location</label>
+                        <select name="location" required>
+                            <option value="">Select your Campus or location</option>
+                            <optgroup label="🎓 Campus">
+                                <option value="UC Berkeley">U.C. Berkeley</option>
+                                <option value="SFSU">San Francisco State University</option>
+                                <option value="SJSU">San Jose State University</option>
+                                <option value="Stanford">Stanford University</option>
+                                <option value="Santa Clara">Santa Clara University</option>
+                                <option value="UCSF">UCSF</option>
+                            </optgroup>
+                            <optgroup label="🌆 Cities">
+                                <option value="Berkeley">Berkeley</option>
+                                <option value="San Francisco">San Francisco</option>
+                                <option value="Oakland">Oakland</option>
+                                <option value="San Jose">San Jose</option>
+                                <option value="Palo Alto">Palo Alto</option>
+                                <option value="Mountain View">Mountain View</option>
+                                <option value="Sunnyvale">Sunnyvale</option>
+                                <option value="Fremont">Fremont</option>
+                            </optgroup>
+                            <optgroup label="📍 Other">
+                                <option value="Other US">Other U.S. Cities</option>
+                                <option value="Canada">Canada</option>
+                                <option value="South America">South America</option>
+                                <option value="Europe">Europe</option>
+                                <option value="Asia">Asia</option>
+                                <option value="Africa">Africa</option>
+                                <option value="Australia">Australia, New Zealand</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <button type="submit">Join the Waitlist</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+<div class="footer-separator"></div>
+
+<footer>
+    <div class="footer-container">
+        <div class="footer-section">
+            <h3>Bubble</h3>
+            <p>Building authentic community through hyper-local connection. Starting with Berkeley, SF, and the Bay Area.</p>
+            <div class="social-icons">
+                <a href="#" class="social-icon">f</a>
+                <a href="#" class="social-icon">𝕏</a>
+                <a href="#" class="social-icon">in</a>
+                <a href="#" class="social-icon">ig</a>
+                <a href="#" class="social-icon" aria-label="TikTok">tt</a>
+                <a href="#" class="social-icon" aria-label="Threads">@</a>
+            </div>
+        </div>
+
+        <div class="footer-section">
+            <h3>Product</h3>
+            <ul class="footer-links">
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="community.html">Community Examples</a></li>
+                <li><a href="about.html">About Us</a></li>
+                <li><a href="faq.html">FAQ</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h3>Company</h3>
+            <ul class="footer-links">
+                <li><a href="about.html">Our Story</a></li>
+                <li><a href="waitlist.html">Join Waitlist</a></li>
+                <li><a href="careers.html">Careers</a></li>
+                <li><a href="press.html">Press</a></li>
+            </ul>
+        </div>
+
+        <div class="footer-section">
+            <h3>Contact</h3>
+            <ul class="footer-links">
+                <li><a href="mailto:hello@trybubble.io">hello@trybubble.io</a></li>
+                <li><a href="privacy.html">Privacy Policy</a></li>
+                <li><a href="terms.html">Terms of Service</a></li>
+                <li><a href="community-guidelines.html">Community Guidelines</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer-bottom">
+        <p>© 2026 Bubble. All rights reserved. Built with ❤️ in the Bay Area.</p>
+    </div>
+</footer>
+
+    <script src="js/script.js"></script>
+</body>
+</html>

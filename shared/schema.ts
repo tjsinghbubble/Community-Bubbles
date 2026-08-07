@@ -434,6 +434,21 @@ export const insertNotificationPreferencesSchema = createInsertSchema(notificati
 export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
 export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
 
+export const userPrivacySettings = pgTable("user_privacy_settings", {
+  userId: varchar("user_id").primaryKey().references(() => users.id),
+  profileVisibility: text("profile_visibility").notNull().default('public'), // public, members, private
+  showInterests: boolean("show_interests").notNull().default(true),
+  showBubbles: boolean("show_bubbles").notNull().default(true),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserPrivacySettingsSchema = createInsertSchema(userPrivacySettings).omit({
+  updatedAt: true,
+});
+
+export type InsertUserPrivacySettings = z.infer<typeof insertUserPrivacySettingsSchema>;
+export type UserPrivacySettings = typeof userPrivacySettings.$inferSelect;
+
 export const bulletinBoards = pgTable("bulletin_boards", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bubbleId: varchar("bubble_id").notNull().references(() => bubbles.id),

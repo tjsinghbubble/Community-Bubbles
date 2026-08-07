@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
+import { toast } from "@/hooks/use-toast";
 import {
   ArrowLeft,
   ArrowDown,
@@ -27,6 +28,7 @@ import {
   Pin,
   Heart,
   LayoutDashboard,
+  Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,8 +50,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import avatar1 from "@/assets/images/avatar-1.jpg";
-import avatar2 from "@/assets/images/avatar-2.jpg";
-import avatar3 from "@/assets/images/avatar-3.jpg";
 
 import pickleballImg from "@/assets/images/explore-pickleball.jpg";
 import wellnessImg from "@/assets/images/explore-wellness.jpg";
@@ -181,21 +181,9 @@ const bubbleSeed: Record<string, Bubble> = {
   },
 };
 
-type Member = { id: string; name: string; avatar: string; role: "admin" | "participant" };
+type Member = { id: string; userId: string; name: string; avatar: string; role: "admin" | "member" };
 
-const membersSeed: Member[] = [
-  { id: "a-1", name: "Alexa Garcia", avatar: avatar1, role: "admin" },
-  { id: "a-2", name: "Blake Jenson", avatar: avatar2, role: "admin" },
-  { id: "a-3", name: "Brandon Nash", avatar: avatar3, role: "admin" },
-  { id: "p-1", name: "John Doe", avatar: avatar2, role: "participant" },
-  { id: "p-2", name: "Hermione Granger", avatar: avatar1, role: "participant" },
-  { id: "p-3", name: "John Doe", avatar: avatar2, role: "participant" },
-  { id: "p-4", name: "Hermione Granger", avatar: avatar1, role: "participant" },
-  { id: "p-5", name: "John Doe", avatar: avatar2, role: "participant" },
-  { id: "p-6", name: "Hermione Granger", avatar: avatar1, role: "participant" },
-  { id: "p-7", name: "John Doe", avatar: avatar2, role: "participant" },
-  { id: "p-8", name: "Hermione Granger", avatar: avatar1, role: "participant" },
-];
+const DEFAULT_AVATAR = avatar1;
 
 function Segmented({ value, onChange }: { value: "details" | "events" | "bulletin"; onChange: (v: "details" | "events" | "bulletin") => void }) {
   return (
@@ -460,14 +448,50 @@ function JoinBubbleSheet({
   );
 }
 
-function ReportModal({ open, onClose, title }: { open: boolean; onClose: () => void; title: string }) {
+function ReportModal({
+  open,
+  onClose,
+  title,
+  bubbleId,
+  reportType,
+  reportedUserId,
+  eventId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  bubbleId: string;
+  reportType: "bubble" | "individual" | "event";
+  reportedUserId?: string;
+  eventId?: string;
+}) {
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
+
+  const reportMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", "/api/reports", {
+        bubbleId,
+        reportType,
+        reportedUserId,
+        eventId,
+        reason: "Other",
+        freeText: reason.trim(),
+      }),
+    onSuccess: () => {
+      setSent(true);
+      setTimeout(() => { onClose(); setSent(false); setReason(""); }, 1500);
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't submit report", description: err.message || "Please try again." });
+    },
+  });
+
   const submit = () => {
-    if (!reason.trim()) return;
-    setSent(true);
-    setTimeout(() => { onClose(); setSent(false); setReason(""); }, 1500);
+    if (!reason.trim() || reportMutation.isPending) return;
+    reportMutation.mutate();
   };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm rounded-3xl">
@@ -488,13 +512,16 @@ function ReportModal({ open, onClose, title }: { open: boolean; onClose: () => v
               placeholder="What's going on?"
               rows={4}
               className="w-full resize-none rounded-xl border border-black/10 bg-[#FAFAFA] px-3 py-2.5 text-[13px] outline-none"
+              data-testid="input-report-reason"
             />
             <button
               onClick={submit}
-              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white"
+              disabled={!reason.trim() || reportMutation.isPending}
+              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white disabled:opacity-60"
               style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+              data-testid="button-submit-report"
             >
-              Submit Report
+              {reportMutation.isPending ? "Submitting…" : "Submit Report"}
             </button>
           </div>
         )}
@@ -508,12 +535,14 @@ function BubbleKebabMenu({
   isMember,
   isAdmin,
   onManage,
+  onEdit,
   onChat,
 }: {
   bubble: Bubble;
   isMember: boolean;
   isAdmin: boolean;
   onManage: () => void;
+  onEdit: () => void;
   onChat: () => void;
 }) {
   const [reportConcern, setReportConcern] = useState(false);
@@ -580,6 +609,15 @@ function BubbleKebabMenu({
               <DropdownMenuItem
                 className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
                 style={{ color: BLUE }}
+                onClick={onEdit}
+                data-testid="action-edit-bubble"
+              >
+                <Pencil className="h-[18px] w-[18px]" style={{ color: BLUE }} />
+                Edit Bubble
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
+                style={{ color: BLUE }}
                 onClick={onManage}
                 data-testid="action-manage-bubble"
               >
@@ -614,70 +652,143 @@ function BubbleKebabMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ReportModal open={reportConcern} onClose={() => setReportConcern(false)} title="Report a Concern" />
-      <ReportModal open={reportBubble} onClose={() => setReportBubble(false)} title="Report this Bubble" />
+      <ReportModal open={reportConcern} onClose={() => setReportConcern(false)} title="Report a Concern" bubbleId={bubble.id} reportType="bubble" />
+      <ReportModal open={reportBubble} onClose={() => setReportBubble(false)} title="Report this Bubble" bubbleId={bubble.id} reportType="bubble" />
     </>
   );
 }
 
-function MemberKebabMenu({ member }: { member: Member }) {
+function MemberKebabMenu({
+  member,
+  bubbleId,
+  canManage,
+  onChanged,
+}: {
+  member: Member;
+  bubbleId: string;
+  canManage: boolean;
+  onChanged: () => void;
+}) {
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const roleMutation = useMutation({
+    mutationFn: (role: "admin" | "member") =>
+      apiRequest("PUT", `/api/bubbles/${bubbleId}/members/${member.userId}/role`, { role }),
+    onSuccess: onChanged,
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't update role", description: err.message || "Please try again." });
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/bubbles/${bubbleId}/members/${member.userId}`),
+    onSuccess: onChanged,
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't remove member", description: err.message || "Please try again." });
+    },
+  });
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="p-2 text-muted-foreground" data-testid={`button-member-more-${member.id}`}>
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          className="gap-2"
-          data-testid={`action-dm-${member.id}`}
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span>Direct Message</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="gap-2 text-red-500 focus:text-red-500"
-          data-testid={`action-remove-${member.id}`}
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Remove from group</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        {member.role === "admin" ? (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="p-2 text-muted-foreground" data-testid={`button-member-more-${member.id}`}>
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem
-            className="gap-2 text-amber-500 focus:text-amber-500"
-            data-testid={`action-demote-${member.id}`}
+            className="gap-2"
+            onClick={() => toast({ title: "Direct messaging isn't available on web yet", description: "Use the mobile app to message members directly." })}
+            data-testid={`action-dm-${member.id}`}
           >
-            <ArrowDown className="h-4 w-4" />
-            <span>Demote</span>
+            <MessageSquare className="h-4 w-4" />
+            <span>Direct Message</span>
           </DropdownMenuItem>
-        ) : (
+          {canManage && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gap-2 text-red-500 focus:text-red-500"
+                onClick={() => removeMutation.mutate()}
+                disabled={removeMutation.isPending}
+                data-testid={`action-remove-${member.id}`}
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Remove from group</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {member.role === "admin" ? (
+                <DropdownMenuItem
+                  className="gap-2 text-amber-500 focus:text-amber-500"
+                  onClick={() => roleMutation.mutate("member")}
+                  disabled={roleMutation.isPending}
+                  data-testid={`action-demote-${member.id}`}
+                >
+                  <ArrowDown className="h-4 w-4" />
+                  <span>Demote</span>
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  className="gap-2 text-green-600 focus:text-green-600"
+                  onClick={() => roleMutation.mutate("admin")}
+                  disabled={roleMutation.isPending}
+                  data-testid={`action-make-admin-${member.id}`}
+                >
+                  <Star className="h-4 w-4" />
+                  <span>Make admin</span>
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+          <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="gap-2 text-green-600 focus:text-green-600"
-            data-testid={`action-make-admin-${member.id}`}
+            className="gap-2 text-red-500 focus:text-red-500"
+            onClick={() => setReportOpen(true)}
+            data-testid={`action-report-${member.id}`}
           >
-            <Star className="h-4 w-4" />
-            <span>Make admin</span>
+            <Flag className="h-4 w-4" />
+            <span>Report a concern</span>
           </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="gap-2 text-red-500 focus:text-red-500"
-          data-testid={`action-report-${member.id}`}
-        >
-          <Flag className="h-4 w-4" />
-          <span>Report a concern</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        title={`Report ${member.name}`}
+        bubbleId={bubbleId}
+        reportType="individual"
+        reportedUserId={member.userId}
+      />
+    </>
   );
 }
 
-function MembersScreen({ onBack }: { onBack: () => void }) {
-  const admins = membersSeed.filter((m) => m.role === "admin");
-  const participants = membersSeed.filter((m) => m.role === "participant");
+function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => void }) {
+  const qc = useQueryClient();
+  const { data: membersData, isLoading } = useQuery<any[]>({
+    queryKey: [`/api/bubbles/${bubbleId}/members`],
+    queryFn: () => apiRequest("GET", `/api/bubbles/${bubbleId}/members`).then((r) => r.json()),
+    enabled: !!bubbleId,
+  });
+  const { data: myMembership } = useQuery<any>({
+    queryKey: [`/api/bubbles/${bubbleId}/membership`],
+    queryFn: () => apiRequest("GET", `/api/bubbles/${bubbleId}/membership`).then((r) => r.json()),
+    enabled: !!bubbleId,
+  });
+  const canManage = myMembership?.role === "admin";
+
+  const members: Member[] = (membersData ?? []).map((m: any) => ({
+    id: m.id,
+    userId: m.userId,
+    name: m.user?.name ?? "Unknown",
+    avatar: m.user?.profilePhoto || DEFAULT_AVATAR,
+    role: m.role === "admin" ? "admin" : "member",
+  }));
+  const admins = members.filter((m) => m.role === "admin");
+  const participants = members.filter((m) => m.role === "member");
+  const refetchMembers = () => qc.invalidateQueries({ queryKey: [`/api/bubbles/${bubbleId}/members`] });
 
   return (
     <div className="min-h-dvh bg-background text-foreground">
@@ -698,57 +809,65 @@ function MembersScreen({ onBack }: { onBack: () => void }) {
       </div>
 
       <div className="mx-auto w-full max-w-[420px] px-5 pb-8 pt-2">
-        <div className="mt-2 text-[12px] font-semibold text-muted-foreground" data-testid="text-admins-title">
-          Admins
-        </div>
-        <div className="mt-3 space-y-1">
-          {admins.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between border-b border-black/10 py-3"
-              data-testid={`row-admin-${m.id}`}
-            >
-              <div className="flex items-center gap-3">
-                <img
-                  src={m.avatar}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover"
-                  data-testid={`img-admin-${m.id}`}
-                />
-                <div className="text-[13px] font-semibold" data-testid={`text-admin-name-${m.id}`}>
-                  {m.name}
-                </div>
-              </div>
-              <MemberKebabMenu member={m} />
+        {isLoading ? (
+          <div className="py-8 text-center text-[13px] text-muted-foreground" data-testid="loading-members">
+            Loading members…
+          </div>
+        ) : (
+          <>
+            <div className="mt-2 text-[12px] font-semibold text-muted-foreground" data-testid="text-admins-title">
+              Admins
             </div>
-          ))}
-        </div>
+            <div className="mt-3 space-y-1">
+              {admins.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between border-b border-black/10 py-3"
+                  data-testid={`row-admin-${m.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={m.avatar}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                      data-testid={`img-admin-${m.id}`}
+                    />
+                    <div className="text-[13px] font-semibold" data-testid={`text-admin-name-${m.id}`}>
+                      {m.name}
+                    </div>
+                  </div>
+                  <MemberKebabMenu member={m} bubbleId={bubbleId} canManage={canManage} onChanged={refetchMembers} />
+                </div>
+              ))}
+            </div>
 
-        <div className="mt-6 text-[12px] font-semibold text-muted-foreground" data-testid="text-participants-title">
-          Participants
-        </div>
-        <div className="mt-3 space-y-1">
-          {participants.map((m) => (
-            <div
-              key={m.id}
-              className="flex items-center justify-between border-b border-black/10 py-3"
-              data-testid={`row-participant-${m.id}`}
-            >
-              <div className="flex items-center gap-3">
-                <img
-                  src={m.avatar}
-                  alt=""
-                  className="h-10 w-10 rounded-full object-cover"
-                  data-testid={`img-participant-${m.id}`}
-                />
-                <div className="text-[13px] font-semibold" data-testid={`text-participant-name-${m.id}`}>
-                  {m.name}
-                </div>
-              </div>
-              <MemberKebabMenu member={m} />
+            <div className="mt-6 text-[12px] font-semibold text-muted-foreground" data-testid="text-participants-title">
+              Participants
             </div>
-          ))}
-        </div>
+            <div className="mt-3 space-y-1">
+              {participants.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between border-b border-black/10 py-3"
+                  data-testid={`row-participant-${m.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={m.avatar}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                      data-testid={`img-participant-${m.id}`}
+                    />
+                    <div className="text-[13px] font-semibold" data-testid={`text-participant-name-${m.id}`}>
+                      {m.name}
+                    </div>
+                  </div>
+                  <MemberKebabMenu member={m} bubbleId={bubbleId} canManage={canManage} onChanged={refetchMembers} />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -799,6 +918,44 @@ export default function BubbleDetails() {
     enabled: !!id && !!user && tab === "bulletin",
   });
 
+  const { data: postTypes } = useQuery<any[]>({
+    queryKey: ["/api/bulletin/post-types"],
+    queryFn: () => apiRequest("GET", "/api/bulletin/post-types").then((r) => r.json()),
+    enabled: !!user && tab === "bulletin",
+  });
+
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [postTitle, setPostTitle] = useState("");
+  const [postBody, setPostBody] = useState("");
+  const [postTypeId, setPostTypeId] = useState<number | null>(null);
+
+  const createPostMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/bubbles/${id}/bulletin/posts`, {
+        postTypeId,
+        title: postTitle.trim(),
+        body: postBody.trim(),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [`/api/bubbles/${id}/bulletin/posts`] });
+      setCreatePostOpen(false);
+      setPostTitle("");
+      setPostBody("");
+      setPostTypeId(null);
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't create post", description: err.message || "Please try again." });
+    },
+  });
+
+  const reactMutation = useMutation({
+    mutationFn: (postId: string) => apiRequest("POST", `/api/bulletin/posts/${postId}/reactions`, { emoji: "heart" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [`/api/bubbles/${id}/bulletin/posts`] }),
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't react to post", description: err.message || "Please try again." });
+    },
+  });
+
   const joinMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/bubbles/${id}/join`).then((r) => r.json()),
     onSuccess: () => {
@@ -834,7 +991,7 @@ export default function BubbleDetails() {
   }, [bubbleData, rulesData, isMember, id]);
 
   if (view === "members") {
-    return <MembersScreen onBack={() => setView("bubble")} />;
+    return <MembersScreen bubbleId={id} onBack={() => setView("bubble")} />;
   }
 
   if (view === "join") {
@@ -879,6 +1036,7 @@ export default function BubbleDetails() {
             isAdmin={isAdmin}
             onChat={() => { window.location.href = `/chat/chat-${bubble.id}`; }}
             onManage={() => navigate("/admin/pending")}
+            onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
           />
         </div>
         <Segmented value={tab} onChange={setTab} />
@@ -1016,7 +1174,8 @@ export default function BubbleDetails() {
                 {(bubbleEvents ?? []).map((ev: any) => (
                   <div
                     key={ev.id}
-                    className="flex gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
+                    onClick={() => navigate(`/event/${ev.id}`)}
+                    className="flex cursor-pointer gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/6"
                     data-testid={`row-event-${ev.id}`}
                   >
                     {ev.coverImage && (
@@ -1047,6 +1206,7 @@ export default function BubbleDetails() {
           <div className="space-y-4" data-testid="bulletin-tab">
             {isAdmin && (
               <button
+                onClick={() => setCreatePostOpen(true)}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-[13px] font-semibold text-white"
                 style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
                 data-testid="button-create-bulletin-post"
@@ -1083,7 +1243,12 @@ export default function BubbleDetails() {
                       <img src={post.imageUrl} alt="" className="mt-3 w-full rounded-xl object-cover" />
                     )}
                     <div className="mt-3 flex items-center gap-3">
-                      <button className="flex items-center gap-1 text-[11px] text-black/40">
+                      <button
+                        onClick={() => reactMutation.mutate(post.id)}
+                        disabled={reactMutation.isPending}
+                        className="flex items-center gap-1 text-[11px] text-black/40"
+                        data-testid={`button-react-${post.id}`}
+                      >
                         <Heart className="h-3.5 w-3.5" />
                         {post.reactionCount ?? 0}
                       </button>
@@ -1098,6 +1263,61 @@ export default function BubbleDetails() {
           </div>
         )}
       </div>
+
+      <Dialog open={createPostOpen} onOpenChange={setCreatePostOpen}>
+        <DialogContent className="max-w-sm rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>New Post</DialogTitle>
+            <DialogDescription>Share an announcement with bubble members.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {(postTypes ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-2" data-testid="list-post-types">
+                {(postTypes ?? [])
+                  .filter((pt: any) => isAdmin || !pt.adminOnly)
+                  .map((pt: any) => (
+                    <button
+                      key={pt.id}
+                      onClick={() => setPostTypeId(pt.id)}
+                      className={cn(
+                        "rounded-full border px-3 py-1.5 text-[12px] font-semibold",
+                        postTypeId === pt.id ? "border-transparent text-white" : "border-black/10 text-black/60",
+                      )}
+                      style={postTypeId === pt.id ? { background: pt.color || "#35A8F7" } : undefined}
+                      data-testid={`chip-post-type-${pt.id}`}
+                    >
+                      {pt.displayName}
+                    </button>
+                  ))}
+              </div>
+            )}
+            <input
+              value={postTitle}
+              onChange={(e) => setPostTitle(e.target.value)}
+              placeholder="Title"
+              className="w-full rounded-xl border border-black/10 bg-[#FAFAFA] px-3 py-2.5 text-[13px] outline-none"
+              data-testid="input-post-title"
+            />
+            <textarea
+              value={postBody}
+              onChange={(e) => setPostBody(e.target.value)}
+              placeholder="What's the announcement?"
+              rows={4}
+              className="w-full resize-none rounded-xl border border-black/10 bg-[#FAFAFA] px-3 py-2.5 text-[13px] outline-none"
+              data-testid="input-post-body"
+            />
+            <button
+              onClick={() => createPostMutation.mutate()}
+              disabled={!postTitle.trim() || !postBody.trim() || !postTypeId || createPostMutation.isPending}
+              className="h-11 w-full rounded-2xl text-[14px] font-semibold text-white disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #35A8F7, #6C63FF)" }}
+              data-testid="button-submit-post"
+            >
+              {createPostMutation.isPending ? "Posting…" : "Post"}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

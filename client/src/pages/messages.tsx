@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
@@ -14,8 +14,10 @@ import {
   Search,
   Send,
   Smile,
+  SquarePen,
   Users,
   Video,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,18 @@ type Chat = {
   lastMessageTs?: number;
   muted?: boolean;
   pinned?: boolean;
+  isPeerDm?: boolean;
 };
+
+const UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const PEER_DM_RE = new RegExp(`^peer_(${UUID_RE})_(${UUID_RE})$`);
+
+/** For a "peer_<uidA>_<uidB>" DM group, resolve the other participant's uid. */
+function otherPeerUid(guid: string, myUid: string): string | null {
+  const m = guid.match(PEER_DM_RE);
+  if (!m) return null;
+  return m[1] === myUid ? m[2] : m[1];
+}
 
 type MessageType = "text" | "image" | "system";
 
@@ -73,12 +86,14 @@ function pillGradientStyle() {
 }
 
 function mapCcMessage(m: any, myUid: string): Message {
-  const isMe = m.getSender?.()?.getUid?.() === myUid;
+  const senderUid = m.getSender?.()?.getUid?.();
+  const isMe = senderUid === myUid;
   const msgType = m.getType?.();
   const isText = msgType === "text";
+  const chatId = m.getReceiverId?.() ?? "";
   return {
     id: String(m.getId?.() ?? nowId()),
-    chatId: m.getReceiverId?.() ?? "",
+    chatId,
     from: isMe ? "me" : "other",
     authorName: m.getSender?.()?.getName?.() || "Unknown",
     type: isText ? "text" : "image",
@@ -111,7 +126,7 @@ function TopBar({ title, onBack, right }: { title: string; onBack?: () => void; 
           </div>
         </div>
 
-        <div className="flex h-10 w-10 items-center justify-end">{right}</div>
+        <div className="flex h-10 w-auto min-w-10 items-center justify-end">{right}</div>
       </div>
     </div>
   );
@@ -655,8 +670,78 @@ function InfoSheet({ chat, onClose }: { chat: Chat; onClose: () => void }) {
   );
 }
 
+type CoMember = { userId: string; name: string; avatar: string };
+
+function NewMessageSheet({
+  members,
+  loading,
+  onPick,
+  onClose,
+}: {
+  members: CoMember[];
+  loading: boolean;
+  onPick: (m: CoMember) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center" data-testid="sheet-new-message">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 30, stiffness: 300 }}
+        className="relative z-10 w-full max-w-[420px] rounded-t-[28px] bg-background px-5 pb-10 pt-4"
+      >
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-black/20" />
+        <div className="flex items-center justify-between">
+          <div className="text-[16px] font-semibold" data-testid="text-new-message-title">New Message</div>
+          <button onClick={onClose} className="grid h-8 w-8 place-items-center rounded-full bg-black/5" data-testid="button-new-message-close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="mt-1 text-[12px] text-muted-foreground">People from your bubbles</div>
+
+        <div className="mt-4 max-h-[50vh] space-y-1 overflow-y-auto">
+          {loading ? (
+            <div className="py-8 text-center text-[13px] text-muted-foreground" data-testid="loading-co-members">
+              Loading…
+            </div>
+          ) : members.length === 0 ? (
+            <div className="py-8 text-center text-[13px] text-muted-foreground" data-testid="empty-co-members">
+              Join a bubble to message its members.
+            </div>
+          ) : (
+            members.map((m) => (
+              <button
+                key={m.userId}
+                onClick={() => onPick(m)}
+                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left hover:bg-black/5"
+                data-testid={`row-co-member-${m.userId}`}
+              >
+                {m.avatar ? (
+                  <img src={m.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                ) : (
+                  <div
+                    className="grid h-10 w-10 place-items-center rounded-full text-[13px] font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
+                  >
+                    {m.name.slice(0, 1).toUpperCase()}
+                  </div>
+                )}
+                <div className="text-[13px] font-semibold">{m.name}</div>
+              </button>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Messages() {
   const [, navigate] = useLocation();
+  const urlSearch = useSearch();
   const { user } = useAuth();
 
   const [view, setView] = useState<"list" | "chat">("list");
@@ -664,6 +749,9 @@ export default function Messages() {
   const [search, setSearch] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [coMembers, setCoMembers] = useState<CoMember[]>([]);
+  const [loadingCoMembers, setLoadingCoMembers] = useState(false);
   const [toastText, setToastText] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>({ text: "" });
 
@@ -726,33 +814,63 @@ export default function Messages() {
     try {
       const convs = await webCometChat.getConversations();
       const mapped: Chat[] = convs.map((c: any) => {
-        const group = c.getConversationWith();
-        const guid: string = group?.getGuid?.() ?? "";
+        const withEntity = c.getConversationWith();
+        const id: string = withEntity?.getGuid?.() ?? "";
         const lastMsg = c.getLastMessage();
         const lastText: string | undefined = lastMsg?.getText?.();
         const lastTs: number | undefined = lastMsg?.getSentAt?.()
           ? lastMsg.getSentAt() * 1000
           : undefined;
+        const isPeerDm = id.startsWith("peer_");
 
         return {
-          id: guid,
-          bubbleId: guid,
-          title: group?.getName?.() ?? "Group",
-          subtitle: `${group?.getMembersCount?.() ?? 0} members`,
-          avatar: bubbleImageMap[guid] ?? group?.getIcon?.() ?? "",
+          id,
+          bubbleId: id,
+          title: withEntity?.getName?.() ?? "Group",
+          subtitle: isPeerDm ? "" : `${withEntity?.getMembersCount?.() ?? 0} members`,
+          avatar: bubbleImageMap[id] ?? withEntity?.getIcon?.() ?? "",
           lastMessageText: lastText,
           lastMessageTs: lastTs,
-        };
+          isPeerDm,
+        } as Chat;
       });
 
       const unread: Record<string, number> = {};
       convs.forEach((c: any) => {
-        const guid = c.getConversationWith()?.getGuid?.() ?? "";
-        unread[guid] = c.getUnreadMessageCount?.() ?? 0;
+        const id: string = c.getConversationWith()?.getGuid?.() ?? "";
+        unread[id] = c.getUnreadMessageCount?.() ?? 0;
       });
 
-      setConversations(mapped);
+      setConversations((prev) => {
+        // preserve any not-yet-persisted DM (e.g. a brand-new conversation opened
+        // via "New Message" that has no messages yet, so CometChat won't list it)
+        const pending = prev.filter((p) => p.isPeerDm && !mapped.some((m) => m.id === p.id));
+        return [...pending, ...mapped];
+      });
       setUnreadByChat(unread);
+
+      // Peer DM groups are named "A & B" — resolve and show the OTHER person's
+      // real name/avatar instead, mirroring mobile's MessagesScreen behavior.
+      const myUid = myUidRef.current;
+      const peerChats = mapped.filter((c) => c.isPeerDm);
+      if (myUid && peerChats.length > 0) {
+        await Promise.all(
+          peerChats.map(async (c) => {
+            const otherUid = otherPeerUid(c.id, myUid);
+            if (!otherUid) return;
+            try {
+              const profile = await apiRequest("GET", `/api/users/${otherUid}/profile`).then((r) => r.json());
+              setConversations((prev) =>
+                prev.map((p) =>
+                  p.id === c.id
+                    ? { ...p, title: profile?.name || p.title, avatar: profile?.profilePhoto || p.avatar }
+                    : p,
+                ),
+              );
+            } catch (_) {}
+          }),
+        );
+      }
     } catch (err) {
       console.error("Failed to load conversations:", err);
     }
@@ -777,8 +895,8 @@ export default function Messages() {
       listenerId,
       new CometChat.MessageListener({
         onTextMessageReceived: (msg: any) => {
-          if (msg.getReceiverId?.() === activeChatId) {
-            const mapped = mapCcMessage(msg, myUidRef.current);
+          const mapped = mapCcMessage(msg, myUidRef.current);
+          if (mapped.chatId === activeChatId) {
             setActiveMessages((prev) => [...prev, mapped]);
             scrollToBottom();
           }
@@ -825,9 +943,103 @@ export default function Messages() {
     }
   };
 
+  /** Creates (idempotently), joins, and populates the CometChat "peer_" group
+   * for a 1:1 DM — mirrors mobile's MemberProfileScreen.handleMessage exactly,
+   * since DMs on this platform are CometChat private groups, not native 1:1 chats. */
+  const ensurePeerDmGroup = async (result: {
+    groupId: string;
+    groupName: string;
+    requester: { uid: string; name: string };
+    targetUser: { uid: string; name: string };
+  }) => {
+    try {
+      await webCometChat.createGroup(result.groupId, result.groupName, "private");
+    } catch (_) {}
+    try {
+      await webCometChat.joinGroup(result.groupId, "private");
+    } catch (_) {}
+    await webCometChat.addMembersToGroup(result.groupId, [
+      { uid: result.requester.uid, name: result.requester.name, scope: "participant" },
+      { uid: result.targetUser.uid, name: result.targetUser.name, scope: "participant" },
+    ]);
+  };
+
+  const openPeerDm = async (userId: string, displayName: string, avatar: string) => {
+    const result = await apiRequest("POST", `/api/users/${userId}/peer-dm`).then((r) => r.json());
+    await ensurePeerDmGroup(result);
+    const existing = conversations.find((c) => c.id === result.groupId);
+    if (!existing) {
+      const newChat: Chat = {
+        id: result.groupId,
+        bubbleId: result.groupId,
+        title: displayName,
+        subtitle: "",
+        avatar,
+        isPeerDm: true,
+      };
+      setConversations((prev) => [newChat, ...prev.filter((c) => c.id !== result.groupId)]);
+    }
+    await openChat(result.groupId);
+  };
+
+  // Deep link from elsewhere in the app, e.g. "Direct Message" on a member row:
+  // /messages?dmUid=<user-id>&dmName=<name>&dmAvatar=<url>
+  useEffect(() => {
+    if (!ccReady) return;
+    const params = new URLSearchParams(urlSearch);
+    const dmUid = params.get("dmUid");
+    if (!dmUid || dmUid === myUidRef.current) return;
+
+    (async () => {
+      try {
+        await openPeerDm(dmUid, params.get("dmName") || "Direct Message", params.get("dmAvatar") || "");
+      } catch (err) {
+        console.error("Failed to open deep-linked DM:", err);
+      } finally {
+        navigate("/messages", { replace: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ccReady, urlSearch]);
+
   const showToast = (text: string) => {
     setToastText(text);
     window.setTimeout(() => setToastText(null), 1400);
+  };
+
+  const openNewMessage = async () => {
+    setShowNewMessage(true);
+    setLoadingCoMembers(true);
+    try {
+      const bubbles = myBubbles ?? [];
+      const lists = await Promise.all(
+        bubbles.map((b: any) =>
+          apiRequest("GET", `/api/bubbles/${b.id}/members`).then((r) => r.json()).catch(() => []),
+        ),
+      );
+      const seen = new Map<string, CoMember>();
+      for (const list of lists) {
+        for (const m of list as any[]) {
+          if (m.userId === user?.id || seen.has(m.userId)) continue;
+          seen.set(m.userId, { userId: m.userId, name: m.user?.name ?? "Unknown", avatar: m.user?.profilePhoto ?? "" });
+        }
+      }
+      setCoMembers(Array.from(seen.values()));
+    } catch (err) {
+      console.error("Failed to load co-members:", err);
+    } finally {
+      setLoadingCoMembers(false);
+    }
+  };
+
+  const startDm = async (member: CoMember) => {
+    setShowNewMessage(false);
+    try {
+      await openPeerDm(member.userId, member.name, member.avatar);
+    } catch (err) {
+      console.error("Failed to start DM:", err);
+      showToast("Could not start conversation");
+    }
   };
 
   const send = async () => {
@@ -1041,13 +1253,22 @@ export default function Messages() {
         title="Messages"
         onBack={() => navigate("/explore")}
         right={
-          <button
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
-            data-testid="button-messages-more"
-            onClick={() => setToastText("Settings")}
-          >
-            <MoreVertical className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
+              data-testid="button-new-message"
+              onClick={openNewMessage}
+            >
+              <SquarePen className="h-5 w-5" />
+            </button>
+            <button
+              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-muted-foreground ring-1 ring-black/5"
+              data-testid="button-messages-more"
+              onClick={() => setToastText("Settings")}
+            >
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          </div>
         }
       />
 
@@ -1112,6 +1333,17 @@ export default function Messages() {
           </div>
         </div>
       ) : null}
+
+      <AnimatePresence>
+        {showNewMessage ? (
+          <NewMessageSheet
+            members={coMembers}
+            loading={loadingCoMembers}
+            onPick={startDm}
+            onClose={() => setShowNewMessage(false)}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { initErrorBuffer } from "./errorBuffer";
+import path from "path";
 import express, { type Request, Response, NextFunction } from "express";
 import { initialiseSentry, reportSlowResponse } from "./sentry";
 import { registerRoutes } from "./routes";
@@ -193,6 +194,14 @@ app.use((req, res, next) => {
 
     return res.status(status).json({ message });
   });
+
+  // Marketing site (website/) is served ahead of the app's own frontend
+  // handling below, so trybubble.io/ shows the marketing homepage rather
+  // than the SPA's `/` → `/explore` redirect. express.static only responds
+  // when a matching file exists (e.g. /, /about.html, /css/style.css), so
+  // every app route (/explore, /auth, /bubble/:id, ...) and every /api/*
+  // route falls through to the handling below exactly as before.
+  app.use(express.static(path.resolve(process.cwd(), "website")));
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

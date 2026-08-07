@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAQ - Bubble</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        main {
+            background: #F0F4F8;
+            padding: 80px 115px;
+            margin-top: 80px;
+        }
+
+        .faq-section {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h1 {
+            font-size: 2.5rem;
+            color: #1E1F26;
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 1.1rem;
+            color: #4D4D4D;
+            margin: 0;
+        }
+
+        .faq-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-question {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 24px 32px;
+            cursor: pointer;
+            user-select: none;
+            background: white;
+            border: none;
+            width: 100%;
+            text-align: left;
+            font-family: inherit;
+            transition: background 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background: #F9F9F9;
+        }
+
+        .faq-question span:first-child {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1E1F26;
+            flex: 1;
+        }
+
+        .faq-toggle {
+            font-size: 1.5rem;
+            color: #35A8F7;
+            font-weight: 300;
+            min-width: 40px;
+            text-align: right;
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item.active .faq-toggle {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: #FAFAFA;
+        }
+
+        .faq-item.active .faq-answer {
+            max-height: 500px;
+        }
+
+        .faq-answer-content {
+            padding: 0 32px 32px;
+            font-size: 0.95rem;
+            color: #4D4D4D;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                padding: 40px 24px;
+            }
+
+            .section-header h1 {
+                font-size: 2rem;
+            }
+
+            .faq-question {
+                padding: 20px 20px;
+            }
+
+            .faq-answer-content {
+                padding: 0 20px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <img src="images/bubble-logo-new.png" alt="Bubble" class="logo-img" style="height: 70px; width: auto;">
+            </a>
+            <ul class="nav-links">
+                <li><a href="how-it-works.html">How It Works</a></li>
+                <li><a href="community.html">Community</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="faq.html">FAQ</a></li>
+                <li><a href="waitlist.html" class="cta-button">Join Waitlist</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <section class="faq-section">
+            <div class="section-header">
+                <h1>Frequently Asked Questions</h1>
+                <p>Everything you need to know about Bubble</p>
+            </div>
+
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>What is Bubble?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Bubble is a mobile-first community platform that connects people through hyper-local events and groups. We make it effortless to discover activities in your neighborhood, meet verified members, and build lasting friendships through real-world experiences.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>How does verification work?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            We verify members through campus email addresses (.edu), community affiliations, and identity verification. This ensures every person on Bubble is who they say they are, creating a safe and trustworthy environment for authentic connections.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>When will Bubble launch?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            We're launching in Q1 2026, starting with Berkeley, SF, and the Bay Area. Join our waitlist to get early access and be among the first to build your local community on Bubble.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Is Bubble free to use?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Yes! Bubble is free for all members. Our mission is to combat loneliness and build community, making authentic connection accessible to everyone. We may introduce optional premium features in the future, but the core experience will always be free.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>What types of events can I find?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Everything from pickup sports (pickleball, basketball, tennis) to dining groups, hiking adventures, study sessions, coffee meetups, creative workshops, and more. If you can think of it, you can create a bubble for it!
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>Can I create my own bubble?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Absolutely! Creating a bubble is easy. Choose your interest, set the details (location, time, description), invite others, and watch your community grow. You can create both one-time events and ongoing groups.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>What makes Bubble different from other social apps?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Bubble focuses exclusively on real-world connection in your immediate area. We're hyper-local, verification-first, and built specifically for creating meaningful in-person experiences—not endless scrolling. Every feature is designed to get you offline and into the world with your community.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <button class="faq-question">
+                        <span>How do you handle safety concerns?</span>
+                        <span class="faq-toggle">+</span>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-content">
+                            Safety is our top priority. Beyond member verification, we have clear community guidelines, instant reporting tools, dedicated moderation, and public event locations. We also encourage group gatherings and provide safety resources for all members.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-container">
+            <div class="footer-section">
+                <h3>Bubble</h3>
+                <p>Building authentic community through hyper-local connection. Starting with Berkeley, SF, and the Bay Area.</p>
+                <div class="social-icons">
+                    <a href="#" class="social-icon">f</a>
+                    <a href="#" class="social-icon">𝕏</a>
+                    <a href="#" class="social-icon">in</a>
+                    <a href="#" class="social-icon">ig</a>
+                    <a href="#" class="social-icon" aria-label="TikTok">tt</a>
+                    <a href="#" class="social-icon" aria-label="Threads">@</a>
+                </div>
+            </div>
+
+            <div class="footer-section">
+                <h3>Product</h3>
+                <ul class="footer-links">
+                    <li><a href="how-it-works.html">How It Works</a></li>
+                    <li><a href="community.html">Community Examples</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="faq.html">FAQ</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Company</h3>
+                <ul class="footer-links">
+                    <li><a href="about.html">Our Story</a></li>
+                    <li><a href="waitlist.html">Join Waitlist</a></li>
+                    <li><a href="careers.html">Careers</a></li>
+                    <li><a href="press.html">Press</a></li>
+                </ul>
+            </div>
+
+            <div class="footer-section">
+                <h3>Contact</h3>
+                <ul class="footer-links">
+                    <li><a href="mailto:hello@trybubble.io">hello@trybubble.io</a></li>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="terms.html">Terms of Service</a></li>
+                    <li><a href="community-guidelines.html">Community Guidelines</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <p>© 2026 Bubble. All rights reserved. Built with ❤️ in the Bay Area.</p>
+        </div>
+    </footer>
+
+    <script>
+        // FAQ Toggle Functionality
+        const faqItems = document.querySelectorAll('.faq-item');
+        const faqQuestions = document.querySelectorAll('.faq-question');
+
+        faqQuestions.forEach(question => {
+            question.addEventListener('click', function() {
+                const parentItem = this.parentElement;
+                const isActive = parentItem.classList.contains('active');
+
+                // Close all other items
+                faqItems.forEach(item => {
+                    item.classList.remove('active');
+                });
+
+                // Toggle current item
+                if (!isActive) {
+                    parentItem.classList.add('active');
+                }
+            });
+        });
+    </script>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
