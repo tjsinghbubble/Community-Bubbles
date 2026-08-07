@@ -38,6 +38,16 @@ State suffix in `-r`/`-l` — best-effort, so (b)/(e) remain open.
 | o  | **[FIXED 2026-08-04]** `--start` of an iOS sim ALWAYS declared "NOT ready" after a successful boot — the readiness check consulted the stale pre-boot dev dict (`state='Shutdown'`) instead of re-probing; the failure also skipped `touch()`, so Last Used went stale | `_boot_ios()` now re-probes `_ios_sim_state()` (simctl list) after bootstatus; bootstatus's terminal verdict (-1 'Finished' / 3 'Data Migration Failed' on usable sims) is informational only |
 | p  | **[FIXED 2026-08-04]** `simctl bootstatus` output dumped raw: unsigned -1 status (4294967295), repeated poll lines, no MD timestamps | `_stream_bootstatus()` — narrated '[not] ready for use: <detail>' lines, emitted on CHANGE only, status re-printed signed (annotated on nonzero terminal); starting a sim that never boots still fails honestly |
 | q  | **[FIXED 2026-08-04]** starting a lone sim renamed its `-l` row to 'ios' (the platform default alias won the shortest-alias pick) | `_shortest_alias()` excludes ios/android/last-* from the Name cell; the ios/android holder shows a trailing `*` instead |
+| r  | `--copy` clones carry the SOURCE AVD's `default_boot` snapshot — its embedded identity (`avd.name`, disk paths) still names the source, so every load fails ("different AVD configuration") and ~3.5 GB of dead ram.bin rides along; the disk-reconcile heuristic then reports the clone as "baked+win" (Smokey, cloned from Pixel_10_-_hot_-_A.17_-_g.apis, proven 2026-08-06) | `clone_avd()` / `_clean_runtime_state()` — should drop `snapshots/` on clone; re-bake per clone |
+| s  | headless `-gpu auto` bakes record `hw.gpu.mode=swiftshader`, which a windowed start (auto→host) can never quick-boot — "different renderer configured" → silent cold boot on EVERY windowed start | `bake_optimizations()` gpu-mode selection vs `_windowed_start_is_cold()`; mitigated by (2026-08-06) post-start validation below |
+
+**2026-08-06 — emulator log tee + post-start snapshot validation:** `_android_start`
+tees emulator stdout/stderr to `tmp/emulator/<avd>.log` (was DEVNULL — growler
+messages were unretrievable). After every start, `_reconcile_snapshot_outcome()`
+parses that log for what the emulator ACTUALLY did: a silent cold-boot fallback on a
+supposedly-baked AVD warns with the emulator's reason, records a `snapshot-fallback`
+history event, and sets kv `snapshot_stale:<udid>` — shown as a trailing `!` on the
+Ready/Optimized marker. A confirmed quick-boot or a successful `--bake` clears it.
 
 **2026-08-04 — `--start` summary rework:** summaries use narrate/nerr timestamps (no
 `✗`), errors lead with `Error: `, the device is named by its aliases (humanized pool

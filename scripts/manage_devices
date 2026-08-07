@@ -267,6 +267,10 @@ def kv_set(k, v):
                  "ON CONFLICT(k) DO UPDATE SET v=excluded.v", (k, v))
     db().commit()
 
+def kv_del(k):
+    db().execute("DELETE FROM kv WHERE k=?", (k,))
+    db().commit()
+
 def log_history(udid, event, detail=None, duration_ms=None,
                 sys_load=None, dev_load=None):
     db().execute("INSERT INTO history(ts,udid,event,detail,duration_ms,sys_load,dev_load)"
@@ -1388,14 +1392,69 @@ def gpu_default():
     return "auto"
 
 
+def _emulator_log_path(avd):
+    """Per-AVD emulator stdout/stderr log, overwritten each boot. Lives in the
+    repo's tmp/ (git/Time-Machine/Spotlight-excluded), so the messages the
+    emulator UI only flashes as a vanishing growler — snapshot fallbacks, GPU
+    selection, 'starting from scratch' reasons — stay retrievable afterwards."""
+    d = REPO / "tmp" / "emulator"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{avd}.log"
+
 def _android_start(dev, flags):
     if dev["id"] not in android_avds():
         err(f"start: unknown AVD {dev['id']!r}")
         return False
-    subprocess.Popen([emulator_bin(), "-avd", dev["id"]] + flags,
-                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     start_new_session=True)
+    log_path = _emulator_log_path(dev["id"])
+    with open(log_path, "w") as lf:
+        subprocess.Popen([emulator_bin(), "-avd", dev["id"]] + flags,
+                         stdout=lf, stderr=subprocess.STDOUT,
+                         start_new_session=True)
+    narrate(f"  emulator output → {log_path}")
     return True
+
+def _snapshot_boot_outcome(avd):
+    """What the emulator ACTUALLY did about default_boot on its last boot, read
+    from the teed log (_emulator_log_path):
+      ('quick', None)    — the snapshot loaded.
+      ('cold', reason)   — load failed/rejected; emulator started from scratch
+                           (reason = the emulator's own explanation, e.g.
+                           'different renderer configured', 'different AVD
+                           configuration' — a clone's inherited snapshot).
+      (None, None)       — undetermined: no log, or a boot that never attempted
+                           a load (-no-snapshot-load).
+    A 'Loading snapshot' line with no subsequent failure/scratch line counts as
+    a successful load — the emulator prints no explicit success line."""
+    try:
+        text = _emulator_log_path(avd).read_text(errors="replace")
+    except OSError:
+        return None, None
+    m = re.search(r"starting from scratch\.?\s*Reason:\s*(.+)", text)
+    if m:
+        return "cold", m.group(1).strip()
+    if re.search(r"Failed to load snapshot 'default_boot'", text):
+        return "cold", "snapshot load failed"
+    if re.search(r"Loading snapshot 'default_boot'", text):
+        return "quick", None
+    return None, None
+
+def _reconcile_snapshot_outcome(dev):
+    """Post-start snapshot validation (2026-08-06, Travis): trust what the
+    emulator DID, not what the DB expects. A silent cold-boot fallback while the
+    DB says baked ⇒ warn loudly, record history, and set kv snapshot_stale:<udid>
+    (surfaced as a trailing '!' on the Ready/Optimized marker). A confirmed
+    quick-boot (or a later successful --bake) clears the flag."""
+    outcome, reason = _snapshot_boot_outcome(dev["id"])
+    row = _device_row(dev["id"])
+    if outcome == "cold" and row and row["has_default_boot"]:
+        nerr(f"warning: {dev['name']}: default_boot snapshot did NOT load — the "
+             f"emulator cold-booted from scratch ({reason}). The bake's quick-boot "
+             f"benefit is not being applied; re-bake with --bake[:windowed] "
+             f"(AOT compile state persists and needs no redo).")
+        log_history(dev["id"], "snapshot-fallback", detail=reason)
+        kv_set(f"snapshot_stale:{dev['id']}", reason or "cold-boot fallback")
+    elif outcome == "quick":
+        kv_del(f"snapshot_stale:{dev['id']}")
 
 # ── commands ───────────────────────────────────────────────────────────────────
 
@@ -1651,6 +1710,10 @@ def _ready_marker(d, row):
     lvl = row["compile_level"] if row else None
     baked = row["has_default_boot"] if row else None
     win = "+win" if (row and baked and row["default_boot_windowed"]) else ""
+    # '!' = the last start proved this snapshot does NOT load (cold-boot
+    # fallback; see _reconcile_snapshot_outcome) — the bake needs redoing.
+    if baked and kv_get(f"snapshot_stale:{d.get('id')}"):
+        win += "!"
     if lvl and baked:
         return f"baked/{lvl}{win}"
     if baked:
@@ -2839,6 +2902,8 @@ def start_one(dev, mode="optimized"):
     boot = _boot_ios if dev["kind"] == "ios" else _boot_android
     ok, fail_reason = boot(dev, mode)
     ms = int((time.time() - t0) * 1000)
+    if ok and dev["kind"] == "android" and dev.get("flavor", "Simulated") != "Real":
+        _reconcile_snapshot_outcome(dev)
     cpu, load = host_load_sample(dev)
     # Event stays 'warmup' — it is the boot-to-ready timing series _warm_estimate
     # medians over; detail carries the mode; a failed boot is tagged for --history.
@@ -3354,6 +3419,7 @@ def bake_optimizations(dev, level=None, windowed=False):
         # leaves an earlier level's compile_level standing rather than clearing it.
         cols["compile_level"] = level
     _device_set(dev["id"], **cols)
+    kv_del(f"snapshot_stale:{dev['id']}")   # fresh snapshot supersedes the flag
     kind = "quick-boot WINDOWED (fast + visible screen)" if windowed else "quick-boot optimized"
     narrate(f"bake done in {ms/1000:.0f}s: {dev['name']} will {kind}")
     return True

@@ -451,6 +451,62 @@ def test_display_short_prefers_model_for_real(md):
     assert md._display_short(sim, None) == "iPhone 16"
 
 
+def test_snapshot_boot_outcome(md, monkeypatch, tmp_path):
+    """The teed emulator log is the truth about how the boot ACTUALLY went."""
+    log = tmp_path / "avd.log"
+    monkeypatch.setattr(md, "_emulator_log_path", lambda avd: log)
+    log.write_text("USER_INFO    | The emulator is starting from scratch. "
+                   "Reason: different renderer configured\n")
+    assert md._snapshot_boot_outcome("X") == ("cold", "different renderer configured")
+    log.write_text("WARNING      | Failed to load snapshot 'default_boot'\n")
+    assert md._snapshot_boot_outcome("X") == ("cold", "snapshot load failed")
+    log.write_text("INFO         | Loading snapshot 'default_boot'...\n"
+                   "INFO         | Boot completed\n")
+    assert md._snapshot_boot_outcome("X") == ("quick", None)
+    log.write_text("INFO         | nothing about snapshots (-no-snapshot-load)\n")
+    assert md._snapshot_boot_outcome("X") == (None, None)
+    log.unlink()
+    assert md._snapshot_boot_outcome("X") == (None, None)
+
+
+def test_reconcile_snapshot_outcome_flags_and_clears(md, monkeypatch, capsys):
+    """A cold fallback on a supposedly-baked AVD warns + sets the stale flag
+    (Ready marker gains '!'); a confirmed quick-boot clears it."""
+    _seed(md, "AVD1", flavor="Simulated", typ="Android",
+          has_default_boot=1, compile_level="hot", default_boot_windowed=1)
+    dev = {"kind": "android", "id": "AVD1", "name": "AVD1", "state": "Running"}
+    monkeypatch.setattr(md, "_snapshot_boot_outcome",
+                        lambda avd: ("cold", "different AVD configuration"))
+    md._reconcile_snapshot_outcome(dev)
+    assert md.kv_get("snapshot_stale:AVD1") == "different AVD configuration"
+    assert "did NOT load" in capsys.readouterr().err
+    row = md._device_row("AVD1")
+    assert md._ready_marker(dev, row) == "baked/hot+win!"
+    ev = md.db().execute("SELECT event, detail FROM history WHERE udid='AVD1' "
+                         "ORDER BY ts DESC").fetchone()
+    assert ev["event"] == "snapshot-fallback"
+    monkeypatch.setattr(md, "_snapshot_boot_outcome", lambda avd: ("quick", None))
+    md._reconcile_snapshot_outcome(dev)
+    assert md.kv_get("snapshot_stale:AVD1") is None
+    assert md._ready_marker(dev, row) == "baked/hot+win"
+
+
+def test_android_start_tees_emulator_output(md, monkeypatch, tmp_path, capsys):
+    """Emulator stdout/stderr goes to a per-AVD log (was DEVNULL — growler
+    messages like the snapshot-fallback reason were unretrievable)."""
+    log = tmp_path / "AVD1.log"
+    monkeypatch.setattr(md, "_emulator_log_path", lambda avd: log)
+    monkeypatch.setattr(md, "android_avds", lambda: ["AVD1"])
+    captured = {}
+    def fake_popen(argv, **kw):
+        captured["stdout"] = kw.get("stdout")
+        return SimpleNamespace(pid=123)
+    monkeypatch.setattr(md.subprocess, "Popen", fake_popen)
+    assert md._android_start({"id": "AVD1"}, ["-no-window"]) is True
+    assert captured["stdout"].name == str(log) and log.exists()
+    assert str(log) in capsys.readouterr().out
+
+
 BOOTSTATUS_FEED = (
     "Monitoring boot status for iPhone 17 Pro Max / 26.5 (8A5DD49C).\n"
     "[2026-08-04 20:34:05 +0000] Status=1, isTerminal=NO, Elapsed=00:03.\n"
