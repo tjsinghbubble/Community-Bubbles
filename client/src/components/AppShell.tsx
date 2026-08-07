@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useLocation, useSearch } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
+  Bell,
   FolderOpen,
   HelpCircle,
   List,
   LogOut,
   Menu,
+  Search,
   Settings,
   Shield,
 } from "lucide-react";
@@ -61,6 +63,16 @@ const MOBILE_TABS = [
 ] as const;
 
 export type NavId = "explore" | "upcoming" | "bubbles" | "messages" | "profile";
+
+/* Persistent desktop top-nav links — mirrors mobile's page set (Explore /
+   Upcoming / Bubbles / Messages), labeled "Events" instead of "Upcoming" to
+   match the web copy the user approved. */
+const PRIMARY_NAV_LINKS: { id: NavId; label: string; href: string }[] = [
+  { id: "explore",  label: "Explore",  href: "/explore" },
+  { id: "bubbles",  label: "Bubbles",  href: "/my-bubbles" },
+  { id: "upcoming", label: "Events",   href: "/upcoming" },
+  { id: "messages", label: "Messages", href: "/messages" },
+];
 
 function BubbleLogo() {
   return (
@@ -240,21 +252,80 @@ function NavMenu({
   );
 }
 
+function NotificationMenu({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const { data: notifs, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/notifications"],
+    queryFn: () => apiRequest("GET", "/api/notifications?limit=10").then((r) => r.json()),
+  });
+
+  const markRead = async (id: string) => {
+    await apiRequest("PUT", `/api/notifications/${id}/read`);
+    qc.invalidateQueries({ queryKey: ["/api/notifications"] });
+    qc.invalidateQueries({ queryKey: ["/api/notifications/unread-count"] });
+  };
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_8px_40px_rgba(0,0,0,0.16)] z-50">
+      <div className="flex items-center justify-between border-b border-black/6 px-4 py-3">
+        <span className="text-[13px] font-semibold text-black">Notifications</span>
+        <button onClick={onClose} className="text-[12px] text-black/40 hover:text-black/70" data-testid="button-close-notifications">
+          Close
+        </button>
+      </div>
+      <div className="max-h-96 overflow-y-auto p-1.5">
+        {isLoading ? (
+          <div className="px-3 py-6 text-center text-[12px] text-black/40">Loading…</div>
+        ) : !notifs || notifs.length === 0 ? (
+          <div className="px-3 py-6 text-center text-[12px] text-black/40" data-testid="text-no-notifications">
+            You're all caught up.
+          </div>
+        ) : (
+          notifs.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => markRead(n.id)}
+              className={cn(
+                "flex w-full flex-col items-start gap-0.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4",
+                !n.read && "bg-[#35A8F7]/5",
+              )}
+              data-testid={`notification-${n.id}`}
+            >
+              <span className="text-[13px] font-semibold text-black">{n.title}</span>
+              <span className="line-clamp-2 text-[12px] text-black/55">{n.body}</span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({
   children,
   active,
-  centerContent,
-  subBar,
 }: {
   children: React.ReactNode;
   active: NavId;
-  centerContent?: React.ReactNode;
-  subBar?: React.ReactNode;
 }) {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const { user, logout } = useAuth();
   const [showNavMenu, setShowNavMenu] = useState(false);
   const navMenuRef = useRef<HTMLDivElement>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifMenuRef = useRef<HTMLDivElement>(null);
+  const [searchValue, setSearchValue] = useState(() => new URLSearchParams(search).get("q") ?? "");
+
+  useEffect(() => {
+    setSearchValue(new URLSearchParams(search).get("q") ?? "");
+  }, [search]);
+
+  const runSearch = (value: string) => {
+    const isExplore = window.location.pathname === "/explore";
+    const qs = value ? `?q=${encodeURIComponent(value)}` : "";
+    navigate(`/explore${qs}`, { replace: isExplore });
+  };
 
   const { data: me } = useQuery<any>({
     queryKey: ["/api/auth/me"],
@@ -267,6 +338,14 @@ export function AppShell({
     queryFn: () => apiRequest("GET", "/api/bubbles/my").then((r) => r.json()),
     enabled: !!user,
   });
+
+  const { data: unread } = useQuery<{ count: number }>({
+    queryKey: ["/api/notifications/unread-count"],
+    queryFn: () => apiRequest("GET", "/api/notifications/unread-count").then((r) => r.json()),
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
+  const unreadCount = unread?.count ?? 0;
 
   const displayName = me?.name || user?.name || "Me";
   const isSuperAdmin = me?.isSuperAdmin === true;
@@ -284,6 +363,18 @@ export function AppShell({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showNavMenu]);
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications]);
+
   const handleLogout = () => {
     logout();
     navigate("/auth");
@@ -300,27 +391,79 @@ export function AppShell({
             <BubbleLogo />
           </div>
 
-          {/* Center — optional slot (e.g. SearchPill on Explore), hidden on mobile */}
-          {centerContent ? (
-            <div className="hidden flex-1 justify-center px-4 md:flex">
-              <div className="w-full max-w-2xl">
-                {centerContent}
-              </div>
+          {/* Persistent search — global, always visible, hidden on mobile */}
+          <div className="hidden flex-1 justify-start px-2 md:flex">
+            <div className="flex w-full max-w-xs items-center gap-2 rounded-full border border-black/10 bg-[#FAFAFA] px-4 py-2 focus-within:bg-white focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.10)] transition-all">
+              <Search className="h-4 w-4 shrink-0 text-black/35" />
+              <input
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") runSearch(searchValue); }}
+                onBlur={() => runSearch(searchValue)}
+                placeholder="Start your search"
+                className="w-full bg-transparent text-[13px] text-black placeholder:text-black/40 focus:outline-none"
+                data-testid="input-header-search"
+              />
             </div>
-          ) : (
-            <div className="flex-1" />
-          )}
+          </div>
 
-          {/* Right — avatar circle + hamburger circle */}
+          {/* Primary nav links — desktop only */}
+          <nav className="hidden shrink-0 items-center gap-6 md:flex" aria-label="Primary">
+            {PRIMARY_NAV_LINKS.map((link) => {
+              const isActive = active === link.id;
+              return (
+                <button
+                  key={link.id}
+                  onClick={() => navigate(link.href)}
+                  className={cn(
+                    "border-b-2 pb-1 text-[13.5px] font-semibold transition-colors",
+                    isActive ? "border-[#35A8F7] text-[#35A8F7]" : "border-transparent text-black/60 hover:text-black/85",
+                  )}
+                  data-testid={`navlink-${link.id}`}
+                >
+                  {link.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="flex-1 md:hidden" />
+
+          {/* Right — bell + avatar circle + hamburger circle */}
           <div className="flex shrink-0 items-center gap-2">
+            {/* Notification bell */}
+            <div ref={notifMenuRef} className="relative">
+              <button
+                onClick={() => setShowNotifications((v) => !v)}
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
+                data-testid="button-notifications"
+                title="Notifications"
+              >
+                <Bell className="h-[18px] w-[18px] text-black/60" strokeWidth={1.8} />
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#E8453C] px-1 text-[9px] font-bold text-white"
+                    data-testid="badge-unread-notifications"
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+              {showNotifications && <NotificationMenu onClose={() => setShowNotifications(false)} />}
+            </div>
+
             {/* Avatar → Profile */}
             <button
               onClick={() => navigate("/profile")}
-              className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
+              className="relative grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
               data-testid="button-avatar"
               title="Profile"
             >
               <Avatar name={displayName} photo={me?.profilePhoto} />
+              <span
+                className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#34C759]"
+                aria-hidden="true"
+              />
             </button>
 
             {/* Hamburger → nav dropdown */}
@@ -345,13 +488,6 @@ export function AppShell({
             </div>
           </div>
         </div>
-
-        {/* ── Optional sub-bar (e.g. search row on Explore, like Airbnb) ── */}
-        {subBar && (
-          <div className="border-t border-black/6">
-            {subBar}
-          </div>
-        )}
       </header>
 
       {/* ── Page content ── */}
