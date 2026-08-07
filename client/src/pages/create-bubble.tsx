@@ -333,9 +333,10 @@ function StepCategory({ draft, setDraft, apiCategories }: { draft: Draft; setDra
               <div
                 className="mt-1.5"
                 style={{
+                  background: "linear-gradient(to top, rgba(0,0,0,0.55), transparent)",
                   fontSize: DS.font.sm,
                   fontWeight: sel ? 600 : 500,
-                  color: sel ? DS.color.brand.primary : DS.color.text.secondary,
+                  color: "#FFFFFF",
                 }}
               >
                 {cat.name}

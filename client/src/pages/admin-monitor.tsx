@@ -26,6 +26,7 @@ import {
   Shield,
   Wrench,
   Zap,
+  Rocket,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -956,6 +957,23 @@ export default function AdminMonitor() {
                   <Activity className="h-4 w-4 shrink-0 text-[#35A8F7]" />
                   <span className="flex-1 text-[13px] font-semibold">Latency Dashboard</span>
                   <span className="text-[11px] text-muted-foreground">live in-memory metrics</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Releases ── */}
+            <div>
+              <SectionLabel>Releases</SectionLabel>
+              <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/8">
+                <button
+                  onClick={() => navigate("/admin/release")}
+                  className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-black/5"
+                  data-testid="nav-release-status"
+                >
+                  <Rocket className="h-4 w-4 shrink-0 text-[#35A8F7]" />
+                  <span className="flex-1 text-[13px] font-semibold">Release Status</span>
+                  <span className="text-[11px] text-muted-foreground">web, iOS builds &amp; tests</span>
                   <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </button>
               </div>

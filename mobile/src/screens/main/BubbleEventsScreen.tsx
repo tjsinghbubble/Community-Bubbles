@@ -74,6 +74,22 @@ export default function BubbleEventsScreen({ navigation, route }: Props) {
     navigation.navigate('CreateEvent' as any, { bubbleId, bubbleTitle });
   };
 
+  const fetchBubble = async () => {
+    try {
+      const data = await apiService.getBubble(bubbleId) as Bubble;
+      setBubble(data);
+    } catch (error) {
+      console.error('Failed to fetch bubble:', error);
+    }
+  };
+
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const canCreateEvent = true; // Any logged-in user can propose events
+
+  const handleCreateEvent = () => {
+    navigation.navigate('CreateEvent' as any, { bubbleId, bubbleTitle });
+  };
+
   const fetchEvents = async () => {
     try {
       const data = await apiService.getBubbleEvents(bubbleId) as Event[];

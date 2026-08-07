@@ -20,6 +20,8 @@ import { assertEncryptionKey } from "./encryption";
 
 initialiseSentry();
 
+initialiseSentry();
+
 const app = express();
 const httpServer = createServer(app);
 

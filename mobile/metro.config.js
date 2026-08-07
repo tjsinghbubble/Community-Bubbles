@@ -2,17 +2,11 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
-const projectRoot = __dirname;
-const workspaceRoot = path.resolve(projectRoot, '..');
+const config = getDefaultConfig(__dirname);
 
-const config = getDefaultConfig(projectRoot);
-
-config.watchFolders = [workspaceRoot];
-
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(workspaceRoot, 'node_modules'),
-];
+config.resolver.extraNodeModules = {
+  'react-native-qrcode-svg': path.resolve(__dirname, '..', 'node_modules', 'react-native-qrcode-svg'),
+};
 
 // Force ALL React/React-Native imports — from any package, at any depth —
 // to resolve to the single copy inside mobile/node_modules.

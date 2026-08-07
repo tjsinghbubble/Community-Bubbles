@@ -25,6 +25,15 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   },
 }));
 
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 jest.mock('@sentry/react-native', () => ({
   init: jest.fn(),
   addBreadcrumb: jest.fn(),
@@ -1680,6 +1689,59 @@ describe('measureScreenLoad — ring buffer integration', () => {
     events.forEach((e) => {
       expect(e.screenName).toBe('TargetScreen');
     });
+  });
+
+  it('always calls the work callback regardless of span state', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(null);
+    const work = jest.fn().mockResolvedValue('result');
+
+    await measureScreenLoad('AnyScreen', work);
+
+    expect(work).toHaveBeenCalledTimes(1);
+  });
+
+  it('still returns work result when getActiveSpan throws', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockImplementation(() => {
+      throw new Error('span error');
+    });
+
+    const result = await measureScreenLoad('HomeScreen', async () => 'safe');
+
+    expect(result).toBe('safe');
+  });
+
+  it('still returns work result when setMeasurement throws', async () => {
+    const fakeSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+    (Sentry.setMeasurement as jest.Mock).mockImplementation(() => {
+      throw new Error('measurement error');
+    });
+
+    const result = await measureScreenLoad('HomeScreen', async () => 99);
+
+    expect(result).toBe(99);
+  });
+
+  it('does not throw when getActiveSpan throws', async () => {
+    (Sentry.getActiveSpan as jest.Mock).mockImplementation(() => {
+      throw new Error('instrumentation failure');
+    });
+
+    await expect(
+      measureScreenLoad('SafeScreen', async () => 'value'),
+    ).resolves.toBe('value');
+  });
+
+  it('does not throw when setMeasurement throws', async () => {
+    const fakeSpan = { finish: jest.fn() };
+    (Sentry.getActiveSpan as jest.Mock).mockReturnValue(fakeSpan);
+    (Sentry.setMeasurement as jest.Mock).mockImplementation(() => {
+      throw new Error('measurement boom');
+    });
+
+    await expect(
+      measureScreenLoad('SafeScreen', async () => 'value'),
+    ).resolves.toBe('value');
   });
 });
 

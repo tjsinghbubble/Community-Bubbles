@@ -963,6 +963,7 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
             )}
           </View>
         )}
+      </View>
 
         <View style={styles.spotsCenterRow}>
           <Text style={styles.spotsGreenText}>
@@ -1104,6 +1105,29 @@ export default function EventDetailsScreen({ navigation, route }: Props) {
           <View style={styles.bubbleInfo}>
             <Text style={styles.bubbleName}>{bubbleDisplayTitle || 'Bubble'}</Text>
             <Text style={styles.bubbleTagline} numberOfLines={1}>{creatorName}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.bubbleRow}
+          activeOpacity={0.7}
+          onPress={() => bubble && navigation.navigate('BubbleDetails', { bubbleId: bubble.id })}
+        >
+          <View style={styles.bubbleIconContainer}>
+            {bubble?.coverImage ? (
+              <Image source={{ uri: bubble.coverImage }} style={styles.bubbleIconImage} />
+            ) : (
+              <View style={styles.bubbleIconPlaceholder}>
+                <Ionicons name="people" size={20} color={Colors.brand.primary} />
+              </View>
+            )}
+          </View>
+          <View style={styles.bubbleInfo}>
+            <Text style={styles.bubbleName}>{bubbleDisplayTitle || 'Bubble'}</Text>
+            {bubble?.tagline ? (
+              <Text style={styles.bubbleTagline} numberOfLines={1}>{bubble.tagline}</Text>
+            ) : null}
           </View>
           <Ionicons name="chevron-forward" size={16} color={Colors.text.tertiary} />
         </TouchableOpacity>
@@ -1927,7 +1951,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  locationInfo: {
+  detailText: {
     flex: 1,
   },
   locationLandmark: {

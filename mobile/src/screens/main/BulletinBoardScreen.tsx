@@ -30,6 +30,7 @@ import { FlowHeader } from '../../components/ScreenHeader';
 import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 import { ChatBubbleIcon, ReactionFaceIcon, BulletinNewIcon, CreateAPostIcon, NothingHereYetIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BulletinBoardSkeleton } from '../../components/SkeletonLoader';
 
 type Props = {
   navigation: NativeStackNavigationProp<ExploreStackParamList, 'BulletinBoard'>;
@@ -634,7 +635,7 @@ export default function BulletinBoardScreen({ navigation, route }: Props) {
   );
 
   const renderFilterTabs = () => (
-    <View style={[BulletinPillStyles.container, styles.filterContainer, { justifyContent: 'center' }]}>
+    <View style={[BulletinPillStyles.container, styles.filterContainer, { justifyContent: 'flex-start' }]}>
       <TouchableOpacity
         style={[
           BulletinPillStyles.chip,

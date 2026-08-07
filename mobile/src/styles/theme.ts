@@ -59,8 +59,8 @@ export const Colors = {
   },
 
   gradient: {
-    gradient2Start: '#5FC3F8',
-    gradient2End: '#35A8F7',
+    gradient2Start: '#35A8F7',
+    gradient2End: '#FFFFFF',
   },
 };
 
@@ -75,13 +75,13 @@ export const CardShadow = {
 export const Gradients = {
   button: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0.2, y: 0 },
-    end: { x: 0.8, y: 1 },
+    start: { x: 0, y: 0 },
+    end: { x: 0.65, y: 1.65 },
   },
   alert: {
     colors: [Colors.gradient.gradient2Start, Colors.gradient.gradient2End] as const,
-    start: { x: 0.2, y: 0 },
-    end: { x: 0.8, y: 1 },
+    start: { x: 0, y: 0 },
+    end: { x: 0.65, y: 1.65 },
   },
 };
 

@@ -29,6 +29,11 @@ const CARD_GAP = Layout.gridColumnGap;
 const CARD_PADDING = Layout.gridScreenPadding;
 const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2;
 
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_GAP = 12;
+const CARD_PADDING = 20;
+const CARD_WIDTH = (SCREEN_WIDTH - CARD_PADDING * 2 - CARD_GAP) / 2;
+
 type Bubble = {
   id: string;
   title: string;
@@ -424,6 +429,59 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.sm + 2,
     color: Colors.text.tertiary,
     marginTop: Spacing.xxs,
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  eventDate: {
+    width: 60,
+    backgroundColor: 'hsl(210, 95%, 55%)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+  },
+  eventDateDay: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  eventDateMonth: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.state.error,
+  },
+  gridRejectedBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  gridRejectedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.state.error,
+  },
+  gridTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    marginTop: 8,
+  },
+  gridRole: {
+    fontSize: 13,
+    color: Colors.neutral.coolMist,
+    marginTop: 2,
   },
   createFirstButton: {
     width: '100%',

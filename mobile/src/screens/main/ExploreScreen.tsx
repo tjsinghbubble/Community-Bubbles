@@ -66,6 +66,8 @@ export default function ExploreScreen() {
   const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
   const [bubbles, setBubbles] = useState<BubbleData[]>([]);
   const [events, setEvents] = useState<EventData[]>([]);
+  const [campusBubbles, setCampusBubbles] = useState<BubbleData[]>([]);
+  const [campusEvents, setCampusEvents] = useState<EventData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -471,6 +473,7 @@ export default function ExploreScreen() {
     );
   }
 
+  // Determine if content is empty
   const currentData = activeTab === 'bubbles' ? filteredBubbles : filteredEvents;
   const isEmpty = currentData.length === 0;
 
@@ -938,6 +941,187 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     marginBottom: 12,
+  },
+  campusBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.brand.bubbleBlue,
+  },
+  studentPromptCard: {
+    width: '100%',
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: Colors.neutral.charcoal,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  studentPromptTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.neutral.charcoal,
+    marginBottom: 8,
+  },
+  studentPromptSubtitle: {
+    fontSize: 14,
+    color: Colors.neutral.coolMist,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  joinCampusButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginBottom: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  joinCampusButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  notStudentButton: {
+    paddingVertical: 8,
+  },
+  notStudentButtonText: {
+    color: Colors.neutral.coolMist,
+    fontSize: 14,
+  },
+  campusContent: {
+    padding: 16,
+  },
+  campusHeader: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: Colors.neutral.charcoal,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  campusName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.neutral.charcoal,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  campusSubtitle: {
+    fontSize: 14,
+    color: Colors.neutral.coolMist,
+    marginTop: 4,
+  },
+  campusSection: {
+    marginBottom: 24,
+  },
+  campusSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    marginBottom: 12,
+  },
+  campusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  campusEmpty: {
+    alignItems: 'center',
+    padding: 40,
+    gap: 12,
+  },
+  campusFab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 80,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.brand.skyWhite,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.neutral.charcoal,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    borderWidth: 2,
+    borderColor: Colors.neutral.coolMist,
+  },
+  campusFabActive: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderColor: Colors.brand.bubbleBlue,
+  },
+  createFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    alignItems: 'center',
+  },
+  sheetHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Colors.neutral.coolMist,
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.neutral.charcoal,
+    marginBottom: 8,
+  },
+  sheetOption: {
+    width: '100%',
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  sheetOptionText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: Colors.brand.bubbleBlue,
+  },
+  sheetDivider: {
+    width: '100%',
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.neutral.coolMist,
+  },
+  campusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'hsl(210, 95%, 95%)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'hsl(210, 95%, 85%)',
   },
   campusBannerText: {
     fontSize: 14,

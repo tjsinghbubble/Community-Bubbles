@@ -35,6 +35,8 @@ import unreadEvents from '../../utils/unreadEvents';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 type MessagesStackParamList = {
   MessagesList: undefined;
   Chat: { groupId: string; groupName: string };
@@ -1712,5 +1714,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.text.secondary ?? Colors.neutral.coolMist,
     opacity: 0.8,
+  },
+  attachButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  imageBubble: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 4,
+  },
+  messageImage: {
+    width: SCREEN_WIDTH * 0.55,
+    height: SCREEN_WIDTH * 0.55,
+    borderRadius: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  attachmentModal: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  attachmentModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.neutral.charcoal,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  attachmentOptions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 40,
+  },
+  attachmentOption: {
+    alignItems: 'center',
+  },
+  attachmentIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  attachmentLabel: {
+    fontSize: 13,
+    color: Colors.neutral.coolMist,
+  },
+  fullScreenImageContainer: {
+    flex: 1,
+    backgroundColor: Colors.neutral.charcoal,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: SCREEN_WIDTH,
+    height: '80%',
   },
 });

@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import apiService from '../../services/api.service';
 import LocationPickerModal from '../../components/LocationPickerModal';
@@ -1520,6 +1521,17 @@ const styles = StyleSheet.create({
     color: Colors.neutral.charcoal,
     flex: 1,
   },
+  reviewDetailLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.neutral.coolMist,
+    marginBottom: 2,
+  },
+  reviewDetailValue: {
+    fontSize: 15,
+    color: Colors.neutral.charcoal,
+    flex: 1,
+  },
   stepIndicatorBar: {
     flexDirection: 'row',
     paddingHorizontal: 16,
@@ -1541,6 +1553,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+  },
+  successModal: {
+    backgroundColor: Colors.brand.skyWhite,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 320,
   },
   successModal: {
     backgroundColor: Colors.brand.skyWhite,

@@ -272,6 +272,29 @@ export default function CreateBubbleScreen({ navigation }: Props) {
     })
   ).current;
 
+  const sliderWidth = useRef(0);
+
+  const handleSliderLayout = (e: LayoutChangeEvent) => {
+    sliderWidth.current = e.nativeEvent.layout.width;
+  };
+
+  const handleSliderTouch = (e: GestureResponderEvent) => {
+    if (sliderWidth.current <= 0) return;
+    const x = e.nativeEvent.locationX;
+    const ratio = Math.max(0, Math.min(1, x / sliderWidth.current));
+    const val = Math.round(1 + ratio * 49);
+    setRadiusMiles(val);
+  };
+
+  const sliderPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => handleSliderTouch(e),
+      onPanResponderMove: (e) => handleSliderTouch(e),
+    })
+  ).current;
+
   const isCampusVerified = user?.campusVerified && user?.campusId;
 
   const allRuleTexts = ruleEntries.map(r => `${r.name}. ${r.description}`);
@@ -401,7 +424,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           privacy,
           coverImage: images.length > 0 ? images[0] : null,
           images,
-          attachments,
+          attachments: [],
           memberLimit: memberLimit && !isNaN(parseInt(memberLimit)) ? parseInt(memberLimit) : null,
           locationName: locationName || null,
           locationAddress: locationAddress || null,
@@ -597,6 +620,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           testID="input-title"
           accessibilityLabel="Bubble Title"
         />
+        <Text style={styles.charCount}>{title.length}/60</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -611,6 +635,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           testID="input-tagline"
           accessibilityLabel="Bubble Tagline"
         />
+        <Text style={styles.charCount}>{tagline.length}/100</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -628,6 +653,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           testID="input-description"
           accessibilityLabel="Bubble Description"
         />
+        <Text style={styles.charCount}>{description.length}/500</Text>
       </View>
 
       <View style={styles.fieldGroup}>
@@ -688,7 +714,7 @@ export default function CreateBubbleScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.fieldGroup}>
-        <Text style={styles.fieldLabel}>Add a Cover Photo <Text style={styles.optional}>(Strongly Recommended)</Text></Text>
+        <Text style={styles.fieldLabel}>Cover Photo <Text style={styles.optional}>(optional)</Text></Text>
         <MultiImagePicker
           images={images}
           onImagesChange={setImages}
@@ -1030,6 +1056,314 @@ export default function CreateBubbleScreen({ navigation }: Props) {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Add a Cover Photo <Text style={styles.optional}>(Strongly Recommended)</Text></Text>
+        <MultiImagePicker
+          images={images}
+          onImagesChange={setImages}
+          maxImages={1}
+        />
+      </View>
+
+      {isCampusVerified && (
+        <View style={styles.fieldGroup}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <View style={styles.toggleLabelRow}>
+                <Text style={{ fontSize: Typography.sizes.md }}>🎓</Text>
+                <Text style={styles.toggleLabel}>Campus Only</Text>
+              </View>
+              <Text style={styles.helperText}>
+                Only students from your campus can see and join
+              </Text>
+            </View>
+            <Switch
+              value={campusOnly}
+              onValueChange={setCampusOnly}
+              trackColor={{ false: SwitchColors.trackFalse, true: SwitchColors.trackTrue }}
+              thumbColor={campusOnly ? SwitchColors.thumbTrue : SwitchColors.thumbFalse}
+            />
+          </View>
+        </View>
+      )}
+
+      <LocationPickerModal
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onSelect={handleLocationSelect}
+        apiKey={GOOGLE_PLACES_API_KEY}
+      />
+    </View>
+  );
+
+  const renderStepRules = () => (
+    <View style={styles.formSection}>
+      {MANDATORY_RULES.map((rule, index) => (
+        <View key={`mandatory-${index}`} style={styles.ruleItem}>
+          <View style={styles.ruleNumberBadge}>
+            <Text style={styles.ruleNumberText}>{index + 1}</Text>
+          </View>
+          <View style={styles.ruleContent}>
+            <Text style={styles.ruleText}>{rule}</Text>
+            <View style={styles.ruleBadge}>
+              <Ionicons name="lock-closed" size={10} color={Colors.text.tertiary} />
+              <Text style={styles.ruleBadgeText}>Required</Text>
+            </View>
+          </View>
+        </View>
+      ))}
+
+      <View style={styles.ruleItem}>
+        <View style={styles.ruleNumberBadge}>
+          <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1}</Text>
+        </View>
+        <View style={styles.ruleContent}>
+          <Text style={styles.ruleText}>{DEFAULT_OPTIONAL_RULE}</Text>
+          <View style={styles.ruleBadge}>
+            <Text style={styles.ruleBadgeText}>Default</Text>
+          </View>
+        </View>
+      </View>
+
+      {customRules.map((rule, index) => (
+        <View key={`custom-${index}`} style={styles.ruleItem}>
+          <View style={styles.ruleNumberBadge}>
+            <Text style={styles.ruleNumberText}>{MANDATORY_RULES.length + 1 + index + 1}</Text>
+          </View>
+          <TouchableOpacity style={styles.ruleContent} onPress={() => openEditRule(index)}>
+            <Text style={styles.ruleText}>{rule}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => deleteRule(index)} style={styles.ruleDeleteBtn}>
+            <Ionicons name="close-circle" size={20} color={Colors.text.tertiary} />
+          </TouchableOpacity>
+        </View>
+      ))}
+
+      <TouchableOpacity style={styles.addRuleButton} onPress={openAddRule}>
+        <Ionicons name="add" size={20} color={Colors.brand.primary} />
+        <Text style={styles.addRuleText}>Add Rule</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderStepPrivacy = () => (
+    <View style={styles.formSection}>
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Who Can See This Bubble? <Text style={styles.required}>*</Text></Text>
+        <View style={{ gap: Spacing.sm, marginTop: Spacing.sm }}>
+          {PRIVACY_OPTIONS.map((opt) => {
+            const selected = privacy === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[RadioStyles.card, selected && RadioStyles.cardSelected]}
+                onPress={() => setPrivacy(opt.value)}
+              >
+                <View style={[RadioStyles.circle, selected && RadioStyles.circleSelected]}>
+                  {selected && <View style={RadioStyles.innerDot} />}
+                </View>
+                <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                  <Text style={RadioStyles.label}>{opt.label}</Text>
+                  <Text style={RadioStyles.description}>{opt.subtitle}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <Text style={styles.fieldLabel}>Member Limit</Text>
+        <TextInput
+          style={styles.fieldInput}
+          placeholder='Ex: 20'
+          placeholderTextColor={Colors.text.tertiary}
+          value={memberLimit}
+          onChangeText={(t) => setMemberLimit(t.replace(/[^0-9]/g, '').slice(0, 5))}
+          keyboardType="number-pad"
+          maxLength={5}
+        />
+        <Text style={styles.helperText}>Leave empty for unlimited</Text>
+      </View>
+    </View>
+  );
+
+  const renderStepPreview = () => (
+    <View style={styles.formSection}>
+      <View style={styles.reviewCard}>
+        {images.length > 0 ? (
+          <Image source={{ uri: images[0] }} style={styles.reviewCoverImage} />
+        ) : (
+          <View style={[styles.reviewCoverImage, styles.reviewCoverPlaceholder]}>
+            <Ionicons name="image-outline" size={40} color={Colors.text.tertiary} />
+          </View>
+        )}
+
+        <View style={styles.reviewBody}>
+          <View style={styles.reviewCategoryBadge}>
+            <Text style={styles.reviewCategoryText}>{category}</Text>
+          </View>
+          <Text style={styles.reviewTitle}>{title}</Text>
+          {tagline ? <Text style={styles.reviewTagline}>{tagline}</Text> : null}
+
+          <View style={styles.reviewInfoRow}>
+            <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
+            <Text style={styles.reviewInfoText}>0 members</Text>
+          </View>
+        </View>
+
+        <View style={styles.reviewDivider} />
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Description</Text>
+          <Text style={styles.reviewSectionBody}>{description}</Text>
+        </View>
+
+        {locationName ? (
+          <>
+            <View style={styles.reviewDivider} />
+            <View style={styles.reviewSection}>
+              <Text style={styles.reviewSectionTitle}>Location</Text>
+              <View style={styles.reviewInfoRow}>
+                <Ionicons name="location-outline" size={16} color={Colors.text.tertiary} />
+                <Text style={styles.reviewInfoText}>{locationName} · {radiusMiles} mi radius</Text>
+              </View>
+              {locationAddress ? (
+                <Text style={styles.reviewLocationAddress}>{locationAddress}</Text>
+              ) : null}
+            </View>
+          </>
+        ) : null}
+
+        <View style={styles.reviewDivider} />
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Rules ({allRules.length})</Text>
+          {allRules.map((rule, i) => (
+            <Text key={i} style={styles.reviewRuleItem}>{i + 1}. {rule}</Text>
+          ))}
+        </View>
+
+        <View style={styles.reviewDivider} />
+
+        <View style={styles.reviewSection}>
+          <Text style={styles.reviewSectionTitle}>Privacy</Text>
+          <View style={styles.reviewInfoRow}>
+            <Ionicons name="lock-closed-outline" size={16} color={Colors.text.tertiary} />
+            <Text style={styles.reviewInfoText}>{PRIVACY_OPTIONS.find(p => p.value === privacy)?.label || privacy}</Text>
+          </View>
+          {memberLimit ? (
+            <View style={styles.reviewInfoRow}>
+              <Ionicons name="people-outline" size={16} color={Colors.text.tertiary} />
+              <Text style={styles.reviewInfoText}>{memberLimit} member limit</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 0: return renderStepCategory();
+      case 1: return renderStepDetails();
+      case 2: return renderStepRules();
+      case 3: return renderStepPrivacy();
+      case 4: return renderStepPreview();
+      default: return null;
+    }
+  };
+
+  const renderNextButton = () => {
+    const isReview = step === 4;
+    const disabled = !canGoNext();
+    return (
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={[disabled && styles.buttonDisabled]}
+          onPress={isReview ? handleSubmit : goNext}
+          disabled={disabled}
+          activeOpacity={0.8}
+        >
+          <View style={styles.primaryButton}>
+            <Text style={styles.primaryButtonText}>
+              {isReview ? 'Submit for review' : 'Next'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {renderHeader()}
+      {renderProgressBar()}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 100 }}
+        >
+          {renderStepContent()}
+        </ScrollView>
+      </KeyboardAvoidingView>
+      {renderNextButton()}
+
+      <Modal
+        visible={showRuleModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRuleModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowRuleModal(false)}
+        >
+          <View style={styles.modalContainer} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingRuleIndex !== null ? 'Edit Rule' : 'Add Rule'}
+              </Text>
+            </View>
+            <TextInput
+              style={[styles.fieldInput, styles.textArea, { marginVertical: Spacing.lg }]}
+              placeholder="Enter your rule..."
+              placeholderTextColor={Colors.text.tertiary}
+              value={ruleText}
+              onChangeText={setRuleText}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.modalSecondaryBtn}
+                onPress={() => setShowRuleModal(false)}
+              >
+                <Text style={styles.modalSecondaryText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.primaryButton, { flex: 1 }, !ruleText.trim() && { opacity: 0.5 }]}
+                onPress={saveRule}
+                disabled={!ruleText.trim()}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {editingRuleIndex !== null ? 'Save' : 'Add Rule'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1095,6 +1429,26 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.base,
     backgroundColor: Colors.background.primary,
     color: Colors.text.primary,
+  },
+  fieldInputRow: {
+    borderWidth: 1,
+    borderColor: Colors.neutral.coolMist,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.brand.skyWhite,
+  },
+  fieldValue: {
+    fontSize: Typography.sizes.md,
+    color: Colors.neutral.charcoal,
+    flex: 1,
+  },
+  fieldPlaceholder: {
+    fontSize: Typography.sizes.md,
+    color: Colors.neutral.coolMist,
+    flex: 1,
   },
   textArea: {
     height: undefined,
@@ -1287,6 +1641,7 @@ const styles = StyleSheet.create({
   },
   ruleText: {
     fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.base,
   },
@@ -1398,6 +1753,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.xxs,
   },
   reviewRuleItem: {
     fontSize: Typography.sizes.base,
@@ -1618,5 +1974,22 @@ const styles = StyleSheet.create({
   categoryImageLabelSelected: {
     color: Colors.brand.primary,
     fontWeight: Typography.weights.bold,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.neutral.cloudGrey,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border.default,
+    backgroundColor: Colors.background.primary,
+  },
+  modalSecondaryText: {
+    fontSize: Typography.sizes.md,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.secondary,
+    letterSpacing: Typography.letterSpacing.tight,
   },
 });

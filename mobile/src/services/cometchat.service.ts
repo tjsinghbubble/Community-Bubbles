@@ -104,6 +104,36 @@ class CometChatService {
     }
   }
 
+  async getGroupMembers(guid: string): Promise<Array<{ uid: string; name: string; avatar?: string; scope: string }>> {
+    try {
+      const limit = 100;
+      const groupMemberRequest = new CometChat.GroupMembersRequestBuilder(guid)
+        .setLimit(limit)
+        .build();
+      const members = await groupMemberRequest.fetchNext();
+      return members.map((m: any) => ({
+        uid: m.getUid(),
+        name: m.getName(),
+        avatar: m.getAvatar() || undefined,
+        scope: m.getScope(),
+      }));
+    } catch (error) {
+      console.error('Failed to fetch group members:', error);
+      return [];
+    }
+  }
+
+  async ensureLoggedIn(userId: number | string, userName: string): Promise<void> {
+    try {
+      if (!this.initialized) await this.init();
+      const existing = await CometChat.getLoggedinUser();
+      if (existing) return;
+      await this.loginUser(String(userId), userName);
+    } catch (error) {
+      console.log('CometChat ensureLoggedIn error:', error);
+    }
+  }
+
   async logoutUser() {
     // If CometChat was never initialized, there's nothing to log out of.
     // Returning early here is critical — it prevents the SDK from being loaded
@@ -525,6 +555,264 @@ class CometChatService {
 
   removeUserPresenceListener(listenerID: string) {
     cc().removeUserListener(listenerID);
+  }
+
+  async getConversations() {
+    try {
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(30)
+        .setConversationType('group')
+        .build();
+      
+      const conversations = await conversationsRequest.fetchNext();
+      console.log('Fetched conversations:', conversations.length);
+      return conversations;
+    } catch (error) {
+      console.error('Failed to fetch conversations:', error);
+      throw error;
+    }
+  }
+
+  async getTotalUnreadCount(): Promise<number> {
+    try {
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(50)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      let total = 0;
+      for (const conv of conversations) {
+        const count = (conv as any).unreadMessageCount || 0;
+        total += count;
+      }
+      return total;
+    } catch (error) {
+      console.error('Failed to get unread count:', error);
+      return 0;
+    }
+  }
+
+  async getPermissionFilteredUnreadCount(approvedBubbleIds: Set<string>): Promise<number> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) {
+        return 0;
+      }
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(100)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      let total = 0;
+      for (const conv of conversations) {
+        const guid: string = (conv as any).conversationWith?.guid || '';
+        const isDm = guid.startsWith('contact_') || guid.startsWith('adm_') || guid.startsWith('peer_');
+        if (!isDm && !approvedBubbleIds.has(guid)) continue;
+        const count = (conv as any).unreadMessageCount || 0;
+        total += count;
+      }
+      return total;
+    } catch (error: any) {
+      if (error?.code === 'USER_NOT_LOGED_IN') {
+        return 0;
+      }
+      console.error('Failed to get filtered unread count:', error);
+      return 0;
+    }
+  }
+
+  async getAdmConversationCountForBubble(bubbleId: string): Promise<number> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) return 0;
+      const conversationsRequest = new CometChat.ConversationsRequestBuilder()
+        .setLimit(50)
+        .setConversationType('group')
+        .build();
+      const conversations = await conversationsRequest.fetchNext();
+      const prefix = `adm_${bubbleId}_`;
+      return conversations.filter((conv: any) => {
+        const guid: string = conv.conversationWith?.guid || '';
+        return guid.startsWith(prefix);
+      }).length;
+    } catch {
+      return 0;
+    }
+  }
+
+  async getMessages(guid: string, limit: number = 50) {
+    try {
+      const messagesRequest = new CometChat.MessagesRequestBuilder()
+        .setGUID(guid)
+        .setLimit(limit)
+        .build();
+      
+      const messages = await messagesRequest.fetchPrevious();
+      return messages;
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        return { notMember: true, messages: [] };
+      }
+      console.error('Failed to fetch messages:', error);
+      throw error;
+    }
+  }
+
+  async addReaction(messageId: string | number, emoji: string) {
+    try {
+      const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
+      await CometChat.addReaction(numericId, emoji);
+      console.log('Reaction added:', emoji);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      throw error;
+    }
+  }
+
+  async removeReaction(messageId: string | number, emoji: string) {
+    try {
+      const numericId = typeof messageId === 'string' ? parseInt(messageId) : messageId;
+      await CometChat.removeReaction(numericId, emoji);
+      console.log('Reaction removed:', emoji);
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+      throw error;
+    }
+  }
+
+  async getMessageReactions(messageId: string) {
+    try {
+      const request = new CometChat.ReactionsRequestBuilder()
+        .setMessageId(parseInt(messageId))
+        .setLimit(100)
+        .build();
+      const reactions = await request.fetchNext();
+      return reactions;
+    } catch (error) {
+      console.error('Failed to fetch reactions:', error);
+      return [];
+    }
+  }
+
+  async sendReplyMessage(guid: string, text: string, parentMessageId: number) {
+    try {
+      const receiverID = guid;
+      const messageText = text;
+      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
+      const textMessage = new CometChat.TextMessage(
+        receiverID,
+        messageText,
+        receiverType
+      );
+      textMessage.setParentMessageId(parentMessageId);
+      
+      const message = await CometChat.sendMessage(textMessage);
+      console.log('Reply message sent successfully:', message);
+      return message;
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        throw new Error('You are not a member of this group and cannot send messages.');
+      }
+      console.error('Reply message sending failed:', error);
+      throw error;
+    }
+  }
+
+  getReactionListener(listenerID: string, onReactionAdded: (reaction: any) => void, onReactionRemoved: (reaction: any) => void) {
+    return new CometChat.MessageListener({
+      onTextMessageReceived: () => {},
+      onMessageReactionAdded: (reaction: any) => {
+        onReactionAdded(reaction);
+      },
+      onMessageReactionRemoved: (reaction: any) => {
+        onReactionRemoved(reaction);
+      },
+    });
+  }
+
+  async sendMediaMessage(guid: string, fileUri: string, fileName: string, mimeType: string) {
+    try {
+      const receiverID = guid;
+      const receiverType = CometChat.RECEIVER_TYPE.GROUP;
+      
+      const file = {
+        uri: fileUri,
+        name: fileName,
+        type: mimeType,
+      };
+      
+      const mediaMessage = new CometChat.MediaMessage(
+        receiverID,
+        file,
+        CometChat.MESSAGE_TYPE.IMAGE,
+        receiverType
+      );
+      
+      const message = await CometChat.sendMediaMessage(mediaMessage);
+      console.log('Media message sent successfully:', message);
+      return message;
+    } catch (error: any) {
+      if (error?.code === 'ERR_GROUP_NOT_JOINED') {
+        throw new Error('You are not a member of this group and cannot send images.');
+      }
+      console.error('Media message sending failed:', error);
+      throw error;
+    }
+  }
+
+  async markAsRead(guid: string, lastMessageId: string, lastMessageSenderUid: string): Promise<void> {
+    try {
+      const loggedInUser = await CometChat.getLoggedinUser();
+      if (!loggedInUser) return;
+      const numericId = parseInt(lastMessageId, 10);
+      if (isNaN(numericId)) return;
+      await CometChat.markAsRead(numericId, guid, CometChat.RECEIVER_TYPE.GROUP, lastMessageSenderUid);
+    } catch (error) {
+      console.log('markAsRead error (non-critical):', error);
+    }
+  }
+
+  getFullMessageListener(
+    listenerID: string, 
+    onTextMessage: (message: any) => void,
+    onMediaMessage: (message: any) => void
+  ) {
+    return new CometChat.MessageListener({
+      onTextMessageReceived: (message: any) => {
+        onTextMessage(message);
+      },
+      onMediaMessageReceived: (message: any) => {
+        onMediaMessage(message);
+      },
+    });
+  }
+
+  async getPeerUser(uid: string): Promise<{ status: 'online' | 'offline'; lastActiveAt: number | null }> {
+    try {
+      const user = await CometChat.getUser(uid);
+      const status = (user as any).getStatus?.() === 'online' ? 'online' : 'offline';
+      const lastActiveAt = (user as any).getLastActiveAt?.() ?? null;
+      return { status, lastActiveAt };
+    } catch (error) {
+      console.log('getPeerUser error (non-critical):', error);
+      return { status: 'offline', lastActiveAt: null };
+    }
+  }
+
+  addUserPresenceListener(
+    listenerID: string,
+    onUserOnline: (user: any) => void,
+    onUserOffline: (user: any) => void
+  ) {
+    const listener = new CometChat.UserListener({
+      onUserOnline: (user: any) => onUserOnline(user),
+      onUserOffline: (user: any) => onUserOffline(user),
+    });
+    CometChat.addUserListener(listenerID, listener);
+  }
+
+  removeUserPresenceListener(listenerID: string) {
+    CometChat.removeUserListener(listenerID);
   }
 }
 

@@ -833,6 +833,14 @@ export default function BubbleDetails() {
     };
   }, [bubbleData, rulesData, isMember, id]);
 
+  const joinKey = `bubble:joined:${bubble.id}`;
+  const joined = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(joinKey) === "1";
+  }, [joinKey]);
+
+  bubble.isActiveMember = bubble.isActiveMember || joined;
+
   if (view === "members") {
     return <MembersScreen onBack={() => setView("bubble")} />;
   }

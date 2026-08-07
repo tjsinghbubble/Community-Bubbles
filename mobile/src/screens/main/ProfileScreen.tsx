@@ -447,6 +447,36 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
           </AnimatedPressable>
         </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Legal</Text>
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('TermsOfService')}
+            testID="link-terms-of-service"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="document-text-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Terms of Service</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+
+          <AnimatedPressable
+            style={styles.menuItem}
+            scaleValue={0.97}
+            onPress={() => (navigation as NavigationProp<ProfileStackParamList>).navigate('PrivacyPolicy')}
+            testID="link-privacy-policy"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="shield-checkmark-outline" size={24} color={Colors.text.secondary} />
+              <Text style={styles.menuItemText}>Privacy Policy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+          </AnimatedPressable>
+        </View>
       </ScrollView>
 
     </SafeAreaView>
@@ -471,6 +501,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightSilver,
   },
   editButton: {
     width: 40,
@@ -708,5 +740,20 @@ const styles = StyleSheet.create({
     color: Colors.brand.skyWhite,
     fontSize: Typography.sizes.xs,
     fontWeight: Typography.weights.semiBold,
+  },
+  badge: {
+    backgroundColor: Colors.brand.bubbleBlue,
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  badgeText: {
+    color: Colors.brand.skyWhite,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

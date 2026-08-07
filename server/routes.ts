@@ -15,6 +15,7 @@ import { registerReportsRoute } from "./reports-handler";
 import { registerCrashReportRoute } from "./crash-report-handler";
 import { registerPasswordResetRoutes } from "./password-reset-handler";
 import { registerSuspendUserRoutes } from "./suspend-user-handler";
+import { registerReleaseStatusRoutes } from "./release-status-handler";
 import { registerSocialAuthRoutes } from "./social-auth-handler";
 import { seedCampuses } from "./seed-campuses";
 import { seedCategories } from "./seed-categories";
@@ -599,6 +600,20 @@ export async function registerRoutes(
     }
   });
 
+  // Crash report: receive and log JS errors from mobile and web clients
+  app.post("/api/crash-report", async (req, res) => {
+    try {
+      const { message, stack, componentStack, timestamp, platform } = req.body || {};
+      console.error(`[CRASH REPORT] platform=${platform || 'unknown'} time=${timestamp || new Date().toISOString()}`);
+      if (message) console.error(`[CRASH] message: ${message}`);
+      if (stack) console.error(`[CRASH] stack: ${stack}`);
+      if (componentStack) console.error(`[CRASH] componentStack: ${componentStack}`);
+      res.json({ received: true });
+    } catch (e) {
+      res.json({ received: true });
+    }
+  });
+
   // CometChat: generate auth token for the authenticated user (creates CC user if needed)
   app.post("/api/cometchat/auth-token", authMiddleware, async (req, res) => {
     try {
@@ -607,8 +622,17 @@ export async function registerRoutes(
       const uid = String(user.id);
       const name = user.name || user.email;
       await ensureCometChatUser(uid, name);
-      const authToken = await generateAuthToken(uid);
-      res.json({ authToken, uid });
+      try {
+        const authToken = await generateAuthToken(uid);
+        res.json({ authToken, uid });
+      } catch (tokenError: any) {
+        const errCode = tokenError?.code || '';
+        if (errCode === 'AUTH_ERR_NO_ACCESS' || errCode?.startsWith('HTTP_4')) {
+          console.warn('CometChat: API key lacks auth-token scope. Grant "Full Access" in CometChat dashboard.');
+          return res.status(503).json({ error: 'CometChat not available — API key requires Full Access scope.' });
+        }
+        throw tokenError;
+      }
     } catch (error: any) {
       console.error("CometChat auth-token error:", error.message);
       serverError(res, error);
@@ -645,6 +669,49 @@ export async function registerRoutes(
       });
     } catch (error: any) {
       serverError(res, error);
+    }
+  });
+
+  // Get current user profile
+  app.get("/api/auth/me", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        interests: user.interests,
+        campusId: user.campusId,
+        campusEmail: user.campusEmail,
+        campusVerified: user.campusVerified,
+        dismissedCampusPrompt: user.dismissedCampusPrompt,
+        isSuperAdmin: user.isSuperAdmin,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/users/me", authMiddleware, async (req, res) => {
+    try {
+      const { profilePhoto, name } = req.body;
+      const updated = await storage.updateUserProfile(req.userId!, { profilePhoto, name });
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        interests: updated.interests,
+        profilePhoto: updated.profilePhoto,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -3354,6 +3421,162 @@ export async function registerRoutes(
     }
   });
 
+  // ============ EVENT SIGN-UP SHEET ROUTES ============
+
+  // GET /api/events/:id/signup-tasks — list tasks with signup counts (auth optional)
+  app.get("/api/events/:id/signup-tasks", optionalAuthMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const tasks = await storage.getEventSignupTasks(req.params.id, req.userId);
+      res.json(tasks);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/:id/signup-tasks — create a task (event creator or bubble admin only)
+  app.post("/api/events/:id/signup-tasks", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.createdBy === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can add sign-up tasks" });
+      const parsed = insertEventSignupTaskSchema.safeParse({ ...req.body, eventId: event.id, createdBy: req.userId });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const nextPos = (await storage.getEventSignupTasks(event.id)).length;
+      const task = await storage.createEventSignupTask({ ...parsed.data, position: nextPos });
+      res.status(201).json({ ...task, signupCount: 0, hasSignedUp: false, signers: [] });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // PATCH /api/events/:id/signup-tasks/reorder — reorder tasks by position
+  // NOTE: Must be declared BEFORE /:taskId to avoid Express capturing "reorder" as a taskId
+  app.patch("/api/events/:id/signup-tasks/reorder", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.createdBy === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can reorder sign-up tasks" });
+      const { taskIds } = req.body;
+      if (!Array.isArray(taskIds) || taskIds.some((id) => typeof id !== 'number')) {
+        return res.status(400).json({ error: "taskIds must be an array of numbers" });
+      }
+      const existingTasks = await storage.getEventSignupTasks(event.id);
+      const existingIds = new Set(existingTasks.map(t => t.id));
+      if (taskIds.length !== existingIds.size) {
+        return res.status(400).json({ error: "taskIds must contain exactly the event's current tasks" });
+      }
+      const seen = new Set<number>();
+      for (const id of taskIds) {
+        if (seen.has(id)) return res.status(400).json({ error: "taskIds must not contain duplicates" });
+        if (!existingIds.has(id)) return res.status(400).json({ error: `Task ${id} does not belong to this event` });
+        seen.add(id);
+      }
+      await storage.reorderEventSignupTasks(event.id, taskIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // PATCH /api/events/:id/signup-tasks/:taskId — edit a task
+  app.patch("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.createdBy === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can edit sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
+      const allowed = insertEventSignupTaskSchema.pick({ title: true, description: true, icon: true, spotsNeeded: true }).partial();
+      const parsed = allowed.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "Invalid data" });
+      const updated = await storage.updateEventSignupTask(taskId, parsed.data);
+      if (!updated) return res.status(404).json({ error: "Task not found" });
+      const allTasks = await storage.getEventSignupTasks(event.id, req.userId);
+      const enriched = allTasks.find(t => t.id === taskId);
+      res.json(enriched ?? updated);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/:id/signup-tasks/:taskId — delete a task
+  app.delete("/api/events/:id/signup-tasks/:taskId", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const user = await storage.getUser(req.userId!);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      const isCreator = event.createdBy === req.userId;
+      const role = await storage.getMemberRole(req.userId!, event.bubbleId);
+      const isAdmin = role === 'admin' || user.isSuperAdmin;
+      if (!isCreator && !isAdmin) return res.status(403).json({ error: "Only the event creator or bubble admins can delete sign-up tasks" });
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const existingTask = await storage.getEventSignupTask(taskId);
+      if (!existingTask || existingTask.eventId !== event.id) return res.status(404).json({ error: "Task not found" });
+      await storage.deleteEventSignupTask(taskId);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // POST /api/events/signup-tasks/:taskId/join — sign up for a task
+  app.post("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to sign up for tasks" });
+      const result = await storage.joinEventSignupTask(taskId, req.userId!);
+      if (!result.success) return res.status(409).json({ error: result.error ?? "Could not sign up" });
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
+  // DELETE /api/events/signup-tasks/:taskId/join — cancel sign-up
+  app.delete("/api/events/signup-tasks/:taskId/join", authMiddleware, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId, 10);
+      if (isNaN(taskId)) return res.status(400).json({ error: "Invalid task ID" });
+      const task = await storage.getEventSignupTask(taskId);
+      if (!task) return res.status(404).json({ error: "Task not found" });
+      const event = await storage.getEvent(task.eventId);
+      if (!event) return res.status(404).json({ error: "Event not found" });
+      const memberRole = await storage.getMemberRole(req.userId!, event.bubbleId);
+      if (!memberRole) return res.status(403).json({ error: "You must be a bubble member to manage your sign-ups" });
+      await storage.leaveEventSignupTask(taskId, req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
   // ============ CAMPUS ROUTES ============
 
   // Get all campuses
@@ -3738,6 +3961,7 @@ export async function registerRoutes(
   });
   registerCrashReportRoute(app, storage);
   registerSuspendUserRoutes(app, storage, JWT_SECRET, { auditLog });
+  registerReleaseStatusRoutes(app, authMiddleware, { storage, auditLog });
 
   app.get("/api/bubbles/:bubbleId/reports", authMiddleware, async (req, res) => {
     try {
@@ -4773,6 +4997,660 @@ export async function registerRoutes(
   //   GET ${API_URL}/place/details/json
   app.get("/place/autocomplete/json", placesAutocomplete);
   app.get("/place/details/json", placesDetails);
+
+  app.delete("/api/bubbles/:bubbleId/members/:userId", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId, userId } = req.params;
+      
+      const requesterRole = await storage.getMemberRole(req.userId!, bubbleId);
+      const requesterIsSuperAdmin = (await storage.getUser(req.userId!))?.isSuperAdmin;
+      
+      if (requesterRole !== 'admin' && !requesterIsSuperAdmin) {
+        return res.status(403).json({ error: "Only admins can remove members" });
+      }
+      
+      if (userId === req.userId) {
+        return res.status(400).json({ error: "Cannot remove yourself. Use the leave endpoint instead." });
+      }
+      
+      const targetIsMember = await storage.isMember(userId, bubbleId);
+      if (!targetIsMember) {
+        return res.status(404).json({ error: "User is not a member of this bubble" });
+      }
+      
+      await storage.deleteMembership(userId, bubbleId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Events API
+  app.get("/api/events", async (req, res) => {
+    try {
+      const events = await storage.getPublicEvents();
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/upcoming", async (req, res) => {
+    try {
+      const events = await storage.getUpcomingEvents();
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/my", authMiddleware, async (req, res) => {
+    try {
+      const events = await storage.getUserEvents(req.userId!);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/created", authMiddleware, async (req, res) => {
+    try {
+      const events = await storage.getUserCreatedEvents(req.userId!);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/created/my", authMiddleware, async (req, res) => {
+    try {
+      const bubbles = await storage.getUserCreatedBubbles(req.userId!);
+      res.json(bubbles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/bubbles/:bubbleId/events", async (req, res) => {
+    try {
+      // Check if bubble is campus-scoped
+      const bubble = await storage.getBubble(req.params.bubbleId);
+      if (!bubble) {
+        return res.status(404).json({ error: "Bubble not found" });
+      }
+      
+      if (bubble.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== bubble.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
+      const events = await storage.getBubbleEvents(req.params.bubbleId);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/:id", async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      // If campus event, check authorization
+      if (event.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== event.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
+      const creator = await storage.getUser(event.createdBy);
+      res.json({ ...event, creatorName: creator?.name || 'Event Creator', creatorProfilePhoto: creator?.profilePhoto || null });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/events", authMiddleware, async (req, res) => {
+    try {
+      const data = insertEventSchema.parse({
+        ...req.body,
+        createdBy: req.userId,
+      });
+
+      const event = await storage.createEvent(data);
+
+      // Auto-RSVP the creator
+      await storage.createEventAttendee({
+        eventId: event.id,
+        userId: req.userId!,
+        status: "going",
+      });
+
+      res.json(event);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/events/:id", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isEventCreator = event.createdBy === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
+
+      if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to edit this event" });
+      }
+
+      const updated = await storage.updateEvent(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/events/:id", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isEventCreator = event.createdBy === req.userId;
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
+
+      if (!isEventCreator && !isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to delete this event" });
+      }
+
+      await storage.deleteEvent(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get pending events for bubble admins
+  app.get("/api/admin/pending-events", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      
+      // Super admins see all pending events
+      if (user?.isSuperAdmin) {
+        const allPending = await storage.getPendingBubbles();
+        // Get all pending events
+        const pendingEvents: any[] = [];
+        const allBubbles = await storage.getBubbles();
+        for (const bubble of allBubbles) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+        // Also get events for pending bubbles
+        for (const bubble of allPending) {
+          const events = await storage.getPendingEventsForBubble(bubble.id);
+          pendingEvents.push(...events.map(e => ({ ...e, bubble })));
+        }
+        return res.json(pendingEvents);
+      }
+      
+      // Bubble admins see pending events for their bubbles
+      const pendingEvents = await storage.getPendingEventsForAdmin(req.userId!);
+      res.json(pendingEvents);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Approve event (bubble admin or super admin)
+  app.post("/api/admin/events/:id/approve", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to approve this event" });
+      }
+
+      const approvedEvent = await storage.approveEvent(req.params.id);
+      res.json(approvedEvent);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Reject event (bubble admin or super admin)
+  app.post("/api/admin/events/:id/reject", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      const user = await storage.getUser(req.userId!);
+      const isSuperAdmin = user?.isSuperAdmin === true;
+      const bubble = await storage.getBubble(event.bubbleId);
+      const isBubbleAdmin = bubble?.createdBy === req.userId;
+
+      if (!isBubbleAdmin && !isSuperAdmin) {
+        return res.status(403).json({ error: "Not authorized to reject this event" });
+      }
+
+      const { reason } = req.body;
+      const rejectedEvent = await storage.rejectEvent(req.params.id, reason);
+      res.json(rejectedEvent);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/events/:id/rsvp", authMiddleware, async (req, res) => {
+    try {
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      if (event.campusId) {
+        const user = await storage.getUser(req.userId!);
+        if (!user?.campusVerified || user.campusId !== event.campusId) {
+          return res.status(403).json({ error: "Campus verification required to RSVP" });
+        }
+      }
+
+      const existingAttendee = await storage.getEventAttendee(req.userId!, req.params.id);
+      if (existingAttendee) {
+        return res.status(400).json({ error: "Already RSVP'd" });
+      }
+
+      const requestedStatus = req.body.status || "going";
+      let finalStatus = requestedStatus;
+
+      if (requestedStatus === "going" && event.attendeeLimit) {
+        const goingCount = await storage.getGoingCount(req.params.id);
+        if (goingCount >= event.attendeeLimit) {
+          finalStatus = "waitlisted";
+        }
+      }
+
+      await storage.createEventAttendee({
+        eventId: req.params.id,
+        userId: req.userId!,
+        status: finalStatus,
+      });
+
+      res.json({ success: true, status: finalStatus });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/events/:id/rsvp", authMiddleware, async (req, res) => {
+    try {
+      const attendee = await storage.getEventAttendee(req.userId!, req.params.id);
+      const wasGoing = attendee?.status === 'going';
+
+      await storage.deleteEventAttendee(req.userId!, req.params.id);
+
+      let promotedUserId: string | null = null;
+      if (wasGoing) {
+        const event = await storage.getEvent(req.params.id);
+        if (event?.attendeeLimit) {
+          const firstWaitlisted = await storage.getFirstWaitlistedAttendee(req.params.id);
+          if (firstWaitlisted) {
+            await storage.updateEventAttendeeStatus(firstWaitlisted.userId, req.params.id, 'going');
+            promotedUserId = firstWaitlisted.userId;
+          }
+        }
+      }
+
+      res.json({ success: true, promotedUserId });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/events/:id/attendees", async (req, res) => {
+    try {
+      // Check if event is campus-scoped
+      const event = await storage.getEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+      
+      if (event.campusId) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader?.startsWith("Bearer ")) {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+        try {
+          const token = authHeader.slice(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          const user = await storage.getUser(decoded.userId);
+          if (!user?.campusVerified || user.campusId !== event.campusId) {
+            return res.status(403).json({ error: "Campus verification required" });
+          }
+        } catch {
+          return res.status(403).json({ error: "Campus verification required" });
+        }
+      }
+      
+      const attendees = await storage.getEventAttendeesWithUsers(req.params.id);
+      res.json(attendees.map(a => ({
+        id: a.id,
+        userId: a.userId,
+        eventId: a.eventId,
+        status: a.status,
+        joinedAt: a.createdAt,
+        user: {
+          id: a.user.id,
+          name: a.user.name,
+          email: a.user.email,
+          profilePhoto: a.user.profilePhoto,
+        }
+      })));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============ CAMPUS ROUTES ============
+
+  // Get all campuses
+  app.get("/api/campuses", async (req, res) => {
+    try {
+      const campuses = await storage.getCampuses();
+      res.json(campuses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send campus verification code
+  app.post("/api/campus/send-verification", authMiddleware, async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Validate .edu email domain
+      const emailLower = email.toLowerCase();
+      const domain = emailLower.split("@")[1];
+      if (!domain || !domain.endsWith(".edu")) {
+        return res.status(400).json({ error: "Please use a valid .edu email address" });
+      }
+
+      // Check if campus exists
+      const campus = await storage.getCampusByDomain(domain);
+      if (!campus) {
+        return res.status(400).json({ error: "This university is not yet supported. Check back later!" });
+      }
+
+      // Generate and store verification code
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+      await storage.createVerificationCode({
+        email: emailLower,
+        code,
+        expiresAt,
+      });
+
+      // In dev mode, return the code for testing (hidden in production)
+      if (process.env.NODE_ENV !== "production") {
+        console.log(`[DEV] Campus verification code for ${emailLower}: ${code}`);
+        res.json({
+          success: true,
+          message: "Verification code sent",
+          campusId: campus.id,
+          campusName: campus.title,
+          devCode: code,
+        });
+      } else {
+        // In production, would send email - for now just return success
+        res.json({
+          success: true,
+          message: "Verification code sent to your email",
+          campusId: campus.id,
+          campusName: campus.title,
+        });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Verify campus code and associate user with campus
+  app.post("/api/campus/verify-code", authMiddleware, async (req, res) => {
+    try {
+      const { email, code } = req.body;
+      if (!email || !code) {
+        return res.status(400).json({ error: "Email and code are required" });
+      }
+
+      const emailLower = email.toLowerCase();
+      const domain = emailLower.split("@")[1];
+
+      // Verify code
+      const validCode = await storage.getValidVerificationCode(emailLower, code);
+      if (!validCode) {
+        return res.status(400).json({ error: "Invalid or expired code" });
+      }
+
+      // Get campus
+      const campus = await storage.getCampusByDomain(domain);
+      if (!campus) {
+        return res.status(400).json({ error: "Campus not found" });
+      }
+
+      // Mark code as used
+      await storage.markCodeAsUsed(validCode.id);
+
+      // Update user with campus info
+      await storage.updateUserCampus(req.userId!, campus.id, emailLower, true);
+
+      // Get updated user
+      const user = await storage.getUser(req.userId!);
+
+      res.json({
+        success: true,
+        campus: {
+          id: campus.id,
+          name: campus.title,
+          domain: campus.domain,
+        },
+        user: {
+          id: user!.id,
+          name: user!.name,
+          email: user!.email,
+          campusId: user!.campusId,
+          campusEmail: user!.campusEmail,
+          campusVerified: user!.campusVerified,
+        },
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Dismiss campus prompt
+  app.post("/api/campus/dismiss-prompt", authMiddleware, async (req, res) => {
+    try {
+      await storage.dismissCampusPrompt(req.userId!);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get campus bubbles (only for verified campus users)
+  app.get("/api/campus/bubbles", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusVerified || !user.campusId) {
+        return res.status(403).json({ error: "Campus verification required" });
+      }
+
+      const bubbles = await storage.getCampusBubbles(user.campusId);
+      res.json(bubbles);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get campus events (only for verified campus users)
+  app.get("/api/campus/events", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusVerified || !user.campusId) {
+        return res.status(403).json({ error: "Campus verification required" });
+      }
+
+      const events = await storage.getCampusEvents(user.campusId);
+      res.json(events);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's campus info
+  app.get("/api/campus/my-campus", authMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.userId!);
+      if (!user?.campusId) {
+        return res.json({ campus: null });
+      }
+
+      const campus = await storage.getCampus(user.campusId);
+      res.json({
+        campus: campus ? {
+          id: campus.id,
+          name: campus.title,
+          domain: campus.domain,
+        } : null,
+        verified: user.campusVerified,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========== ANALYTICS ENDPOINTS ==========
+
+  // Session tracking - start session
+  app.post("/api/sessions/start", authMiddleware, async (req, res) => {
+    try {
+      const session = await storage.createSession(req.userId!);
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Session tracking - end session (validates ownership)
+  app.post("/api/sessions/:sessionId/end", authMiddleware, async (req, res) => {
+    try {
+      const session = await storage.endSession(req.params.sessionId, req.userId!);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found or unauthorized" });
+      }
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Analytics - Get all metrics
+  app.get("/api/analytics/metrics", async (req, res) => {
+    try {
+      const [retention, dauMau, sessionLength, sessionsPerUser, overview, bubbleVisits] = await Promise.all([
+        storage.getRetentionMetrics(),
+        storage.getDauMauMetrics(),
+        storage.getAverageSessionLength(),
+        storage.getSessionsPerUser(),
+        storage.getOverviewMetrics(),
+        storage.getBubbleVisitsMetrics(),
+      ]);
+
+      res.json({
+        retention,
+        dauMau,
+        sessionLength,
+        sessionsPerUser,
+        overview,
+        bubbleVisits,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Track bubble visit
+  app.post("/api/bubbles/:bubbleId/visit", async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const authHeader = req.headers.authorization;
+      let userId: string | undefined;
+      
+      if (authHeader?.startsWith("Bearer ")) {
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+          userId = decoded.userId;
+        } catch (e) {}
+      }
+      
+      const visit = await storage.trackBubbleVisit(bubbleId, userId);
+      res.json(visit);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Seed campuses on startup
+  seedCampuses().catch(console.error);
 
   return httpServer;
 }

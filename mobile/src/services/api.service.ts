@@ -364,6 +364,64 @@ class ApiService {
     });
   }
 
+  async getBubbleMembers(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members`, {
+      method: "GET",
+    });
+  }
+
+  async updateMemberRole(bubbleId: string, userId: string, role: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members/${userId}/role`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async relinquishAdmin(bubbleId: string) {
+    return this.request(
+      `/api/bubbles/${bubbleId}/members/me/relinquish-admin`,
+      {
+        method: "PUT",
+      },
+    );
+  }
+
+  async removeMember(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/members/${userId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getJoinRequests(bubbleId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests`, {
+      method: "GET",
+    });
+  }
+
+  async approveJoinRequest(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests/${userId}/approve`, {
+      method: "POST",
+    });
+  }
+
+  async rejectJoinRequest(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/join-requests/${userId}/reject`, {
+      method: "POST",
+    });
+  }
+
+  async initiateAdminDm(bubbleId: string, userId: string) {
+    return this.request(`/api/bubbles/${bubbleId}/admin-dm/${userId}`, {
+      method: "POST",
+    });
+  }
+
+  async initiatePeerDm(userId: string) {
+    return this.request(`/api/users/${userId}/peer-dm`, {
+      method: "POST",
+    });
+  }
+
   async getMyCreatedBubbles() {
     return this.request("/api/bubbles/created/my", {
       method: "GET",
@@ -900,6 +958,61 @@ class ApiService {
 
   async getAppVersion(): Promise<{ version: string }> {
     return this.request<{ version: string }>('/api/v1/version');
+  }
+
+  // Session tracking
+  async startSession() {
+    return this.request<{ id: string }>("/api/sessions/start", {
+      method: "POST",
+    });
+  }
+
+  async endSession(sessionId: string) {
+    return this.request<any>(`/api/sessions/${sessionId}/end`, {
+      method: "POST",
+    });
+  }
+
+  // Bubble visit tracking
+  async trackBubbleVisit(bubbleId: string) {
+    return this.request<any>(`/api/bubbles/${bubbleId}/visit`, {
+      method: "POST",
+    });
+  }
+
+  // Admin - Pending reviews
+  async getPendingBubbles() {
+    return this.request<any[]>("/api/admin/pending-bubbles");
+  }
+
+  async getPendingEvents() {
+    return this.request<any[]>("/api/admin/pending-events");
+  }
+
+  async approveBubble(bubbleId: string) {
+    return this.request<any>(`/api/admin/bubbles/${bubbleId}/approve`, {
+      method: "POST",
+    });
+  }
+
+  async rejectBubble(bubbleId: string, reason?: string) {
+    return this.request<any>(`/api/admin/bubbles/${bubbleId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  async approveEvent(eventId: string) {
+    return this.request<any>(`/api/admin/events/${eventId}/approve`, {
+      method: "POST",
+    });
+  }
+
+  async rejectEvent(eventId: string, reason?: string) {
+    return this.request<any>(`/api/admin/events/${eventId}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
   }
 }
 

@@ -150,6 +150,23 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchEvents();
+    }, [bubble.id])
+  );
+
+  const fetchBubbleDetails = async () => {
+    try {
+      const details = await apiService.getBubble(bubble.id);
+      setBubbleDetails(details);
+      
+      apiService.trackBubbleVisit(bubble.id).catch(() => {});
+    } catch (error) {
+      console.error('Failed to fetch bubble details:', error);
+    }
+  };
+
   const checkMembership = async () => {
     try {
       const result = await apiService.checkMembership(bubble.id);
@@ -1511,6 +1528,9 @@ const styles = StyleSheet.create({
     marginHorizontal: Layout.detailScreenPadding,
     marginVertical: Spacing.xl,
   },
+  statArrow: {
+    marginTop: 4,
+  },
   section: {
     paddingHorizontal: Layout.detailScreenPadding,
   },
@@ -1875,6 +1895,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xxxl,
     alignItems: 'center',
+    gap: 4,
   },
   waitlistModalHandle: {
     width: 40,
@@ -1918,5 +1939,10 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.semiBold as any,
     color: Colors.brand.skyWhite,
+  },
+  fabTextJoin: {
+    color: Colors.neutral.charcoal,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

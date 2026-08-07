@@ -1042,6 +1042,7 @@ const styles = StyleSheet.create({
   },
   ruleText: {
     fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.bold,
     color: Colors.text.primary,
     lineHeight: Typography.lineHeight.base,
   },

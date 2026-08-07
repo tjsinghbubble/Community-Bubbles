@@ -25,6 +25,7 @@ import AdminMonitor from "./pages/admin-monitor";
 import AdminCategories from "./pages/admin-categories";
 import AdminLatency from "./pages/admin-latency";
 import AdminSlowCalls from "./pages/admin-slow-calls";
+import AdminRelease from "./pages/admin-release";
 import MobileQR from "./pages/mobile-qr";
 
 function BubbleShortLink() {
@@ -73,6 +74,7 @@ function Router() {
       <Route path="/admin/categories" component={AdminCategories} />
       <Route path="/admin/latency" component={AdminLatency} />
       <Route path="/admin/slow-calls" component={AdminSlowCalls} />
+      <Route path="/admin/release" component={AdminRelease} />
       <Route path="/b/:shortId" component={BubbleShortLink} />
       <Route path="/mobile" component={MobileQR} />
       <Route path="/qr-code" component={MobileQR} />
