@@ -10,6 +10,8 @@ import AuthFlow from "./pages/auth-flow";
 import Explore from "./pages/explore";
 import CreateBubble from "./pages/create-bubble";
 import CreateEvent from "./pages/create-event";
+import EditEvent from "./pages/edit-event";
+import EventDetails from "./pages/event-details";
 import BubbleDetails from "./pages/bubble-details";
 import EditBubble from "./pages/edit-bubble";
 import Messages from "./pages/messages";
@@ -58,6 +60,8 @@ function Router() {
       <Route path="/explore" component={Explore} />
       <Route path="/create" component={CreateBubble} />
       <Route path="/create-event" component={CreateEvent} />
+      <Route path="/event/:id/edit" component={EditEvent} />
+      <Route path="/event/:id" component={EventDetails} />
       <Route path="/bubble/:id" component={BubbleDetails} />
       <Route path="/bubble/:id/edit" component={EditBubble} />
       <Route path="/my-bubbles" component={MyBubbles} />
