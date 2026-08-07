@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Camera } from "lucide-react";
+import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { useUpload } from "@/hooks/use-upload";
+import { toast } from "@/hooks/use-toast";
 
 export default function ProfileEdit() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const qc = useQueryClient();
+  const { uploadFile, isUploading } = useUpload();
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const { data: me } = useQuery<any>({
     queryKey: ["/api/auth/me"],
@@ -18,10 +22,10 @@ export default function ProfileEdit() {
   });
 
   const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
+  const [aboutMe, setAboutMe] = useState("");
+  const [pendingPhoto, setPendingPhoto] = useState<{ objectPath: string; previewUrl: string } | null>(null);
 
-  const displayName = name || me?.name || "";
-  const displayBio = bio || me?.bio || "";
+  const displayPhoto = pendingPhoto?.previewUrl || me?.profilePhoto || "";
 
   const initials = (me?.name || "?")
     .split(" ")
@@ -32,15 +36,31 @@ export default function ProfileEdit() {
 
   const { mutate: save, isPending } = useMutation({
     mutationFn: () =>
-      apiRequest("PATCH", "/api/auth/me", {
+      apiRequest("PATCH", "/api/users/me", {
         name: name || me?.name,
-        bio: bio || me?.bio,
+        aboutMe: aboutMe || me?.aboutMe,
+        ...(pendingPhoto ? { profilePhoto: pendingPhoto.objectPath } : {}),
       }).then((r) => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/auth/me"] });
       navigate("/profile");
     },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't save", description: err.message || "Please try again." });
+    },
   });
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const previewUrl = URL.createObjectURL(file);
+    const uploaded = await uploadFile(file);
+    if (!uploaded) {
+      toast({ variant: "destructive", title: "Couldn't upload photo", description: "Please try again." });
+      return;
+    }
+    setPendingPhoto({ objectPath: uploaded.objectPath, previewUrl });
+  };
 
   return (
     <AppShell active="profile">
@@ -59,18 +79,35 @@ export default function ProfileEdit() {
         <div className="space-y-5">
           <div className="flex flex-col items-center gap-3 rounded-2xl bg-white/60 p-6 ring-1 ring-black/5">
             <div
-              className="relative grid h-20 w-20 place-items-center rounded-full text-[26px] font-bold text-white shadow"
+              className="relative grid h-20 w-20 place-items-center overflow-hidden rounded-full text-[26px] font-bold text-white shadow"
               style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
             >
-              {initials}
+              {displayPhoto ? (
+                <img src={displayPhoto} alt="" className="h-full w-full object-cover" data-testid="img-profile-photo-preview" />
+              ) : (
+                initials
+              )}
               <button
-                className="absolute bottom-0 right-0 grid h-7 w-7 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isUploading}
+                className="absolute bottom-0 right-0 grid h-7 w-7 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground disabled:opacity-60"
                 data-testid="button-change-photo"
+                type="button"
               >
-                <Camera className="h-3.5 w-3.5" />
+                {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
               </button>
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoChange}
+                data-testid="input-profile-photo-file"
+              />
             </div>
-            <span className="text-[12px] text-muted-foreground">Tap to change photo</span>
+            <span className="text-[12px] text-muted-foreground">
+              {isUploading ? "Uploading…" : "Tap to change photo"}
+            </span>
           </div>
 
           <div className="space-y-4 rounded-2xl bg-white/60 p-5 ring-1 ring-black/5">
@@ -91,8 +128,8 @@ export default function ProfileEdit() {
                 Bio
               </label>
               <textarea
-                value={bio || me?.bio || ""}
-                onChange={(e) => setBio(e.target.value)}
+                value={aboutMe || me?.aboutMe || ""}
+                onChange={(e) => setAboutMe(e.target.value)}
                 placeholder="Tell your community a little about yourself…"
                 rows={3}
                 className="w-full resize-none rounded-xl border border-black/10 bg-white/80 px-4 py-3 text-[14px] outline-none transition focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--primary))]/20"
@@ -115,7 +152,7 @@ export default function ProfileEdit() {
 
           <button
             onClick={() => save()}
-            disabled={isPending}
+            disabled={isPending || isUploading}
             className="w-full rounded-2xl py-4 text-[15px] font-bold text-white shadow disabled:opacity-60"
             style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" }}
             data-testid="button-save"

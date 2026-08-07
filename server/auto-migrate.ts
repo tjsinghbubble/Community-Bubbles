@@ -31,6 +31,15 @@ export async function autoMigrate(): Promise<void> {
       CREATE INDEX IF NOT EXISTS crash_reports_created_at_idx ON crash_reports(created_at);
       CREATE INDEX IF NOT EXISTS crash_reports_is_fatal_idx   ON crash_reports(is_fatal);
 
+      -- user_privacy_settings (Task: real privacy-settings persistence on web)
+      CREATE TABLE IF NOT EXISTS user_privacy_settings (
+        user_id VARCHAR PRIMARY KEY REFERENCES users(id),
+        profile_visibility TEXT NOT NULL DEFAULT 'public',
+        show_interests BOOLEAN NOT NULL DEFAULT true,
+        show_bubbles BOOLEAN NOT NULL DEFAULT true,
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+
       -- slow_calls (Task: slow API call alerts)
       CREATE TABLE IF NOT EXISTS slow_calls (
         id SERIAL PRIMARY KEY,
