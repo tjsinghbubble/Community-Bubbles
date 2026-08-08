@@ -1,5 +1,4 @@
 import {
-  Activity,
   Bike,
   Briefcase,
   Calendar,
@@ -36,6 +35,7 @@ import {
   Utensils,
   Waves,
   Wine,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,7 +61,7 @@ export const ioniconMap: Record<string, LucideIcon> = {
   "code-slash": Code,
   "color-palette": Palette,
   compass: Compass,
-  fitness: Activity,
+  fitness: Zap,
   football: Goal,
   "game-controller": Gamepad2,
   "hand-left": Hand,

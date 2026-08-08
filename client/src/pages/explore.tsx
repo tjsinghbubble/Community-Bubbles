@@ -345,6 +345,8 @@ export default function Explore() {
             onSelect={handleSidebarSelect}
           />
 
+          <div className="hidden shrink-0 self-stretch border-l border-black/8 md:block" aria-hidden="true" />
+
           <div className="min-w-0 flex-1">
             {bubblesLoading || eventsLoading ? (
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">

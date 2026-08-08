@@ -8,10 +8,10 @@ import {
   HelpCircle,
   List,
   LogOut,
-  Menu,
   Search,
   Settings,
   Shield,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -124,14 +124,8 @@ function NavMenu({
   const [, navigate] = useLocation();
   const go = (href: string) => { onClose(); navigate(href); };
 
-  const navLinks = [
-    { label: "Upcoming",  Icon: IconUpcoming,  href: "/upcoming" },
-    { label: "Bubbles",   Icon: IconBubbles,   href: "/my-bubbles" },
-    { label: "Messages",  Icon: IconMessages,  href: "/messages" },
-    { label: "Profile",   Icon: IconProfile,   href: "/profile" },
-  ];
-
   const settingsLinks = [
+    { label: "View Profile",     icon: User,       href: "/profile" },
     { label: "Account Settings", icon: Settings,   href: "/profile" },
     { label: "Get Help",         icon: HelpCircle, href: "/legal/terms" },
   ];
@@ -142,23 +136,6 @@ function NavMenu({
       <div className="flex items-center gap-3 px-4 py-3 border-b border-black/6">
         <Avatar name={displayName} />
         <span className="text-[13px] font-semibold text-black truncate">{displayName}</span>
-      </div>
-
-      {/* Primary nav links */}
-      <div className="p-1.5">
-        {navLinks.map(({ label, Icon, href }) => (
-          <button
-            key={label}
-            onClick={() => go(href)}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-black/4"
-            data-testid={`nav-menu-${label.toLowerCase().replace(/\s+/g, "-")}`}
-          >
-            <span className="shrink-0 text-black/50" style={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Icon size={18} color="currentColor" />
-            </span>
-            <span className="text-[13px] font-medium text-black">{label}</span>
-          </button>
-        ))}
       </div>
 
       <div className="mx-3 h-px bg-black/6" />
@@ -452,29 +429,19 @@ export function AppShell({
               {showNotifications && <NotificationMenu onClose={() => setShowNotifications(false)} />}
             </div>
 
-            {/* Avatar → Profile */}
-            <button
-              onClick={() => navigate("/profile")}
-              className="relative grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
-              data-testid="button-avatar"
-              title="Profile"
-            >
-              <Avatar name={displayName} photo={me?.profilePhoto} />
-              <span
-                className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#34C759]"
-                aria-hidden="true"
-              />
-            </button>
-
-            {/* Hamburger → nav dropdown */}
+            {/* Avatar → account dropdown (profile, admin, settings, logout) */}
             <div ref={navMenuRef} className="relative">
               <button
                 onClick={() => setShowNavMenu((v) => !v)}
-                className="grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
-                data-testid="button-nav-menu"
-                title="Menu"
+                className="relative grid h-10 w-10 place-items-center rounded-full border border-black/10 bg-white shadow-sm transition hover:shadow-md"
+                data-testid="button-avatar"
+                title="Account"
               >
-                <Menu className="h-[18px] w-[18px] text-black/60" strokeWidth={1.8} />
+                <Avatar name={displayName} photo={me?.profilePhoto} />
+                <span
+                  className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#34C759]"
+                  aria-hidden="true"
+                />
               </button>
               {showNavMenu && (
                 <NavMenu
