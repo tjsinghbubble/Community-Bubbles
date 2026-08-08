@@ -40,7 +40,7 @@ export function CategorySidebar({
       className="hidden w-64 shrink-0 self-stretch bg-[#F5F6F8] px-4 md:block"
       data-testid="sidebar-categories"
     >
-      <div className="sticky top-[92px] flex max-h-[calc(100dvh-112px)] flex-col pt-6">
+      <div className="sticky top-[68px] flex max-h-[calc(100dvh-88px)] flex-col pt-6">
         <div className="mb-3 px-2 text-[11px] font-bold uppercase tracking-widest text-black/40">
           Categories
         </div>

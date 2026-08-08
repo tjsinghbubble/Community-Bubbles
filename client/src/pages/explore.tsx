@@ -331,8 +331,8 @@ export default function Explore() {
 
   return (
     <AppShell active="explore">
-      <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6">
-        <div className="flex min-h-[calc(100dvh-92px)]">
+      <div className="pb-6">
+        <div className="flex min-h-[calc(100dvh-68px)]">
           <CategorySidebar
             categories={categories ?? []}
             selectedId={selectedNode === "all" ? "all" : selectedNode.id}
@@ -341,7 +341,7 @@ export default function Explore() {
 
           <div className="hidden shrink-0 self-stretch border-l border-black/8 md:block" aria-hidden="true" />
 
-          <div className="min-w-0 flex-1 md:pl-8">
+          <div className="min-w-0 flex-1 px-4 pt-6 md:pl-8 md:pr-6">
             <CampusBanner />
 
             <div className="mb-6">
