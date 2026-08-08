@@ -332,12 +332,6 @@ export default function Explore() {
   return (
     <AppShell active="explore">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <CampusBanner />
-
-        <div className="mb-6">
-          <LegacyCategoryChips active={legacyChip} onChange={handleLegacyChip} />
-        </div>
-
         <div className="flex gap-8">
           <CategorySidebar
             categories={categories ?? []}
@@ -348,6 +342,12 @@ export default function Explore() {
           <div className="hidden shrink-0 self-stretch border-l border-black/8 md:block" aria-hidden="true" />
 
           <div className="min-w-0 flex-1">
+            <CampusBanner />
+
+            <div className="mb-6">
+              <LegacyCategoryChips active={legacyChip} onChange={handleLegacyChip} />
+            </div>
+
             {bubblesLoading || eventsLoading ? (
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
