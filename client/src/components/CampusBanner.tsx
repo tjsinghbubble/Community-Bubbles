@@ -35,7 +35,7 @@ export function CampusBanner() {
 
   return (
     <div
-      className="mb-8 flex flex-col gap-5 rounded-3xl border border-black/8 bg-[#F5F6F8] p-6 md:flex-row md:items-center md:justify-between"
+      className="mb-8 flex flex-col gap-5 rounded-3xl border border-black/8 bg-[#F5F6F8] p-6 md:flex-row md:items-stretch md:justify-between"
       data-testid="banner-campus"
     >
       <div className="max-w-lg">
@@ -65,11 +65,11 @@ export function CampusBanner() {
 
       <button
         onClick={() => alert("Campus discovery is coming soon!")}
-        className="flex shrink-0 items-center justify-between gap-4 rounded-2xl bg-white px-5 py-3 text-left shadow-sm transition hover:shadow-md md:w-64"
+        className="flex shrink-0 items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md md:w-64"
         data-testid="button-discover-campus"
       >
         <span className="text-[14px] font-semibold text-[#35A8F7]">Discover your campus</span>
-        <GraduationCap className="h-7 w-7 shrink-0 text-black/10" strokeWidth={1.5} />
+        <GraduationCap className="h-9 w-9 shrink-0 text-black/10" strokeWidth={1.5} />
       </button>
     </div>
   );
