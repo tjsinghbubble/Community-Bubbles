@@ -45,17 +45,6 @@ export function CategorySidebar({
           Categories
         </div>
 
-        <button
-          onClick={() => onSelect("all")}
-          className={cn(
-            "mb-1 flex items-center gap-2 rounded-lg px-2 py-2 text-left text-[13px] font-semibold transition-colors",
-            selectedId === "all" ? "bg-[#35A8F7]/10 text-[#35A8F7]" : "text-black/70 hover:bg-black/5",
-          )}
-          data-testid="category-all"
-        >
-          All Categories
-        </button>
-
         <div className="flex-1 space-y-0.5 overflow-y-auto pb-2">
           {categories.map((cat) => {
             const isExpanded = expanded.has(cat.id);

@@ -332,7 +332,7 @@ export default function Explore() {
   return (
     <AppShell active="explore">
       <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6">
-        <div className="flex">
+        <div className="flex min-h-[calc(100dvh-92px)]">
           <CategorySidebar
             categories={categories ?? []}
             selectedId={selectedNode === "all" ? "all" : selectedNode.id}

@@ -361,7 +361,7 @@ export function AppShell({
     <div className="min-h-dvh bg-[#FAFAFA] text-foreground">
       {/* ── Top navbar ── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-[0_1px_0_rgba(0,0,0,0.08)]">
-        <div className="mx-auto flex h-[68px] max-w-7xl items-center gap-4 px-4 md:px-6">
+        <div className="mx-auto flex h-[68px] max-w-[1800px] items-center gap-4 px-4 md:px-6">
 
           {/* Logo — left */}
           <div onClick={() => navigate("/explore")} className="shrink-0 cursor-pointer">
