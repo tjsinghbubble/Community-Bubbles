@@ -331,8 +331,8 @@ export default function Explore() {
 
   return (
     <AppShell active="explore">
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
-        <div className="flex gap-8">
+      <div className="mx-auto max-w-[1800px] px-4 py-6 md:px-6">
+        <div className="flex">
           <CategorySidebar
             categories={categories ?? []}
             selectedId={selectedNode === "all" ? "all" : selectedNode.id}
@@ -341,7 +341,7 @@ export default function Explore() {
 
           <div className="hidden shrink-0 self-stretch border-l border-black/8 md:block" aria-hidden="true" />
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 md:pl-8">
             <CampusBanner />
 
             <div className="mb-6">
@@ -349,7 +349,7 @@ export default function Explore() {
             </div>
 
             {bubblesLoading || eventsLoading ? (
-              <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-2.5">
                     <div className="aspect-square animate-pulse rounded-2xl bg-black/8" />
@@ -374,7 +374,7 @@ export default function Explore() {
                       showViewAll={!showAllBubbles && filteredBubbles.length > 4}
                       onViewAll={() => setShowAllBubbles(true)}
                     />
-                    <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                       {trendingBubbles.map((b) => (
                         <BubbleCard key={b.id} item={b} onOpen={(id) => navigate(`/bubble/${id}`)} />
                       ))}

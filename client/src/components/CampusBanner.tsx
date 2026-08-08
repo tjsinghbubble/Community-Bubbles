@@ -35,7 +35,7 @@ export function CampusBanner() {
 
   return (
     <div
-      className="mb-8 flex flex-col gap-5 rounded-3xl bg-[#F5F6F8] p-6 md:flex-row md:items-center md:justify-between"
+      className="mb-8 flex flex-col gap-5 rounded-3xl border border-black/8 bg-[#F5F6F8] p-6 md:flex-row md:items-center md:justify-between"
       data-testid="banner-campus"
     >
       <div className="max-w-lg">
