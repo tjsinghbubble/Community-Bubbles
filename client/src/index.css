@@ -118,9 +118,9 @@
   --brand-2: 198 95% 55%;
   --brand-3: 223 85% 60%;
 
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+  --font-sans: "Poppins", ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
-  --font-display: "Outfit", ui-sans-serif, system-ui;
+  --font-display: "Poppins", ui-sans-serif, system-ui;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
 
