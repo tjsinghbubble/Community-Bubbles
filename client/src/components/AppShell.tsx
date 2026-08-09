@@ -385,7 +385,7 @@ export function AppShell({
           </div>
 
           {/* Primary nav links — desktop only */}
-          <nav className="hidden shrink-0 items-center gap-6 md:flex" aria-label="Primary">
+          <nav className="mr-10 hidden shrink-0 items-center gap-6 md:flex" aria-label="Primary">
             {PRIMARY_NAV_LINKS.map((link) => {
               const isActive = active === link.id;
               return (

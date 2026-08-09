@@ -65,11 +65,11 @@ export function CampusBanner() {
 
       <button
         onClick={() => alert("Campus discovery is coming soon!")}
-        className="flex shrink-0 items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md md:w-64"
+        className="flex shrink-0 flex-col items-start justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-left shadow-sm transition hover:shadow-md md:w-64"
         data-testid="button-discover-campus"
       >
-        <span className="text-[14px] font-semibold text-[#35A8F7]">Discover your campus</span>
-        <GraduationCap className="h-9 w-9 shrink-0 text-black/10" strokeWidth={1.5} />
+        <span className="whitespace-nowrap text-[14px] font-semibold text-[#35A8F7]">Discover your campus</span>
+        <GraduationCap className="ml-auto h-16 w-16 shrink-0 text-black/10" strokeWidth={1.5} />
       </button>
     </div>
   );
