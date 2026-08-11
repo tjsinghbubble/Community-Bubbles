@@ -127,7 +127,7 @@ function NavMenu({
   const settingsLinks = [
     { label: "View Profile",     icon: User,       href: "/profile" },
     { label: "Account Settings", icon: Settings,   href: "/profile" },
-    { label: "Get Help",         icon: HelpCircle, href: "/legal/terms" },
+    { label: "Get Help",         icon: HelpCircle, href: "/get-help" },
   ];
 
   return (
