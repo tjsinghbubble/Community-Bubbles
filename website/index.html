@@ -138,12 +138,14 @@
             color: #969696;
         }
 
-        /* PASSWORD STEP */
-        .password-step {
+        /* PASSWORD / SIGNUP STEPS */
+        .password-step,
+        .signup-step {
             display: none;
         }
 
-        .password-step.active {
+        .password-step.active,
+        .signup-step.active {
             display: block;
         }
 
@@ -200,6 +202,69 @@
             color: #969696;
             padding: 0;
             display: flex;
+        }
+
+        /* INTEREST CHIPS (signup step 2) */
+        .chips-intro {
+            margin-bottom: 14px;
+        }
+
+        .chips-intro .chips-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1E1F26;
+        }
+
+        .chips-intro .chips-sub {
+            font-size: 0.8rem;
+            color: #969696;
+            margin-top: 2px;
+        }
+
+        .chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .chip {
+            border: 1px solid #E2E2E2;
+            border-radius: 999px;
+            background: white;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            font-family: inherit;
+            color: #6B6B6B;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .chip:hover {
+            border-color: #969696;
+            color: #1E1F26;
+        }
+
+        .chip.selected {
+            border-color: #35A8F7;
+            background: rgba(53, 168, 247, 0.1);
+            color: #35A8F7;
+        }
+
+        .signup-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .signup-row .cta-button {
+            flex: 1;
+        }
+
+        .cta-button.secondary {
+            background: white;
+            color: #1E1F26;
+            border: 1px solid #E2E2E2;
         }
 
         .auth-error {
@@ -534,6 +599,41 @@
                 <button type="submit" class="cta-button" id="signin-btn">Sign In</button>
             </div>
 
+            <div class="signup-step" id="signup1-step">
+                <div class="pw-header">
+                    <button type="button" class="pw-back" id="signup1-back-btn" aria-label="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="pw-heading">Create your account</span>
+                </div>
+                <p class="pw-email-label" id="signup-email-label"></p>
+                <label for="signup-name" class="visually-hidden">Full name</label>
+                <input type="text" class="pw-input" id="signup-name" placeholder="Full name" autocomplete="name">
+                <label for="signup-password" class="visually-hidden">Password</label>
+                <div class="pw-field">
+                    <input type="password" class="pw-input" id="signup-password" placeholder="Password (at least 8 characters)" autocomplete="new-password">
+                    <button type="button" class="pw-toggle" id="signup-pw-toggle-btn" aria-label="Show password" tabindex="-1">
+                        <svg id="signup-eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg id="signup-eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </button>
+                </div>
+                <p class="auth-error" id="signup1-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="signup1-continue-btn">Continue</button>
+            </div>
+
+            <div class="signup-step" id="signup2-step">
+                <div class="chips-intro">
+                    <p class="chips-title">What are you into?</p>
+                    <p class="chips-sub">Pick as many as you like — we'll find bubbles you'll love.</p>
+                </div>
+                <div class="chip-list" id="chip-list"></div>
+                <p class="auth-error" id="signup2-error" role="alert"></p>
+                <div class="signup-row">
+                    <button type="button" class="cta-button secondary" id="signup2-back-btn">Back</button>
+                    <button type="submit" class="cta-button" id="signup-submit-btn">Join Bubble</button>
+                </div>
+            </div>
+
             <div class="divider">
                 <span class="line"></span>
                 <span>or</span>
@@ -638,11 +738,13 @@
             }
         } catch (e) { /* localStorage unavailable (e.g. blocked) — show the page */ }
 
-        // Existing users log in entirely on this page: Continue checks the
-        // email against /api/auth/check-email, the card switches to a password
-        // step, and /api/auth/login stores the token/user in the same
-        // localStorage keys the React app uses before jumping to /explore.
-        // New emails hand off to the app's multi-step signup flow at /auth.
+        // The full auth journey lives on this page: Continue checks the email
+        // against /api/auth/check-email; existing accounts get an in-card
+        // password step (/api/auth/login), new emails get a two-step in-card
+        // signup (name+password, then interests → /api/auth/signup). Both
+        // store the token/user in the same localStorage keys the React app
+        // uses, then jump straight to /explore. The old /auth page redirects
+        // here.
         const emailInput = document.getElementById('welcome-email');
         const continueBtn = document.getElementById('continue-btn');
         const welcomeForm = document.getElementById('welcome-form');
@@ -653,7 +755,45 @@
         const emailError = document.getElementById('email-error');
         const passwordError = document.getElementById('password-error');
         const pwEmailLabel = document.getElementById('pw-email-label');
+        const signup1Step = document.getElementById('signup1-step');
+        const signup2Step = document.getElementById('signup2-step');
+        const signupNameInput = document.getElementById('signup-name');
+        const signupPasswordInput = document.getElementById('signup-password');
+        const signupEmailLabel = document.getElementById('signup-email-label');
+        const signup1Error = document.getElementById('signup1-error');
+        const signup2Error = document.getElementById('signup2-error');
+        const signup1ContinueBtn = document.getElementById('signup1-continue-btn');
+        const signupSubmitBtn = document.getElementById('signup-submit-btn');
+        const chipList = document.getElementById('chip-list');
         const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        // Keep in sync with INTEREST_OPTIONS in the mobile app.
+        const INTEREST_OPTIONS = [
+            ['hiking', 'Hiking'], ['running', 'Running'], ['cycling', 'Cycling'],
+            ['yoga', 'Yoga'], ['fitness', 'Fitness'], ['cooking', 'Cooking'],
+            ['coffee', 'Coffee'], ['dining', 'Dining Out'], ['book_clubs', 'Book Clubs'],
+            ['photography', 'Photography'], ['music', 'Music'], ['arts', 'Arts & Crafts'],
+            ['gaming', 'Gaming'], ['tech', 'Tech'], ['travel', 'Travel'],
+            ['pets', 'Pets'], ['wellness', 'Wellness'], ['volunteering', 'Volunteering'],
+        ];
+        const selectedInterests = new Set();
+        INTEREST_OPTIONS.forEach(function(opt) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chip';
+            btn.textContent = opt[1];
+            btn.setAttribute('data-interest', opt[0]);
+            btn.addEventListener('click', function() {
+                if (selectedInterests.has(opt[0])) {
+                    selectedInterests.delete(opt[0]);
+                    btn.classList.remove('selected');
+                } else {
+                    selectedInterests.add(opt[0]);
+                    btn.classList.add('selected');
+                }
+            });
+            chipList.appendChild(btn);
+        });
 
         let step = 'email';
 
@@ -675,17 +815,28 @@
         function showEmailStep() {
             step = 'email';
             passwordStep.classList.remove('active');
+            signup1Step.classList.remove('active');
+            signup2Step.classList.remove('active');
             emailStep.classList.remove('hidden-step');
             setError(emailError, '');
             emailInput.focus();
         }
 
-        function goToAuth(email, tab) {
-            const params = new URLSearchParams();
-            if (tab) params.set('tab', tab);
-            if (email) params.set('email', email);
-            const qs = params.toString();
-            window.location.href = qs ? `/auth?${qs}` : '/auth';
+        function showSignup1Step(email) {
+            step = 'signup1';
+            signupEmailLabel.textContent = email;
+            emailStep.classList.add('hidden-step');
+            signup2Step.classList.remove('active');
+            signup1Step.classList.add('active');
+            setError(signup1Error, '');
+            signupNameInput.focus();
+        }
+
+        function showSignup2Step() {
+            step = 'signup2';
+            signup1Step.classList.remove('active');
+            signup2Step.classList.add('active');
+            setError(signup2Error, '');
         }
 
         async function postJson(path, body) {
@@ -713,10 +864,7 @@
                 if (data.exists) {
                     showPasswordStep(email);
                 } else {
-                    // Signup is a multi-step flow (details + interests) that
-                    // lives in the React app.
-                    goToAuth(email, 'signup');
-                    return; // keep the button disabled while navigating
+                    showSignup1Step(email);
                 }
             } catch (err) {
                 setError(emailError, err.message);
@@ -759,14 +907,103 @@
             continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
         });
 
+        function persistSessionAndEnterApp(data, errorEl, btn, btnLabel) {
+            try {
+                localStorage.setItem('bubble_web_token', data.token);
+                localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
+            } catch (e) {
+                setError(errorEl, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                btn.disabled = false;
+                btn.textContent = btnLabel;
+                return false;
+            }
+            window.location.href = '/explore';
+            return true; // keep the button disabled while navigating
+        }
+
+        function handleSignup1Continue() {
+            setError(signup1Error, '');
+            if (!signupNameInput.value.trim()) {
+                setError(signup1Error, 'Please enter your name.');
+                return;
+            }
+            if (signupPasswordInput.value.length < 8) {
+                setError(signup1Error, 'Password must be at least 8 characters.');
+                return;
+            }
+            showSignup2Step();
+        }
+
+        async function handleSignupSubmit() {
+            if (selectedInterests.size === 0) {
+                setError(signup2Error, 'Pick at least one interest.');
+                return;
+            }
+            setError(signup2Error, '');
+            signupSubmitBtn.disabled = true;
+            signupSubmitBtn.textContent = 'Joining…';
+            try {
+                const data = await postJson('/api/auth/signup', {
+                    name: signupNameInput.value.trim(),
+                    email: signupEmailLabel.textContent,
+                    password: signupPasswordInput.value,
+                    interests: Array.from(selectedInterests),
+                });
+                if (persistSessionAndEnterApp(data, signup2Error, signupSubmitBtn, 'Join Bubble')) return;
+                return;
+            } catch (err) {
+                if (/already exists/i.test(err.message)) {
+                    // Account was created for this email in the meantime —
+                    // send the user back to the email step to log in instead.
+                    showEmailStep();
+                    setError(emailError, 'That email already has an account — enter it again to log in.');
+                } else {
+                    setError(signup2Error, err.message);
+                }
+            }
+            signupSubmitBtn.disabled = false;
+            signupSubmitBtn.textContent = 'Join Bubble';
+        }
+
         welcomeForm.addEventListener('submit', function(e) {
             e.preventDefault();
             if (step === 'email') {
                 handleContinue();
-            } else if (!signinBtn.disabled) {
-                handleSignIn();
+            } else if (step === 'password') {
+                if (!signinBtn.disabled) handleSignIn();
+            } else if (step === 'signup1') {
+                handleSignup1Continue();
+            } else if (step === 'signup2') {
+                if (!signupSubmitBtn.disabled) handleSignupSubmit();
             }
         });
+
+        document.getElementById('signup1-back-btn').addEventListener('click', showEmailStep);
+        document.getElementById('signup2-back-btn').addEventListener('click', function() {
+            showSignup1Step(signupEmailLabel.textContent);
+        });
+
+        const signupPwToggleBtn = document.getElementById('signup-pw-toggle-btn');
+        const signupEyeOpen = document.getElementById('signup-eye-open');
+        const signupEyeClosed = document.getElementById('signup-eye-closed');
+        signupPwToggleBtn.addEventListener('click', function() {
+            const show = signupPasswordInput.type === 'password';
+            signupPasswordInput.type = show ? 'text' : 'password';
+            signupEyeOpen.style.display = show ? 'none' : '';
+            signupEyeClosed.style.display = show ? '' : 'none';
+            signupPwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+
+        // ?email= prefill (e.g. old /auth links now redirect here) —
+        // fill the field and auto-continue once so the hand-off is seamless.
+        try {
+            const prefill = new URLSearchParams(window.location.search).get('email');
+            if (prefill && EMAIL_REGEX.test(prefill.trim())) {
+                emailInput.value = prefill.trim();
+                continueBtn.disabled = false;
+                handleContinue();
+            }
+        } catch (e) { /* ignore */ }
 
         document.getElementById('pw-back-btn').addEventListener('click', showEmailStep);
 
@@ -781,12 +1018,14 @@
             pwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
 
-        document.getElementById('google-btn').addEventListener('click', function() {
-            goToAuth(emailInput.value.trim());
-        });
-        document.getElementById('apple-btn').addEventListener('click', function() {
-            goToAuth(emailInput.value.trim());
-        });
+        // Social sign-in isn't available on web yet — mirror the app's notice
+        // instead of bouncing through a second page.
+        function socialNotice(provider) {
+            showEmailStep();
+            setError(emailError, provider + " sign-in isn't set up on web yet — continue with email above, or use the mobile app.");
+        }
+        document.getElementById('google-btn').addEventListener('click', function() { socialNotice('Google'); });
+        document.getElementById('apple-btn').addEventListener('click', function() { socialNotice('Apple'); });
     </script>
 </body>
 </html>

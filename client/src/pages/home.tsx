@@ -247,10 +247,11 @@ function Shell({ children }: { children: React.ReactNode }) {
               </div>
             ) : (
               <Button asChild variant="secondary" size="sm" className="rounded-2xl" data-testid="button-signin">
-                <Link href="/auth">
+                {/* Full page load — the static marketing page owns login now */}
+                <a href="/">
                   <Users className="mr-2 h-4 w-4" />
                   Sign In
-                </Link>
+                </a>
               </Button>
             )}
           </div>
