@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useUpload } from "@/hooks/use-upload";
 
 import bubbleSubmittedImg from "@/assets/images/bubble-submitted.png";
 
@@ -936,6 +937,7 @@ export default function CreateBubble() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
+  const { uploadFile } = useUpload();
 
   useEffect(() => {
     fetch("/api/categories/flat")
@@ -972,6 +974,17 @@ export default function CreateBubble() {
       const allRules = [...MANDATORY_RULES, DEFAULT_OPTIONAL_RULE, ...draft.customRules];
       const memberLimitNum = draft.memberLimit && !isNaN(parseInt(draft.memberLimit)) ? parseInt(draft.memberLimit) : null;
 
+      let coverImage: string | null = null;
+      if (draft.coverFile) {
+        const uploaded = await uploadFile(draft.coverFile);
+        if (!uploaded) {
+          setSubmitError("Failed to upload cover photo. Please try again.");
+          setSubmitting(false);
+          return;
+        }
+        coverImage = uploaded.objectPath;
+      }
+
       const res = await apiFetch("/api/bubbles", {
         method: "POST",
         body: JSON.stringify({
@@ -981,8 +994,8 @@ export default function CreateBubble() {
           description: draft.description.trim(),
           rules: allRules,
           privacy: draft.privacy,
-          coverImage: null,
-          images: [],
+          coverImage,
+          images: coverImage ? [coverImage] : [],
           attachments: [],
           memberLimit: memberLimitNum,
           locationName: draft.location.trim() || null,

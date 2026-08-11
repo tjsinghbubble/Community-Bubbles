@@ -11,6 +11,7 @@ import Explore from "./pages/explore";
 import CreateBubble from "./pages/create-bubble";
 import CreateEvent from "./pages/create-event";
 import BubbleDetails from "./pages/bubble-details";
+import EditBubble from "./pages/edit-bubble";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
@@ -58,6 +59,7 @@ function Router() {
       <Route path="/create" component={CreateBubble} />
       <Route path="/create-event" component={CreateEvent} />
       <Route path="/bubble/:id" component={BubbleDetails} />
+      <Route path="/bubble/:id/edit" component={EditBubble} />
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
