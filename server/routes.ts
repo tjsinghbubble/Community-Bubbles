@@ -77,6 +77,16 @@ const sendLimiter = rateLimit({
   message: { error: `Too many requests, please try again later.` },
 });
 
+// Throttles the public account-existence oracle. Separate instance from
+// authLimiter so email checks don't consume the login attempt budget.
+const checkEmailLimiter = rateLimit({
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+  max: AUTH_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: `Too many attempts, please try again later.` },
+});
+
 const JWT_SECRET = process.env.JWT_SECRET as string;
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required but not set");
@@ -366,7 +376,7 @@ export async function registerRoutes(
     sendEmail: sendVerificationEmail,
   });
 
-  registerSocialAuthRoutes(app);
+  registerSocialAuthRoutes(app, { checkEmailRateLimiter: checkEmailLimiter });
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {
     try {

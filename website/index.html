@@ -121,7 +121,8 @@
             padding: 48px 36px 32px;
         }
 
-        .auth-card input[type="email"] {
+        .auth-card input[type="email"],
+        .auth-card input.pw-input {
             width: 100%;
             padding: 16px;
             border: 1px solid #969696;
@@ -133,8 +134,83 @@
             box-sizing: border-box;
         }
 
-        .auth-card input[type="email"]::placeholder {
+        .auth-card input::placeholder {
             color: #969696;
+        }
+
+        /* PASSWORD STEP */
+        .password-step {
+            display: none;
+        }
+
+        .password-step.active {
+            display: block;
+        }
+
+        .email-step.hidden-step {
+            display: none;
+        }
+
+        .pw-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pw-back {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            margin-left: -8px;
+            color: #1E1F26;
+            display: flex;
+            align-items: center;
+        }
+
+        .pw-heading {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1E1F26;
+        }
+
+        .pw-email-label {
+            font-size: 0.9rem;
+            color: #6B6B6B;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .pw-field {
+            position: relative;
+        }
+
+        .pw-field input {
+            padding-right: 48px;
+        }
+
+        .pw-toggle {
+            position: absolute;
+            right: 12px;
+            top: 17px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #969696;
+            padding: 0;
+            display: flex;
+        }
+
+        .auth-error {
+            display: none;
+            color: #D33131;
+            font-size: 0.875rem;
+            margin: -6px 0 12px;
+        }
+
+        .auth-error.visible {
+            display: block;
         }
 
         /* BUTTON */
@@ -430,9 +506,33 @@
             </div>
 
             <h1 class="visually-hidden">Log in or sign up to Bubble</h1>
-            <label for="welcome-email" class="visually-hidden">Email address</label>
-            <input type="email" id="welcome-email" placeholder="Enter your email" autocomplete="email" required>
-            <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
+
+            <div class="email-step" id="email-step">
+                <label for="welcome-email" class="visually-hidden">Email address</label>
+                <input type="email" id="welcome-email" placeholder="Enter your email" autocomplete="email" required>
+                <p class="auth-error" id="email-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
+            </div>
+
+            <div class="password-step" id="password-step">
+                <div class="pw-header">
+                    <button type="button" class="pw-back" id="pw-back-btn" aria-label="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="pw-heading">Welcome back!</span>
+                </div>
+                <p class="pw-email-label" id="pw-email-label"></p>
+                <label for="welcome-password" class="visually-hidden">Password</label>
+                <div class="pw-field">
+                    <input type="password" class="pw-input" id="welcome-password" placeholder="Password" autocomplete="current-password">
+                    <button type="button" class="pw-toggle" id="pw-toggle-btn" aria-label="Show password" tabindex="-1">
+                        <svg id="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg id="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </button>
+                </div>
+                <p class="auth-error" id="password-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="signin-btn">Sign In</button>
+            </div>
 
             <div class="divider">
                 <span class="line"></span>
@@ -538,18 +638,121 @@
             }
         } catch (e) { /* localStorage unavailable (e.g. blocked) — show the page */ }
 
-        // This card is a preview only — it hands off to the real app at /auth,
-        // which owns the actual email-check / login / signup logic. Nothing here
-        // calls the API, so there's no auth logic duplicated between this static
-        // site and the React app.
+        // Existing users log in entirely on this page: Continue checks the
+        // email against /api/auth/check-email, the card switches to a password
+        // step, and /api/auth/login stores the token/user in the same
+        // localStorage keys the React app uses before jumping to /explore.
+        // New emails hand off to the app's multi-step signup flow at /auth.
         const emailInput = document.getElementById('welcome-email');
         const continueBtn = document.getElementById('continue-btn');
         const welcomeForm = document.getElementById('welcome-form');
+        const emailStep = document.getElementById('email-step');
+        const passwordStep = document.getElementById('password-step');
+        const passwordInput = document.getElementById('welcome-password');
+        const signinBtn = document.getElementById('signin-btn');
+        const emailError = document.getElementById('email-error');
+        const passwordError = document.getElementById('password-error');
+        const pwEmailLabel = document.getElementById('pw-email-label');
         const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        function goToAuth(email) {
-            const url = email ? `/auth?email=${encodeURIComponent(email)}` : '/auth';
-            window.location.href = url;
+        let step = 'email';
+
+        function setError(el, message) {
+            el.textContent = message || '';
+            el.classList.toggle('visible', !!message);
+        }
+
+        function showPasswordStep(email) {
+            step = 'password';
+            pwEmailLabel.textContent = email;
+            emailStep.classList.add('hidden-step');
+            passwordStep.classList.add('active');
+            setError(passwordError, '');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+
+        function showEmailStep() {
+            step = 'email';
+            passwordStep.classList.remove('active');
+            emailStep.classList.remove('hidden-step');
+            setError(emailError, '');
+            emailInput.focus();
+        }
+
+        function goToAuth(email, tab) {
+            const params = new URLSearchParams();
+            if (tab) params.set('tab', tab);
+            if (email) params.set('email', email);
+            const qs = params.toString();
+            window.location.href = qs ? `/auth?${qs}` : '/auth';
+        }
+
+        async function postJson(path, body) {
+            const res = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { /* non-JSON response */ }
+            if (!res.ok) {
+                throw new Error(data.error || 'Something went wrong. Please try again.');
+            }
+            return data;
+        }
+
+        async function handleContinue() {
+            const email = emailInput.value.trim();
+            if (!EMAIL_REGEX.test(email)) return;
+            setError(emailError, '');
+            continueBtn.disabled = true;
+            continueBtn.textContent = 'Checking…';
+            try {
+                const data = await postJson('/api/auth/check-email', { email: email });
+                if (data.exists) {
+                    showPasswordStep(email);
+                } else {
+                    // Signup is a multi-step flow (details + interests) that
+                    // lives in the React app.
+                    goToAuth(email, 'signup');
+                    return; // keep the button disabled while navigating
+                }
+            } catch (err) {
+                setError(emailError, err.message);
+            }
+            continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
+            continueBtn.textContent = 'Continue';
+        }
+
+        async function handleSignIn() {
+            const email = pwEmailLabel.textContent;
+            const password = passwordInput.value;
+            if (!password) {
+                setError(passwordError, 'Please enter your password.');
+                return;
+            }
+            setError(passwordError, '');
+            signinBtn.disabled = true;
+            signinBtn.textContent = 'Signing in…';
+            try {
+                const data = await postJson('/api/auth/login', { email: email, password: password });
+                try {
+                    localStorage.setItem('bubble_web_token', data.token);
+                    localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
+                } catch (e) {
+                    setError(passwordError, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                    signinBtn.disabled = false;
+                    signinBtn.textContent = 'Sign In';
+                    return;
+                }
+                window.location.href = '/explore';
+                return; // keep the button disabled while navigating
+            } catch (err) {
+                setError(passwordError, err.message);
+            }
+            signinBtn.disabled = false;
+            signinBtn.textContent = 'Sign In';
         }
 
         emailInput.addEventListener('input', function() {
@@ -558,8 +761,24 @@
 
         welcomeForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (!EMAIL_REGEX.test(emailInput.value.trim())) return;
-            goToAuth(emailInput.value.trim());
+            if (step === 'email') {
+                handleContinue();
+            } else if (!signinBtn.disabled) {
+                handleSignIn();
+            }
+        });
+
+        document.getElementById('pw-back-btn').addEventListener('click', showEmailStep);
+
+        const pwToggleBtn = document.getElementById('pw-toggle-btn');
+        const eyeOpen = document.getElementById('eye-open');
+        const eyeClosed = document.getElementById('eye-closed');
+        pwToggleBtn.addEventListener('click', function() {
+            const show = passwordInput.type === 'password';
+            passwordInput.type = show ? 'text' : 'password';
+            eyeOpen.style.display = show ? 'none' : '';
+            eyeClosed.style.display = show ? '' : 'none';
+            pwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
 
         document.getElementById('google-btn').addEventListener('click', function() {

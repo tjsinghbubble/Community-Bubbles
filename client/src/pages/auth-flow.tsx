@@ -91,7 +91,12 @@ export default function AuthFlow() {
   const [showLoginPw, setShowLoginPw] = useState(false);
 
   const [signupName, setSignupName] = useState("");
-  const [signupEmail, setSignupEmail] = useState("");
+  const [signupEmail, setSignupEmail] = useState(() => {
+    // Handed off from the marketing homepage with ?tab=signup&email=... —
+    // prefill directly so the signup form shows immediately.
+    const params = new URLSearchParams(search);
+    return params.get("tab") === "signup" ? (params.get("email") ?? "") : "";
+  });
   const [signupPassword, setSignupPassword] = useState("");
   const [signupInterests, setSignupInterests] = useState<string[]>([]);
   const [signupError, setSignupError] = useState("");
@@ -131,8 +136,12 @@ export default function AuthFlow() {
 
   // A prefilled ?email= (e.g. handed off from the marketing homepage's preview
   // card) auto-continues once, so the user isn't asked to click Continue twice.
+  // When an explicit ?tab= is set the sender already routed the user (e.g. the
+  // homepage checked the email and chose signup) — don't re-check.
   useEffect(() => {
-    const prefilled = new URLSearchParams(search).get("email");
+    const params = new URLSearchParams(search);
+    if (params.get("tab")) return;
+    const prefilled = params.get("email");
     if (prefilled && EMAIL_REGEX.test(prefilled.trim())) {
       checkEmailAndRoute(prefilled.trim());
     }
