@@ -34,8 +34,10 @@
         /* PHOTO GRID
            Columns fill the full card height (main uses align-items: stretch),
            so grid top/bottom edges align with the auth card. Image heights are
-           flex-driven: tall capsules grow ~1.65x vs the shorter square images,
-           giving the varied-size, staggered rhythm from the reference design. */
+           flex-driven with THREE sizes (large 1.6 / medium 1.25 / small 1.0).
+           Outer columns run large-small-medium; the center column runs
+           small-medium-large, which produces the staggered rhythm. Each column
+           holds one of each size, so column totals stay equal. */
         .photo-grid {
             display: flex;
             gap: 14px;
@@ -59,8 +61,12 @@
             border-radius: 52px;
         }
 
-        .photo-grid img.tall {
-            flex-grow: 1.65;
+        .photo-grid img.size-lg {
+            flex-grow: 1.6;
+        }
+
+        .photo-grid img.size-md {
+            flex-grow: 1.25;
         }
 
         /* BRANDING (inside auth card) */
@@ -344,11 +350,15 @@
                 flex: none;
             }
 
-            .photo-grid img.tall {
+            .photo-grid img.size-lg {
                 aspect-ratio: 3 / 5;
             }
 
-            .photo-grid img.short {
+            .photo-grid img.size-md {
+                aspect-ratio: 3 / 4;
+            }
+
+            .photo-grid img.size-sm {
                 aspect-ratio: 1 / 1;
             }
 
@@ -385,19 +395,19 @@
       <div class="left-col">
         <div class="photo-grid">
             <div class="photo-col">
-                <img class="tall" src="images/landing/pickleball.jpg" alt="">
-                <img class="short" src="images/landing/group_cheers.jpg" alt="">
-                <img class="tall" src="images/landing/group_craft.jpg" alt="">
+                <img class="size-lg" src="images/landing/pickleball.jpg" alt="">
+                <img class="size-sm" src="images/landing/group_cheers.jpg" alt="">
+                <img class="size-md" src="images/landing/group_craft.jpg" alt="">
             </div>
             <div class="photo-col middle">
-                <img class="short" src="images/landing/dog_meeting.png" alt="">
-                <img class="tall" src="images/landing/fitness_class.jpg" alt="">
-                <img class="tall" src="images/landing/badminton.jpg" alt="">
+                <img class="size-sm" src="images/landing/dog_meeting.png" alt="">
+                <img class="size-md" src="images/landing/fitness_class.jpg" alt="">
+                <img class="size-lg" src="images/landing/badminton.jpg" alt="">
             </div>
             <div class="photo-col">
-                <img class="tall" src="images/landing/volunteer_group.png" alt="">
-                <img class="short" src="images/landing/picnic.jpg" alt="">
-                <img class="tall" src="images/landing/mask_group.jpg" alt="">
+                <img class="size-lg" src="images/landing/volunteer_group.png" alt="">
+                <img class="size-sm" src="images/landing/picnic.jpg" alt="">
+                <img class="size-md" src="images/landing/mask_group.jpg" alt="">
             </div>
         </div>
       </div>
