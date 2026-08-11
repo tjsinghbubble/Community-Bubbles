@@ -164,7 +164,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    // Full page load: the static marketing index page at "/" is only served
+    // by the server, never by SPA routing.
+    window.location.href = "/";
   };
 
   return (

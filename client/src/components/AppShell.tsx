@@ -354,7 +354,9 @@ export function AppShell({
 
   const handleLogout = () => {
     logout();
-    navigate("/auth");
+    // Full page load: the static marketing index page at "/" is only served
+    // by the server, never by SPA routing.
+    window.location.href = "/";
   };
 
   return (

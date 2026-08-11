@@ -331,7 +331,9 @@ export default function Profile() {
             <button
               onClick={() => {
                 logout();
-                navigate("/");
+                // Full page load so the server serves the static marketing
+                // index page at "/" (SPA routing never reaches it).
+                window.location.href = "/";
               }}
               className="flex w-full items-center gap-3 px-5 py-4 text-left text-red-500 transition hover:bg-red-50/50"
               data-testid="button-sign-out"
