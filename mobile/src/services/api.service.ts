@@ -96,7 +96,10 @@ class ApiService {
         } catch {
           error = { error: response.statusText };
         }
-        if (response.status === 401 && error.error === 'Token revoked') {
+        if (response.status === 401 && (error.error === 'Token revoked' || error.error === 'Invalid token')) {
+          // The stored JWT is expired, revoked, or unverifiable — keeping it
+          // just produces an endless stream of failing requests. Clear the
+          // session so the user is routed to the login screen.
           this.onTokenRevokedCallback?.();
         }
         const statusCode = response.status;

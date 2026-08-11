@@ -110,9 +110,10 @@ export default function EditProfileScreen({ navigation }: Props) {
           return;
         }
 
+        // No Content-Type header: the presigned URL is signed without one,
+        // and sending it makes GCS reject the upload ("invalid security token").
         const putRes = await fetch(uploadData.uploadURL, {
           method: 'PUT',
-          headers: { 'Content-Type': mimeType },
           body: blob,
         });
 

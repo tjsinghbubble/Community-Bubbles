@@ -86,12 +86,12 @@ export async function autoMigrate(): Promise<void> {
       -- bubble short IDs for share links
       ALTER TABLE bubbles
         ADD COLUMN IF NOT EXISTS short_id TEXT;
-      CREATE UNIQUE INDEX IF NOT EXISTS bubbles_short_id_idx ON bubbles(short_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS bubbles_short_id_unique ON bubbles(short_id);
 
       -- event short IDs for share links
       ALTER TABLE events
         ADD COLUMN IF NOT EXISTS short_id TEXT;
-      CREATE UNIQUE INDEX IF NOT EXISTS events_short_id_idx ON events(short_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS events_short_id_unique ON events(short_id);
 
       -- feedback (user-submitted feedback, feature requests, and defect reports)
       CREATE TABLE IF NOT EXISTS feedback (

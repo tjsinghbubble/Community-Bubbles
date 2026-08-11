@@ -171,12 +171,12 @@ export default function MultiImagePicker({
 
       const { uploadURL, objectPath } = await uploadUrlResponse.json();
 
+      // NOTE: do not set a Content-Type header here. The presigned URL from
+      // the server is signed WITHOUT a content type, so including one makes
+      // GCS reject the upload with an "invalid security token" error.
       const uploadResponse = await fetch(uploadURL, {
         method: 'PUT',
         body: blob,
-        headers: {
-          'Content-Type': contentType,
-        },
       });
 
       if (!uploadResponse.ok) {

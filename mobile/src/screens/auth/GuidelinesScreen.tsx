@@ -88,9 +88,10 @@ export default function GuidelinesScreen({ navigation, route }: Props) {
     const uploadData = await uploadRes.json();
 
     if (uploadData.uploadURL) {
+      // No Content-Type header: the presigned URL is signed without one,
+      // and sending it makes GCS reject the upload ("invalid security token").
       await fetch(uploadData.uploadURL, {
         method: 'PUT',
-        headers: { 'Content-Type': mimeType },
         body: blob,
       });
 
