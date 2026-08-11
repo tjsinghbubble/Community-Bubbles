@@ -99,6 +99,15 @@ import {
 } from "@shared/schema";
 import { count, avg, max } from "drizzle-orm";
 
+export interface BubbleInsights {
+  views: { last7d: number; last30d: number; trendPct: number | null };
+  members: { new7d: number; new30d: number; pendingCount: number };
+  reports: { last7d: number; openCount: number };
+  content: { postsLast7d: number; eventsLast7d: number };
+  engagement: { avgReactionsPerPost: number | null; avgRepliesPerPost: number | null };
+  activity: { lastActivityAt: string | null; isQuiet: boolean };
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -225,6 +234,7 @@ export interface IStorage {
   // Bubble visits
   trackBubbleVisit(bubbleId: string, userId?: string): Promise<BubbleVisit>;
   getBubbleVisitsMetrics(): Promise<{ topBubbles: { bubbleId: string; title: string; visits: number }[]; totalVisits: number; dailyData: { date: string; visits: number }[] }>;
+  getBubbleInsights(bubbleId: string): Promise<BubbleInsights>;
 
   // Categories
   getCategories(): Promise<Category[]>;
@@ -2010,6 +2020,77 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { topBubbles, totalVisits, dailyData };
+  }
+
+  async getBubbleInsights(bubbleId: string): Promise<BubbleInsights> {
+    const now = new Date();
+    const d7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const d14 = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const d30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      views7d, views30d, viewsPrevWeek,
+      newMembers7d, newMembers30d, pending,
+      board, eventsLast7d, lastEvent, bubbleReports,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(bubbleVisits).where(and(eq(bubbleVisits.bubbleId, bubbleId), gte(bubbleVisits.visitedAt, d7))),
+      db.select({ count: count() }).from(bubbleVisits).where(and(eq(bubbleVisits.bubbleId, bubbleId), gte(bubbleVisits.visitedAt, d30))),
+      db.select({ count: count() }).from(bubbleVisits).where(and(eq(bubbleVisits.bubbleId, bubbleId), gte(bubbleVisits.visitedAt, d14), lt(bubbleVisits.visitedAt, d7))),
+      db.select({ count: count() }).from(memberships).where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved'), gte(memberships.createdAt, d7))),
+      db.select({ count: count() }).from(memberships).where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'approved'), gte(memberships.createdAt, d30))),
+      db.select({ count: count() }).from(memberships).where(and(eq(memberships.bubbleId, bubbleId), eq(memberships.membershipStatus, 'pending'))),
+      db.select().from(bulletinBoards).where(eq(bulletinBoards.bubbleId, bubbleId)).limit(1),
+      db.select({ count: count() }).from(events).where(and(eq(events.bubbleId, bubbleId), gte(events.createdAt, d7))),
+      db.select({ createdAt: events.createdAt }).from(events).where(eq(events.bubbleId, bubbleId)).orderBy(desc(events.createdAt)).limit(1),
+      this.getReportsForBubble(bubbleId),
+    ]);
+
+    const boardId = board[0]?.id;
+
+    let postsLast7d = 0;
+    let lastPostAt: Date | null = null;
+    let avgReactionsPerPost: number | null = null;
+    let avgRepliesPerPost: number | null = null;
+
+    if (boardId) {
+      const [postsWeekResult, lastPostResult, recentPosts] = await Promise.all([
+        db.select({ count: count() }).from(bulletinPosts).where(and(eq(bulletinPosts.boardId, boardId), gte(bulletinPosts.createdAt, d7))),
+        db.select({ createdAt: bulletinPosts.createdAt }).from(bulletinPosts).where(eq(bulletinPosts.boardId, boardId)).orderBy(desc(bulletinPosts.createdAt)).limit(1),
+        db.select({ id: bulletinPosts.id }).from(bulletinPosts).where(and(eq(bulletinPosts.boardId, boardId), gte(bulletinPosts.createdAt, d30))),
+      ]);
+      postsLast7d = postsWeekResult[0]?.count || 0;
+      lastPostAt = lastPostResult[0]?.createdAt ?? null;
+
+      const recentPostIds = recentPosts.map(p => p.id);
+      if (recentPostIds.length > 0) {
+        const [reactionsResult, repliesResult] = await Promise.all([
+          db.select({ count: count() }).from(bulletinPostReactions).where(inArray(bulletinPostReactions.postId, recentPostIds)),
+          db.select({ count: count() }).from(bulletinReplies).where(inArray(bulletinReplies.postId, recentPostIds)),
+        ]);
+        avgReactionsPerPost = Math.round(((reactionsResult[0]?.count || 0) / recentPostIds.length) * 10) / 10;
+        avgRepliesPerPost = Math.round(((repliesResult[0]?.count || 0) / recentPostIds.length) * 10) / 10;
+      }
+    }
+
+    const lastEventAt = lastEvent[0]?.createdAt ?? null;
+    const lastActivityAt = [lastPostAt, lastEventAt].filter((d): d is Date => d !== null).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+    const isQuiet = !lastActivityAt || lastActivityAt < d30;
+
+    const reportsLast7d = bubbleReports.filter(r => r.createdAt >= d7).length;
+    const openReports = bubbleReports.filter(r => r.status === 'pending').length;
+
+    const viewsPrevWeekCount = viewsPrevWeek[0]?.count || 0;
+    const views7dCount = views7d[0]?.count || 0;
+    const trendPct = viewsPrevWeekCount > 0 ? Math.round(((views7dCount - viewsPrevWeekCount) / viewsPrevWeekCount) * 100) : null;
+
+    return {
+      views: { last7d: views7dCount, last30d: views30d[0]?.count || 0, trendPct },
+      members: { new7d: newMembers7d[0]?.count || 0, new30d: newMembers30d[0]?.count || 0, pendingCount: pending[0]?.count || 0 },
+      reports: { last7d: reportsLast7d, openCount: openReports },
+      content: { postsLast7d, eventsLast7d: eventsLast7d[0]?.count || 0 },
+      engagement: { avgReactionsPerPost, avgRepliesPerPost },
+      activity: { lastActivityAt: lastActivityAt ? lastActivityAt.toISOString() : null, isQuiet },
+    };
   }
 
   async getCategories(): Promise<Category[]> {
