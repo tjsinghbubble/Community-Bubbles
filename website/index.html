@@ -19,20 +19,26 @@
         main {
             max-width: 1100px;
             margin: 0 auto;
-            padding: 32px 48px 24px;
+            padding: 24px 48px 16px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 80px;
-            align-items: center;
+            align-items: stretch;
         }
 
-        .left-col { }
-        .right-col { }
+        .left-col {
+            display: flex;
+        }
 
-        /* PHOTO GRID */
+        /* PHOTO GRID
+           Columns fill the full card height (main uses align-items: stretch),
+           so grid top/bottom edges align with the auth card. Image heights are
+           flex-driven: tall capsules grow ~1.65x vs the shorter square images,
+           giving the varied-size, staggered rhythm from the reference design. */
         .photo-grid {
             display: flex;
             gap: 14px;
+            width: 100%;
         }
 
         .photo-col {
@@ -42,16 +48,17 @@
             gap: 14px;
         }
 
-        .photo-col.middle {
-            padding-top: 76px;
-        }
-
         .photo-grid img {
             display: block;
             width: 100%;
-            aspect-ratio: 3 / 4;
+            min-height: 0;
+            flex: 1 1 0;
             object-fit: cover;
             border-radius: 52px;
+        }
+
+        .photo-grid img.tall {
+            flex-grow: 1.65;
         }
 
         /* BRANDING (inside auth card) */
@@ -232,7 +239,7 @@
             background: white;
             padding: 48px 115px 32px;
             border-top: 1px solid #E5E7EB;
-            margin-top: 48px;
+            margin-top: 24px;
         }
 
         .footer-container {
@@ -329,6 +336,24 @@
                 justify-content: center;
             }
 
+            /* Single-column: no card to stretch against, so size images by
+               aspect ratio instead of flex share. */
+            .photo-grid img {
+                flex: none;
+            }
+
+            .photo-grid img.tall {
+                aspect-ratio: 3 / 5;
+            }
+
+            .photo-grid img.short {
+                aspect-ratio: 1 / 1;
+            }
+
+            .photo-col.middle {
+                padding-top: 48px;
+            }
+
             footer {
                 padding: 48px 48px 32px;
             }
@@ -358,19 +383,19 @@
       <div class="left-col">
         <div class="photo-grid">
             <div class="photo-col">
-                <img src="images/landing/pickleball.jpg" alt="">
-                <img src="images/landing/group_cheers.jpg" alt="">
-                <img src="images/landing/group_craft.jpg" alt="">
+                <img class="tall" src="images/landing/pickleball.jpg" alt="">
+                <img class="short" src="images/landing/group_cheers.jpg" alt="">
+                <img class="tall" src="images/landing/group_craft.jpg" alt="">
             </div>
             <div class="photo-col middle">
-                <img src="images/landing/dog_meeting.png" alt="">
-                <img src="images/landing/fitness_class.jpg" alt="">
-                <img src="images/landing/badminton.jpg" alt="">
+                <img class="short" src="images/landing/dog_meeting.png" alt="">
+                <img class="tall" src="images/landing/fitness_class.jpg" alt="">
+                <img class="tall" src="images/landing/badminton.jpg" alt="">
             </div>
             <div class="photo-col">
-                <img src="images/landing/volunteer_group.png" alt="">
-                <img src="images/landing/picnic.jpg" alt="">
-                <img src="images/landing/mask_group.jpg" alt="">
+                <img class="tall" src="images/landing/volunteer_group.png" alt="">
+                <img class="short" src="images/landing/picnic.jpg" alt="">
+                <img class="tall" src="images/landing/mask_group.jpg" alt="">
             </div>
         </div>
       </div>
