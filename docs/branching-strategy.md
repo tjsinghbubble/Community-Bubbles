@@ -63,6 +63,8 @@ flowchart TD
 large conflicts that require manual resolution. After the `UpcomingScreen.tsx` conflict
 (57-commit gap), we automated this.
 
+### Sync PR (post-release)
+
 **Cadence:** after every successful production EAS build, a GitHub Action
 (`.github/workflows/sync-develop-to-main.yml`) automatically opens a
 **`develop → main` sync PR**. The PR is idempotent — if one already exists, no
@@ -75,6 +77,26 @@ duplicate is created.
 1. Review the diff — confirm only expected changes are included.
 2. If there are conflicts, resolve them in a local branch and push to the PR.
 3. Approve and merge with **Merge commit** (not squash) to preserve history.
+
+### Divergence alert (weekly)
+
+A second workflow (`.github/workflows/branch-divergence-alert.yml`) runs every
+**Monday at 09:00 UTC** and checks how many commits `develop` is ahead of `main`.
+
+| Condition | Action |
+|-----------|--------|
+| Gap ≤ 15 commits | ✅ No action — divergence is within threshold |
+| Gap > 15 commits AND a sync PR is open | 💬 Posts a reminder comment on the sync PR |
+| Gap > 15 commits AND no sync PR exists | 🚨 Opens a GitHub issue labelled `branch-drift` |
+| Issue already open, still drifting | 💬 Adds a weekly update comment to the existing issue |
+
+The threshold (default: **15 commits**) can be overridden when triggering the workflow
+manually via **GitHub → Actions → Branch Divergence Alert → Run workflow**.
+
+**Responding to an alert:**
+1. Run the sync PR workflow: **GitHub → Actions → Sync develop → main → Run workflow**.
+2. Review and merge the resulting PR.
+3. Close the alert issue once merged.
 
 The goal is to keep `main` within a few commits of `develop` at all times.
 
