@@ -95,7 +95,7 @@ export default function CreateEvent() {
         locationName: locationName.trim() || undefined,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
-      if (capacity) body.capacity = Number(capacity);
+      if (capacity) body.attendeeLimit = Number(capacity);
 
       const res = await apiRequest("POST", "/api/events", body);
       return res.json();
