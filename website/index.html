@@ -516,6 +516,28 @@
     </footer>
 
     <script>
+        // Already logged in? Skip the marketing login card and go straight to
+        // the app. Uses the same localStorage keys as the React app's auth
+        // context. The token is validated against the server first; a dead
+        // token is cleared so the login pages keep working (no redirect with
+        // stale credentials, no loops).
+        try {
+            var bubbleToken = localStorage.getItem('bubble_web_token');
+            if (bubbleToken) {
+                fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + bubbleToken } })
+                    .then(function (res) {
+                        if (res.ok) {
+                            window.location.replace('/explore');
+                        } else if (res.status === 401 || res.status === 403) {
+                            localStorage.removeItem('bubble_web_token');
+                            localStorage.removeItem('bubble_web_user');
+                        }
+                        // Other statuses (5xx): stay on the page.
+                    })
+                    .catch(function () { /* offline — show the page */ });
+            }
+        } catch (e) { /* localStorage unavailable (e.g. blocked) — show the page */ }
+
         // This card is a preview only — it hands off to the real app at /auth,
         // which owns the actual email-check / login / signup logic. Nothing here
         // calls the API, so there's no auth logic duplicated between this static

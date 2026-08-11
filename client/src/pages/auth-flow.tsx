@@ -66,7 +66,16 @@ export default function AuthFlow() {
   });
   const [signupStep, setSignupStep] = useState<SignupStep>("details");
   const [, navigate] = useLocation();
-  const { login, signup } = useAuth();
+  const { login, signup, user, isLoading } = useAuth();
+
+  // Already authenticated? Don't show another login page — go to the app.
+  // Wait for the auth context to finish restoring localStorage state so we
+  // don't redirect (or fail to) based on a not-yet-loaded session.
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate("/explore", { replace: true });
+    }
+  }, [isLoading, user, navigate]);
 
   const [welcomeEmail, setWelcomeEmail] = useState(
     () => new URLSearchParams(search).get("email") ?? "",
