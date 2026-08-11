@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            background: #F0F4F8;
+            background: #F5F6F7;
         }
 
         main {
@@ -31,49 +31,71 @@
 
         /* PHOTO GRID */
         .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 32px;
+            display: flex;
+            gap: 14px;
+        }
+
+        .photo-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .photo-col.middle {
+            padding-top: 76px;
         }
 
         .photo-grid img {
             display: block;
             width: 100%;
-            aspect-ratio: 1;
+            aspect-ratio: 3 / 4;
             object-fit: cover;
-            border-radius: 14px;
+            border-radius: 52px;
         }
 
-        /* BRANDING */
+        /* BRANDING (inside auth card) */
         .branding {
-            text-align: left;
-            margin-bottom: 24px;
+            text-align: center;
+            margin-bottom: 28px;
         }
 
         .logo-row {
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
-            margin-bottom: 8px;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
         }
 
         .logo-row svg {
-            width: 34px;
-            height: 31px;
+            width: 44px;
+            height: 40px;
             color: #35A8F7;
         }
 
         .logo-row span {
-            font-size: 1.7rem;
+            font-size: 2.2rem;
             font-weight: 700;
             color: #35A8F7;
         }
 
         .tagline {
             font-size: 0.95rem;
-            color: #969696;
+            color: #6B6B6B;
+            line-height: 1.5;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         /* AUTH CARD */
@@ -81,14 +103,7 @@
             background: white;
             border: 1px solid #E2E2E2;
             border-radius: 16px;
-            padding: 24px;
-        }
-
-        .auth-card h1 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1E1F26;
-            margin-bottom: 16px;
+            padding: 48px 36px 32px;
         }
 
         .auth-card input[type="email"] {
@@ -112,7 +127,7 @@
             width: 100%;
             padding: 16px 24px;
             border: none;
-            border-radius: 999px;
+            border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
             font-size: 1rem;
@@ -121,7 +136,7 @@
             text-decoration: none;
             display: block;
             box-sizing: border-box;
-            background: linear-gradient(135deg, #35A8F7 0%, #35A8F7 70%, #6FC3F9 100%);
+            background: #35A8F7;
             color: white;
         }
 
@@ -130,8 +145,7 @@
         }
 
         .cta-button:disabled {
-            background: #E2E2E2;
-            color: #969696;
+            opacity: 0.55;
             cursor: not-allowed;
         }
 
@@ -175,17 +189,8 @@
         }
 
         .google-mark {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: white;
-            border: 1px solid #E2E2E2;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #4285F4;
+            width: 20px;
+            height: 20px;
             flex-shrink: 0;
         }
 
@@ -204,17 +209,21 @@
             margin-bottom: 0;
         }
 
-        /* TERMS TEXT (OUTSIDE BOX) */
-        .terms-text-outside {
+        /* TERMS TEXT (INSIDE CARD) */
+        .terms-text {
             font-size: 0.8rem;
             color: #969696;
             text-align: center;
             line-height: 1.6;
-            margin-top: 20px;
+            margin-top: 28px;
         }
 
-        .terms-text-outside a {
+        .terms-text a {
             color: #35A8F7;
+            text-decoration: none;
+        }
+
+        .terms-text a:hover {
             text-decoration: underline;
         }
 
@@ -223,7 +232,7 @@
             background: white;
             padding: 48px 115px 32px;
             border-top: 1px solid #E5E7EB;
-            margin-top: 24px;
+            margin-top: 48px;
         }
 
         .footer-container {
@@ -347,9 +356,30 @@
 <body>
     <main>
       <div class="left-col">
-        <div class="branding">
-            <div class="logo-row">
-                <svg viewBox="0 0 73 67" fill="none" aria-hidden="true">
+        <div class="photo-grid">
+            <div class="photo-col">
+                <img src="images/landing/pickleball.jpg" alt="">
+                <img src="images/landing/group_cheers.jpg" alt="">
+                <img src="images/landing/group_craft.jpg" alt="">
+            </div>
+            <div class="photo-col middle">
+                <img src="images/landing/dog_meeting.png" alt="">
+                <img src="images/landing/fitness_class.jpg" alt="">
+                <img src="images/landing/badminton.jpg" alt="">
+            </div>
+            <div class="photo-col">
+                <img src="images/landing/volunteer_group.png" alt="">
+                <img src="images/landing/picnic.jpg" alt="">
+                <img src="images/landing/mask_group.jpg" alt="">
+            </div>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <form class="auth-card" id="welcome-form">
+            <div class="branding">
+                <div class="logo-row">
+                    <svg viewBox="0 0 73 67" fill="none" aria-hidden="true">
                     <path d="M51.5265 2C46.3601 2.00311 41.4063 4.07912 37.7524 7.76734C34.1017 11.4587 32.0468 16.4634 32.0437 21.6831C33.1158 47.8271 69.9371 47.8271 71.0089 21.6831C71.0058 16.4636 68.9509 11.4588 65.3002 7.76734C61.6464 4.07912 56.6931 2.00311 51.5265 2ZM51.5265 38.8758C47.0132 38.8727 42.6879 37.0613 39.4961 33.8368C36.3043 30.6123 34.5115 26.2426 34.5084 21.6827C35.4449 -1.12513 67.6082 -1.12513 68.5443 21.6827C68.5382 26.2394 66.7421 30.6091 63.5535 33.8337C60.3619 37.055 56.0368 38.8696 51.5265 38.8758Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M51.5261 9.95525C50.2939 9.95525 48.1004 9.85565 48.3223 11.6235C48.3839 11.9503 48.5749 12.2366 48.846 12.4202C49.1202 12.607 49.4529 12.6723 49.7763 12.607C53.0049 11.9907 56.3135 13.1641 58.4483 15.6882C60.5831 18.2092 61.2178 21.695 60.1149 24.8198C59.9732 25.2026 60.0256 25.6321 60.2566 25.9682C60.4877 26.3013 60.8697 26.5004 61.2733 26.5004C61.7908 26.5004 62.256 26.1705 62.4317 25.6788C63.7286 22.081 63.208 18.0692 61.0392 14.929C58.8674 11.7887 55.3185 9.91505 51.5266 9.90573L51.5261 9.95525Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M16.1098 23.4006C12.3699 23.4068 8.78397 24.9101 6.14051 27.5836C3.49421 30.254 2.00627 33.8767 2.00012 37.6553C2.77645 56.5655 29.4426 56.5655 30.2186 37.6553C30.2125 33.877 28.7246 30.2542 26.0783 27.5836C23.435 24.9101 19.8492 23.4068 16.109 23.4006H16.1098ZM16.1098 49.4194C13.0229 49.4163 10.0624 48.1745 7.8779 45.971C5.69682 43.7644 4.46764 40.7734 4.46456 37.6545C5.09302 22.0556 27.1255 22.0684 27.7541 37.6545C27.751 40.773 26.5218 43.764 24.3407 45.971C22.1566 48.1745 19.1961 49.4163 16.1088 49.4194H16.1098Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
@@ -357,28 +387,14 @@
                     <path d="M35.5252 51.2282C34.2814 51.8491 33.5987 52.912 33.8396 53.8523C33.9096 54.13 34.0269 54.595 34.5725 54.4614C34.7197 54.4261 34.8494 54.3463 34.9219 54.2443C34.9946 54.143 35.0043 54.0314 34.9453 53.9425C34.8748 53.8377 34.8238 53.7254 34.7951 53.6064C34.6239 52.9524 35.0932 52.2118 35.955 51.7743C36.1741 51.6543 36.2557 51.4485 36.1425 51.304C36.0292 51.1595 35.7588 51.1259 35.5252 51.2282Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M39.4618 44.6392C33.8797 44.6455 29.3577 49.2206 29.3577 54.86C29.8629 68.3801 49.0738 68.3801 49.5793 54.86C49.5732 49.2174 45.0469 44.6456 39.4618 44.6392ZM39.4618 62.579C35.2444 62.5727 31.8279 59.1212 31.8218 54.8604C32.1791 44.6396 46.7572 44.6396 47.1144 54.8604C47.1083 59.1243 43.6822 62.579 39.4618 62.579Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                 </svg>
-                <span>Bubble</span>
+                    <span>Bubble</span>
+                </div>
+                <p class="tagline">Connect locally. Create moments.<br>Build a lasting community.</p>
             </div>
-            <p class="tagline">Connect locally. Build lasting community.</p>
-        </div>
 
-        <div class="photo-grid">
-            <img src="images/landing/pickleball.jpg" alt="">
-            <img src="images/landing/dog_meeting.png" alt="">
-            <img src="images/landing/volunteer_group.png" alt="">
-            <img src="images/landing/group_cheers.jpg" alt="">
-            <img src="images/landing/fitness_class.jpg" alt="">
-            <img src="images/landing/picnic.jpg" alt="">
-            <img src="images/landing/group_craft.jpg" alt="">
-            <img src="images/landing/badminton.jpg" alt="">
-            <img src="images/landing/mask_group.jpg" alt="">
-        </div>
-      </div>
-
-      <div class="right-col">
-        <form class="auth-card" id="welcome-form">
-            <h1>Log in or sign up</h1>
-            <input type="email" id="welcome-email" placeholder="Email address" autocomplete="email" required>
+            <h1 class="visually-hidden">Log in or sign up to Bubble</h1>
+            <label for="welcome-email" class="visually-hidden">Email address</label>
+            <input type="email" id="welcome-email" placeholder="Enter your email" autocomplete="email" required>
             <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
 
             <div class="divider">
@@ -388,7 +404,12 @@
             </div>
 
             <button type="button" class="social-button" id="google-btn">
-                <span class="google-mark">G</span>
+                <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
                 Continue with Google
             </button>
             <button type="button" class="social-button" id="apple-btn">
@@ -398,11 +419,11 @@
                 </svg>
                 Continue with Apple
             </button>
-        </form>
 
-        <p class="terms-text-outside">
-            By continuing, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.
-        </p>
+            <p class="terms-text">
+                By continuing, you agree to Bubble's <a href="terms.html">Terms of Service</a><br>and <a href="privacy.html">Privacy Policy</a>.
+            </p>
+        </form>
       </div>
     </main>
 
