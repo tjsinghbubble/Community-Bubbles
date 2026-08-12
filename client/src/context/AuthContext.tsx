@@ -32,16 +32,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Restore the persisted session, but only treat it as authenticated after
+  // the server confirms the token is still valid. On 401/403 the stale
+  // credentials are cleared so login pages work again (no forced redirect to
+  // the app with a dead token). On network failure we keep the cached
+  // session rather than logging the user out while offline.
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem(TOKEN_KEY);
-      const storedUser = localStorage.getItem(USER_KEY);
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+    let cancelled = false;
+    const restore = async () => {
+      let storedToken: string | null = null;
+      let storedUser: string | null = null;
+      try {
+        storedToken = localStorage.getItem(TOKEN_KEY);
+        storedUser = localStorage.getItem(USER_KEY);
+      } catch {}
+      if (!storedToken || !storedUser) {
+        if (!cancelled) setIsLoading(false);
+        return;
       }
-    } catch {}
-    setIsLoading(false);
+      try {
+        const res = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${storedToken}` },
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json().catch(() => null);
+          setToken(storedToken);
+          // Prefer fresh server data; fall back to the cached copy.
+          setUser(data?.user ?? data ?? JSON.parse(storedUser));
+        } else if (res.status === 401 || res.status === 403) {
+          try {
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+          } catch {}
+        } else {
+          // Server hiccup (5xx etc.) — keep the cached session.
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
+      } catch {
+        // Network failure — keep the cached session.
+        if (!cancelled) {
+          try {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser!));
+          } catch {}
+        }
+      }
+      if (!cancelled) setIsLoading(false);
+    };
+    restore();
+    return () => { cancelled = true; };
   }, []);
 
   const login = async (email: string, password: string) => {

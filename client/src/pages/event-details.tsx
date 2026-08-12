@@ -113,10 +113,13 @@ export default function EventDetails() {
     enabled: !!user,
   });
 
-  const myRsvp = (attendees ?? []).find((a: any) => a.userId === user?.id);
-  const isGoing = myRsvp?.status === "going" || (myEvents ?? []).some((e: any) => e.id === id);
+  // API errors return a JSON object, not an array — never crash on them
+  const attendeeList = Array.isArray(attendees) ? attendees : [];
+  const myEventsList = Array.isArray(myEvents) ? myEvents : [];
+  const myRsvp = attendeeList.find((a: any) => a.userId === user?.id);
+  const isGoing = myRsvp?.status === "going" || myEventsList.some((e: any) => e.id === id);
   const isWaitlisted = myRsvp?.status === "waitlisted";
-  const goingCount = (attendees ?? []).filter((a: any) => a.status === "going").length;
+  const goingCount = attendeeList.filter((a: any) => a.status === "going").length;
 
   const rsvpMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/events/${id}/rsvp`, { status: "going" }),
@@ -142,7 +145,7 @@ export default function EventDetails() {
     },
   });
 
-  if (isLoading || !event) {
+  if (isLoading || !event || !event.id) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-background" data-testid="loading-event-details">
         <div className="text-sm text-muted-foreground">{isLoading ? "Loading…" : "Event not found"}</div>
@@ -163,7 +166,16 @@ export default function EventDetails() {
   return (
     <div className="min-h-dvh bg-background text-foreground">
       <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur-xl">
-        <button onClick={() => navigate(-1 as any)} className="flex h-10 w-10 items-center justify-center rounded-full" data-testid="button-event-back">
+        <button
+          onClick={() => {
+            // wouter has no numeric navigation — go back in browser history,
+            // falling back to the parent bubble when opened directly via link
+            if (window.history.length > 1) window.history.back();
+            else navigate(`/bubble/${event.bubbleId}`);
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-full"
+          data-testid="button-event-back"
+        >
           <ArrowLeft className="h-5 w-5" />
         </button>
         <span className="truncate px-2 text-[16px] font-bold" data-testid="text-event-details-title">{event.title}</span>

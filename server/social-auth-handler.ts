@@ -1,4 +1,4 @@
-import { Express } from "express";
+import { Express, RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { OAuth2Client } from "google-auth-library";
@@ -16,13 +16,22 @@ function makeJwt(userId: string, tokenVersion: number): string {
 
 const googleClient = new OAuth2Client();
 
-export function registerSocialAuthRoutes(app: Express) {
+export interface RegisterSocialAuthRoutesOptions {
+  /** Rate limiter for check-email — it's a public account-existence oracle, so throttle it. */
+  checkEmailRateLimiter?: RequestHandler;
+}
+
+export function registerSocialAuthRoutes(app: Express, options: RegisterSocialAuthRoutesOptions = {}) {
+  const checkEmailMiddleware: RequestHandler[] = options.checkEmailRateLimiter
+    ? [options.checkEmailRateLimiter]
+    : [];
+
   // ---------------------------------------------------------------------------
   // POST /api/auth/check-email
-  // Returns { exists: boolean } — used by the new WelcomeAuthScreen to decide
-  // whether to route the user to Login or the Sign Up flow.
+  // Returns { exists: boolean } — used by the WelcomeAuthScreen and the
+  // marketing homepage to decide whether to show Login or the Sign Up flow.
   // ---------------------------------------------------------------------------
-  app.post("/api/auth/check-email", async (req: any, res: any) => {
+  app.post("/api/auth/check-email", ...checkEmailMiddleware, async (req: any, res: any) => {
     try {
       const schema = z.object({ email: z.string().email() });
       const parsed = schema.safeParse(req.body ?? {});

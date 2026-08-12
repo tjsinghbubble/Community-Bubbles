@@ -8,7 +8,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { sql as drizzleSql } from "drizzle-orm";
 import jwt from "jsonwebtoken";
-import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema } from "@shared/schema";
+import { insertBubbleSchema, insertEventSchema, insertCategorySchema, insertBulletinPostSchema, insertBulletinReplySchema, updateBubbleSchema, updateEventSchema, updateBulletinPostSchema, patchUserSchema, type InsertCategory, appConfig, insertEventSignupTaskSchema, isValidEventDate, isValidEventTime, validateRawEventDateTimes } from "@shared/schema";
 import { registerAuthRoutes, clearLoginFailures, registerVerifyCodeRoute, registerSendVerificationRoute } from "./auth-handler";
 import { registerCampusSendVerificationRoute, registerCampusVerifyCodeRoute } from "./campus-handler";
 import { registerReportsRoute } from "./reports-handler";
@@ -75,6 +75,16 @@ const sendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: `Too many requests, please try again later.` },
+});
+
+// Throttles the public account-existence oracle. Separate instance from
+// authLimiter so email checks don't consume the login attempt budget.
+const checkEmailLimiter = rateLimit({
+  windowMs: AUTH_RATE_LIMIT_WINDOW_MS,
+  max: AUTH_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: `Too many attempts, please try again later.` },
 });
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -145,11 +155,17 @@ async function enrichBubblesCategory(bubblesArr: any[]): Promise<any[]> {
 function convertEventToLocal(event: any): any {
   if (!event || !event.timezone || event.timezone === 'UTC') return event;
   if (!event.date || !event.startTime) return event;
+  if (!isValidEventDate(event.date) || !isValidEventTime(event.startTime)) {
+    return event;
+  }
   // Normalize date to YYYY-MM-DD in case it was stored as a full timestamp
   const normalizedDate = String(event.date).slice(0, 10);
+  // Corrupt values (e.g. "NaN-NaN-NaN"/"NaN:NaN"/"2026-02-30") must not crash
+  // timezone conversion and 500 an entire endpoint — return unconverted.
+  if (!isValidEventDate(normalizedDate) || !isValidEventTime(event.startTime)) return event;
   const localStart = utcToLocal(normalizedDate, event.startTime, event.timezone);
   const result = { ...event, date: localStart.date, startTime: localStart.time };
-  if (event.endTime) {
+  if (event.endTime && isValidEventTime(event.endTime)) {
     const utcStartDt = new Date(`${normalizedDate}T${event.startTime}:00Z`);
     const utcEndDt = new Date(`${normalizedDate}T${event.endTime}:00Z`);
     let endUtcDate = normalizedDate;
@@ -366,7 +382,7 @@ export async function registerRoutes(
     sendEmail: sendVerificationEmail,
   });
 
-  registerSocialAuthRoutes(app);
+  registerSocialAuthRoutes(app, { checkEmailRateLimiter: checkEmailLimiter });
 
   app.post("/api/auth/send-confirmation", authMiddleware, async (req: any, res: any) => {
     try {
@@ -2509,7 +2525,9 @@ export async function registerRoutes(
   app.get("/api/events", async (req, res) => {
     try {
       const baseUrl = getBaseUrl(req);
-      const events = await storage.getPublicEvents();
+      // Exclude rows whose stored date is shape-valid but not a real calendar
+      // date (e.g. 2026-02-30) — JS clients would silently normalize them.
+      const events = (await storage.getPublicEvents()).filter((e: any) => isValidEventDate(e.date));
       res.json(convertEventsToLocal(events).map((e: any) => {
         const { bubble, ...rest } = absoluteMediaUrls(e, baseUrl);
         return {
@@ -2526,10 +2544,10 @@ export async function registerRoutes(
     try {
       const baseUrl = getBaseUrl(req);
       if (req.userId) {
-        const events = await storage.getUpcomingEventsForUser(req.userId);
+        const events = (await storage.getUpcomingEventsForUser(req.userId)).filter((e: any) => isValidEventDate(e.date));
         res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
       } else {
-        const events = await storage.getUpcomingEvents();
+        const events = (await storage.getUpcomingEvents()).filter((e: any) => isValidEventDate(e.date));
         res.json(convertEventsToLocal(events).map((e: any) => absoluteMediaUrls(e, baseUrl)));
       }
     } catch (error: any) {
@@ -2657,6 +2675,11 @@ export async function registerRoutes(
         return res.status(400).json({ error: modResult.message });
       }
 
+      // Validate raw user-supplied date/time BEFORE timezone conversion —
+      // JS date math would silently normalize impossible dates like 2026-02-30.
+      const rawInvalid = validateRawEventDateTimes(req.body);
+      if (rawInvalid) return res.status(400).json({ error: rawInvalid });
+
       const timezone = req.body.timezone || 'UTC';
       let bodyToStore = { ...req.body };
       if (timezone !== 'UTC' && req.body.date && req.body.startTime) {
@@ -2747,6 +2770,11 @@ export async function registerRoutes(
       if (modResult.flagged) {
         return res.status(400).json({ error: modResult.message });
       }
+
+      // Validate raw user-supplied date/time BEFORE timezone conversion —
+      // JS date math would silently normalize impossible dates like 2026-02-30.
+      const rawInvalid = validateRawEventDateTimes(req.body);
+      if (rawInvalid) return res.status(400).json({ error: rawInvalid });
 
       let updateBody = { ...eventBodyParsed.data };
       const tz = req.body.timezone || event.timezone || 'UTC';

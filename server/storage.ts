@@ -1645,6 +1645,9 @@ export class DatabaseStorage implements IStorage {
         eq(events.status, 'approved'),
         ne(bubbles.privacy, 'Private'),
         gte(events.date, today),
+        // date is a text column; corrupt values (e.g. "NaN-NaN-NaN") string-compare
+        // greater than any YYYY-MM-DD date and would leak into "upcoming" results
+        sql`${events.date} ~ '^\\d{4}-\\d{2}-\\d{2}$'`,
         isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
@@ -1667,6 +1670,7 @@ export class DatabaseStorage implements IStorage {
         eq(events.status, 'approved'),
         ne(bubbles.privacy, 'Private'),
         gte(events.date, today),
+        sql`${events.date} ~ '^\\d{4}-\\d{2}-\\d{2}$'`,
         isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);
@@ -1697,6 +1701,7 @@ export class DatabaseStorage implements IStorage {
         eq(events.status, 'approved'),
         ne(bubbles.privacy, 'Private'),
         gte(events.date, today),
+        sql`${events.date} ~ '^\\d{4}-\\d{2}-\\d{2}$'`,
         isNull(bubbles.deletedAt)
       ))
       .orderBy(events.date, events.startTime);

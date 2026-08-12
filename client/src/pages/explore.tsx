@@ -159,9 +159,11 @@ function BubbleCard({
 
 /* ─── Event card (wider — image left, details right) ────────────── */
 function EventCard({ event, onClick }: { event: any; onClick: () => void }) {
-  const dateStr = event.date
-    ? new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  const parsed = event.date ? new Date(event.date) : null;
+  const dateStr = parsed && !isNaN(parsed.getTime())
+    ? parsed.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : "";
+  const category = event.category || event.bubble?.category || "";
 
   return (
     <motion.button
@@ -183,9 +185,9 @@ function EventCard({ event, onClick }: { event: any; onClick: () => void }) {
             <IconCalendarTab size={28} color="rgba(53,168,247,0.4)" />
           </div>
         )}
-        {event.category && (
+        {category && (
           <div className="absolute left-1.5 top-1.5 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-black/75 shadow-sm backdrop-blur-sm">
-            {event.category}
+            {category}
           </div>
         )}
       </div>
@@ -290,6 +292,7 @@ export default function Explore() {
 
   const allEvents: any[] = (rawEvents ?? []).filter((e: any) => {
     const eventDate = new Date(e.date);
+    if (isNaN(eventDate.getTime())) return false; // guard against corrupt dates
     return eventDate >= new Date(Date.now() - 86400000); // today or future
   });
 
@@ -358,7 +361,8 @@ export default function Explore() {
                   </div>
                 ))}
               </div>
-            ) : filteredBubbles.length === 0 && filteredEvents.length === 0 ? (
+            ) : filteredBubbles.length === 0 && filteredEvents.length === 0 &&
+              (searchQuery || selectedNode !== "all" || legacyChip !== "all") ? (
               <div className="py-20 text-center">
                 <Users className="mx-auto h-10 w-10 text-black/15" />
                 <div className="mt-4 text-[15px] font-semibold text-black/50">Nothing found</div>
@@ -382,25 +386,33 @@ export default function Explore() {
                   </section>
                 )}
 
-                {filteredEvents.length > 0 && (
-                  <section>
-                    <SectionHeader
-                      title="Trending Events"
-                      subtitle="Happening soon"
-                      showViewAll={!showAllEvents && filteredEvents.length > 2}
-                      onViewAll={() => setShowAllEvents(true)}
-                    />
+                <section>
+                  <SectionHeader
+                    title="Trending Events"
+                    subtitle="Happening soon"
+                    showViewAll={!showAllEvents && filteredEvents.length > 2}
+                    onViewAll={() => setShowAllEvents(true)}
+                  />
+                  {filteredEvents.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {trendingEvents.map((e) => (
                         <EventCard
                           key={e.id}
                           event={e}
-                          onClick={() => navigate(`/bubble/${e.bubbleId}`)}
+                          onClick={() => navigate(`/event/${e.id}`)}
                         />
                       ))}
                     </div>
-                  </section>
-                )}
+                  ) : (
+                    <div className="flex items-center gap-3 rounded-2xl bg-black/[0.03] px-5 py-6" data-testid="empty-trending-events">
+                      <IconCalendarTab size={22} color="rgba(0,0,0,0.25)" />
+                      <div>
+                        <div className="text-[14px] font-semibold text-black/55">No upcoming events right now</div>
+                        <div className="text-[12.5px] text-black/40">Check back soon — or join a bubble and host one!</div>
+                      </div>
+                    </div>
+                  )}
+                </section>
               </div>
             )}
           </div>
