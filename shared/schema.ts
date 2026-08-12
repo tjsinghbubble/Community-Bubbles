@@ -231,6 +231,40 @@ export const eventAttendees = pgTable("event_attendees", {
   index("idx_event_attendees_created_at").on(table.createdAt),
 ]);
 
+// Strict validators for event date/time strings (text columns). A value like
+// "2026-02-30" is date-shaped but not a real calendar date — JS would silently
+// normalize it to March 2, so reject it everywhere before it reaches storage.
+export function isValidEventDate(value: unknown): boolean {
+  const s = String(value ?? '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+}
+
+export function isValidEventTime(value: unknown): boolean {
+  const s = String(value ?? '');
+  if (!/^\d{2}:\d{2}$/.test(s)) return false;
+  const [h, m] = s.split(':').map(Number);
+  return h >= 0 && h <= 23 && m >= 0 && m <= 59;
+}
+
+// Route-level guard for raw user-supplied event date/time fields. Must run
+// BEFORE any timezone conversion (localToUtc), because JS date math silently
+// normalizes impossible inputs like "2026-02-30" into a real date, which would
+// then pass schema validation. Returns an error message, or null when valid.
+export function validateRawEventDateTimes(body: Record<string, unknown>): string | null {
+  if (body.date !== undefined && body.date !== null && !isValidEventDate(body.date)) {
+    return "date must be a real calendar date in YYYY-MM-DD format";
+  }
+  if (body.startTime !== undefined && body.startTime !== null && !isValidEventTime(body.startTime)) {
+    return "startTime must be a valid HH:MM time";
+  }
+  if (body.endTime !== undefined && body.endTime !== null && body.endTime !== "" && !isValidEventTime(body.endTime)) {
+    return "endTime must be a valid HH:MM time";
+  }
+  return null;
+}
+
 export const insertEventSchema = createInsertSchema(events).omit({
   id: true,
   shortId: true,
@@ -242,6 +276,9 @@ export const insertEventSchema = createInsertSchema(events).omit({
   description: z.string().max(2000).optional().nullable(),
   locationName: z.string().max(300).optional().nullable(),
   locationAddress: z.string().max(300).optional().nullable(),
+  date: z.string().refine(isValidEventDate, { message: "date must be a real calendar date in YYYY-MM-DD format" }),
+  startTime: z.string().refine(isValidEventTime, { message: "startTime must be a valid HH:MM time" }),
+  endTime: z.string().refine(isValidEventTime, { message: "endTime must be a valid HH:MM time" }).optional().nullable(),
 });
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
