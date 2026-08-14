@@ -3782,6 +3782,20 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/bubbles/:bubbleId/insights", authMiddleware, async (req, res) => {
+    try {
+      const { bubbleId } = req.params;
+      const role = await storage.getMemberRole(req.userId!, bubbleId);
+      if (role !== 'admin') {
+        return res.status(403).json({ error: "Only bubble admins can view insights" });
+      }
+      const insights = await storage.getBubbleInsights(bubbleId);
+      res.json(insights);
+    } catch (error: any) {
+      serverError(res, error);
+    }
+  });
+
   app.get("/api/admin/reports", authMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.userId!);

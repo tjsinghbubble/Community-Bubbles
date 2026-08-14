@@ -537,6 +537,7 @@ function BubbleKebabMenu({
   onManage,
   onEdit,
   onChat,
+  onInsights,
 }: {
   bubble: Bubble;
   isMember: boolean;
@@ -544,6 +545,7 @@ function BubbleKebabMenu({
   onManage: () => void;
   onEdit: () => void;
   onChat: () => void;
+  onInsights: () => void;
 }) {
   const [reportConcern, setReportConcern] = useState(false);
   const [reportBubble, setReportBubble] = useState(false);
@@ -623,6 +625,15 @@ function BubbleKebabMenu({
               >
                 <Crown className="h-[18px] w-[18px]" style={{ color: BLUE }} />
                 Manage Bubble
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal"
+                style={{ color: BLUE }}
+                onClick={onInsights}
+                data-testid="action-bubble-insights"
+              >
+                <LayoutDashboard className="h-[18px] w-[18px]" style={{ color: BLUE }} />
+                Insights
               </DropdownMenuItem>
             </>
           )}
@@ -1037,6 +1048,7 @@ export default function BubbleDetails() {
             onChat={() => { window.location.href = `/chat/chat-${bubble.id}`; }}
             onManage={() => navigate("/admin/pending")}
             onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
+            onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
           />
         </div>
         <Segmented value={tab} onChange={setTab} />

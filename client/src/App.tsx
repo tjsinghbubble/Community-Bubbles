@@ -13,6 +13,7 @@ import EditEvent from "./pages/edit-event";
 import EventDetails from "./pages/event-details";
 import BubbleDetails from "./pages/bubble-details";
 import EditBubble from "./pages/edit-bubble";
+import BubbleInsights from "./pages/bubble-insights";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
@@ -85,6 +86,7 @@ function Router() {
       <Route path="/event/:id" component={EventDetails} />
       <Route path="/bubble/:id" component={BubbleDetails} />
       <Route path="/bubble/:id/edit" component={EditBubble} />
+      <Route path="/bubble/:id/insights" component={BubbleInsights} />
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
