@@ -746,10 +746,11 @@ export default function BubbleDetailsScreen({ navigation, route }: Props) {
         if (!uploadUrlResponse.ok) throw new Error('Failed to get upload URL');
         const { uploadURL, objectPath } = await uploadUrlResponse.json();
 
+        // No Content-Type header: the presigned URL is signed without one,
+        // and sending it makes GCS reject the upload ("invalid security token").
         const uploadResponse = await fetch(uploadURL, {
           method: 'PUT',
           body: blob,
-          headers: { 'Content-Type': contentType },
         });
 
         if (!uploadResponse.ok) throw new Error('Failed to upload image');

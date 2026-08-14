@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import NotFound from "@/pages/not-found";
-import AuthFlow from "./pages/auth-flow";
 import Explore from "./pages/explore";
 import CreateBubble from "./pages/create-bubble";
 import CreateEvent from "./pages/create-event";
@@ -14,6 +13,7 @@ import EditEvent from "./pages/edit-event";
 import EventDetails from "./pages/event-details";
 import BubbleDetails from "./pages/bubble-details";
 import EditBubble from "./pages/edit-bubble";
+import BubbleInsights from "./pages/bubble-insights";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
@@ -58,11 +58,27 @@ function BubbleShortLink() {
   );
 }
 
+// The login/signup experience lives entirely on the static marketing page at
+// "/" now. Old /auth links (bookmarks, in-app navigate("/auth") calls) do a
+// full-page redirect there, carrying an ?email= prefill if one was provided.
+// A full page load is required — the SPA router's "/" route goes to /explore.
+function AuthRedirect() {
+  useEffect(() => {
+    const email = new URLSearchParams(window.location.search).get("email");
+    window.location.replace(email ? `/?email=${encodeURIComponent(email)}` : "/");
+  }, []);
+  return (
+    <div className="flex min-h-dvh items-center justify-center text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/">{() => <Redirect to="/explore" />}</Route>
-      <Route path="/auth" component={AuthFlow} />
+      <Route path="/auth" component={AuthRedirect} />
       <Route path="/explore" component={Explore} />
       <Route path="/create" component={CreateBubble} />
       <Route path="/create-event" component={CreateEvent} />
@@ -70,6 +86,7 @@ function Router() {
       <Route path="/event/:id" component={EventDetails} />
       <Route path="/bubble/:id" component={BubbleDetails} />
       <Route path="/bubble/:id/edit" component={EditBubble} />
+      <Route path="/bubble/:id/insights" component={BubbleInsights} />
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />

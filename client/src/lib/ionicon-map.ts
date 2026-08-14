@@ -1,0 +1,91 @@
+import {
+  Bike,
+  Briefcase,
+  Calendar,
+  Camera,
+  Circle,
+  Code,
+  Coffee,
+  Compass,
+  CircleDot,
+  Cross,
+  Dumbbell,
+  Flame,
+  Footprints,
+  Gamepad2,
+  Goal,
+  GraduationCap,
+  Hand,
+  Heart,
+  Home,
+  Laptop,
+  Leaf,
+  Music,
+  Paintbrush,
+  Palette,
+  PawPrint,
+  PersonStanding,
+  Plane,
+  Rocket,
+  BookOpen,
+  Sun,
+  Trophy,
+  Users,
+  UsersRound,
+  Utensils,
+  Waves,
+  Wine,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+
+/**
+ * `categories.icon` stores Ionicons names (the mobile app's icon set via
+ * @expo/vector-icons). The web client uses lucide-react, so this maps the
+ * Ionicons names actually seeded in server/seed-categories.ts to their
+ * closest lucide-react equivalent. Unmapped/future icon names fall back to
+ * a generic Circle rather than breaking.
+ */
+export const ioniconMap: Record<string, LucideIcon> = {
+  airplane: Plane,
+  barbell: Dumbbell,
+  bicycle: Bike,
+  body: PersonStanding,
+  bonfire: Flame,
+  book: BookOpen,
+  briefcase: Briefcase,
+  brush: Paintbrush,
+  cafe: Coffee,
+  calendar: Calendar,
+  camera: Camera,
+  "code-slash": Code,
+  "color-palette": Palette,
+  compass: Compass,
+  fitness: Zap,
+  football: Goal,
+  "game-controller": Gamepad2,
+  "hand-left": Hand,
+  heart: Heart,
+  home: Home,
+  laptop: Laptop,
+  leaf: Leaf,
+  medkit: Cross,
+  "musical-notes": Music,
+  paw: PawPrint,
+  people: Users,
+  "people-circle": UsersRound,
+  restaurant: Utensils,
+  rocket: Rocket,
+  school: GraduationCap,
+  sunny: Sun,
+  tennisball: CircleDot,
+  trophy: Trophy,
+  walk: Footprints,
+  water: Waves,
+  wine: Wine,
+};
+
+export function getIoniconAsLucide(iconName: string | null | undefined): LucideIcon {
+  if (!iconName) return Circle;
+  return ioniconMap[iconName] ?? Circle;
+}

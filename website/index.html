@@ -13,67 +13,104 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            background: #F0F4F8;
+            background: #F5F6F7;
         }
 
         main {
             max-width: 1100px;
             margin: 0 auto;
-            padding: 80px 48px;
+            padding: 24px 48px 16px;
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 80px;
-            align-items: center;
+            align-items: stretch;
         }
 
-        .left-col { }
-        .right-col { }
+        .left-col {
+            display: flex;
+            justify-content: center;
+        }
 
-        /* PHOTO GRID */
+        /* PHOTO GRID
+           Columns fill the full card height (main uses align-items: stretch),
+           so grid top/bottom edges align with the auth card. Image heights are
+           flex-driven with THREE sizes (large 1.6 / medium 1.25 / small 1.0).
+           Outer columns run large-small-medium; the center column runs
+           small-medium-large, which produces the staggered rhythm. Each column
+           holds one of each size, so column totals stay equal. */
         .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 32px;
+            display: flex;
+            gap: 14px;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .photo-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
         }
 
         .photo-grid img {
             display: block;
             width: 100%;
-            aspect-ratio: 1;
+            min-height: 0;
+            flex: 1 1 0;
             object-fit: cover;
-            border-radius: 14px;
+            border-radius: 52px;
         }
 
-        /* BRANDING */
+        .photo-grid img.size-lg {
+            flex-grow: 1.6;
+        }
+
+        .photo-grid img.size-md {
+            flex-grow: 1.25;
+        }
+
+        /* BRANDING (inside auth card) */
         .branding {
-            text-align: left;
-            margin-bottom: 24px;
+            text-align: center;
+            margin-bottom: 28px;
         }
 
         .logo-row {
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
-            margin-bottom: 8px;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
         }
 
         .logo-row svg {
-            width: 34px;
-            height: 31px;
+            width: 44px;
+            height: 40px;
             color: #35A8F7;
         }
 
         .logo-row span {
-            font-size: 1.7rem;
+            font-size: 2.2rem;
             font-weight: 700;
             color: #35A8F7;
         }
 
         .tagline {
             font-size: 0.95rem;
-            color: #969696;
+            color: #6B6B6B;
+            line-height: 1.5;
+        }
+
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
         }
 
         /* AUTH CARD */
@@ -81,17 +118,11 @@
             background: white;
             border: 1px solid #E2E2E2;
             border-radius: 16px;
-            padding: 24px;
+            padding: 48px 36px 32px;
         }
 
-        .auth-card h1 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #1E1F26;
-            margin-bottom: 16px;
-        }
-
-        .auth-card input[type="email"] {
+        .auth-card input[type="email"],
+        .auth-card input.pw-input {
             width: 100%;
             padding: 16px;
             border: 1px solid #969696;
@@ -103,8 +134,148 @@
             box-sizing: border-box;
         }
 
-        .auth-card input[type="email"]::placeholder {
+        .auth-card input::placeholder {
             color: #969696;
+        }
+
+        /* PASSWORD / SIGNUP STEPS */
+        .password-step,
+        .signup-step {
+            display: none;
+        }
+
+        .password-step.active,
+        .signup-step.active {
+            display: block;
+        }
+
+        .email-step.hidden-step {
+            display: none;
+        }
+
+        .pw-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pw-back {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            margin-left: -8px;
+            color: #1E1F26;
+            display: flex;
+            align-items: center;
+        }
+
+        .pw-heading {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #1E1F26;
+        }
+
+        .pw-email-label {
+            font-size: 0.9rem;
+            color: #6B6B6B;
+            margin-bottom: 12px;
+            word-break: break-all;
+        }
+
+        .pw-field {
+            position: relative;
+        }
+
+        .pw-field input {
+            padding-right: 48px;
+        }
+
+        .pw-toggle {
+            position: absolute;
+            right: 12px;
+            top: 17px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #969696;
+            padding: 0;
+            display: flex;
+        }
+
+        /* INTEREST CHIPS (signup step 2) */
+        .chips-intro {
+            margin-bottom: 14px;
+        }
+
+        .chips-intro .chips-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1E1F26;
+        }
+
+        .chips-intro .chips-sub {
+            font-size: 0.8rem;
+            color: #969696;
+            margin-top: 2px;
+        }
+
+        .chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .chip {
+            border: 1px solid #E2E2E2;
+            border-radius: 999px;
+            background: white;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            font-family: inherit;
+            color: #6B6B6B;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .chip:hover {
+            border-color: #969696;
+            color: #1E1F26;
+        }
+
+        .chip.selected {
+            border-color: #35A8F7;
+            background: rgba(53, 168, 247, 0.1);
+            color: #35A8F7;
+        }
+
+        .signup-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .signup-row .cta-button {
+            flex: 1;
+        }
+
+        .cta-button.secondary {
+            background: white;
+            color: #1E1F26;
+            border: 1px solid #E2E2E2;
+        }
+
+        .auth-error {
+            display: none;
+            color: #D33131;
+            font-size: 0.875rem;
+            margin: -6px 0 12px;
+        }
+
+        .auth-error.visible {
+            display: block;
         }
 
         /* BUTTON */
@@ -112,7 +283,7 @@
             width: 100%;
             padding: 16px 24px;
             border: none;
-            border-radius: 999px;
+            border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
             font-size: 1rem;
@@ -121,7 +292,7 @@
             text-decoration: none;
             display: block;
             box-sizing: border-box;
-            background: linear-gradient(135deg, #35A8F7 0%, #35A8F7 70%, #6FC3F9 100%);
+            background: #35A8F7;
             color: white;
         }
 
@@ -130,8 +301,7 @@
         }
 
         .cta-button:disabled {
-            background: #E2E2E2;
-            color: #969696;
+            opacity: 0.55;
             cursor: not-allowed;
         }
 
@@ -175,17 +345,8 @@
         }
 
         .google-mark {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: white;
-            border: 1px solid #E2E2E2;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: #4285F4;
+            width: 20px;
+            height: 20px;
             flex-shrink: 0;
         }
 
@@ -204,17 +365,21 @@
             margin-bottom: 0;
         }
 
-        /* TERMS TEXT (OUTSIDE BOX) */
-        .terms-text-outside {
+        /* TERMS TEXT (INSIDE CARD) */
+        .terms-text {
             font-size: 0.8rem;
             color: #969696;
             text-align: center;
             line-height: 1.6;
-            margin-top: 20px;
+            margin-top: 28px;
         }
 
-        .terms-text-outside a {
+        .terms-text a {
             color: #35A8F7;
+            text-decoration: none;
+        }
+
+        .terms-text a:hover {
             text-decoration: underline;
         }
 
@@ -223,7 +388,7 @@
             background: white;
             padding: 48px 115px 32px;
             border-top: 1px solid #E5E7EB;
-            margin-top: 60px;
+            margin-top: 44px;
         }
 
         .footer-container {
@@ -320,6 +485,28 @@
                 justify-content: center;
             }
 
+            /* Single-column: no card to stretch against, so size images by
+               aspect ratio instead of flex share. */
+            .photo-grid img {
+                flex: none;
+            }
+
+            .photo-grid img.size-lg {
+                aspect-ratio: 3 / 5;
+            }
+
+            .photo-grid img.size-md {
+                aspect-ratio: 3 / 4;
+            }
+
+            .photo-grid img.size-sm {
+                aspect-ratio: 1 / 1;
+            }
+
+            .photo-col.middle {
+                padding-top: 48px;
+            }
+
             footer {
                 padding: 48px 48px 32px;
             }
@@ -347,9 +534,30 @@
 <body>
     <main>
       <div class="left-col">
-        <div class="branding">
-            <div class="logo-row">
-                <svg viewBox="0 0 73 67" fill="none" aria-hidden="true">
+        <div class="photo-grid">
+            <div class="photo-col">
+                <img class="size-lg" src="images/landing/pickleball.jpg" alt="">
+                <img class="size-sm" src="images/landing/group_cheers.jpg" alt="">
+                <img class="size-md" src="images/landing/group_craft.jpg" alt="">
+            </div>
+            <div class="photo-col middle">
+                <img class="size-sm" src="images/landing/dog_meeting.png" alt="">
+                <img class="size-md" src="images/landing/fitness_class.jpg" alt="">
+                <img class="size-lg" src="images/landing/badminton.jpg" alt="">
+            </div>
+            <div class="photo-col">
+                <img class="size-lg" src="images/landing/volunteer_group.png" alt="">
+                <img class="size-sm" src="images/landing/picnic.jpg" alt="">
+                <img class="size-md" src="images/landing/mask_group.jpg" alt="">
+            </div>
+        </div>
+      </div>
+
+      <div class="right-col">
+        <form class="auth-card" id="welcome-form">
+            <div class="branding">
+                <div class="logo-row">
+                    <svg viewBox="0 0 73 67" fill="none" aria-hidden="true">
                     <path d="M51.5265 2C46.3601 2.00311 41.4063 4.07912 37.7524 7.76734C34.1017 11.4587 32.0468 16.4634 32.0437 21.6831C33.1158 47.8271 69.9371 47.8271 71.0089 21.6831C71.0058 16.4636 68.9509 11.4588 65.3002 7.76734C61.6464 4.07912 56.6931 2.00311 51.5265 2ZM51.5265 38.8758C47.0132 38.8727 42.6879 37.0613 39.4961 33.8368C36.3043 30.6123 34.5115 26.2426 34.5084 21.6827C35.4449 -1.12513 67.6082 -1.12513 68.5443 21.6827C68.5382 26.2394 66.7421 30.6091 63.5535 33.8337C60.3619 37.055 56.0368 38.8696 51.5265 38.8758Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M51.5261 9.95525C50.2939 9.95525 48.1004 9.85565 48.3223 11.6235C48.3839 11.9503 48.5749 12.2366 48.846 12.4202C49.1202 12.607 49.4529 12.6723 49.7763 12.607C53.0049 11.9907 56.3135 13.1641 58.4483 15.6882C60.5831 18.2092 61.2178 21.695 60.1149 24.8198C59.9732 25.2026 60.0256 25.6321 60.2566 25.9682C60.4877 26.3013 60.8697 26.5004 61.2733 26.5004C61.7908 26.5004 62.256 26.1705 62.4317 25.6788C63.7286 22.081 63.208 18.0692 61.0392 14.929C58.8674 11.7887 55.3185 9.91505 51.5266 9.90573L51.5261 9.95525Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M16.1098 23.4006C12.3699 23.4068 8.78397 24.9101 6.14051 27.5836C3.49421 30.254 2.00627 33.8767 2.00012 37.6553C2.77645 56.5655 29.4426 56.5655 30.2186 37.6553C30.2125 33.877 28.7246 30.2542 26.0783 27.5836C23.435 24.9101 19.8492 23.4068 16.109 23.4006H16.1098ZM16.1098 49.4194C13.0229 49.4163 10.0624 48.1745 7.8779 45.971C5.69682 43.7644 4.46764 40.7734 4.46456 37.6545C5.09302 22.0556 27.1255 22.0684 27.7541 37.6545C27.751 40.773 26.5218 43.764 24.3407 45.971C22.1566 48.1745 19.1961 49.4163 16.1088 49.4194H16.1098Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
@@ -357,29 +565,74 @@
                     <path d="M35.5252 51.2282C34.2814 51.8491 33.5987 52.912 33.8396 53.8523C33.9096 54.13 34.0269 54.595 34.5725 54.4614C34.7197 54.4261 34.8494 54.3463 34.9219 54.2443C34.9946 54.143 35.0043 54.0314 34.9453 53.9425C34.8748 53.8377 34.8238 53.7254 34.7951 53.6064C34.6239 52.9524 35.0932 52.2118 35.955 51.7743C36.1741 51.6543 36.2557 51.4485 36.1425 51.304C36.0292 51.1595 35.7588 51.1259 35.5252 51.2282Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                     <path d="M39.4618 44.6392C33.8797 44.6455 29.3577 49.2206 29.3577 54.86C29.8629 68.3801 49.0738 68.3801 49.5793 54.86C49.5732 49.2174 45.0469 44.6456 39.4618 44.6392ZM39.4618 62.579C35.2444 62.5727 31.8279 59.1212 31.8218 54.8604C32.1791 44.6396 46.7572 44.6396 47.1144 54.8604C47.1083 59.1243 43.6822 62.579 39.4618 62.579Z" fill="currentColor" stroke="currentColor" stroke-width="4"/>
                 </svg>
-                <span>Bubble</span>
+                    <span>Bubble</span>
+                </div>
+                <p class="tagline">Connect locally. Create moments.<br>Build a lasting community.</p>
             </div>
-            <p class="tagline">Connect locally. Build lasting community.</p>
-        </div>
 
-        <div class="photo-grid">
-            <img src="images/landing/pickleball.jpg" alt="">
-            <img src="images/landing/dog_meeting.png" alt="">
-            <img src="images/landing/volunteer_group.png" alt="">
-            <img src="images/landing/group_cheers.jpg" alt="">
-            <img src="images/landing/fitness_class.jpg" alt="">
-            <img src="images/landing/picnic.jpg" alt="">
-            <img src="images/landing/group_craft.jpg" alt="">
-            <img src="images/landing/badminton.jpg" alt="">
-            <img src="images/landing/mask_group.jpg" alt="">
-        </div>
-      </div>
+            <h1 class="visually-hidden">Log in or sign up to Bubble</h1>
 
-      <div class="right-col">
-        <form class="auth-card" id="welcome-form">
-            <h1>Log in or sign up</h1>
-            <input type="email" id="welcome-email" placeholder="Email address" autocomplete="email" required>
-            <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
+            <div class="email-step" id="email-step">
+                <label for="welcome-email" class="visually-hidden">Email address</label>
+                <input type="email" id="welcome-email" placeholder="Enter your email" autocomplete="email" required>
+                <p class="auth-error" id="email-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="continue-btn" disabled>Continue</button>
+            </div>
+
+            <div class="password-step" id="password-step">
+                <div class="pw-header">
+                    <button type="button" class="pw-back" id="pw-back-btn" aria-label="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="pw-heading">Welcome back!</span>
+                </div>
+                <p class="pw-email-label" id="pw-email-label"></p>
+                <label for="welcome-password" class="visually-hidden">Password</label>
+                <div class="pw-field">
+                    <input type="password" class="pw-input" id="welcome-password" placeholder="Password" autocomplete="current-password">
+                    <button type="button" class="pw-toggle" id="pw-toggle-btn" aria-label="Show password" tabindex="-1">
+                        <svg id="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg id="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </button>
+                </div>
+                <p class="auth-error" id="password-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="signin-btn">Sign In</button>
+            </div>
+
+            <div class="signup-step" id="signup1-step">
+                <div class="pw-header">
+                    <button type="button" class="pw-back" id="signup1-back-btn" aria-label="Back">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="pw-heading">Create your account</span>
+                </div>
+                <p class="pw-email-label" id="signup-email-label"></p>
+                <label for="signup-name" class="visually-hidden">Full name</label>
+                <input type="text" class="pw-input" id="signup-name" placeholder="Full name" autocomplete="name">
+                <label for="signup-password" class="visually-hidden">Password</label>
+                <div class="pw-field">
+                    <input type="password" class="pw-input" id="signup-password" placeholder="Password (at least 8 characters)" autocomplete="new-password">
+                    <button type="button" class="pw-toggle" id="signup-pw-toggle-btn" aria-label="Show password" tabindex="-1">
+                        <svg id="signup-eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <svg id="signup-eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </button>
+                </div>
+                <p class="auth-error" id="signup1-error" role="alert"></p>
+                <button type="submit" class="cta-button" id="signup1-continue-btn">Continue</button>
+            </div>
+
+            <div class="signup-step" id="signup2-step">
+                <div class="chips-intro">
+                    <p class="chips-title">What are you into?</p>
+                    <p class="chips-sub">Pick as many as you like — we'll find bubbles you'll love.</p>
+                </div>
+                <div class="chip-list" id="chip-list"></div>
+                <p class="auth-error" id="signup2-error" role="alert"></p>
+                <div class="signup-row">
+                    <button type="button" class="cta-button secondary" id="signup2-back-btn">Back</button>
+                    <button type="submit" class="cta-button" id="signup-submit-btn">Join Bubble</button>
+                </div>
+            </div>
 
             <div class="divider">
                 <span class="line"></span>
@@ -388,7 +641,12 @@
             </div>
 
             <button type="button" class="social-button" id="google-btn">
-                <span class="google-mark">G</span>
+                <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                </svg>
                 Continue with Google
             </button>
             <button type="button" class="social-button" id="apple-btn">
@@ -398,11 +656,11 @@
                 </svg>
                 Continue with Apple
             </button>
-        </form>
 
-        <p class="terms-text-outside">
-            By continuing, you agree to our <a href="terms.html">Terms of Service</a> and <a href="privacy.html">Privacy Policy</a>.
-        </p>
+            <p class="terms-text">
+                By continuing, you agree to Bubble's <a href="terms.html">Terms of Service</a><br>and <a href="privacy.html">Privacy Policy</a>.
+            </p>
+        </form>
       </div>
     </main>
 
@@ -458,36 +716,316 @@
     </footer>
 
     <script>
-        // This card is a preview only — it hands off to the real app at /auth,
-        // which owns the actual email-check / login / signup logic. Nothing here
-        // calls the API, so there's no auth logic duplicated between this static
-        // site and the React app.
+        // Already logged in? Skip the marketing login card and go straight to
+        // the app. Uses the same localStorage keys as the React app's auth
+        // context. The token is validated against the server first; a dead
+        // token is cleared so the login pages keep working (no redirect with
+        // stale credentials, no loops).
+        try {
+            var bubbleToken = localStorage.getItem('bubble_web_token');
+            if (bubbleToken) {
+                fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + bubbleToken } })
+                    .then(function (res) {
+                        if (res.ok) {
+                            window.location.replace('/explore');
+                        } else if (res.status === 401 || res.status === 403) {
+                            localStorage.removeItem('bubble_web_token');
+                            localStorage.removeItem('bubble_web_user');
+                        }
+                        // Other statuses (5xx): stay on the page.
+                    })
+                    .catch(function () { /* offline — show the page */ });
+            }
+        } catch (e) { /* localStorage unavailable (e.g. blocked) — show the page */ }
+
+        // The full auth journey lives on this page: Continue checks the email
+        // against /api/auth/check-email; existing accounts get an in-card
+        // password step (/api/auth/login), new emails get a two-step in-card
+        // signup (name+password, then interests → /api/auth/signup). Both
+        // store the token/user in the same localStorage keys the React app
+        // uses, then jump straight to /explore. The old /auth page redirects
+        // here.
         const emailInput = document.getElementById('welcome-email');
         const continueBtn = document.getElementById('continue-btn');
         const welcomeForm = document.getElementById('welcome-form');
+        const emailStep = document.getElementById('email-step');
+        const passwordStep = document.getElementById('password-step');
+        const passwordInput = document.getElementById('welcome-password');
+        const signinBtn = document.getElementById('signin-btn');
+        const emailError = document.getElementById('email-error');
+        const passwordError = document.getElementById('password-error');
+        const pwEmailLabel = document.getElementById('pw-email-label');
+        const signup1Step = document.getElementById('signup1-step');
+        const signup2Step = document.getElementById('signup2-step');
+        const signupNameInput = document.getElementById('signup-name');
+        const signupPasswordInput = document.getElementById('signup-password');
+        const signupEmailLabel = document.getElementById('signup-email-label');
+        const signup1Error = document.getElementById('signup1-error');
+        const signup2Error = document.getElementById('signup2-error');
+        const signup1ContinueBtn = document.getElementById('signup1-continue-btn');
+        const signupSubmitBtn = document.getElementById('signup-submit-btn');
+        const chipList = document.getElementById('chip-list');
         const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        function goToAuth(email) {
-            const url = email ? `/auth?email=${encodeURIComponent(email)}` : '/auth';
-            window.location.href = url;
+        // Keep in sync with INTEREST_OPTIONS in the mobile app.
+        const INTEREST_OPTIONS = [
+            ['hiking', 'Hiking'], ['running', 'Running'], ['cycling', 'Cycling'],
+            ['yoga', 'Yoga'], ['fitness', 'Fitness'], ['cooking', 'Cooking'],
+            ['coffee', 'Coffee'], ['dining', 'Dining Out'], ['book_clubs', 'Book Clubs'],
+            ['photography', 'Photography'], ['music', 'Music'], ['arts', 'Arts & Crafts'],
+            ['gaming', 'Gaming'], ['tech', 'Tech'], ['travel', 'Travel'],
+            ['pets', 'Pets'], ['wellness', 'Wellness'], ['volunteering', 'Volunteering'],
+        ];
+        const selectedInterests = new Set();
+        INTEREST_OPTIONS.forEach(function(opt) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'chip';
+            btn.textContent = opt[1];
+            btn.setAttribute('data-interest', opt[0]);
+            btn.addEventListener('click', function() {
+                if (selectedInterests.has(opt[0])) {
+                    selectedInterests.delete(opt[0]);
+                    btn.classList.remove('selected');
+                } else {
+                    selectedInterests.add(opt[0]);
+                    btn.classList.add('selected');
+                }
+            });
+            chipList.appendChild(btn);
+        });
+
+        let step = 'email';
+
+        function setError(el, message) {
+            el.textContent = message || '';
+            el.classList.toggle('visible', !!message);
+        }
+
+        function showPasswordStep(email) {
+            step = 'password';
+            pwEmailLabel.textContent = email;
+            emailStep.classList.add('hidden-step');
+            passwordStep.classList.add('active');
+            setError(passwordError, '');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+
+        function showEmailStep() {
+            step = 'email';
+            passwordStep.classList.remove('active');
+            signup1Step.classList.remove('active');
+            signup2Step.classList.remove('active');
+            emailStep.classList.remove('hidden-step');
+            setError(emailError, '');
+            emailInput.focus();
+        }
+
+        function showSignup1Step(email) {
+            step = 'signup1';
+            signupEmailLabel.textContent = email;
+            emailStep.classList.add('hidden-step');
+            signup2Step.classList.remove('active');
+            signup1Step.classList.add('active');
+            setError(signup1Error, '');
+            signupNameInput.focus();
+        }
+
+        function showSignup2Step() {
+            step = 'signup2';
+            signup1Step.classList.remove('active');
+            signup2Step.classList.add('active');
+            setError(signup2Error, '');
+        }
+
+        async function postJson(path, body) {
+            const res = await fetch(path, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { /* non-JSON response */ }
+            if (!res.ok) {
+                throw new Error(data.error || 'Something went wrong. Please try again.');
+            }
+            return data;
+        }
+
+        async function handleContinue() {
+            const email = emailInput.value.trim();
+            if (!EMAIL_REGEX.test(email)) return;
+            setError(emailError, '');
+            continueBtn.disabled = true;
+            continueBtn.textContent = 'Checking…';
+            try {
+                const data = await postJson('/api/auth/check-email', { email: email });
+                if (data.exists) {
+                    showPasswordStep(email);
+                } else {
+                    showSignup1Step(email);
+                }
+            } catch (err) {
+                setError(emailError, err.message);
+            }
+            continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
+            continueBtn.textContent = 'Continue';
+        }
+
+        async function handleSignIn() {
+            const email = pwEmailLabel.textContent;
+            const password = passwordInput.value;
+            if (!password) {
+                setError(passwordError, 'Please enter your password.');
+                return;
+            }
+            setError(passwordError, '');
+            signinBtn.disabled = true;
+            signinBtn.textContent = 'Signing in…';
+            try {
+                const data = await postJson('/api/auth/login', { email: email, password: password });
+                try {
+                    localStorage.setItem('bubble_web_token', data.token);
+                    localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
+                } catch (e) {
+                    setError(passwordError, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                    signinBtn.disabled = false;
+                    signinBtn.textContent = 'Sign In';
+                    return;
+                }
+                window.location.href = '/explore';
+                return; // keep the button disabled while navigating
+            } catch (err) {
+                setError(passwordError, err.message);
+            }
+            signinBtn.disabled = false;
+            signinBtn.textContent = 'Sign In';
         }
 
         emailInput.addEventListener('input', function() {
             continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
         });
 
+        function persistSessionAndEnterApp(data, errorEl, btn, btnLabel) {
+            try {
+                localStorage.setItem('bubble_web_token', data.token);
+                localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
+            } catch (e) {
+                setError(errorEl, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                btn.disabled = false;
+                btn.textContent = btnLabel;
+                return false;
+            }
+            window.location.href = '/explore';
+            return true; // keep the button disabled while navigating
+        }
+
+        function handleSignup1Continue() {
+            setError(signup1Error, '');
+            if (!signupNameInput.value.trim()) {
+                setError(signup1Error, 'Please enter your name.');
+                return;
+            }
+            if (signupPasswordInput.value.length < 8) {
+                setError(signup1Error, 'Password must be at least 8 characters.');
+                return;
+            }
+            showSignup2Step();
+        }
+
+        async function handleSignupSubmit() {
+            if (selectedInterests.size === 0) {
+                setError(signup2Error, 'Pick at least one interest.');
+                return;
+            }
+            setError(signup2Error, '');
+            signupSubmitBtn.disabled = true;
+            signupSubmitBtn.textContent = 'Joining…';
+            try {
+                const data = await postJson('/api/auth/signup', {
+                    name: signupNameInput.value.trim(),
+                    email: signupEmailLabel.textContent,
+                    password: signupPasswordInput.value,
+                    interests: Array.from(selectedInterests),
+                });
+                if (persistSessionAndEnterApp(data, signup2Error, signupSubmitBtn, 'Join Bubble')) return;
+                return;
+            } catch (err) {
+                if (/already exists/i.test(err.message)) {
+                    // Account was created for this email in the meantime —
+                    // send the user back to the email step to log in instead.
+                    showEmailStep();
+                    setError(emailError, 'That email already has an account — enter it again to log in.');
+                } else {
+                    setError(signup2Error, err.message);
+                }
+            }
+            signupSubmitBtn.disabled = false;
+            signupSubmitBtn.textContent = 'Join Bubble';
+        }
+
         welcomeForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (!EMAIL_REGEX.test(emailInput.value.trim())) return;
-            goToAuth(emailInput.value.trim());
+            if (step === 'email') {
+                handleContinue();
+            } else if (step === 'password') {
+                if (!signinBtn.disabled) handleSignIn();
+            } else if (step === 'signup1') {
+                handleSignup1Continue();
+            } else if (step === 'signup2') {
+                if (!signupSubmitBtn.disabled) handleSignupSubmit();
+            }
         });
 
-        document.getElementById('google-btn').addEventListener('click', function() {
-            goToAuth(emailInput.value.trim());
+        document.getElementById('signup1-back-btn').addEventListener('click', showEmailStep);
+        document.getElementById('signup2-back-btn').addEventListener('click', function() {
+            showSignup1Step(signupEmailLabel.textContent);
         });
-        document.getElementById('apple-btn').addEventListener('click', function() {
-            goToAuth(emailInput.value.trim());
+
+        const signupPwToggleBtn = document.getElementById('signup-pw-toggle-btn');
+        const signupEyeOpen = document.getElementById('signup-eye-open');
+        const signupEyeClosed = document.getElementById('signup-eye-closed');
+        signupPwToggleBtn.addEventListener('click', function() {
+            const show = signupPasswordInput.type === 'password';
+            signupPasswordInput.type = show ? 'text' : 'password';
+            signupEyeOpen.style.display = show ? 'none' : '';
+            signupEyeClosed.style.display = show ? '' : 'none';
+            signupPwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
+
+        // ?email= prefill (e.g. old /auth links now redirect here) —
+        // fill the field and auto-continue once so the hand-off is seamless.
+        try {
+            const prefill = new URLSearchParams(window.location.search).get('email');
+            if (prefill && EMAIL_REGEX.test(prefill.trim())) {
+                emailInput.value = prefill.trim();
+                continueBtn.disabled = false;
+                handleContinue();
+            }
+        } catch (e) { /* ignore */ }
+
+        document.getElementById('pw-back-btn').addEventListener('click', showEmailStep);
+
+        const pwToggleBtn = document.getElementById('pw-toggle-btn');
+        const eyeOpen = document.getElementById('eye-open');
+        const eyeClosed = document.getElementById('eye-closed');
+        pwToggleBtn.addEventListener('click', function() {
+            const show = passwordInput.type === 'password';
+            passwordInput.type = show ? 'text' : 'password';
+            eyeOpen.style.display = show ? 'none' : '';
+            eyeClosed.style.display = show ? '' : 'none';
+            pwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        });
+
+        // Social sign-in isn't available on web yet — mirror the app's notice
+        // instead of bouncing through a second page.
+        function socialNotice(provider) {
+            showEmailStep();
+            setError(emailError, provider + " sign-in isn't set up on web yet — continue with email above, or use the mobile app.");
+        }
+        document.getElementById('google-btn').addEventListener('click', function() { socialNotice('Google'); });
+        document.getElementById('apple-btn').addEventListener('click', function() { socialNotice('Apple'); });
     </script>
 </body>
 </html>

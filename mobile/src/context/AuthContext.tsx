@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { AppState, AppStateStatus, unstable_batchedUpdates } from 'react-native';
+import { Alert, AppState, AppStateStatus, unstable_batchedUpdates } from 'react-native';
 import { apiService } from '../services/api.service';
 import cometChatService from '../services/cometchat.service';
 import { setSentryUser, clearSentryUser, logAppEvent, reportError, withBackgroundTask } from '../utils/crashReporter';
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(storedToken);
           setUser(parsedUser);
           apiService.setToken(storedToken);
-          apiService.setOnTokenRevoked(() => clearLocalAuth());
+          apiService.setOnTokenRevoked(() => handleSessionExpired());
           setSentryUser(parsedUser.id, parsedUser.name, parsedUser.isSuperAdmin);
           logAppEvent('[Auth] Session restored from storage', { userId: parsedUser.id, name: parsedUser.name });
         }
@@ -184,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
-    apiService.setOnTokenRevoked(() => clearLocalAuth());
+    apiService.setOnTokenRevoked(() => handleSessionExpired());
     setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
     logAppEvent('[Auth] User logged in', { userId: response.user.id, name: response.user.name });
     await startSession();
@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     setUser(response.user);
     apiService.setToken(response.token);
-    apiService.setOnTokenRevoked(() => clearLocalAuth());
+    apiService.setOnTokenRevoked(() => handleSessionExpired());
     setSentryUser(response.user.id, response.user.name, response.user.isSuperAdmin);
     logAppEvent('[Auth] User signed up', { userId: response.user.id, name: response.user.name, interestCount: interests.length });
     await startSession();
@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // mark the session as fully authenticated until that's done.
   const loginWithSocialToken = async (socialToken: string, socialUser: User) => {
     apiService.setToken(socialToken);
-    apiService.setOnTokenRevoked(() => clearLocalAuth());
+    apiService.setOnTokenRevoked(() => handleSessionExpired());
     // Use unstable_batchedUpdates to guarantee both state updates commit in a
     // single render. Without this, a render between setToken and setUser could
     // briefly produce token=truthy + user=null → isAuthenticated=true, causing
@@ -235,6 +235,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // will persist once the full signup flow (Interests → Guidelines) finishes.
   const updateSocialUser = (updates: Partial<User>) => {
     setUser(prev => prev ? { ...prev, ...updates } : prev);
+  };
+
+  // Fired by the API layer when the server rejects our token (expired,
+  // revoked, or unverifiable). Shows a single clear message and logs the
+  // user out so they land on the login screen instead of silently failing.
+  // The ref guards against a burst of parallel 401s each showing an alert.
+  const sessionExpiredHandledRef = useRef(false);
+  const handleSessionExpired = () => {
+    if (sessionExpiredHandledRef.current) return;
+    sessionExpiredHandledRef.current = true;
+    logAppEvent('[Auth] Session expired — forcing re-login');
+    Alert.alert('Session Expired', 'Your session has expired. Please sign in again.');
+    clearLocalAuth().finally(() => {
+      sessionExpiredHandledRef.current = false;
+    });
   };
 
   const clearLocalAuth = async () => {

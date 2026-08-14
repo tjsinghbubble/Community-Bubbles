@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import jwt from "jsonwebtoken";
-import { updateEventSchema, insertEventSignupTaskSchema } from "@shared/schema";
+import { updateEventSchema, insertEventSignupTaskSchema, validateRawEventDateTimes } from "@shared/schema";
 import { moderateText } from "./moderation";
 import { localToUtc, utcToLocal } from "./timezone";
 import { makeAuthMiddleware } from "./auth-middleware";
@@ -88,6 +88,11 @@ export function registerEventsManagementRoutes(
 
       const modResult = moderateText({ title: req.body.title, description: req.body.description });
       if (modResult.flagged) return res.status(400).json({ error: modResult.message });
+
+      // Validate raw user-supplied date/time BEFORE timezone conversion —
+      // JS date math would silently normalize impossible dates like 2026-02-30.
+      const rawInvalid = validateRawEventDateTimes(req.body);
+      if (rawInvalid) return res.status(400).json({ error: rawInvalid });
 
       let updateBody = { ...parsed.data };
       const tz = req.body.timezone || event.timezone || "UTC";
