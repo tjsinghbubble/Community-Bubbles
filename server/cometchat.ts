@@ -1,7 +1,25 @@
 const COMETCHAT_APP_ID = process.env.COMETCHAT_APP_ID || '';
-// Some deployments use a single key for both REST API and client auth — fall back to AUTH_KEY
+// COMETCHAT_API_KEY (a REST API Key from the CometChat dashboard) is required
+// for server-side management calls — creating/reading users and groups. It is
+// a different credential from COMETCHAT_AUTH_KEY, which only authorizes
+// client-side SDK login (see generateAuthToken below). Falling back to
+// AUTH_KEY here lets the app boot without COMETCHAT_API_KEY set, but that key
+// typically lacks REST scope for /users and /groups management endpoints —
+// those calls will fail with AUTH_ERR_NO_ACCESS until a real REST API Key is
+// configured. See the console.error in apiCall() below for the same warning
+// at call time.
 const COMETCHAT_API_KEY = process.env.COMETCHAT_API_KEY || process.env.COMETCHAT_AUTH_KEY || '';
 const COMETCHAT_REGION = process.env.COMETCHAT_REGION || 'us';
+
+if (COMETCHAT_APP_ID && !process.env.COMETCHAT_API_KEY && process.env.COMETCHAT_AUTH_KEY) {
+  console.warn(
+    '[CometChat CONFIG] COMETCHAT_API_KEY is not set — falling back to COMETCHAT_AUTH_KEY for ' +
+    'server-side REST calls (user/group creation, admin DM sync). The Auth Key is meant for ' +
+    'client-side SDK login only and typically cannot create or list users/groups. Group chats ' +
+    'for new or newly-joined bubbles will silently fail to be created until a real REST API Key ' +
+    '(CometChat dashboard → API Keys, not Auth Key) is set as COMETCHAT_API_KEY.'
+  );
+}
 
 const BASE_URL = `https://${COMETCHAT_APP_ID}.api-${COMETCHAT_REGION}.cometchat.io/v3`;
 
@@ -31,7 +49,15 @@ async function apiCall(method: string, path: string, body?: any): Promise<any> {
   if (!response.ok) {
     const errCode = data?.error?.code || `HTTP_${response.status}`;
     const errMsg = data?.error?.message || data?.message || `CometChat API error ${response.status}`;
-    console.error(`CometChat API error [${method} ${path}]:`, data);
+    if (errCode === 'AUTH_ERR_NO_ACCESS') {
+      console.error(
+        `[CometChat CONFIG] ${method} ${path} rejected for insufficient key scope — this is almost ` +
+        `always COMETCHAT_API_KEY missing or pointed at an Auth Key instead of a REST API Key ` +
+        `(CometChat dashboard → API Keys). Response:`, data
+      );
+    } else {
+      console.error(`CometChat API error [${method} ${path}]:`, data);
+    }
     throw new CometChatApiError(errMsg, errCode);
   }
   return data;

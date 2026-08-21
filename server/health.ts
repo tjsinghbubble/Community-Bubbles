@@ -19,14 +19,28 @@ export function formatUptime(seconds: number): string {
 export async function pingUrl(
   url: string,
   timeoutMs: number,
-  opts?: RequestInit,
+  opts?: RequestInit & { requireOk?: boolean },
 ): Promise<{ status: "ok" | "error"; latencyMs: number | null; error: string | null }> {
+  const { requireOk, ...fetchOpts } = opts ?? {};
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const start = Date.now();
   try {
-    await fetch(url, { ...opts, signal: controller.signal });
+    const res = await fetch(url, { ...fetchOpts, signal: controller.signal });
     clearTimeout(timer);
+    // fetch() only rejects on network-level failures — a 4xx/5xx response
+    // still resolves successfully, so callers that care whether the request
+    // actually succeeded (not just whether the host was reachable) must opt
+    // into requireOk. Without it, e.g. a 403 from a misconfigured API key
+    // reads as "ok".
+    if (requireOk && !res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body: any = await res.clone().json();
+        if (body?.error?.message) detail = `${body.error.code ?? res.status}: ${body.error.message}`;
+      } catch {}
+      return { status: "error", latencyMs: Date.now() - start, error: detail };
+    }
     return { status: "ok", latencyMs: Date.now() - start, error: null };
   } catch (e: unknown) {
     clearTimeout(timer);
@@ -127,6 +141,7 @@ export function registerHealthRoutes(app: Express): void {
       const ccUrl = `https://${cometChatAppId}.api-${cometChatRegion}.cometchat.io/v3/users?perPage=1`;
       const ccResult = await pingUrl(ccUrl, 5000, {
         headers: { apikey: cometChatApiKey, appid: cometChatAppId },
+        requireOk: true,
       });
       thirdPartyAuth = {
         status: ccResult.status === "ok" ? "up" : "down",
