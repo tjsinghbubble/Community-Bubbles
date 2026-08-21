@@ -1162,7 +1162,7 @@ export async function registerRoutes(
         cometChat = { status: "unconfigured", latencyMs: null, error: "COMETCHAT_APP_ID or API key not set" };
       } else {
         const ccUrl = `https://${cometChatAppId}.api-${cometChatRegion}.cometchat.io/v3/users?perPage=1`;
-        const result = await pingUrl(ccUrl, 5000, { headers: { apikey: cometChatApiKey, appid: cometChatAppId } });
+        const result = await pingUrl(ccUrl, 5000, { headers: { apikey: cometChatApiKey, appid: cometChatAppId }, requireOk: true });
         cometChat = result;
       }
 
