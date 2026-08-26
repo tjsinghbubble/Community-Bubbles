@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Camera, ImagePlus, Loader2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
 import { toast } from "@/hooks/use-toast";
 import { CameraCapture } from "@/components/CameraCapture";
+import { INTEREST_OPTIONS } from "@/lib/interests";
 
 export default function ProfileEdit() {
   const { user } = useAuth();
@@ -26,6 +27,22 @@ export default function ProfileEdit() {
   const [name, setName] = useState("");
   const [aboutMe, setAboutMe] = useState("");
   const [pendingPhoto, setPendingPhoto] = useState<{ objectPath: string; previewUrl: string } | null>(null);
+  const [selectedInterests, setSelectedInterests] = useState<Set<string> | null>(null);
+
+  useEffect(() => {
+    if (me?.interests && selectedInterests === null) {
+      setSelectedInterests(new Set(me.interests));
+    }
+  }, [me, selectedInterests]);
+
+  const toggleInterest = (key: string) => {
+    setSelectedInterests((prev) => {
+      const next = new Set<string>(prev ?? me?.interests ?? []);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const displayPhoto = pendingPhoto?.previewUrl || me?.profilePhoto || "";
 
@@ -41,6 +58,7 @@ export default function ProfileEdit() {
       apiRequest("PATCH", "/api/users/me", {
         name: name || me?.name,
         aboutMe: aboutMe || me?.aboutMe,
+        interests: Array.from(selectedInterests ?? me?.interests ?? []),
         ...(pendingPhoto ? { profilePhoto: pendingPhoto.objectPath } : {}),
       }).then((r) => r.json()),
     onSuccess: () => {
@@ -170,6 +188,33 @@ export default function ProfileEdit() {
                 data-testid="input-email"
               />
               <p className="mt-1 text-[11px] text-muted-foreground">Email cannot be changed here.</p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/60 p-5 ring-1 ring-black/5">
+            <label className="mb-3 block text-[12px] font-bold uppercase tracking-widest text-muted-foreground">
+              Interests
+            </label>
+            <div className="flex flex-wrap gap-2" data-testid="list-edit-interests">
+              {INTEREST_OPTIONS.map(([key, label]) => {
+                const active = (selectedInterests ?? new Set(me?.interests ?? [])).has(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleInterest(key)}
+                    className={
+                      active
+                        ? "rounded-full px-3 py-1.5 text-[12px] font-semibold text-white"
+                        : "rounded-full border border-black/10 bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-foreground/70"
+                    }
+                    style={active ? { background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--brand-2)))" } : undefined}
+                    data-testid={`chip-interest-${key}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
