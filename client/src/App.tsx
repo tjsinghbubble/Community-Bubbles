@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import NotFound from "@/pages/not-found";
 import Explore from "./pages/explore";
+import CampusJoin from "./pages/campus-join";
 import CreateBubble from "./pages/create-bubble";
 import CreateEvent from "./pages/create-event";
 import EditEvent from "./pages/edit-event";
@@ -89,6 +90,7 @@ function Router() {
       <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/guidelines" component={Guidelines} />
       <Route path="/explore" component={Explore} />
+      <Route path="/campus/join" component={CampusJoin} />
       <Route path="/create" component={CreateBubble} />
       <Route path="/create-event" component={CreateEvent} />
       <Route path="/event/:id/edit" component={EditEvent} />
