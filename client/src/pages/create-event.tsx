@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,11 +12,41 @@ import {
   Loader2,
   CheckCircle2,
   ChevronDown,
+  ImagePlus,
+  Repeat,
+  CalendarClock,
+  PawPrint,
+  CigaretteOff,
+  Accessibility,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { useUpload } from "@/hooks/use-upload";
 import { cn } from "@/lib/utils";
+
+const RECURRENCE_OPTIONS = [
+  { value: "never", label: "Never" },
+  { value: "daily", label: "Every Day" },
+  { value: "weekly", label: "Every Week" },
+  { value: "biweekly", label: "Every 2 Weeks" },
+  { value: "monthly", label: "Every Month" },
+  { value: "yearly", label: "Every Year" },
+  { value: "custom", label: "Custom" },
+] as const;
+
+const CUSTOM_FREQUENCY_OPTIONS = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+] as const;
+
+const AMENITIES = [
+  { key: "petFriendly", label: "Pet Friendly", icon: PawPrint },
+  { key: "smokeFree", label: "Smoke Free", icon: CigaretteOff },
+  { key: "wheelchairAccessible", label: "Accessible", icon: Accessibility },
+] as const;
 
 const BLUE = "#35A8F7";
 const BG = "#FAFAFA";
@@ -65,6 +95,8 @@ export default function CreateEvent() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const qc = useQueryClient();
+  const { uploadFile } = useUpload();
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const [bubbleId, setBubbleId] = useState("");
   const [title, setTitle] = useState("");
@@ -74,8 +106,24 @@ export default function CreateEvent() {
   const [endTime, setEndTime] = useState("");
   const [locationName, setLocationName] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState("");
+  const [rsvpDeadline, setRsvpDeadline] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState<(typeof RECURRENCE_OPTIONS)[number]["value"]>("never");
+  const [recurrenceCustomFrequency, setRecurrenceCustomFrequency] = useState<(typeof CUSTOM_FREQUENCY_OPTIONS)[number]["value"]>("weekly");
+  const [recurrenceCustomInterval, setRecurrenceCustomInterval] = useState("1");
+  const [petFriendly, setPetFriendly] = useState(false);
+  const [smokeFree, setSmokeFree] = useState(false);
+  const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  };
 
   const { data: myBubbles } = useQuery<any[]>({
     queryKey: ["/api/bubbles/my"],
@@ -85,6 +133,13 @@ export default function CreateEvent() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      let coverImage: string | undefined;
+      if (coverFile) {
+        const uploaded = await uploadFile(coverFile);
+        if (!uploaded) throw new Error("Failed to upload cover image.");
+        coverImage = uploaded.objectPath;
+      }
+
       const body: Record<string, any> = {
         bubbleId,
         title: title.trim(),
@@ -94,6 +149,14 @@ export default function CreateEvent() {
         endTime: endTime || undefined,
         locationName: locationName.trim() || undefined,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        coverImage,
+        rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline).toISOString() : undefined,
+        recurrenceType,
+        recurrenceCustomFrequency: recurrenceType === "custom" ? recurrenceCustomFrequency : undefined,
+        recurrenceCustomInterval: recurrenceType === "custom" ? Number(recurrenceCustomInterval) || 1 : undefined,
+        petFriendly,
+        smokeFree,
+        wheelchairAccessible,
       };
       if (capacity) body.attendeeLimit = Number(capacity);
 
@@ -156,6 +219,15 @@ export default function CreateEvent() {
             setLocationName("");
             setCapacity("");
             setBubbleId("");
+            setCoverFile(null);
+            setCoverPreview("");
+            setRsvpDeadline("");
+            setRecurrenceType("never");
+            setRecurrenceCustomFrequency("weekly");
+            setRecurrenceCustomInterval("1");
+            setPetFriendly(false);
+            setSmokeFree(false);
+            setWheelchairAccessible(false);
           }}
           className="text-[13px] font-semibold"
           style={{ color: BLUE }}
@@ -210,6 +282,34 @@ export default function CreateEvent() {
               </select>
               <ChevronDown className="h-4 w-4 shrink-0 text-black/35" />
             </div>
+          </div>
+
+          {/* Cover image */}
+          <div>
+            <Label>Cover Photo</Label>
+            <button
+              type="button"
+              onClick={() => coverRef.current?.click()}
+              className="group relative w-full overflow-hidden rounded-2xl border border-dashed border-black/15 hover:border-[#35A8F7]"
+              data-testid="button-event-cover-upload"
+            >
+              {coverPreview ? (
+                <img src={coverPreview} alt="" className="h-36 w-full object-cover" data-testid="img-event-cover-preview" />
+              ) : (
+                <div className="flex h-36 flex-col items-center justify-center gap-2 bg-white">
+                  <ImagePlus className="h-6 w-6 text-black/35" />
+                  <span className="text-[13px] font-semibold text-black/40">+ Add cover photo</span>
+                </div>
+              )}
+            </button>
+            <input
+              ref={coverRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleCoverChange}
+              data-testid="input-event-cover-file"
+            />
           </div>
 
           {/* Title */}
@@ -320,6 +420,111 @@ export default function CreateEvent() {
                 />
               </div>
             </TextAreaWrap>
+          </div>
+
+          {/* RSVP deadline */}
+          <div>
+            <Label>RSVP Deadline</Label>
+            <FieldWrap>
+              <IconWrap icon={CalendarClock} />
+              <input
+                type="datetime-local"
+                value={rsvpDeadline}
+                onChange={(e) => setRsvpDeadline(e.target.value)}
+                className="flex-1 bg-transparent text-[14px] text-black outline-none"
+                data-testid="input-event-rsvp-deadline"
+              />
+            </FieldWrap>
+          </div>
+
+          {/* Amenities / tags */}
+          <div>
+            <Label>Tags</Label>
+            <div className="flex flex-wrap gap-2">
+              {AMENITIES.map(({ key, label, icon: Icon }) => {
+                const active =
+                  key === "petFriendly" ? petFriendly : key === "smokeFree" ? smokeFree : wheelchairAccessible;
+                const toggle =
+                  key === "petFriendly"
+                    ? () => setPetFriendly((v) => !v)
+                    : key === "smokeFree"
+                      ? () => setSmokeFree((v) => !v)
+                      : () => setWheelchairAccessible((v) => !v);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={toggle}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-3 py-2 text-[13px] font-semibold transition",
+                      active ? "border-[#35A8F7] bg-[#35A8F7]/10 text-[#35A8F7]" : "border-black/10 bg-white text-black/60",
+                    )}
+                    data-testid={`toggle-event-${key}`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recurrence */}
+          <div>
+            <Label>Repeat</Label>
+            <div
+              className="relative flex items-center rounded-2xl bg-white px-4"
+              style={{ height: 52, border: "1px solid rgba(0,0,0,0.10)", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
+            >
+              <Repeat className="mr-3 h-4 w-4 shrink-0 text-black/35" />
+              <select
+                value={recurrenceType}
+                onChange={(e) => setRecurrenceType(e.target.value as typeof recurrenceType)}
+                className="w-full bg-transparent text-[14px] text-black outline-none appearance-none"
+                data-testid="select-event-recurrence"
+              >
+                {RECURRENCE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="h-4 w-4 shrink-0 text-black/35" />
+            </div>
+
+            {recurrenceType === "custom" && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div
+                  className="flex items-center rounded-2xl bg-white px-4"
+                  style={{ height: 52, border: "1px solid rgba(0,0,0,0.10)" }}
+                >
+                  <select
+                    value={recurrenceCustomFrequency}
+                    onChange={(e) => setRecurrenceCustomFrequency(e.target.value as typeof recurrenceCustomFrequency)}
+                    className="w-full bg-transparent text-[14px] text-black outline-none appearance-none"
+                    data-testid="select-event-recurrence-frequency"
+                  >
+                    {CUSTOM_FREQUENCY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <FieldWrap>
+                  <input
+                    type="number"
+                    min="1"
+                    max="999"
+                    value={recurrenceCustomInterval}
+                    onChange={(e) => setRecurrenceCustomInterval(e.target.value)}
+                    placeholder="Every N"
+                    className="flex-1 bg-transparent text-[14px] text-black placeholder:text-black/30 outline-none"
+                    data-testid="input-event-recurrence-interval"
+                  />
+                </FieldWrap>
+              </div>
+            )}
           </div>
 
           {/* Error */}

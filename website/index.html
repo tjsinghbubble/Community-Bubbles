@@ -278,6 +278,19 @@
             display: block;
         }
 
+        .forgot-link {
+            display: block;
+            text-align: right;
+            margin: -8px 0 16px;
+            font-size: 0.8125rem;
+            color: #35A8F7;
+            text-decoration: none;
+        }
+
+        .forgot-link:hover {
+            text-decoration: underline;
+        }
+
         /* BUTTON */
         .cta-button {
             width: 100%;
@@ -595,6 +608,7 @@
                         <svg id="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                     </button>
                 </div>
+                <a href="/forgot-password" class="forgot-link" id="forgot-password-link">Forgot your password?</a>
                 <p class="auth-error" id="password-error" role="alert"></p>
                 <button type="submit" class="cta-button" id="signin-btn">Sign In</button>
             </div>
@@ -810,6 +824,7 @@
             setError(passwordError, '');
             passwordInput.value = '';
             passwordInput.focus();
+            document.getElementById('forgot-password-link').href = '/forgot-password?email=' + encodeURIComponent(email);
         }
 
         function showEmailStep() {
@@ -907,20 +922,6 @@
             continueBtn.disabled = !EMAIL_REGEX.test(emailInput.value.trim());
         });
 
-        function persistSessionAndEnterApp(data, errorEl, btn, btnLabel) {
-            try {
-                localStorage.setItem('bubble_web_token', data.token);
-                localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
-            } catch (e) {
-                setError(errorEl, 'Your browser is blocking storage — enable cookies/site data and try again.');
-                btn.disabled = false;
-                btn.textContent = btnLabel;
-                return false;
-            }
-            window.location.href = '/explore';
-            return true; // keep the button disabled while navigating
-        }
-
         function handleSignup1Continue() {
             setError(signup1Error, '');
             if (!signupNameInput.value.trim()) {
@@ -941,16 +942,29 @@
             }
             setError(signup2Error, '');
             signupSubmitBtn.disabled = true;
-            signupSubmitBtn.textContent = 'Joining…';
+            signupSubmitBtn.textContent = 'Continuing…';
+            const email = signupEmailLabel.textContent;
             try {
-                const data = await postJson('/api/auth/signup', {
-                    name: signupNameInput.value.trim(),
-                    email: signupEmailLabel.textContent,
-                    password: signupPasswordInput.value,
-                    interests: Array.from(selectedInterests),
-                });
-                if (persistSessionAndEnterApp(data, signup2Error, signupSubmitBtn, 'Join Bubble')) return;
-                return;
+                // Send the verification code before handing off — the account
+                // isn't created yet (that happens after the guidelines step),
+                // and /api/auth/send-verification itself rejects emails that
+                // already have an account.
+                await postJson('/api/auth/send-verification', { email: email });
+                try {
+                    sessionStorage.setItem('bubble_pending_signup', JSON.stringify({
+                        name: signupNameInput.value.trim(),
+                        email: email,
+                        password: signupPasswordInput.value,
+                        interests: Array.from(selectedInterests),
+                    }));
+                } catch (e) {
+                    setError(signup2Error, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                    signupSubmitBtn.disabled = false;
+                    signupSubmitBtn.textContent = 'Join Bubble';
+                    return;
+                }
+                window.location.href = '/verify-email?email=' + encodeURIComponent(email);
+                return; // keep the button disabled while navigating
             } catch (err) {
                 if (/already exists/i.test(err.message)) {
                     // Account was created for this email in the meantime —
