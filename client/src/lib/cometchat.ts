@@ -42,7 +42,10 @@ class WebCometChatService {
 
   async getMessages(guid: string, limit = 50) {
     try {
-      const builder = new CometChat.MessagesRequestBuilder().setGUID(guid).setLimit(limit);
+      const builder = new CometChat.MessagesRequestBuilder()
+        .setGUID(guid)
+        .setLimit(limit)
+        .hideDeletedMessages(true);
       return await builder.build().fetchPrevious();
     } catch (error: any) {
       if (error?.code === "ERR_GROUP_NOT_JOINED") return [];
@@ -53,6 +56,34 @@ class WebCometChatService {
   async sendMessage(guid: string, text: string) {
     const msg = new CometChat.TextMessage(guid, text, CometChat.RECEIVER_TYPE.GROUP);
     return CometChat.sendMessage(msg);
+  }
+
+  async sendMediaMessage(guid: string, file: File) {
+    const mediaMessage = new CometChat.MediaMessage(
+      guid,
+      file,
+      CometChat.MESSAGE_TYPE.IMAGE,
+      CometChat.RECEIVER_TYPE.GROUP,
+    );
+    return CometChat.sendMediaMessage(mediaMessage);
+  }
+
+  async editMessage(guid: string, messageId: string, text: string) {
+    const message = new CometChat.TextMessage(guid, text, CometChat.RECEIVER_TYPE.GROUP);
+    message.setId(Number(messageId));
+    return CometChat.editMessage(message);
+  }
+
+  async deleteMessage(messageId: string) {
+    return CometChat.deleteMessage(messageId);
+  }
+
+  async addReaction(messageId: string, emoji: string) {
+    return CometChat.addReaction(Number(messageId), emoji);
+  }
+
+  async removeReaction(messageId: string, emoji: string) {
+    return CometChat.removeReaction(Number(messageId), emoji);
   }
 
   async createGroup(guid: string, name: string, type: "public" | "private" = "public") {

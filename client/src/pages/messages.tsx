@@ -55,6 +55,8 @@ function otherPeerUid(guid: string, myUid: string): string | null {
 
 type MessageType = "text" | "image" | "system";
 
+type ReactionSummary = { emoji: string; count: number; reactedByMe: boolean };
+
 type Message = {
   id: string;
   chatId: ChatId;
@@ -67,7 +69,33 @@ type Message = {
   status?: "sending" | "sent" | "delivered" | "read";
   replyTo?: { id: string; preview: string; from: "me" | "other" };
   starred?: boolean;
+  reactions?: ReactionSummary[];
+  edited?: boolean;
 };
+
+/** Applies one reaction add/remove to a message's local reaction summary. */
+function applyReactionDelta(
+  reactions: ReactionSummary[] | undefined,
+  emoji: string,
+  byMe: boolean,
+  adding: boolean,
+): ReactionSummary[] {
+  const list = reactions ? reactions.map((r) => ({ ...r })) : [];
+  const idx = list.findIndex((r) => r.emoji === emoji);
+  if (adding) {
+    if (idx >= 0) {
+      list[idx].count += 1;
+      if (byMe) list[idx].reactedByMe = true;
+    } else {
+      list.push({ emoji, count: 1, reactedByMe: byMe });
+    }
+  } else if (idx >= 0) {
+    list[idx].count = Math.max(0, list[idx].count - 1);
+    if (byMe) list[idx].reactedByMe = false;
+    if (list[idx].count === 0) list.splice(idx, 1);
+  }
+  return list;
+}
 
 type Draft = {
   text: string;
@@ -91,6 +119,11 @@ function mapCcMessage(m: any, myUid: string): Message {
   const msgType = m.getType?.();
   const isText = msgType === "text";
   const chatId = m.getReceiverId?.() ?? "";
+  const reactions: ReactionSummary[] = (m.getReactions?.() || []).map((r: any) => ({
+    emoji: r.getReaction(),
+    count: r.getCount(),
+    reactedByMe: r.getReactedByMe(),
+  }));
   return {
     id: String(m.getId?.() ?? nowId()),
     chatId,
@@ -101,6 +134,8 @@ function mapCcMessage(m: any, myUid: string): Message {
     imageUrl: !isText ? m.getURL?.() : undefined,
     ts: (m.getSentAt?.() ?? 0) * 1000,
     status: "read",
+    reactions: reactions.length ? reactions : undefined,
+    edited: (m.getEditedAt?.() ?? 0) > 0,
   };
 }
 
@@ -297,20 +332,37 @@ function StatusTicks({ status }: { status?: Message["status"] }) {
   return <CheckCheck className="h-3.5 w-3.5 text-[hsl(var(--primary))]" data-testid="status-read" />;
 }
 
-function ReactionPill({ emoji, onClick, active }: { emoji: string; onClick: () => void; active?: boolean }) {
+function ReactionPill({
+  emoji,
+  count,
+  onClick,
+  active,
+}: {
+  emoji: string;
+  count?: number;
+  onClick: () => void;
+  active?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "rounded-full px-2 py-1 text-[13px] ring-1 ring-black/10",
-        active ? "bg-white" : "bg-white/70",
+        "rounded-full px-2 py-1 text-[13px] ring-1",
+        active
+          ? "bg-[hsl(var(--primary))]/15 ring-[hsl(var(--primary))]/30"
+          : "bg-white/70 ring-black/10",
       )}
       data-testid={`reaction-${emoji}`}
     >
       {emoji}
+      {count ? (
+        <span className="ml-1 text-[11px] font-semibold text-muted-foreground">{count}</span>
+      ) : null}
     </button>
   );
 }
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂"] as const;
 
 function MessageBubble({
   msg,
@@ -389,6 +441,7 @@ function MessageBubble({
               <div className={cn("flex items-center justify-end gap-2 px-3 pb-2 text-[10px] text-muted-foreground")}
                 data-testid={`meta-${msg.id}`}
               >
+                {msg.edited ? <span data-testid={`edited-${msg.id}`}>Edited</span> : null}
                 {msg.starred ? <span data-testid={`star-${msg.id}`}>★</span> : null}
                 <span>{msg.ts > 0 ? format(msg.ts, "h:mm a") : ""}</span>
                 {mine ? <StatusTicks status={msg.status} /> : null}
@@ -398,9 +451,18 @@ function MessageBubble({
             <div className={cn("mt-1 flex items-center gap-2", mine ? "justify-end" : "justify-start")}
               data-testid={`actions-${msg.id}`}
             >
-              <ReactionPill emoji="👍" onClick={() => onReact("👍")} />
-              <ReactionPill emoji="❤️" onClick={() => onReact("❤️")} />
-              <ReactionPill emoji="😂" onClick={() => onReact("😂")} />
+              {QUICK_REACTIONS.map((emoji) => {
+                const r = msg.reactions?.find((x) => x.emoji === emoji);
+                return (
+                  <ReactionPill
+                    key={emoji}
+                    emoji={emoji}
+                    count={r?.count}
+                    active={!!r?.reactedByMe}
+                    onClick={() => onReact(emoji)}
+                  />
+                );
+              })}
               <button
                 onClick={onReply}
                 className="rounded-full bg-white/70 px-2 py-1 text-[12px] font-semibold text-muted-foreground ring-1 ring-black/10"
@@ -766,6 +828,7 @@ export default function Messages() {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const listenerIdRef = useRef<string | null>(null);
   const myUidRef = useRef<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { data: myBubbles } = useQuery<any[]>({
     queryKey: ["/api/bubbles/my"],
@@ -900,6 +963,50 @@ export default function Messages() {
             setActiveMessages((prev) => [...prev, mapped]);
             scrollToBottom();
           }
+        },
+        onMediaMessageReceived: (msg: any) => {
+          const mapped = mapCcMessage(msg, myUidRef.current);
+          if (mapped.chatId === activeChatId) {
+            setActiveMessages((prev) => [...prev, mapped]);
+            scrollToBottom();
+          }
+        },
+        onMessageEdited: (msg: any) => {
+          const id = String(msg.getId?.() ?? "");
+          if (!id) return;
+          const newText = msg.getText?.();
+          setActiveMessages((prev) =>
+            prev.map((m) => (m.id === id ? { ...m, text: newText, edited: true } : m)),
+          );
+        },
+        onMessageDeleted: (msg: any) => {
+          const id = String(msg.getId?.() ?? "");
+          if (!id) return;
+          setActiveMessages((prev) => prev.filter((m) => m.id !== id));
+        },
+        onMessageReactionAdded: (event: any) => {
+          const reaction = event.getReaction?.();
+          const messageId = String(reaction?.getMessageId?.() ?? "");
+          const emoji = reaction?.getReaction?.();
+          const uid = reaction?.getUid?.();
+          if (!messageId || !emoji || uid === myUidRef.current) return;
+          setActiveMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, reactions: applyReactionDelta(m.reactions, emoji, false, true) } : m,
+            ),
+          );
+        },
+        onMessageReactionRemoved: (event: any) => {
+          const reaction = event.getReaction?.();
+          const messageId = String(reaction?.getMessageId?.() ?? "");
+          const emoji = reaction?.getReaction?.();
+          const uid = reaction?.getUid?.();
+          if (!messageId || !emoji || uid === myUidRef.current) return;
+          setActiveMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId ? { ...m, reactions: applyReactionDelta(m.reactions, emoji, false, false) } : m,
+            ),
+          );
         },
       }),
     );
@@ -1042,10 +1149,31 @@ export default function Messages() {
     }
   };
 
+  const sendEdit = async (messageId: string, text: string) => {
+    if (!activeChatId) return;
+    setSending(true);
+    try {
+      await webCometChat.editMessage(activeChatId, messageId, text);
+      setActiveMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, text, edited: true } : m)),
+      );
+      setDraft({ text: "" });
+    } catch (err) {
+      console.error("Edit failed:", err);
+      showToast("Failed to edit message");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const send = async () => {
     if (!activeChatId || sending) return;
     const text = draft.text.trim();
     if (!text) return;
+
+    if (draft.editingId) {
+      return sendEdit(draft.editingId, text);
+    }
 
     const optimisticId = nowId();
     const optimistic: Message = {
@@ -1088,9 +1216,80 @@ export default function Messages() {
     }
   };
 
-  const attach = () => showToast("Photo upload coming soon");
+  const attach = () => fileInputRef.current?.click();
 
-  const reactTo = (_msgId: string, emoji: string) => showToast(`Reacted ${emoji}`);
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !activeChatId) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Only images are supported");
+      return;
+    }
+
+    const optimisticId = nowId();
+    const localUrl = URL.createObjectURL(file);
+    const optimistic: Message = {
+      id: optimisticId,
+      chatId: activeChatId,
+      from: "me",
+      type: "image",
+      imageUrl: localUrl,
+      ts: Date.now(),
+      status: "sending",
+    };
+
+    setActiveMessages((prev) => [...prev, optimistic]);
+    scrollToBottom();
+    setSending(true);
+
+    try {
+      const sent = await webCometChat.sendMediaMessage(activeChatId, file);
+      const sentMapped = mapCcMessage(sent, myUidRef.current);
+      sentMapped.status = "sent";
+      setActiveMessages((prev) =>
+        prev.map((m) => (m.id === optimisticId ? sentMapped : m)),
+      );
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeChatId
+            ? { ...c, lastMessageText: "Photo", lastMessageTs: Date.now() }
+            : c,
+        ),
+      );
+    } catch (err) {
+      console.error("Photo send failed:", err);
+      showToast("Failed to send photo");
+      setActiveMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+    } finally {
+      URL.revokeObjectURL(localUrl);
+      setSending(false);
+    }
+  };
+
+  const reactTo = async (msgId: string, emoji: string) => {
+    const msg = activeMessages.find((m) => m.id === msgId);
+    const removing = !!msg?.reactions?.find((r) => r.emoji === emoji)?.reactedByMe;
+
+    setActiveMessages((prev) =>
+      prev.map((m) =>
+        m.id === msgId ? { ...m, reactions: applyReactionDelta(m.reactions, emoji, true, !removing) } : m,
+      ),
+    );
+
+    try {
+      if (removing) await webCometChat.removeReaction(msgId, emoji);
+      else await webCometChat.addReaction(msgId, emoji);
+    } catch (err) {
+      console.error("Reaction failed:", err);
+      showToast("Reaction failed");
+      setActiveMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, reactions: applyReactionDelta(m.reactions, emoji, true, removing) } : m,
+        ),
+      );
+    }
+  };
 
   const copyText = async (text?: string) => {
     if (!text) return;
@@ -1102,9 +1301,17 @@ export default function Messages() {
     }
   };
 
-  const del = (msgId: string) => {
+  const del = async (msgId: string) => {
+    const prevMessages = activeMessages;
     setActiveMessages((prev) => prev.filter((m) => m.id !== msgId));
-    showToast("Deleted locally");
+    try {
+      await webCometChat.deleteMessage(msgId);
+      showToast("Message deleted");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      showToast("Failed to delete message");
+      setActiveMessages(prevMessages);
+    }
   };
 
   const star = (msgId: string) => {
@@ -1208,6 +1415,15 @@ export default function Messages() {
             </div>
           )}
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelected}
+          className="hidden"
+          data-testid="input-attach-file"
+        />
 
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30">
           <div className="pointer-events-auto">
