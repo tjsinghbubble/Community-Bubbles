@@ -849,7 +849,7 @@ export type ApiLatencySample = typeof apiLatencySamples.$inferSelect;
 // User-submitted feedback, feature requests, and defect reports
 export const feedback = pgTable("feedback", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  type: text("type").notNull(), // 'feedback', 'feature_request', 'defect_report'
+  type: text("type").notNull(), // 'feedback', 'feature_request', 'defect_report', 'concern'
   message: text("message").notNull(),
   userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),

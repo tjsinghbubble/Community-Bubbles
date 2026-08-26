@@ -16,6 +16,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography, InputStyles, CardShadow } from '../../styles/theme';
 import AnimatedPressable from '../../components/AnimatedPressable';
 import { NavHeader } from '../../components/ScreenHeader';
+import { useAuth } from '../../context/AuthContext';
+import { API_URL } from '../../config/api';
 
 const FEEDBACK_OPTIONS = ['Bubble', 'Event', 'Other'] as const;
 type FeedbackType = (typeof FEEDBACK_OPTIONS)[number];
@@ -24,6 +26,7 @@ type LinkOption = 'yes' | 'no';
 
 export default function ReportConcernScreen() {
   const navigation = useNavigation<any>();
+  const { token } = useAuth();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [feedbackType, setFeedbackType] = useState<FeedbackType | null>(null);
@@ -34,6 +37,7 @@ export default function ReportConcernScreen() {
   const [description, setDescription] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
@@ -44,10 +48,38 @@ export default function ReportConcernScreen() {
 
   const nameLabel = feedbackType === 'Event' ? 'Event name' : feedbackType === 'Other' ? 'Name' : 'Bubble name';
 
-  const handleSubmit = () => {
-    Alert.alert('Submitted', 'Your concern has been submitted. We will review it shortly.', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+  const handleSubmit = async () => {
+    if (!canSubmit || isSubmitting) return;
+    const message = [
+      `Concern about: ${feedbackType} — ${name.trim()}`,
+      `Date: ${date.trim()}`,
+      `Has link to Bubble/Event: ${hasLink === 'yes' ? 'Yes' : 'No'}`,
+      '',
+      description.trim(),
+      '',
+      `Reported by: ${fullName.trim()} (${email.trim()})`,
+    ].join('\n');
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${API_URL}/api/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ type: 'concern', message }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Submission failed');
+      Alert.alert('Submitted', 'Your concern has been submitted. We will review it shortly.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -356,15 +388,15 @@ export default function ReportConcernScreen() {
                 <AnimatedPressable
                   style={[
                     styles.submitButton,
-                    !canSubmit && styles.submitButtonDisabled,
+                    (!canSubmit || isSubmitting) && styles.submitButtonDisabled,
                   ]}
                   scaleValue={0.97}
-                  onPress={() => canSubmit && handleSubmit()}
-                  disabled={!canSubmit}
+                  onPress={handleSubmit}
+                  disabled={!canSubmit || isSubmitting}
                   testID="button-submit"
                 >
-                  <Text style={[styles.submitButtonText, !canSubmit && styles.submitButtonTextDisabled]}>
-                    Submit
+                  <Text style={[styles.submitButtonText, (!canSubmit || isSubmitting) && styles.submitButtonTextDisabled]}>
+                    {isSubmitting ? 'Submitting…' : 'Submit'}
                   </Text>
                 </AnimatedPressable>
               </View>
