@@ -1,0 +1,21 @@
+// Keep in sync with INTEREST_OPTIONS in website/index.html and mobile's InterestsScreen.
+export const INTEREST_OPTIONS: [string, string][] = [
+  ["hiking", "Hiking"],
+  ["running", "Running"],
+  ["cycling", "Cycling"],
+  ["yoga", "Yoga"],
+  ["fitness", "Fitness"],
+  ["cooking", "Cooking"],
+  ["coffee", "Coffee"],
+  ["dining", "Dining Out"],
+  ["book_clubs", "Book Clubs"],
+  ["photography", "Photography"],
+  ["music", "Music"],
+  ["arts", "Arts & Crafts"],
+  ["gaming", "Gaming"],
+  ["tech", "Tech"],
+  ["travel", "Travel"],
+  ["pets", "Pets"],
+  ["wellness", "Wellness"],
+  ["volunteering", "Volunteering"],
+];

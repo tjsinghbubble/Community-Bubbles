@@ -18,6 +18,7 @@ import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
 import Profile from "./pages/profile";
+import ProfileView from "./pages/profile-view";
 import ProfileEdit from "./pages/profile-edit";
 import ProfileNotifications from "./pages/profile-notifications";
 import ProfilePrivacy from "./pages/profile-privacy";
@@ -100,6 +101,7 @@ function Router() {
       <Route path="/chat/:id" component={Messages} />
       <Route path="/upcoming" component={Upcoming} />
       <Route path="/profile" component={Profile} />
+      <Route path="/profile/view/:userId" component={ProfileView} />
       <Route path="/profile/edit" component={ProfileEdit} />
       <Route path="/profile/notifications" component={ProfileNotifications} />
       <Route path="/profile/privacy" component={ProfilePrivacy} />
