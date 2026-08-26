@@ -42,7 +42,10 @@ class WebCometChatService {
 
   async getMessages(guid: string, limit = 50) {
     try {
-      const builder = new CometChat.MessagesRequestBuilder().setGUID(guid).setLimit(limit);
+      const builder = new CometChat.MessagesRequestBuilder()
+        .setGUID(guid)
+        .setLimit(limit)
+        .hideDeletedMessages(true);
       return await builder.build().fetchPrevious();
     } catch (error: any) {
       if (error?.code === "ERR_GROUP_NOT_JOINED") return [];
