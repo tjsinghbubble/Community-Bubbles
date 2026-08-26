@@ -35,6 +35,10 @@ import AdminCategories from "./pages/admin-categories";
 import AdminLatency from "./pages/admin-latency";
 import AdminSlowCalls from "./pages/admin-slow-calls";
 import MobileQR from "./pages/mobile-qr";
+import ForgotPassword from "./pages/forgot-password";
+import ResetPassword from "./pages/reset-password";
+import VerifyEmail from "./pages/verify-email";
+import Guidelines from "./pages/guidelines";
 
 function BubbleShortLink() {
   const { shortId } = useParams<{ shortId: string }>();
@@ -79,6 +83,10 @@ function Router() {
     <Switch>
       <Route path="/">{() => <Redirect to="/explore" />}</Route>
       <Route path="/auth" component={AuthRedirect} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/guidelines" component={Guidelines} />
       <Route path="/explore" component={Explore} />
       <Route path="/create" component={CreateBubble} />
       <Route path="/create-event" component={CreateEvent} />
