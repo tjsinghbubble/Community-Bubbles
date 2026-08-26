@@ -415,7 +415,7 @@ export async function registerRoutes(
   app.post("/api/feedback", authMiddleware, async (req: any, res: any) => {
     try {
       const feedbackSchema = z.object({
-        type: z.enum(["feedback", "feature_request", "defect_report"]),
+        type: z.enum(["feedback", "feature_request", "defect_report", "concern"]),
         message: z.string().min(1, "Message is required").max(2000, "Message too long"),
       });
       const parsed = feedbackSchema.safeParse(req.body ?? {});

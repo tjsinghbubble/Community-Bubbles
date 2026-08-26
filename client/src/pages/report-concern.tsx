@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 const FEEDBACK_OPTIONS = ["Bubble", "Event", "Other"] as const;
 type FeedbackType = (typeof FEEDBACK_OPTIONS)[number];
@@ -47,6 +48,8 @@ export default function ReportConcern() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canProceed = feedbackType !== null && hasLink !== null;
   const canSubmit = name.trim() && date.trim() && description.trim() && fullName.trim() && email.trim();
@@ -57,9 +60,28 @@ export default function ReportConcern() {
     else navigate("/help-center");
   };
 
-  const handleSubmit = () => {
-    if (!canSubmit) return;
-    setSubmitted(true);
+  const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const message = [
+      `Concern about: ${feedbackType} — ${name.trim()}`,
+      `Date: ${date.trim()}`,
+      `Has link to Bubble/Event: ${hasLink === "yes" ? "Yes" : "No"}`,
+      "",
+      description.trim(),
+      "",
+      `Reported by: ${fullName.trim()} (${email.trim()})`,
+    ].join("\n");
+
+    try {
+      await apiRequest("POST", "/api/feedback", { type: "concern", message });
+      setSubmitted(true);
+    } catch (err: any) {
+      setError(err?.message || "Failed to submit. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -195,6 +217,12 @@ export default function ReportConcern() {
               />
             </div>
 
+            {error ? (
+              <div className="rounded-xl bg-red-50 px-4 py-2.5 text-[12px] text-red-600 ring-1 ring-red-100" data-testid="text-concern-error">
+                {error}
+              </div>
+            ) : null}
+
             <div className="flex items-center justify-between pt-4">
               <button onClick={() => setStep(1)} className="text-[13px] font-semibold text-[hsl(var(--primary))]" data-testid="button-step-back">
                 Back
@@ -202,11 +230,11 @@ export default function ReportConcern() {
               <span className="text-[13px] text-muted-foreground">Page 2/2</span>
               <button
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || submitting}
                 className="rounded-full bg-[hsl(var(--primary))] px-6 py-2.5 text-[13px] font-semibold text-white disabled:opacity-40"
                 data-testid="button-submit"
               >
-                Submit
+                {submitting ? "Submitting…" : "Submit"}
               </button>
             </div>
           </div>
