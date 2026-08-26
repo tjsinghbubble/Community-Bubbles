@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { GraduationCap } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -7,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export function CampusBanner() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const [dismissing, setDismissing] = useState(false);
   const [localDismiss, setLocalDismiss] = useState(false);
@@ -47,7 +49,7 @@ export function CampusBanner() {
           <button
             className="rounded-full px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-transform hover:scale-[1.02]"
             style={{ background: "#35A8F7" }}
-            onClick={() => alert("Campus verification is coming soon!")}
+            onClick={() => navigate("/campus/join")}
             data-testid="button-join-campus"
           >
             Join a campus
@@ -64,7 +66,7 @@ export function CampusBanner() {
       </div>
 
       <button
-        onClick={() => alert("Campus discovery is coming soon!")}
+        onClick={() => navigate("/campus/join")}
         className="flex shrink-0 flex-col items-center justify-between gap-4 rounded-2xl bg-white px-5 py-4 text-center shadow-sm transition hover:shadow-md md:w-64"
         data-testid="button-discover-campus"
       >
