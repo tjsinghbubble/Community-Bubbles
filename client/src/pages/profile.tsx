@@ -1,10 +1,12 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Activity,
   Bell,
   ChevronRight,
   Clock,
+  Download,
   FileText,
   FolderOpen,
   List,
@@ -12,13 +14,22 @@ import {
   LogOut,
   Settings,
   Shield,
+  Trash2,
   User,
   Users,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 function InterestPill({ label }: { label: string }) {
   return (
@@ -88,9 +99,86 @@ function SectionCard({
   );
 }
 
+function DeactivateAccountDialog({
+  open,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm rounded-3xl">
+        <DialogHeader>
+          <DialogTitle>Deactivate Account</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to deactivate your account? You will lose access to all your Bubbles, events, and
+            messages.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="h-11 w-full rounded-2xl bg-red-500 text-[14px] font-semibold text-white disabled:opacity-60"
+            data-testid="button-confirm-deactivate"
+          >
+            {loading ? "Deactivating…" : "Yes, Deactivate"}
+          </button>
+          <button
+            onClick={onClose}
+            className="h-11 w-full rounded-2xl border border-black/10 text-[14px] font-semibold text-muted-foreground"
+            data-testid="button-cancel-deactivate"
+          >
+            No, go back
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Profile() {
   const { user, logout } = useAuth();
   const [, navigate] = useLocation();
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const exportData = async () => {
+    setExporting(true);
+    try {
+      const res = await apiRequest("GET", "/api/users/me/export");
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bubble-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Couldn't export your data", description: err.message || "Please try again." });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", "/api/auth/delete-account"),
+    onSuccess: () => {
+      logout();
+      window.location.href = "/";
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't deactivate account", description: err.message || "Please try again." });
+    },
+  });
 
   const { data: me } = useQuery<any>({
     queryKey: ["/api/auth/me"],
@@ -307,6 +395,23 @@ export default function Profile() {
             />
           </SectionCard>
 
+          {/* ── Data & Account ── */}
+          <SectionCard title="Data & Account">
+            <SectionRow
+              icon={Download}
+              label={exporting ? "Preparing export…" : "Download My Data"}
+              sublabel="Export your profile, bubbles, and activity as a file"
+              onClick={exporting ? undefined : exportData}
+            />
+            <SectionRow
+              icon={Trash2}
+              label="Deactivate Account"
+              sublabel="Lose access to your Bubbles, events, and messages"
+              onClick={() => setDeactivateOpen(true)}
+              danger
+            />
+          </SectionCard>
+
           {/* ── Legal ── */}
           <SectionCard title="Legal">
             <SectionRow
@@ -344,6 +449,13 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      <DeactivateAccountDialog
+        open={deactivateOpen}
+        onClose={() => setDeactivateOpen(false)}
+        onConfirm={() => deactivateMutation.mutate()}
+        loading={deactivateMutation.isPending}
+      />
     </AppShell>
   );
 }
