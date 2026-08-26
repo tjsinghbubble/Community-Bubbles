@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -281,19 +281,13 @@ function MembersRow({ members, onView }: { members: number; onView: () => void }
   );
 }
 
-function PrimaryAction({
-  label,
-  tone,
-  onClick,
-  testId,
-}: {
-  label: string;
-  tone: "neutral" | "danger" | "primary";
-  onClick?: () => void;
-  testId: string;
-}) {
+const PrimaryAction = forwardRef<
+  HTMLButtonElement,
+  { label: string; tone: "neutral" | "danger" | "primary"; onClick?: () => void; testId: string } & React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function PrimaryAction({ label, tone, onClick, testId, className, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       className={cn(
         "h-12 w-full rounded-2xl text-[14px] font-semibold",
@@ -302,6 +296,7 @@ function PrimaryAction({
           : tone === "primary"
             ? "text-white shadow-[0_18px_55px_hsl(var(--primary)/0.30)]"
             : "bg-black/40 text-white",
+        className,
       )}
       style={
         tone === "primary"
@@ -309,11 +304,12 @@ function PrimaryAction({
           : undefined
       }
       data-testid={testId}
+      {...rest}
     >
       {label}
     </button>
   );
-}
+});
 
 function JoinBubbleSheet({
   bubble,
@@ -530,6 +526,51 @@ function ReportModal({
   );
 }
 
+function LeaveBubbleDialog({
+  bubbleTitle,
+  open,
+  onClose,
+  onConfirm,
+  loading,
+}: {
+  bubbleTitle: string;
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm rounded-3xl">
+        <DialogHeader>
+          <DialogTitle>Leave Bubble</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to leave {bubbleTitle}? Your direct message conversations with members of this
+            bubble will also be hidden.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="h-11 flex-1 rounded-2xl border border-black/10 text-[14px] font-semibold text-muted-foreground"
+            data-testid="button-leave-cancel"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="h-11 flex-1 rounded-2xl border border-red-400/60 bg-white text-[14px] font-semibold text-red-500 disabled:opacity-60"
+            data-testid="button-leave-confirm"
+          >
+            {loading ? "Leaving…" : "Leave"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BubbleKebabMenu({
   bubble,
   isMember,
@@ -538,6 +579,7 @@ function BubbleKebabMenu({
   onEdit,
   onChat,
   onInsights,
+  trigger,
 }: {
   bubble: Bubble;
   isMember: boolean;
@@ -546,6 +588,7 @@ function BubbleKebabMenu({
   onEdit: () => void;
   onChat: () => void;
   onInsights: () => void;
+  trigger?: React.ReactNode;
 }) {
   const [reportConcern, setReportConcern] = useState(false);
   const [reportBubble, setReportBubble] = useState(false);
@@ -565,12 +608,14 @@ function BubbleKebabMenu({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
-            data-testid="button-bubble-kebab"
-          >
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
+          {trigger ?? (
+            <button
+              className="grid h-10 w-10 place-items-center rounded-full bg-white/70 text-foreground/70 shadow-sm ring-1 ring-black/5 backdrop-blur"
+              data-testid="button-bubble-kebab"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+          )}
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
@@ -680,6 +725,7 @@ function MemberKebabMenu({
   canManage: boolean;
   onChanged: () => void;
 }) {
+  const [, navigate] = useLocation();
   const [reportOpen, setReportOpen] = useState(false);
 
   const roleMutation = useMutation({
@@ -710,7 +756,11 @@ function MemberKebabMenu({
         <DropdownMenuContent align="end" className="w-48">
           <DropdownMenuItem
             className="gap-2"
-            onClick={() => toast({ title: "Direct messaging isn't available on web yet", description: "Use the mobile app to message members directly." })}
+            onClick={() =>
+              navigate(
+                `/messages?dmUid=${encodeURIComponent(member.userId)}&dmName=${encodeURIComponent(member.name)}&dmAvatar=${encodeURIComponent(member.avatar)}`,
+              )
+            }
             data-testid={`action-dm-${member.id}`}
           >
             <MessageSquare className="h-4 w-4" />
@@ -892,6 +942,7 @@ export default function BubbleDetails() {
   const [sectionAbout, setSectionAbout] = useState(true);
   const [sectionAttachments, setSectionAttachments] = useState(false);
   const [view, setView] = useState<"bubble" | "members" | "join">("bubble");
+  const [leaveOpen, setLeaveOpen] = useState(false);
 
   const id = useMemo(() => {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -976,6 +1027,21 @@ export default function BubbleDetails() {
     },
   });
 
+  const leaveMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/bubbles/${id}/leave`),
+    onSuccess: () => {
+      refetchMembership();
+      qc.invalidateQueries({ queryKey: [`/api/bubbles/${id}`] });
+      setLeaveOpen(false);
+      toast({ title: `You left ${bubble.title}` });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't leave bubble", description: err.message || "Please try again." });
+    },
+  });
+
+  const openBubbleChat = () => { window.location.href = `/chat/chat-${id}`; };
+
   const isMember = membershipData?.isMember === true || membershipData?.membershipStatus === "approved";
   const isPending = !isMember && membershipData?.membershipStatus === "pending";
   const isAdmin = membershipData?.role === "admin" || user?.isSuperAdmin === true;
@@ -1045,7 +1111,7 @@ export default function BubbleDetails() {
             bubble={bubble}
             isMember={isMember}
             isAdmin={isAdmin}
-            onChat={() => { window.location.href = `/chat/chat-${bubble.id}`; }}
+            onChat={openBubbleChat}
             onManage={() => navigate("/admin/pending")}
             onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
             onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
@@ -1139,14 +1205,32 @@ export default function BubbleDetails() {
             <div className="mt-5 space-y-3">
               {bubble.isActiveMember ? (
                 <>
-                  <PrimaryAction label="Contact" tone="neutral" testId="button-contact" />
-                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
-                  <PrimaryAction label="Leave Bubble" tone="danger" testId="button-leave-bubble" />
+                  <PrimaryAction label="Contact" tone="neutral" onClick={openBubbleChat} testId="button-contact" />
+                  <BubbleKebabMenu
+                    bubble={bubble}
+                    isMember={isMember}
+                    isAdmin={isAdmin}
+                    onChat={openBubbleChat}
+                    onManage={() => navigate("/admin/pending")}
+                    onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
+                    onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
+                    trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}
+                  />
+                  <PrimaryAction label="Leave Bubble" tone="danger" onClick={() => setLeaveOpen(true)} testId="button-leave-bubble" />
                 </>
               ) : isPending ? (
                 <>
                   <PrimaryAction label="Request Pending" tone="neutral" testId="button-join-pending" />
-                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
+                  <BubbleKebabMenu
+                    bubble={bubble}
+                    isMember={isMember}
+                    isAdmin={isAdmin}
+                    onChat={openBubbleChat}
+                    onManage={() => navigate("/admin/pending")}
+                    onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
+                    onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
+                    trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}
+                  />
                 </>
               ) : (
                 <>
@@ -1156,9 +1240,26 @@ export default function BubbleDetails() {
                     onClick={() => setView("join")}
                     testId="button-join-bubble"
                   />
-                  <PrimaryAction label="More" tone="neutral" testId="button-more" />
+                  <BubbleKebabMenu
+                    bubble={bubble}
+                    isMember={isMember}
+                    isAdmin={isAdmin}
+                    onChat={openBubbleChat}
+                    onManage={() => navigate("/admin/pending")}
+                    onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
+                    onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
+                    trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}
+                  />
                 </>
               )}
+
+              <LeaveBubbleDialog
+                bubbleTitle={bubble.title}
+                open={leaveOpen}
+                onClose={() => setLeaveOpen(false)}
+                onConfirm={() => leaveMutation.mutate()}
+                loading={leaveMutation.isPending}
+              />
             </div>
           </>
         ) : tab === "events" ? (
