@@ -827,6 +827,7 @@ function MemberKebabMenu({
 }
 
 function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => void }) {
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const { data: membersData, isLoading } = useQuery<any[]>({
     queryKey: [`/api/bubbles/${bubbleId}/members`],
@@ -886,7 +887,11 @@ function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => v
                   className="flex items-center justify-between border-b border-black/10 py-3"
                   data-testid={`row-admin-${m.id}`}
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigate(`/profile/view/${m.userId}`)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    data-testid={`button-view-profile-${m.id}`}
+                  >
                     <img
                       src={m.avatar}
                       alt=""
@@ -896,7 +901,7 @@ function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => v
                     <div className="text-[13px] font-semibold" data-testid={`text-admin-name-${m.id}`}>
                       {m.name}
                     </div>
-                  </div>
+                  </button>
                   <MemberKebabMenu member={m} bubbleId={bubbleId} canManage={canManage} onChanged={refetchMembers} />
                 </div>
               ))}
@@ -912,7 +917,11 @@ function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => v
                   className="flex items-center justify-between border-b border-black/10 py-3"
                   data-testid={`row-participant-${m.id}`}
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigate(`/profile/view/${m.userId}`)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    data-testid={`button-view-profile-${m.id}`}
+                  >
                     <img
                       src={m.avatar}
                       alt=""
@@ -922,7 +931,7 @@ function MembersScreen({ bubbleId, onBack }: { bubbleId: string; onBack: () => v
                     <div className="text-[13px] font-semibold" data-testid={`text-participant-name-${m.id}`}>
                       {m.name}
                     </div>
-                  </div>
+                  </button>
                   <MemberKebabMenu member={m} bubbleId={bubbleId} canManage={canManage} onChanged={refetchMembers} />
                 </div>
               ))}
