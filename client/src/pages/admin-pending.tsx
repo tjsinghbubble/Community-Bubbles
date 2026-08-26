@@ -423,9 +423,16 @@ function WaitlistTab() {
 }
 
 function ReportsTab() {
+  const qc = useQueryClient();
   const { data: reports = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/reports"],
     queryFn: () => apiRequest("GET", "/api/admin/reports").then((r) => r.json()),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: "resolved" | "dismissed" }) =>
+      apiRequest("PATCH", `/api/reports/${id}/status`, { status }).then((r) => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/admin/reports"] }),
   });
 
   if (isLoading)
@@ -481,6 +488,28 @@ function ReportsTab() {
             )}
             <span>{formatDate(r.createdAt)}</span>
           </div>
+          {r.status === "pending" && (
+            <div className="mt-3 flex gap-2 border-t border-black/5 pt-3">
+              <button
+                onClick={() => statusMutation.mutate({ id: r.id, status: "resolved" })}
+                disabled={statusMutation.isPending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2.5 text-[12px] font-semibold text-white transition hover:bg-emerald-600 disabled:opacity-60"
+                data-testid={`button-resolve-report-${r.id}`}
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+                Resolve
+              </button>
+              <button
+                onClick={() => statusMutation.mutate({ id: r.id, status: "dismissed" })}
+                disabled={statusMutation.isPending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-black/10 py-2.5 text-[12px] font-semibold text-muted-foreground transition hover:bg-black/5 disabled:opacity-60"
+                data-testid={`button-dismiss-report-${r.id}`}
+              >
+                <XCircle className="h-3.5 w-3.5" />
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       ))}
     </div>
