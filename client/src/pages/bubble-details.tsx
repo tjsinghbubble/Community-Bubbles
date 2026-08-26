@@ -68,6 +68,7 @@ type Bubble = {
   isActiveMember: boolean;
   about: string;
   rules: string[];
+  attachments?: string[];
 };
 
 const bubbleSeed: Record<string, Bubble> = {
@@ -571,6 +572,55 @@ function LeaveBubbleDialog({
   );
 }
 
+function QrCodeModal({
+  bubbleTitle,
+  shareUrl,
+  open,
+  onClose,
+}: {
+  bubbleTitle: string;
+  shareUrl: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(shareUrl)}`;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm rounded-3xl text-center">
+        <DialogHeader>
+          <DialogTitle className="text-center">Share Bubble</DialogTitle>
+          <DialogDescription className="text-center">{bubbleTitle}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 py-2">
+          <img
+            src={qrImageUrl}
+            alt={`QR code linking to ${bubbleTitle}`}
+            className="h-[200px] w-[200px] rounded-2xl ring-1 ring-black/10"
+            data-testid="img-qr-code"
+          />
+          <button
+            onClick={copyLink}
+            className="h-11 w-full rounded-2xl border border-black/10 text-[13px] font-semibold text-foreground/80"
+            data-testid="button-copy-qr-link"
+          >
+            {copied ? "Copied!" : "Copy Link"}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BubbleKebabMenu({
   bubble,
   isMember,
@@ -592,6 +642,7 @@ function BubbleKebabMenu({
 }) {
   const [reportConcern, setReportConcern] = useState(false);
   const [reportBubble, setReportBubble] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const RED = "#E8453C";
   const BLUE = "#35A8F7";
 
@@ -632,7 +683,7 @@ function BubbleKebabMenu({
 
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-normal text-black"
-            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/bubble/${bubble.id}`)}
+            onClick={() => setQrOpen(true)}
             data-testid="action-qr-bubble"
           >
             <QrCode className="h-[18px] w-[18px] text-black/60" />
@@ -710,6 +761,12 @@ function BubbleKebabMenu({
 
       <ReportModal open={reportConcern} onClose={() => setReportConcern(false)} title="Report a Concern" bubbleId={bubble.id} reportType="bubble" />
       <ReportModal open={reportBubble} onClose={() => setReportBubble(false)} title="Report this Bubble" bubbleId={bubble.id} reportType="bubble" />
+      <QrCodeModal
+        bubbleTitle={bubble.title}
+        shareUrl={`${window.location.origin}/bubble/${bubble.id}`}
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+      />
     </>
   );
 }
@@ -1064,6 +1121,7 @@ export default function BubbleDetails() {
       isActiveMember: isMember,
       about: bubbleData.description ?? "",
       rules: effectiveRules,
+      attachments: Array.isArray(bubbleData.attachments) ? bubbleData.attachments : [],
     };
   }, [bubbleData, rulesData, isMember, id]);
 
@@ -1192,9 +1250,26 @@ export default function BubbleDetails() {
                 onToggle={() => setSectionAttachments((v) => !v)}
                 testId="section-attachments"
               >
-                <div className="text-[12px] text-muted-foreground" data-testid="text-attachments">
-                  No attachments yet.
-                </div>
+                {bubble.attachments && bubble.attachments.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2" data-testid="grid-attachments">
+                    {bubble.attachments.map((url, i) => (
+                      <a
+                        key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="aspect-square overflow-hidden rounded-xl ring-1 ring-black/10"
+                        data-testid={`link-attachment-${i}`}
+                      >
+                        <img src={url} alt="" className="h-full w-full object-cover" data-testid={`img-attachment-${i}`} />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-muted-foreground" data-testid="text-attachments">
+                    No attachments yet.
+                  </div>
+                )}
               </CollapsibleRow>
 
               <div className="border-t border-black/10">

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ImagePlus, Loader2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Paperclip, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export default function EditBubble() {
   const qc = useQueryClient();
   const { uploadFile, isUploading } = useUpload();
   const coverRef = useRef<HTMLInputElement>(null);
+  const attachmentsRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -41,6 +42,7 @@ export default function EditBubble() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<{ url: string; file?: File }[]>([]);
 
   useEffect(() => {
     if (!id || !user) return;
@@ -71,6 +73,9 @@ export default function EditBubble() {
         const existingCover = bubble.coverImage || (bubble.images && bubble.images[0]) || null;
         setCoverImage(existingCover);
         setCoverPreview(existingCover ?? "");
+        setAttachments(
+          Array.isArray(bubble.attachments) ? bubble.attachments.map((url: string) => ({ url })) : [],
+        );
       } catch (err: any) {
         setLoadError(err.message || "Failed to load bubble");
       } finally {
@@ -84,6 +89,17 @@ export default function EditBubble() {
     if (!f) return;
     setCoverFile(f);
     setCoverPreview(URL.createObjectURL(f));
+  };
+
+  const handleAttachmentsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    setAttachments((prev) => [...prev, ...files.map((file) => ({ url: URL.createObjectURL(file), file }))]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -105,6 +121,21 @@ export default function EditBubble() {
         nextCoverImage = uploaded.objectPath;
       }
 
+      const nextAttachments: string[] = [];
+      for (const a of attachments) {
+        if (!a.file) {
+          nextAttachments.push(a.url);
+          continue;
+        }
+        const uploaded = await uploadFile(a.file);
+        if (!uploaded) {
+          setSaveError("Failed to upload an attachment. Please try again.");
+          setSaving(false);
+          return;
+        }
+        nextAttachments.push(uploaded.objectPath);
+      }
+
       const memberLimitNum = memberLimit && !isNaN(parseInt(memberLimit)) ? parseInt(memberLimit) : null;
 
       const res = await apiRequest("PUT", `/api/bubbles/${id}`, {
@@ -116,6 +147,7 @@ export default function EditBubble() {
         locationName: locationName.trim() || null,
         coverImage: nextCoverImage,
         images: nextCoverImage ? [nextCoverImage] : [],
+        attachments: nextAttachments,
       });
 
       if (!res.ok) {
@@ -198,6 +230,43 @@ export default function EditBubble() {
             )}
           </button>
           <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} data-testid="input-edit-cover-file" />
+        </div>
+
+        <div>
+          <Label className="mb-2 block text-sm font-medium">Attachments</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {attachments.map((a, i) => (
+              <div key={i} className="group relative aspect-square overflow-hidden rounded-xl ring-1 ring-black/10">
+                <img src={a.url} alt="" className="h-full w-full object-cover" data-testid={`img-edit-attachment-${i}`} />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                  data-testid={`button-remove-attachment-${i}`}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => attachmentsRef.current?.click()}
+              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border hover:border-primary"
+              data-testid="button-add-attachment"
+            >
+              <Paperclip className="h-5 w-5 text-muted-foreground" />
+              <span className="text-[11px] font-semibold text-muted-foreground">Add</span>
+            </button>
+          </div>
+          <input
+            ref={attachmentsRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleAttachmentsChange}
+            data-testid="input-edit-attachments-file"
+          />
         </div>
 
         <div className="space-y-2">
