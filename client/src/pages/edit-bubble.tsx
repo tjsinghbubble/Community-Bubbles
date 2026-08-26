@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useUpload } from "@/hooks/use-upload";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { CameraCapture, TakePhotoButton } from "@/components/CameraCapture";
 
 const PRIVACY_OPTIONS = [
   { value: "Public", label: "Public", desc: "Anyone can discover and join" },
@@ -42,6 +43,7 @@ export default function EditBubble() {
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [coverPreview, setCoverPreview] = useState<string>("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [attachments, setAttachments] = useState<{ url: string; file?: File }[]>([]);
 
   useEffect(() => {
@@ -86,7 +88,14 @@ export default function EditBubble() {
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = "";
     if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  };
+
+  const handleCoverCapture = (f: File) => {
+    setCameraOpen(false);
     setCoverFile(f);
     setCoverPreview(URL.createObjectURL(f));
   };
@@ -214,22 +223,30 @@ export default function EditBubble() {
       <div className="mx-auto w-full max-w-md space-y-5 px-5 py-6">
         <div>
           <Label className="mb-2 block text-sm font-medium">Cover Photo</Label>
-          <button
-            onClick={() => coverRef.current?.click()}
-            className="group relative w-full overflow-hidden rounded-xl border border-dashed border-border hover:border-primary"
-            data-testid="button-edit-cover-upload"
-            type="button"
-          >
-            {coverPreview ? (
-              <img src={coverPreview} alt="" className="h-40 w-full object-cover" data-testid="img-edit-cover-preview" />
-            ) : (
-              <div className="flex h-40 flex-col items-center justify-center gap-2">
-                <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                <span className="text-sm font-semibold text-muted-foreground">+ Add cover photo</span>
-              </div>
-            )}
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => coverRef.current?.click()}
+              className="group relative w-full overflow-hidden rounded-xl border border-dashed border-border hover:border-primary"
+              data-testid="button-edit-cover-upload"
+              type="button"
+            >
+              {coverPreview ? (
+                <img src={coverPreview} alt="" className="h-40 w-full object-cover" data-testid="img-edit-cover-preview" />
+              ) : (
+                <div className="flex h-40 flex-col items-center justify-center gap-2">
+                  <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm font-semibold text-muted-foreground">+ Add cover photo</span>
+                </div>
+              )}
+            </button>
+            <TakePhotoButton
+              onClick={() => setCameraOpen(true)}
+              className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground"
+              testId="button-edit-cover-camera"
+            />
+          </div>
           <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={handleCoverChange} data-testid="input-edit-cover-file" />
+          <CameraCapture open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={handleCoverCapture} />
         </div>
 
         <div>

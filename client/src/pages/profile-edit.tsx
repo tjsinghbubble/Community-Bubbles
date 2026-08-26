@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Camera, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, ImagePlus, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
 import { toast } from "@/hooks/use-toast";
+import { CameraCapture } from "@/components/CameraCapture";
 import { INTEREST_OPTIONS } from "@/lib/interests";
 
 export default function ProfileEdit() {
@@ -15,6 +16,7 @@ export default function ProfileEdit() {
   const qc = useQueryClient();
   const { uploadFile, isUploading } = useUpload();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const { data: me } = useQuery<any>({
     queryKey: ["/api/auth/me"],
@@ -68,9 +70,7 @@ export default function ProfileEdit() {
     },
   });
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadPhoto = async (file: File) => {
     const previewUrl = URL.createObjectURL(file);
     const uploaded = await uploadFile(file);
     if (!uploaded) {
@@ -78,6 +78,18 @@ export default function ProfileEdit() {
       return;
     }
     setPendingPhoto({ objectPath: uploaded.objectPath, previewUrl });
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await uploadPhoto(file);
+  };
+
+  const handleCapture = async (file: File) => {
+    setCameraOpen(false);
+    await uploadPhoto(file);
   };
 
   return (
@@ -106,13 +118,22 @@ export default function ProfileEdit() {
                 initials
               )}
               <button
+                onClick={() => setCameraOpen(true)}
+                disabled={isUploading}
+                className="absolute bottom-0 left-0 grid h-7 w-7 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground disabled:opacity-60"
+                data-testid="button-take-photo"
+                type="button"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </button>
+              <button
                 onClick={() => photoInputRef.current?.click()}
                 disabled={isUploading}
                 className="absolute bottom-0 right-0 grid h-7 w-7 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground disabled:opacity-60"
                 data-testid="button-change-photo"
                 type="button"
               >
-                {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
               </button>
               <input
                 ref={photoInputRef}
@@ -124,9 +145,11 @@ export default function ProfileEdit() {
               />
             </div>
             <span className="text-[12px] text-muted-foreground">
-              {isUploading ? "Uploading…" : "Tap to change photo"}
+              {isUploading ? "Uploading…" : "Take a photo or choose one from your device"}
             </span>
           </div>
+
+          <CameraCapture open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={handleCapture} />
 
           <div className="space-y-4 rounded-2xl bg-white/60 p-5 ring-1 ring-black/5">
             <div>

@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useUpload } from "@/hooks/use-upload";
+import { CameraCapture, TakePhotoButton } from "@/components/CameraCapture";
 
 import bubbleSubmittedImg from "@/assets/images/bubble-submitted.png";
 
@@ -351,6 +352,7 @@ function StepCategory({ draft, setDraft, apiCategories }: { draft: Draft; setDra
 
 function StepDetails({ draft, setDraft, selectedCategory }: { draft: Draft; setDraft: (d: Draft) => void; selectedCategory?: ApiCategory }) {
   const coverRef = useRef<HTMLInputElement>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   return (
     <div className="space-y-5 px-5 pb-32 pt-5">
       <div>
@@ -424,23 +426,30 @@ function StepDetails({ draft, setDraft, selectedCategory }: { draft: Draft; setD
         <FieldLabel>
           Cover Photo <span style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary, fontWeight: 400 }}>(optional)</span>
         </FieldLabel>
-        <button
-          onClick={() => coverRef.current?.click()}
-          className="group relative w-full overflow-hidden border border-dashed transition hover:border-[#35A8F7]"
-          style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.surface }}
-          data-testid="button-cover-upload"
-        >
-          {draft.coverPreview ? (
-            <img src={draft.coverPreview} alt="" className="h-40 w-full object-cover" style={{ aspectRatio: "16/9" }} data-testid="img-cover-preview" />
-          ) : (
-            <div className="flex h-40 flex-col items-center justify-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${DS.color.brand.primary}18` }}>
-                <ImagePlus className="h-5 w-5" style={{ color: DS.color.brand.primary }} />
+        <div className="relative">
+          <button
+            onClick={() => coverRef.current?.click()}
+            className="group relative w-full overflow-hidden border border-dashed transition hover:border-[#35A8F7]"
+            style={{ borderRadius: DS.radius.md, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.surface }}
+            data-testid="button-cover-upload"
+          >
+            {draft.coverPreview ? (
+              <img src={draft.coverPreview} alt="" className="h-40 w-full object-cover" style={{ aspectRatio: "16/9" }} data-testid="img-cover-preview" />
+            ) : (
+              <div className="flex h-40 flex-col items-center justify-center gap-2">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: `${DS.color.brand.primary}18` }}>
+                  <ImagePlus className="h-5 w-5" style={{ color: DS.color.brand.primary }} />
+                </div>
+                <span className="font-semibold" style={{ fontSize: DS.font.sm, color: DS.color.text.primary }}>+ Add</span>
               </div>
-              <span className="font-semibold" style={{ fontSize: DS.font.sm, color: DS.color.text.primary }}>+ Add</span>
-            </div>
-          )}
-        </button>
+            )}
+          </button>
+          <TakePhotoButton
+            onClick={() => setCameraOpen(true)}
+            className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground"
+            testId="button-cover-camera"
+          />
+        </div>
         <input
           ref={coverRef}
           type="file"
@@ -448,10 +457,19 @@ function StepDetails({ draft, setDraft, selectedCategory }: { draft: Draft; setD
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
+            e.target.value = "";
             if (!f) return;
             setDraft({ ...draft, coverFile: f, coverPreview: URL.createObjectURL(f) });
           }}
           data-testid="input-cover-file"
+        />
+        <CameraCapture
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onCapture={(f) => {
+            setCameraOpen(false);
+            setDraft({ ...draft, coverFile: f, coverPreview: URL.createObjectURL(f) });
+          }}
         />
       </div>
     </div>

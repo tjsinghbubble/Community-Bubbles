@@ -23,6 +23,7 @@ import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/context/AuthContext";
 import { useUpload } from "@/hooks/use-upload";
+import { CameraCapture, TakePhotoButton } from "@/components/CameraCapture";
 import { cn } from "@/lib/utils";
 
 const RECURRENCE_OPTIONS = [
@@ -108,6 +109,7 @@ export default function CreateEvent() {
   const [capacity, setCapacity] = useState("");
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [rsvpDeadline, setRsvpDeadline] = useState("");
   const [recurrenceType, setRecurrenceType] = useState<(typeof RECURRENCE_OPTIONS)[number]["value"]>("never");
   const [recurrenceCustomFrequency, setRecurrenceCustomFrequency] = useState<(typeof CUSTOM_FREQUENCY_OPTIONS)[number]["value"]>("weekly");
@@ -120,7 +122,14 @@ export default function CreateEvent() {
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = "";
     if (!f) return;
+    setCoverFile(f);
+    setCoverPreview(URL.createObjectURL(f));
+  };
+
+  const handleCoverCapture = (f: File) => {
+    setCameraOpen(false);
     setCoverFile(f);
     setCoverPreview(URL.createObjectURL(f));
   };
@@ -287,21 +296,28 @@ export default function CreateEvent() {
           {/* Cover image */}
           <div>
             <Label>Cover Photo</Label>
-            <button
-              type="button"
-              onClick={() => coverRef.current?.click()}
-              className="group relative w-full overflow-hidden rounded-2xl border border-dashed border-black/15 hover:border-[#35A8F7]"
-              data-testid="button-event-cover-upload"
-            >
-              {coverPreview ? (
-                <img src={coverPreview} alt="" className="h-36 w-full object-cover" data-testid="img-event-cover-preview" />
-              ) : (
-                <div className="flex h-36 flex-col items-center justify-center gap-2 bg-white">
-                  <ImagePlus className="h-6 w-6 text-black/35" />
-                  <span className="text-[13px] font-semibold text-black/40">+ Add cover photo</span>
-                </div>
-              )}
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => coverRef.current?.click()}
+                className="group relative w-full overflow-hidden rounded-2xl border border-dashed border-black/15 hover:border-[#35A8F7]"
+                data-testid="button-event-cover-upload"
+              >
+                {coverPreview ? (
+                  <img src={coverPreview} alt="" className="h-36 w-full object-cover" data-testid="img-event-cover-preview" />
+                ) : (
+                  <div className="flex h-36 flex-col items-center justify-center gap-2 bg-white">
+                    <ImagePlus className="h-6 w-6 text-black/35" />
+                    <span className="text-[13px] font-semibold text-black/40">+ Add cover photo</span>
+                  </div>
+                )}
+              </button>
+              <TakePhotoButton
+                onClick={() => setCameraOpen(true)}
+                className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-white shadow ring-1 ring-black/10 text-foreground"
+                testId="button-event-cover-camera"
+              />
+            </div>
             <input
               ref={coverRef}
               type="file"
@@ -310,6 +326,7 @@ export default function CreateEvent() {
               onChange={handleCoverChange}
               data-testid="input-event-cover-file"
             />
+            <CameraCapture open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={handleCoverCapture} />
           </div>
 
           {/* Title */}
