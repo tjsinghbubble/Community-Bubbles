@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
+import { useUpload } from "@/hooks/use-upload";
+import { CameraCapture } from "@/components/CameraCapture";
 import {
   ArrowLeft,
   ArrowDown,
@@ -943,6 +945,8 @@ export default function BubbleDetails() {
   const [sectionAttachments, setSectionAttachments] = useState(false);
   const [view, setView] = useState<"bubble" | "members" | "join">("bubble");
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const { uploadFile } = useUpload();
 
   const id = useMemo(() => {
     const parts = window.location.pathname.split("/").filter(Boolean);
@@ -1037,6 +1041,22 @@ export default function BubbleDetails() {
     },
     onError: (err: any) => {
       toast({ variant: "destructive", title: "Couldn't leave bubble", description: err.message || "Please try again." });
+    },
+  });
+
+  const coverPhotoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const uploaded = await uploadFile(file);
+      if (!uploaded) throw new Error("Failed to upload photo.");
+      return apiRequest("PUT", `/api/bubbles/${id}`, { coverImage: uploaded.objectPath, images: [uploaded.objectPath] });
+    },
+    onSuccess: () => {
+      setCameraOpen(false);
+      qc.invalidateQueries({ queryKey: [`/api/bubbles/${id}`] });
+      toast({ title: "Cover photo updated" });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: "Couldn't update cover photo", description: err.message || "Please try again." });
     },
   });
 
@@ -1152,12 +1172,15 @@ export default function BubbleDetails() {
                   className="h-full w-full object-cover"
                   data-testid="img-bubble-hero"
                 />
-                <button
-                  className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/75 text-foreground/70 shadow-sm ring-1 ring-black/10 backdrop-blur"
-                  data-testid="button-bubble-camera"
-                >
-                  <Camera className="h-5 w-5" />
-                </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => setCameraOpen(true)}
+                    className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full bg-white/75 text-foreground/70 shadow-sm ring-1 ring-black/10 backdrop-blur"
+                    data-testid="button-bubble-camera"
+                  >
+                    <Camera className="h-5 w-5" />
+                  </button>
+                )}
               </div>
               <div className="px-5 pb-5 pt-4">
                 <div
@@ -1259,6 +1282,11 @@ export default function BubbleDetails() {
                 onClose={() => setLeaveOpen(false)}
                 onConfirm={() => leaveMutation.mutate()}
                 loading={leaveMutation.isPending}
+              />
+              <CameraCapture
+                open={cameraOpen}
+                onClose={() => setCameraOpen(false)}
+                onCapture={(file) => coverPhotoMutation.mutate(file)}
               />
             </div>
           </>
