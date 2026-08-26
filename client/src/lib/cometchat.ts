@@ -55,6 +55,34 @@ class WebCometChatService {
     return CometChat.sendMessage(msg);
   }
 
+  async sendMediaMessage(guid: string, file: File) {
+    const mediaMessage = new CometChat.MediaMessage(
+      guid,
+      file,
+      CometChat.MESSAGE_TYPE.IMAGE,
+      CometChat.RECEIVER_TYPE.GROUP,
+    );
+    return CometChat.sendMediaMessage(mediaMessage);
+  }
+
+  async editMessage(guid: string, messageId: string, text: string) {
+    const message = new CometChat.TextMessage(guid, text, CometChat.RECEIVER_TYPE.GROUP);
+    message.setId(Number(messageId));
+    return CometChat.editMessage(message);
+  }
+
+  async deleteMessage(messageId: string) {
+    return CometChat.deleteMessage(messageId);
+  }
+
+  async addReaction(messageId: string, emoji: string) {
+    return CometChat.addReaction(Number(messageId), emoji);
+  }
+
+  async removeReaction(messageId: string, emoji: string) {
+    return CometChat.removeReaction(Number(messageId), emoji);
+  }
+
   async createGroup(guid: string, name: string, type: "public" | "private" = "public") {
     const groupType = type === "private" ? CometChat.GROUP_TYPE.PRIVATE : CometChat.GROUP_TYPE.PUBLIC;
     try {
