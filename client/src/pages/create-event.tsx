@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -95,12 +95,14 @@ function IconWrap({ icon: Icon }: { icon: React.ElementType }) {
 
 export default function CreateEvent() {
   const [, navigate] = useLocation();
+  const search = useSearch();
   const { user } = useAuth();
   const qc = useQueryClient();
   const { uploadFile } = useUpload();
   const coverRef = useRef<HTMLInputElement>(null);
 
-  const [bubbleId, setBubbleId] = useState("");
+  const preselectedBubbleId = new URLSearchParams(search).get("bubbleId") ?? "";
+  const [bubbleId, setBubbleId] = useState(preselectedBubbleId);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
