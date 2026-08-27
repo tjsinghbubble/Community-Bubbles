@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ImagePlus, Loader2, Paperclip, X } from "lucide-react";
+import { ArrowLeft, GraduationCap, ImagePlus, Loader2, Paperclip, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { apiRequest } from "@/lib/queryClient";
 import { useUpload } from "@/hooks/use-upload";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, getStoredToken } from "@/context/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { CameraCapture, TakePhotoButton } from "@/components/CameraCapture";
 
@@ -45,13 +45,23 @@ export default function EditBubble() {
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [attachments, setAttachments] = useState<{ url: string; file?: File }[]>([]);
+  const [campusOnly, setCampusOnly] = useState(false);
+  const [me, setMe] = useState<{ campusVerified?: boolean; campusId?: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    apiRequest("GET", "/api/auth/me").then((r) => r.json()).then(setMe).catch(() => {});
+  }, [user]);
+
+  const isCampusVerified = !!(me?.campusVerified && me?.campusId);
 
   useEffect(() => {
     if (!id || !user) return;
     (async () => {
       try {
+        const token = getStoredToken();
         const [bubbleRes, membershipRes] = await Promise.all([
-          fetch(`/api/bubbles/${id}`),
+          fetch(`/api/bubbles/${id}`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined),
           apiRequest("GET", `/api/bubbles/${id}/membership`),
         ]);
         const bubble = await bubbleRes.json();
@@ -72,6 +82,7 @@ export default function EditBubble() {
         setPrivacy(bubble.privacy ?? "Public");
         setMemberLimit(bubble.memberLimit ? String(bubble.memberLimit) : "");
         setLocationName(bubble.locationName ?? "");
+        setCampusOnly(!!bubble.campusId);
         const existingCover = bubble.coverImage || (bubble.images && bubble.images[0]) || null;
         setCoverImage(existingCover);
         setCoverPreview(existingCover ?? "");
@@ -157,6 +168,7 @@ export default function EditBubble() {
         coverImage: nextCoverImage,
         images: nextCoverImage ? [nextCoverImage] : [],
         attachments: nextAttachments,
+        campusId: campusOnly && isCampusVerified ? me?.campusId : null,
       });
 
       if (!res.ok) {
@@ -310,6 +322,29 @@ export default function EditBubble() {
           <Label htmlFor="edit-member-limit">Member limit (optional)</Label>
           <Input id="edit-member-limit" type="number" min={1} value={memberLimit} onChange={(e) => setMemberLimit(e.target.value)} data-testid="input-edit-member-limit" />
         </div>
+
+        {(isCampusVerified || campusOnly) && (
+          <div className="flex items-center gap-3 rounded-xl border border-border p-4">
+            <GraduationCap className="h-5 w-5 flex-shrink-0 text-primary" />
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Campus Only</div>
+              <div className="text-xs text-muted-foreground">Only students from your campus can see and join</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCampusOnly((v) => !v)}
+              className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${campusOnly ? "bg-primary" : "bg-border"}`}
+              data-testid="toggle-edit-campus-only"
+              role="switch"
+              aria-checked={campusOnly}
+            >
+              <span
+                className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                style={{ transform: campusOnly ? "translateX(22px)" : "translateX(2px)" }}
+              />
+            </button>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Privacy</Label>

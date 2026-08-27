@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Check,
+  GraduationCap,
   ImagePlus,
   Loader2,
   Lock,
@@ -72,6 +73,7 @@ type Draft = {
   customRules: string[];
   privacy: string;
   memberLimit: string;
+  campusOnly: boolean;
 };
 
 const blank: Draft = {
@@ -86,6 +88,7 @@ const blank: Draft = {
   customRules: [],
   privacy: "Public",
   memberLimit: "",
+  campusOnly: false,
 };
 
 function getToken(): string | null {
@@ -654,9 +657,39 @@ function StepRules({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => 
   );
 }
 
-function StepPrivacy({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+function StepPrivacy({ draft, setDraft, isCampusVerified }: { draft: Draft; setDraft: (d: Draft) => void; isCampusVerified: boolean }) {
   return (
     <div className="space-y-6 px-5 pb-32 pt-5">
+      {isCampusVerified && (
+        <div
+          className="flex items-center gap-3 border p-4"
+          style={{ borderRadius: DS.radius.lg, borderColor: DS.color.border.default, backgroundColor: DS.color.bg.card }}
+          data-testid="option-campus-only"
+        >
+          <GraduationCap className="h-5 w-5 flex-shrink-0" style={{ color: DS.color.brand.primary }} />
+          <div className="flex-1">
+            <div className="font-semibold" style={{ fontSize: DS.font.base, color: DS.color.text.primary }}>Campus Only</div>
+            <div style={{ fontSize: DS.font.sm, color: DS.color.text.tertiary }}>
+              Only students from your campus can see and join
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDraft({ ...draft, campusOnly: !draft.campusOnly })}
+            className="relative h-6 w-11 flex-shrink-0 rounded-full transition-colors"
+            style={{ backgroundColor: draft.campusOnly ? DS.color.brand.primary : DS.color.border.default }}
+            data-testid="toggle-campus-only"
+            role="switch"
+            aria-checked={draft.campusOnly}
+          >
+            <span
+              className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+              style={{ transform: draft.campusOnly ? "translateX(22px)" : "translateX(2px)" }}
+            />
+          </button>
+        </div>
+      )}
+
       <div>
         <FieldLabel required>Who Can See This Bubble?</FieldLabel>
         <div className="mt-2 space-y-3">
@@ -955,6 +988,7 @@ export default function CreateBubble() {
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
+  const [me, setMe] = useState<{ campusVerified?: boolean; campusId?: string | null } | null>(null);
   const { uploadFile } = useUpload();
 
   useEffect(() => {
@@ -963,6 +997,16 @@ export default function CreateBubble() {
       .then((data: ApiCategory[]) => setApiCategories(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    apiFetch("/api/auth/me")
+      .then((r) => r.json())
+      .then((data) => setMe(data))
+      .catch(() => {});
+  }, [authed]);
+
+  const isCampusVerified = !!(me?.campusVerified && me?.campusId);
 
   const selectedCategory = apiCategories.find(c => c.name === draft.category);
 
@@ -1021,6 +1065,7 @@ export default function CreateBubble() {
           locationLat: null,
           locationLng: null,
           radiusMiles: draft.radiusMiles,
+          campusId: draft.campusOnly && isCampusVerified ? me?.campusId : null,
         }),
       });
 
@@ -1085,7 +1130,7 @@ export default function CreateBubble() {
       case 0: return <StepCategory draft={draft} setDraft={setDraft} apiCategories={apiCategories} />;
       case 1: return <StepDetails draft={draft} setDraft={setDraft} selectedCategory={selectedCategory} />;
       case 2: return <StepRules draft={draft} setDraft={setDraft} />;
-      case 3: return <StepPrivacy draft={draft} setDraft={setDraft} />;
+      case 3: return <StepPrivacy draft={draft} setDraft={setDraft} isCampusVerified={isCampusVerified} />;
       case 4: return <StepPreview draft={draft} />;
     }
   };

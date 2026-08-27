@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, getStoredToken } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { useUpload } from "@/hooks/use-upload";
@@ -1021,7 +1021,10 @@ export default function BubbleDetails() {
 
   const { data: bubbleData, isLoading: bubbleLoading } = useQuery<any>({
     queryKey: [`/api/bubbles/${id}`],
-    queryFn: () => fetch(`/api/bubbles/${id}`).then((r) => r.json()),
+    queryFn: () => {
+      const token = getStoredToken();
+      return fetch(`/api/bubbles/${id}`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then((r) => r.json());
+    },
     enabled: !!id,
   });
 
@@ -1040,7 +1043,10 @@ export default function BubbleDetails() {
 
   const { data: bubbleEvents } = useQuery<any[]>({
     queryKey: [`/api/bubbles/${id}/events`],
-    queryFn: () => fetch(`/api/bubbles/${id}/events`).then((r) => r.json()),
+    queryFn: () => {
+      const token = getStoredToken();
+      return fetch(`/api/bubbles/${id}/events`, token ? { headers: { Authorization: `Bearer ${token}` } } : undefined).then((r) => r.json());
+    },
     enabled: !!id && tab === "events",
   });
 
