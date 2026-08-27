@@ -799,7 +799,7 @@ export async function registerRoutes(
         return res.status(400).json({ error: bodyParsed.error.issues[0].message });
       }
 
-      const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles } = bodyParsed.data as any;
+      const { title, tagline, category, categoryId, description, rules, privacy, coverImage, images, attachments, memberLimit, locationName, locationAddress, locationLat, locationLng, radiusMiles, campusId } = bodyParsed.data as any;
 
       const modResult = moderateText({
         title,
@@ -834,6 +834,7 @@ export async function registerRoutes(
       if (locationLat !== undefined) updateData.locationLat = truncateCoord(locationLat);
       if (locationLng !== undefined) updateData.locationLng = truncateCoord(locationLng);
       if (radiusMiles !== undefined) updateData.radiusMiles = radiusMiles;
+      if (campusId !== undefined) updateData.campusId = campusId;
 
       const updatedBubble = await storage.updateBubble(bubbleId, updateData);
 

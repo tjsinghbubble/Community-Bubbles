@@ -2,9 +2,10 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Heart, Lock, MapPin, Plus, Users } from "lucide-react";
+import { GraduationCap, Heart, Lock, MapPin, Plus, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
 function BubbleCard({ item, onOpen }: { item: any; onOpen: () => void }) {
@@ -87,13 +88,23 @@ function BubbleCard({ item, onOpen }: { item: any; onOpen: () => void }) {
 
 export default function MyBubbles() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const [campusOnly, setCampusOnly] = useState(false);
 
   const { data: bubbles, isLoading } = useQuery<any[]>({
     queryKey: ["/api/bubbles/my"],
     queryFn: () => apiRequest("GET", "/api/bubbles/my").then((r) => r.json()),
   });
 
-  const list = bubbles ?? [];
+  const { data: me } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
+    enabled: !!user,
+  });
+  const isCampusVerified = me?.campusVerified === true;
+
+  const allBubbles = bubbles ?? [];
+  const list = campusOnly ? allBubbles.filter((b) => b.campusId) : allBubbles;
 
   return (
     <AppShell active="bubbles">
@@ -108,14 +119,30 @@ export default function MyBubbles() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => navigate("/explore")}
-            className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold shadow-sm transition hover:bg-black/5"
-            data-testid="button-find-bubbles"
-          >
-            <Plus className="h-4 w-4" />
-            Find more
-          </button>
+          <div className="flex items-center gap-2">
+            {isCampusVerified && (
+              <button
+                onClick={() => setCampusOnly((v) => !v)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full border transition",
+                  campusOnly ? "border-[#35A8F7] bg-[#35A8F7]/10 text-[#35A8F7]" : "border-black/12 bg-white text-black/60 hover:bg-black/5",
+                )}
+                data-testid="button-campus-toggle"
+                aria-pressed={campusOnly}
+                title="Toggle campus-only bubbles"
+              >
+                <GraduationCap className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={() => navigate("/explore")}
+              className="flex items-center gap-1.5 rounded-full border border-black/12 bg-white px-4 py-2 text-[13px] font-semibold shadow-sm transition hover:bg-black/5"
+              data-testid="button-find-bubbles"
+            >
+              <Plus className="h-4 w-4" />
+              Find more
+            </button>
+          </div>
         </div>
 
         {/* Grid */}
@@ -132,9 +159,11 @@ export default function MyBubbles() {
         ) : list.length === 0 ? (
           <div className="py-24 text-center">
             <Users className="mx-auto h-12 w-12 text-black/15" />
-            <div className="mt-4 text-[18px] font-bold text-black/50">No bubbles yet</div>
+            <div className="mt-4 text-[18px] font-bold text-black/50">
+              {campusOnly ? "No campus bubbles yet" : "No bubbles yet"}
+            </div>
             <div className="mt-2 text-[14px] text-black/35">
-              Find a community near you and join today.
+              {campusOnly ? "Join or create a campus-only bubble." : "Find a community near you and join today."}
             </div>
             <button
               onClick={() => navigate("/explore")}

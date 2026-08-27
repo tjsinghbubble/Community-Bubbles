@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  CalendarDays, Clock, MapPin, Users, Send, Crown, Flag, MoreHorizontal,
+  CalendarDays, Clock, GraduationCap, MapPin, Users, Send, Crown, Flag, MoreHorizontal,
   Plus, Check,
 } from "lucide-react";
 import { format, parseISO, isToday, isTomorrow } from "date-fns";
@@ -325,6 +325,7 @@ function EmptyState({ message, sub }: { message: string; sub: string }) {
 export default function Upcoming() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const [campusOnly, setCampusOnly] = useState(false);
 
   const { data: myEvents, isLoading: myLoading } = useQuery<any[]>({
     queryKey: ["/api/events/my"],
@@ -337,12 +338,21 @@ export default function Upcoming() {
     queryFn: () => fetch("/api/events/upcoming").then((r) => r.json()),
   });
 
-  const rsvpd = (myEvents ?? []).filter(
+  const { data: me } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
+    enabled: !!user,
+  });
+  const isCampusVerified = me?.campusVerified === true;
+
+  const rsvpdAll = (myEvents ?? []).filter(
     (e) => new Date(e.date) >= new Date(new Date().toDateString()),
   );
-  const nearby = (upcomingEvents ?? []).filter(
-    (e) => !rsvpd.find((m: any) => m.id === e.id),
+  const nearbyAll = (upcomingEvents ?? []).filter(
+    (e) => !rsvpdAll.find((m: any) => m.id === e.id),
   );
+  const rsvpd = campusOnly ? rsvpdAll.filter((e) => e.campusId) : rsvpdAll;
+  const nearby = campusOnly ? nearbyAll.filter((e) => e.campusId) : nearbyAll;
 
   const isLoading = myLoading || upcomingLoading;
 
@@ -351,15 +361,31 @@ export default function Upcoming() {
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-[28px] font-bold text-black">Upcoming</h1>
-          <button
-            onClick={() => navigate("/create-event")}
-            className="flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold text-white"
-            style={{ background: `linear-gradient(135deg, ${BLUE}, #6C63FF)` }}
-            data-testid="button-create-event"
-          >
-            <Plus className="h-4 w-4" />
-            Create Event
-          </button>
+          <div className="flex items-center gap-2">
+            {isCampusVerified && (
+              <button
+                onClick={() => setCampusOnly((v) => !v)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full border transition",
+                  campusOnly ? "border-[#35A8F7] bg-[#35A8F7]/10 text-[#35A8F7]" : "border-black/12 bg-white text-black/60 hover:bg-black/5",
+                )}
+                data-testid="button-campus-toggle"
+                aria-pressed={campusOnly}
+                title="Toggle campus-only events"
+              >
+                <GraduationCap className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={() => navigate("/create-event")}
+              className="flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold text-white"
+              style={{ background: `linear-gradient(135deg, ${BLUE}, #6C63FF)` }}
+              data-testid="button-create-event"
+            >
+              <Plus className="h-4 w-4" />
+              Create Event
+            </button>
+          </div>
         </div>
 
         {isLoading ? (

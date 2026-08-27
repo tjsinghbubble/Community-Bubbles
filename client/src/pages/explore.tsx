@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
-import { Heart, MapPin, Plus, Users } from "lucide-react";
+import { GraduationCap, Heart, MapPin, Plus, Users } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/AppShell";
 import { CategorySidebar, type CategoryNode } from "@/components/CategorySidebar";
 import { CampusBanner } from "@/components/CampusBanner";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/context/AuthContext";
 
 /* ─── Types ─────────────────────────────────────── */
 type BubbleItem = {
@@ -248,6 +250,7 @@ function nodeMatches(categoryText: string, node: CategoryNode): boolean {
 /* ─── Page ───────────────────────────────────────── */
 export default function Explore() {
   const [, navigate] = useLocation();
+  const { user } = useAuth();
   const urlSearch = useSearch();
   const searchQuery = useMemo(() => new URLSearchParams(urlSearch).get("q") ?? "", [urlSearch]);
 
@@ -255,6 +258,7 @@ export default function Explore() {
   const [selectedNode, setSelectedNode] = useState<CategoryNode | "all">("all");
   const [showAllBubbles, setShowAllBubbles] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const [campusOnly, setCampusOnly] = useState(false);
 
   useEffect(() => {
     setShowAllBubbles(false);
@@ -267,19 +271,49 @@ export default function Explore() {
     queryFn: () => fetch("/api/categories").then((r) => r.json()),
   });
 
+  const { data: me } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
+    enabled: !!user,
+  });
+  const isCampusVerified = me?.campusVerified === true;
+
+  const { data: myCampus } = useQuery<any>({
+    queryKey: ["/api/campus/my-campus"],
+    queryFn: () => apiRequest("GET", "/api/campus/my-campus").then((r) => r.json()),
+    enabled: !!user && isCampusVerified,
+  });
+
   /* Bubbles data */
   const { data: rawBubbles, isLoading: bubblesLoading } = useQuery<any[]>({
     queryKey: ["/api/bubbles"],
     queryFn: () => fetch("/api/bubbles").then((r) => r.json()),
+    enabled: !campusOnly,
   });
 
   /* Events data */
   const { data: rawEvents, isLoading: eventsLoading } = useQuery<any[]>({
     queryKey: ["/api/events"],
     queryFn: () => fetch("/api/events").then((r) => r.json()),
+    enabled: !campusOnly,
   });
 
-  const allBubbles: BubbleItem[] = (rawBubbles ?? []).map((b: any) => ({
+  /* Campus-scoped bubbles/events (only fetched once the toggle is on) */
+  const { data: campusBubbles, isLoading: campusBubblesLoading } = useQuery<any[]>({
+    queryKey: ["/api/campus/bubbles"],
+    queryFn: () => apiRequest("GET", "/api/campus/bubbles").then((r) => r.json()),
+    enabled: campusOnly && isCampusVerified,
+  });
+  const { data: campusEvents, isLoading: campusEventsLoading } = useQuery<any[]>({
+    queryKey: ["/api/campus/events"],
+    queryFn: () => apiRequest("GET", "/api/campus/events").then((r) => r.json()),
+    enabled: campusOnly && isCampusVerified,
+  });
+
+  const bubblesSource = campusOnly ? campusBubbles : rawBubbles;
+  const eventsSource = campusOnly ? campusEvents : rawEvents;
+
+  const allBubbles: BubbleItem[] = (bubblesSource ?? []).map((b: any) => ({
     id: b.id,
     category: b.category ?? "",
     title: b.title ?? "",
@@ -290,7 +324,7 @@ export default function Explore() {
     privacy: b.privacy ?? "Public",
   }));
 
-  const allEvents: any[] = (rawEvents ?? []).filter((e: any) => {
+  const allEvents: any[] = (eventsSource ?? []).filter((e: any) => {
     const eventDate = new Date(e.date);
     if (isNaN(eventDate.getTime())) return false; // guard against corrupt dates
     return eventDate >= new Date(Date.now() - 86400000); // today or future
@@ -345,13 +379,38 @@ export default function Explore() {
           <div className="hidden shrink-0 self-stretch border-l border-black/8 md:block" aria-hidden="true" />
 
           <div className="min-w-0 flex-1 px-4 pt-6 md:pl-8 md:pr-6">
-            <CampusBanner />
+            {isCampusVerified && (
+              <div className="mb-4 flex items-center justify-between" data-testid="row-campus-toggle">
+                {campusOnly && myCampus?.campus ? (
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-black/60" data-testid="text-campus-name">
+                    <GraduationCap className="h-4 w-4" style={{ color: "#35A8F7" }} />
+                    {myCampus.campus.name}
+                  </div>
+                ) : (
+                  <span />
+                )}
+                <button
+                  onClick={() => setCampusOnly((v) => !v)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
+                    campusOnly ? "border-[#35A8F7] bg-[#35A8F7]/10 text-[#35A8F7]" : "border-black/12 bg-white text-black/60 hover:bg-black/5",
+                  )}
+                  data-testid="button-campus-toggle"
+                  aria-pressed={campusOnly}
+                >
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  {campusOnly ? "Showing campus only" : "Show campus only"}
+                </button>
+              </div>
+            )}
+
+            {!campusOnly && <CampusBanner />}
 
             <div className="mb-6">
               <LegacyCategoryChips active={legacyChip} onChange={handleLegacyChip} />
             </div>
 
-            {bubblesLoading || eventsLoading ? (
+            {bubblesLoading || eventsLoading || (campusOnly && (campusBubblesLoading || campusEventsLoading)) ? (
               <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={i} className="space-y-2.5">

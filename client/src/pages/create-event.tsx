@@ -18,6 +18,7 @@ import {
   PawPrint,
   CigaretteOff,
   Accessibility,
+  GraduationCap,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { apiRequest } from "@/lib/queryClient";
@@ -117,8 +118,16 @@ export default function CreateEvent() {
   const [petFriendly, setPetFriendly] = useState(false);
   const [smokeFree, setSmokeFree] = useState(false);
   const [wheelchairAccessible, setWheelchairAccessible] = useState(false);
+  const [campusOnly, setCampusOnly] = useState(false);
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  const { data: me } = useQuery<any>({
+    queryKey: ["/api/auth/me"],
+    queryFn: () => apiRequest("GET", "/api/auth/me").then((r) => r.json()),
+    enabled: !!user,
+  });
+  const isCampusVerified = !!(me?.campusVerified && me?.campusId);
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -139,6 +148,8 @@ export default function CreateEvent() {
     queryFn: () => apiRequest("GET", "/api/bubbles/my").then((r) => r.json()),
     enabled: !!user,
   });
+
+  const selectedBubble = (myBubbles ?? []).find((b: any) => b.id === bubbleId);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -166,6 +177,7 @@ export default function CreateEvent() {
         petFriendly,
         smokeFree,
         wheelchairAccessible,
+        campusId: selectedBubble?.campusId || (campusOnly && isCampusVerified ? me?.campusId : null),
       };
       if (capacity) body.attendeeLimit = Number(capacity);
 
@@ -292,6 +304,46 @@ export default function CreateEvent() {
               <ChevronDown className="h-4 w-4 shrink-0 text-black/35" />
             </div>
           </div>
+
+          {/* Campus scope */}
+          {selectedBubble?.campusId ? (
+            <div
+              className="flex items-center gap-3 rounded-2xl px-4 py-3"
+              style={{ backgroundColor: "#EEF6FE" }}
+              data-testid="banner-event-campus-inherited"
+            >
+              <GraduationCap className="h-4 w-4 shrink-0" style={{ color: BLUE }} />
+              <span className="text-[13px] font-medium text-black/70">
+                This event inherits its bubble's campus-only scope.
+              </span>
+            </div>
+          ) : isCampusVerified ? (
+            <div
+              className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3"
+              style={{ border: "1px solid rgba(0,0,0,0.10)", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}
+              data-testid="option-event-campus-only"
+            >
+              <GraduationCap className="h-4 w-4 shrink-0" style={{ color: BLUE }} />
+              <div className="flex-1">
+                <div className="text-[13px] font-semibold text-black">Campus Only</div>
+                <div className="text-[11px] text-black/45">Only students from your campus can see and join</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCampusOnly((v) => !v)}
+                className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+                style={{ backgroundColor: campusOnly ? BLUE : "rgba(0,0,0,0.15)" }}
+                data-testid="toggle-event-campus-only"
+                role="switch"
+                aria-checked={campusOnly}
+              >
+                <span
+                  className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform"
+                  style={{ transform: campusOnly ? "translateX(22px)" : "translateX(2px)" }}
+                />
+              </button>
+            </div>
+          ) : null}
 
           {/* Cover image */}
           <div>
