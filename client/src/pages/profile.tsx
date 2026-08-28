@@ -335,7 +335,7 @@ export default function Profile() {
                   icon={Clock}
                   label="Needs Attention"
                   sublabel="Review pending bubbles, events & requests"
-                  onClick={() => navigate("/admin/pending")}
+                  onClick={() => navigate(isSuperAdmin ? "/admin/pending" : "/needs-attention")}
                 />
                 {isSuperAdmin && (
                   <SectionRow

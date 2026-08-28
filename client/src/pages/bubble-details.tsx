@@ -1205,7 +1205,7 @@ export default function BubbleDetails() {
             isMember={isMember}
             isAdmin={isAdmin}
             onChat={openBubbleChat}
-            onManage={() => navigate("/admin/pending")}
+            onManage={() => navigate(`/bubble/${bubble.id}/admin`)}
             onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
             onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
           />
@@ -1219,7 +1219,7 @@ export default function BubbleDetails() {
             {/* Admin Dashboard entry point */}
             {isAdmin && (
               <button
-                onClick={() => navigate("/admin/pending")}
+                onClick={() => navigate(`/bubble/${bubble.id}/admin`)}
                 className="mb-4 flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/8"
                 data-testid="button-admin-dashboard"
               >
@@ -1324,7 +1324,7 @@ export default function BubbleDetails() {
                     isMember={isMember}
                     isAdmin={isAdmin}
                     onChat={openBubbleChat}
-                    onManage={() => navigate("/admin/pending")}
+                    onManage={() => navigate(`/bubble/${bubble.id}/admin`)}
                     onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
                     onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
                     trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}
@@ -1339,7 +1339,7 @@ export default function BubbleDetails() {
                     isMember={isMember}
                     isAdmin={isAdmin}
                     onChat={openBubbleChat}
-                    onManage={() => navigate("/admin/pending")}
+                    onManage={() => navigate(`/bubble/${bubble.id}/admin`)}
                     onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
                     onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
                     trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}
@@ -1358,7 +1358,7 @@ export default function BubbleDetails() {
                     isMember={isMember}
                     isAdmin={isAdmin}
                     onChat={openBubbleChat}
-                    onManage={() => navigate("/admin/pending")}
+                    onManage={() => navigate(`/bubble/${bubble.id}/admin`)}
                     onEdit={() => navigate(`/bubble/${bubble.id}/edit`)}
                     onInsights={() => navigate(`/bubble/${bubble.id}/insights`)}
                     trigger={<PrimaryAction label="More" tone="neutral" testId="button-more" />}

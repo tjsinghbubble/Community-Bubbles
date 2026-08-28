@@ -15,6 +15,9 @@ import EventDetails from "./pages/event-details";
 import BubbleDetails from "./pages/bubble-details";
 import EditBubble from "./pages/edit-bubble";
 import BubbleInsights from "./pages/bubble-insights";
+import BubbleAdmin from "./pages/bubble-admin";
+import BubbleWaitlist from "./pages/bubble-waitlist";
+import NeedsAttention from "./pages/needs-attention";
 import Messages from "./pages/messages";
 import MyBubbles from "./pages/my-bubbles";
 import Upcoming from "./pages/upcoming";
@@ -98,6 +101,9 @@ function Router() {
       <Route path="/bubble/:id" component={BubbleDetails} />
       <Route path="/bubble/:id/edit" component={EditBubble} />
       <Route path="/bubble/:id/insights" component={BubbleInsights} />
+      <Route path="/bubble/:id/admin" component={BubbleAdmin} />
+      <Route path="/bubble/:id/waitlist" component={BubbleWaitlist} />
+      <Route path="/needs-attention" component={NeedsAttention} />
       <Route path="/my-bubbles" component={MyBubbles} />
       <Route path="/messages" component={Messages} />
       <Route path="/chat/:id" component={Messages} />
