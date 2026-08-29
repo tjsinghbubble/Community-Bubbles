@@ -64,24 +64,8 @@ export type EventData = {
   bubbleId: string;
 };
 
-export type EventData = {
-  id: string;
-  title: string;
-  description?: string | null;
-  coverImage?: string | null;
-  date: string;
-  startTime: string;
-  endTime?: string | null;
-  locationName?: string | null;
-  locationAddress?: string | null;
-  visibility?: string;
-  attendeeLimit?: number | null;
-  creatorId: string;
-  bubbleId: string;
-};
-
 export type ExploreStackParamList = {
-  ExploreList: undefined;
+  ExploreList: { mode?: 'campus' | 'city' } | undefined;
   BubbleDetails: { bubble: BubbleData };
   BubbleMembers: { bubbleId: string; bubbleTitle: string };
   BubbleEvents: { bubbleId: string; bubbleTitle: string };

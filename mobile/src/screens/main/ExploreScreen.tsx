@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { CreateBubbleEventIcon, BubblesIcon } from '../../components/icons';
@@ -39,6 +39,7 @@ import { PeopleIcon, ClockIcon } from '../../components/icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type NavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'ExploreList'>;
+type ExploreRoute = RouteProp<ExploreStackParamList, 'ExploreList'>;
 
 type EventData = {
   id: string;
@@ -59,8 +60,21 @@ type EventData = {
 
 const SCROLL_THRESHOLD = 60;
 
+const transformBubbles = (data: any[]): BubbleData[] => data.map((bubble: any) => ({
+  id: bubble.id,
+  title: bubble.title,
+  tagline: bubble.tagline,
+  category: bubble.category,
+  description: bubble.description,
+  members: bubble.members || 0,
+  image: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
+  distance: '~',
+  campusId: bubble.campusId || null,
+}));
+
 export default function ExploreScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<ExploreRoute>();
   const { user, token, refreshUser } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'bubbles' | 'events'>('bubbles');
@@ -88,6 +102,12 @@ export default function ExploreScreen() {
   const isCampusVerified = user?.campusVerified === true;
   const hasDismissedPrompt = user?.dismissedCampusPrompt === true;
 
+  useEffect(() => {
+    if (route.params?.mode) {
+      setShowCampusContent(route.params.mode === 'campus' && isCampusVerified);
+    }
+  }, [route.params?.mode, isCampusVerified]);
+
   const fetchData = async (isInitialLoad = false) => {
     try {
       const doFetch = async () => {
@@ -96,17 +116,7 @@ export default function ExploreScreen() {
           apiService.getEvents(),
         ]);
 
-        const transformedBubbles: BubbleData[] = bubblesData.map((bubble: any) => ({
-          id: bubble.id,
-          title: bubble.title,
-          tagline: bubble.tagline,
-          category: bubble.category,
-          description: bubble.description,
-          members: bubble.members || 0,
-          image: resolveMediaUrl(bubble.coverImage) || 'https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=400',
-          distance: '~',
-          campusId: bubble.campusId || null,
-        }));
+        const transformedBubbles = transformBubbles(bubblesData);
 
         if (isMountedRef.current) {
           setBubbles(transformedBubbles);
@@ -120,13 +130,28 @@ export default function ExploreScreen() {
         if (isCampusVerified && token) {
           apiService.setToken(token);
           try {
-            const myCampus = await apiService.getMyCampus();
-            if (isMountedRef.current && myCampus.campus) {
-              setCampusInfo({ name: myCampus.campus.name });
+            const [myCampus, campusBubblesData, campusEventsData] = await Promise.all([
+              apiService.getMyCampus(),
+              apiService.getCampusBubbles(),
+              apiService.getCampusEvents(),
+            ]);
+            if (isMountedRef.current) {
+              setCampusInfo(myCampus.campus ? { name: myCampus.campus.name } : null);
+              setCampusBubbles(transformBubbles(campusBubblesData || []));
+              setCampusEvents(campusEventsData || []);
             }
           } catch (error) {
-            console.error('Failed to fetch campus data:', error);
+            logAppWarn('[Screen] ExploreScreen campus data fetch failed', { error: String(error) });
+            if (isMountedRef.current) {
+              setCampusInfo(null);
+              setCampusBubbles([]);
+              setCampusEvents([]);
+            }
           }
+        } else if (isMountedRef.current) {
+          setCampusInfo(null);
+          setCampusBubbles([]);
+          setCampusEvents([]);
         }
       };
 
@@ -203,8 +228,8 @@ export default function ExploreScreen() {
     return `${hour12}:${minutes} ${ampm}`;
   };
 
-  const displayBubbles = showCampusContent ? bubbles.filter(b => b.campusId) : bubbles;
-  const displayEvents = showCampusContent ? events.filter((e: any) => e.campusId) : events;
+  const displayBubbles = showCampusContent ? campusBubbles : bubbles;
+  const displayEvents = showCampusContent ? campusEvents : events;
 
   const filteredBubbles = displayBubbles.filter((bubble) => {
     const query = searchQuery.toLowerCase();
@@ -387,7 +412,11 @@ export default function ExploreScreen() {
   );
 
   const handleCampusToggle = () => {
-    setShowCampusContent(!showCampusContent);
+    if (isCampusVerified) {
+      const nextShowCampusContent = !showCampusContent;
+      setShowCampusContent(nextShowCampusContent);
+      navigation.setParams({ mode: nextShowCampusContent ? 'campus' : 'city' });
+    }
   };
 
   const renderBubbleCard = (bubble: BubbleData) => (

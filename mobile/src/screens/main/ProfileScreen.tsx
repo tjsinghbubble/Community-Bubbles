@@ -33,8 +33,26 @@ export default function ProfileScreen() {
   const [errorLogCount, setErrorLogCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [myBubbles, setMyBubbles] = useState<any[]>([]);
+  const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
   const isSuperAdmin = user?.isSuperAdmin === true;
   const isBubbleAdmin = useRef(false);
+  const isCampusVerified = user?.campusVerified === true;
+
+  const fetchCampusInfo = useCallback(async () => {
+    if (!user || !isCampusVerified || !token) {
+      setCampusInfo(null);
+      return;
+    }
+
+    try {
+      apiService.setToken(token);
+      const response = await apiService.getMyCampus();
+      setCampusInfo(response.campus ? { name: response.campus.name } : null);
+    } catch (error) {
+      logAppWarn('profile.campus_load_failed', { error: String(error) });
+      setCampusInfo(null);
+    }
+  }, [user, token, isCampusVerified]);
 
   const fetchErrorLogCount = useCallback(async () => {
     if (!user || !isSuperAdmin) {
@@ -53,13 +71,14 @@ export default function ProfileScreen() {
     useCallback(() => {
       checkAdminItems();
       fetchBubbles();
+      fetchCampusInfo();
       apiService.getUnreadNotificationCount().then(r => setUnreadNotifCount(r.count)).catch(() => {});
       fetchErrorLogCount();
       const errorLogInterval = setInterval(fetchErrorLogCount, 30000);
       return () => {
         clearInterval(errorLogInterval);
       };
-    }, [user, fetchErrorLogCount])
+    }, [user, fetchCampusInfo, fetchErrorLogCount])
   );
 
   const fetchBubbles = async () => {
@@ -119,6 +138,13 @@ export default function ProfileScreen() {
     navigation.getParent()?.navigate('MyBubbles', { screen: 'MyBubblesList' });
   };
 
+  const handleExploreMode = (mode: 'campus' | 'city') => {
+    navigation.getParent()?.navigate('Explore', {
+      screen: 'ExploreList',
+      params: { mode },
+    });
+  };
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -133,6 +159,13 @@ export default function ProfileScreen() {
     .filter((b: any) => b.coverImage)
     .slice(0, 3)
     .map((b: any) => b.coverImage);
+
+  const locationAwareUser = user as typeof user & {
+    city?: string | null;
+    cityName?: string | null;
+  };
+  const cityName = locationAwareUser.cityName?.trim() || locationAwareUser.city?.trim() || 'your city';
+  const campusName = campusInfo?.name?.trim() || 'your campus';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -174,6 +207,52 @@ export default function ProfileScreen() {
             {isSuperAdmin ? 'Super Admin' : isBubbleAdmin.current ? 'Admin' : 'Member'}
           </Text>
         </View>
+
+        {isCampusVerified && (
+          <View style={styles.modeSwitchCard} testID="card-explore-mode-switch">
+            <Text style={styles.modeSwitchTitle}>Explore your community</Text>
+            <Text style={styles.modeSwitchSubtitle}>Choose where you want to discover bubbles and events.</Text>
+            <View style={styles.modeOptions}>
+              <TouchableOpacity
+                style={styles.modeOption}
+                onPress={() => handleExploreMode('campus')}
+                testID="button-switch-campus"
+                accessibilityRole="button"
+                accessibilityLabel={`Switch to Campus, ${campusName}`}
+              >
+                <View style={[styles.modeIcon, styles.modeIconCampus]}>
+                  <Ionicons name="school-outline" size={24} color={Colors.brand.bubbleBlue} />
+                </View>
+                <View style={styles.modeOptionCopy}>
+                  <Text style={styles.modeOptionTitle}>Switch to Campus</Text>
+                  <Text style={styles.modeOptionDescription} numberOfLines={2}>
+                    See bubbles and events at {campusName}.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </TouchableOpacity>
+              <View style={styles.modeDivider} />
+              <TouchableOpacity
+                style={styles.modeOption}
+                onPress={() => handleExploreMode('city')}
+                testID="button-switch-city"
+                accessibilityRole="button"
+                accessibilityLabel={`Switch to City, ${cityName}`}
+              >
+                <View style={[styles.modeIcon, styles.modeIconCity]}>
+                  <Ionicons name="location-outline" size={24} color={Colors.text.secondary} />
+                </View>
+                <View style={styles.modeOptionCopy}>
+                  <Text style={styles.modeOptionTitle}>Switch to City</Text>
+                  <Text style={styles.modeOptionDescription} numberOfLines={2}>
+                    See bubbles and events in {cityName}.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={styles.cardsRow}>
           <View style={styles.halfCard} testID="card-interests">
@@ -497,7 +576,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: Colors.background.secondary,
     paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -512,8 +591,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: Typography.sizes.md,
-    fontWeight: Typography.weights.bold,
+    fontSize: Typography.sizes.xxl,
+    fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
     flex: 1,
     textAlign: 'center',
@@ -547,34 +626,33 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   profileCard: {
     backgroundColor: Colors.background.primary,
     borderRadius: 20,
     alignItems: 'center',
-    paddingVertical: 28,
+    paddingVertical: 20,
     paddingHorizontal: 24,
     marginBottom: 12,
-    aspectRatio: 1.15,
     justifyContent: 'center',
     ...CardShadow,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: Colors.brand.midnight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
   },
   avatarImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginBottom: 14,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    marginBottom: 10,
   },
   avatarText: {
     fontSize: Typography.sizes.hero,
@@ -582,10 +660,71 @@ const styles = StyleSheet.create({
     color: Colors.brand.skyWhite,
   },
   userName: {
-    fontSize: Typography.sizes.xxl,
+    fontSize: Typography.sizes.xl,
     fontWeight: Typography.weights.semiBold,
     color: Colors.text.primary,
     marginBottom: 2,
+  },
+  modeSwitchCard: {
+    backgroundColor: Colors.background.primary,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: 12,
+    ...CardShadow,
+  },
+  modeSwitchTitle: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  modeSwitchSubtitle: {
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.lineHeight.sm,
+    color: Colors.text.tertiary,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  modeOptions: {
+    borderRadius: Radius.md,
+    overflow: 'hidden',
+  },
+  modeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  modeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modeIconCampus: {
+    backgroundColor: Colors.background.brandTint,
+  },
+  modeIconCity: {
+    backgroundColor: Colors.background.surface,
+  },
+  modeOptionCopy: {
+    flex: 1,
+  },
+  modeOptionTitle: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.text.primary,
+  },
+  modeOptionDescription: {
+    fontSize: Typography.sizes.sm,
+    lineHeight: Typography.lineHeight.sm,
+    color: Colors.text.tertiary,
+    marginTop: 2,
+  },
+  modeDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.border.light,
+    marginLeft: 60,
   },
   userRole: {
     fontSize: 12,
