@@ -34,6 +34,7 @@ export default function ProfileScreen() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [myBubbles, setMyBubbles] = useState<any[]>([]);
   const [campusInfo, setCampusInfo] = useState<{ name: string } | null>(null);
+  const [campusTileDismissed, setCampusTileDismissed] = useState(false);
   const isSuperAdmin = user?.isSuperAdmin === true;
   const isBubbleAdmin = useRef(false);
   const isCampusVerified = user?.campusVerified === true;
@@ -145,6 +146,26 @@ export default function ProfileScreen() {
     });
   };
 
+  const handleJoinCampus = () => {
+    navigation.getParent()?.navigate('Explore', {
+      screen: 'CampusJoin',
+    });
+  };
+
+  const handleDismissCampusTile = async () => {
+    setCampusTileDismissed(true);
+
+    if (!token) return;
+
+    try {
+      apiService.setToken(token);
+      await apiService.dismissCampusPrompt();
+    } catch (error) {
+      logAppWarn('profile.campus_prompt_dismiss_failed', { error: String(error) });
+      setCampusTileDismissed(false);
+    }
+  };
+
   if (!user) {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -166,6 +187,7 @@ export default function ProfileScreen() {
   };
   const cityName = locationAwareUser.cityName?.trim() || locationAwareUser.city?.trim() || 'your city';
   const campusName = campusInfo?.name?.trim() || 'your campus';
+  const shouldShowCampusJoinTile = !isCampusVerified && !user.dismissedCampusPrompt && !campusTileDismissed;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -251,6 +273,41 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color={Colors.text.tertiary} />
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {shouldShowCampusJoinTile && (
+          <View style={styles.modeSwitchCard} testID="card-campus-join">
+            <View style={styles.joinCampusTileHeader}>
+              <View style={[styles.modeIcon, styles.modeIconCampus]}>
+                <Ionicons name="school-outline" size={24} color={Colors.brand.bubbleBlue} />
+              </View>
+              <View style={styles.modeOptionCopy}>
+                <Text style={styles.modeSwitchTitle}>Join Campus</Text>
+                <Text style={styles.modeSwitchSubtitle}>
+                  Verify your .edu email to find campus bubbles and events.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.joinCampusTileButton}
+              onPress={handleJoinCampus}
+              testID="button-join-campus"
+              accessibilityRole="button"
+              accessibilityLabel="Join Campus"
+            >
+              <Text style={styles.joinCampusTileButtonText}>Join Campus</Text>
+              <Ionicons name="arrow-forward" size={18} color={Colors.brand.bubbleBlue} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dismissCampusTileButton}
+              onPress={handleDismissCampusTile}
+              testID="button-dismiss-campus-tile"
+              accessibilityRole="button"
+              accessibilityLabel="I'm not a student"
+            >
+              <Text style={styles.dismissCampusTileText}>I'm not a student</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -725,6 +782,33 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border.light,
     marginLeft: 60,
+  },
+  joinCampusTileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  joinCampusTileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border.light,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+  },
+  joinCampusTileButtonText: {
+    fontSize: Typography.sizes.base,
+    fontWeight: Typography.weights.semiBold,
+    color: Colors.brand.bubbleBlue,
+  },
+  dismissCampusTileButton: {
+    alignItems: 'center',
+    paddingTop: Spacing.md,
+  },
+  dismissCampusTileText: {
+    fontSize: Typography.sizes.sm,
+    color: Colors.text.tertiary,
   },
   userRole: {
     fontSize: 12,

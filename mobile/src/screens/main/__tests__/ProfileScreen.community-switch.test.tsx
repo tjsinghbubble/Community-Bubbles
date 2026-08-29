@@ -106,6 +106,7 @@ jest.mock('../../../services/api.service', () => ({
   default: {
     setToken: jest.fn(),
     getMyCampus: (...args: any[]) => mockGetMyCampus(...args),
+    dismissCampusPrompt: jest.fn().mockResolvedValue({ success: true }),
     getMyBubbles: jest.fn().mockResolvedValue([]),
     getUnreadNotificationCount: jest.fn().mockResolvedValue({ count: 0 }),
     getAdminPendingCount: jest.fn().mockResolvedValue({ count: 0 }),
@@ -133,7 +134,7 @@ beforeEach(() => {
 });
 
 describe('ProfileScreen community switch', () => {
-  it('stays hidden until campus verification is complete', async () => {
+  it('shows Join Campus for an unverified user who has not declined', async () => {
     const ProfileScreen = require('../ProfileScreen').default;
     let rendered: any;
 
@@ -142,6 +143,27 @@ describe('ProfileScreen community switch', () => {
     });
 
     expect(rendered.root.findAll((node: any) => node.props.testID === 'card-explore-mode-switch')).toHaveLength(0);
+    expect(rendered.root.findAll((node: any) => node.props.testID === 'card-campus-join')).toHaveLength(1);
+
+    await act(async () => {
+      rendered.unmount();
+    });
+  });
+
+  it('hides Join Campus permanently after the user declines it', async () => {
+    const ProfileScreen = require('../ProfileScreen').default;
+    let rendered: any;
+
+    await act(async () => {
+      rendered = create(<ProfileScreen />);
+    });
+
+    const dismissButton = rendered.root.find((node: any) => node.props.testID === 'button-dismiss-campus-tile');
+    await act(async () => {
+      await dismissButton.props.onPress();
+    });
+
+    expect(rendered.root.findAll((node: any) => node.props.testID === 'card-campus-join')).toHaveLength(0);
 
     await act(async () => {
       rendered.unmount();
