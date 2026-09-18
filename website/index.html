@@ -333,40 +333,50 @@
             background: #E2E2E2;
         }
 
-        .social-button {
+        .social-icon-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            border: 1px solid #E2E2E2;
-            border-radius: 8px;
-            padding: 13px 16px;
-            background: white;
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: #1E1F26;
-            text-decoration: none;
-            margin-bottom: 12px;
-            cursor: pointer;
-            font-family: inherit;
-            width: 100%;
-            box-sizing: border-box;
+            gap: 16px;
+            margin-bottom: 20px;
         }
 
-        .social-button:hover {
-            background: #F7F9FB;
+        .social-icon-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: 1px solid #E2E2E2;
+            background: white;
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .social-icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+        }
+
+        .social-icon-btn.apple {
+            background: #1E1F26;
+            border-color: #1E1F26;
         }
 
         .google-mark {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             flex-shrink: 0;
         }
 
         .apple-mark {
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             flex-shrink: 0;
+            color: #FFFFFF;
         }
 
         /* TEST ACCOUNT TEXT */
@@ -654,22 +664,22 @@
                 <span class="line"></span>
             </div>
 
-            <button type="button" class="social-button" id="google-btn">
-                <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
-                    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                Continue with Google
-            </button>
-            <button type="button" class="social-button" id="apple-btn">
-                <svg class="apple-mark" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 6.528V3a1 1 0 0 1 1-1h0" />
-                    <path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21" />
-                </svg>
-                Continue with Apple
-            </button>
+            <div class="social-icon-row">
+                <button type="button" class="social-icon-btn google" id="google-btn" aria-label="Continue with Google" title="Continue with Google">
+                    <svg class="google-mark" viewBox="0 0 48 48" aria-hidden="true">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                </button>
+                <button type="button" class="social-icon-btn apple" id="apple-btn" aria-label="Continue with Apple" title="Continue with Apple">
+                    <svg class="apple-mark" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 6.528V3a1 1 0 0 1 1-1h0" />
+                        <path d="M18.237 21A15 15 0 0 0 22 11a6 6 0 0 0-10-4.472A6 6 0 0 0 2 11a15.1 15.1 0 0 0 3.763 10 3 3 0 0 0 3.648.648 5.5 5.5 0 0 1 5.178 0A3 3 0 0 0 18.237 21" />
+                    </svg>
+                </button>
+            </div>
 
             <p class="terms-text">
                 By continuing, you agree to Bubble's <a href="terms.html">Terms of Service</a><br>and <a href="privacy.html">Privacy Policy</a>.
