@@ -23,6 +23,14 @@
         "NSPhotoLibraryUsageDescription": "Bubble needs access to your photos so you can upload profile pictures, share images in your communities, and add photos to events.",
         "NSCameraUsageDescription": "Bubble needs access to your camera so you can take photos to share in your communities and events.",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       }
     },
     "android": {
@@ -72,6 +80,7 @@
       "./plugins/withSoLoaderInit",
       "expo-secure-store",
       "expo-apple-authentication",
+      "expo-notifications",
       [
         "@react-native-google-signin/google-signin",
         {
