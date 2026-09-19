@@ -9,6 +9,13 @@ import { z } from "zod";
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const GOOGLE_CLIENT_ID_IOS = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS as string;
 const GOOGLE_CLIENT_ID_ANDROID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID as string;
+const GOOGLE_CLIENT_ID_WEB = process.env.GOOGLE_CLIENT_ID_WEB as string;
+
+// Apple verifies the token's `aud` claim against the app that requested it —
+// the native app's bundle ID for mobile, and a separate web Services ID for
+// browser sign-in. Both are accepted so one endpoint serves both platforms.
+const APPLE_BUNDLE_ID = process.env.APPLE_BUNDLE_ID || "io.trybubble.app";
+const APPLE_SERVICES_ID = process.env.APPLE_SERVICES_ID as string;
 
 function makeJwt(userId: string, tokenVersion: number): string {
   return jwt.sign({ userId, tokenVersion }, JWT_SECRET, { expiresIn: "30d" });
@@ -25,6 +32,20 @@ export function registerSocialAuthRoutes(app: Express, options: RegisterSocialAu
   const checkEmailMiddleware: RequestHandler[] = options.checkEmailRateLimiter
     ? [options.checkEmailRateLimiter]
     : [];
+
+  // ---------------------------------------------------------------------------
+  // GET /api/auth/social-config
+  // Tells the web welcome page which social providers are actually configured
+  // so it knows whether to wire up real sign-in or fall back to the existing
+  // "isn't set up yet" notice. Only public client identifiers are returned —
+  // never a secret — so this is safe to expose unauthenticated.
+  // ---------------------------------------------------------------------------
+  app.get("/api/auth/social-config", (req: any, res: any) => {
+    res.json({
+      googleClientId: GOOGLE_CLIENT_ID_WEB || null,
+      appleServicesId: APPLE_SERVICES_ID || null,
+    });
+  });
 
   // ---------------------------------------------------------------------------
   // POST /api/auth/check-email
@@ -61,8 +82,8 @@ export function registerSocialAuthRoutes(app: Express, options: RegisterSocialAu
 
       const { idToken } = parsed.data;
 
-      // Verify the Google ID token — accept both iOS and Android client IDs
-      const audience = [GOOGLE_CLIENT_ID_IOS, GOOGLE_CLIENT_ID_ANDROID].filter(Boolean);
+      // Verify the Google ID token — accept iOS, Android, and web client IDs
+      const audience = [GOOGLE_CLIENT_ID_IOS, GOOGLE_CLIENT_ID_ANDROID, GOOGLE_CLIENT_ID_WEB].filter(Boolean);
       if (audience.length === 0) {
         console.error("[google-auth] No Google client IDs configured");
         return res.status(500).json({ error: "Google Sign In is not configured" });
@@ -176,7 +197,7 @@ export function registerSocialAuthRoutes(app: Express, options: RegisterSocialAu
       let applePayload: any;
       try {
         applePayload = await appleSignIn.verifyIdToken(identityToken, {
-          audience: "io.trybubble.app",
+          audience: [APPLE_BUNDLE_ID, APPLE_SERVICES_ID].filter(Boolean),
           ignoreExpiration: false,
         });
       } catch (verifyErr: any) {

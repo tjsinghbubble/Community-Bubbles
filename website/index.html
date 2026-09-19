@@ -553,6 +553,8 @@
             }
         }
     </style>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js" async defer></script>
 </head>
 <body>
     <main>
@@ -679,6 +681,10 @@
                     </svg>
                 </button>
             </div>
+            <!-- Google only issues an ID token through its own rendered button/prompt UI,
+                 not a fully custom trigger — so a real (but off-screen) Google button lives
+                 here, and the circular #google-btn above forwards its click to it. -->
+            <div id="google-btn-real" style="position: absolute; top: -9999px; left: -9999px;" aria-hidden="true"></div>
 
             <p class="terms-text">
                 By continuing, you agree to Bubble's <a href="terms.html">Terms of Service</a><br>and <a href="privacy.html">Privacy Policy</a>.
@@ -1041,14 +1047,107 @@
             pwToggleBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
         });
 
-        // Social sign-in isn't available on web yet — mirror the app's notice
-        // instead of bouncing through a second page.
+        // Social sign-in — wired to real Google/Apple OAuth once the server has
+        // GOOGLE_CLIENT_ID_WEB / APPLE_SERVICES_ID configured (see
+        // GET /api/auth/social-config). Falls back to this notice for whichever
+        // provider isn't configured, so local dev (neither set) is unchanged.
         function socialNotice(provider) {
             showEmailStep();
             setError(emailError, provider + " sign-in isn't set up on web yet — continue with email above, or use the mobile app.");
         }
-        document.getElementById('google-btn').addEventListener('click', function() { socialNotice('Google'); });
-        document.getElementById('apple-btn').addEventListener('click', function() { socialNotice('Apple'); });
+
+        function socialSignInFailed(provider, message) {
+            showEmailStep();
+            setError(emailError, message || (provider + ' sign-in failed. Please try again.'));
+        }
+
+        async function finishSocialLogin(data) {
+            try {
+                localStorage.setItem('bubble_web_token', data.token);
+                localStorage.setItem('bubble_web_user', JSON.stringify(data.user));
+            } catch (e) {
+                setError(emailError, 'Your browser is blocking storage — enable cookies/site data and try again.');
+                return;
+            }
+            window.location.href = '/explore';
+        }
+
+        async function handleGoogleCredential(response) {
+            try {
+                const data = await postJson('/api/auth/google', { idToken: response.credential });
+                await finishSocialLogin(data);
+            } catch (err) {
+                socialSignInFailed('Google', err.message);
+            }
+        }
+
+        async function handleAppleResponse(response) {
+            try {
+                const name = response.user && response.user.name;
+                const data = await postJson('/api/auth/apple', {
+                    identityToken: response.authorization.id_token,
+                    fullName: name ? { givenName: name.firstName || null, familyName: name.lastName || null } : null,
+                });
+                await finishSocialLogin(data);
+            } catch (err) {
+                socialSignInFailed('Apple', err.message);
+            }
+        }
+
+        // The SDK <script> tags load with async/defer, so window.google / window.AppleID
+        // may not exist yet when this runs — poll briefly rather than assume readiness.
+        function waitFor(check, timeoutMs) {
+            return new Promise(function(resolve) {
+                const start = Date.now();
+                (function poll() {
+                    if (check()) return resolve(true);
+                    if (Date.now() - start >= timeoutMs) return resolve(false);
+                    setTimeout(poll, 100);
+                })();
+            });
+        }
+
+        (async function initSocialAuth() {
+            const googleBtn = document.getElementById('google-btn');
+            const appleBtn = document.getElementById('apple-btn');
+
+            let config = { googleClientId: null, appleServicesId: null };
+            try {
+                const res = await fetch('/api/auth/social-config');
+                if (res.ok) config = await res.json();
+            } catch (e) { /* network error — fall through to the stub below */ }
+
+            if (config.googleClientId && await waitFor(function() { return window.google && window.google.accounts; }, 4000)) {
+                google.accounts.id.initialize({ client_id: config.googleClientId, callback: handleGoogleCredential });
+                // Custom-styled triggers can't open the GIS flow directly — render
+                // Google's real button off-screen and forward clicks to it.
+                google.accounts.id.renderButton(document.getElementById('google-btn-real'), { type: 'icon', size: 'large' });
+                googleBtn.addEventListener('click', function() {
+                    const realBtn = document.querySelector('#google-btn-real div[role="button"]');
+                    if (realBtn) realBtn.click();
+                    else socialSignInFailed('Google', null);
+                });
+            } else {
+                googleBtn.addEventListener('click', function() { socialNotice('Google'); });
+            }
+
+            if (config.appleServicesId && await waitFor(function() { return window.AppleID; }, 4000)) {
+                AppleID.auth.init({
+                    clientId: config.appleServicesId,
+                    scope: 'name email',
+                    redirectURI: window.location.origin,
+                    usePopup: true,
+                });
+                appleBtn.addEventListener('click', function() {
+                    AppleID.auth.signIn().then(handleAppleResponse).catch(function(err) {
+                        if (err && err.error === 'popup_closed_by_user') return;
+                        socialSignInFailed('Apple', null);
+                    });
+                });
+            } else {
+                appleBtn.addEventListener('click', function() { socialNotice('Apple'); });
+            }
+        })();
     </script>
 </body>
 </html>
